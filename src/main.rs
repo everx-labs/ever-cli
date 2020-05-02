@@ -109,6 +109,7 @@ fn main_internal() -> Result <(), String> {
         )
         (@subcommand deploy =>
             (@setting AllowNegativeNumbers)
+            (@setting AllowLeadingHyphen)
             (about: "Deploy smart contract to blockchain.")
             (version: "0.1")
             (author: "TONLabs")
@@ -116,6 +117,7 @@ fn main_internal() -> Result <(), String> {
             (@arg PARAMS: +required +takes_value "Constructor arguments.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
             (@arg SIGN: --sign +takes_value "Keypair used to sign 'constructor message'.")
+            (@arg WC: --wc +takes_value "Workchain id of the smart contract (default 0).")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
         (@subcommand call =>
@@ -344,6 +346,7 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
 fn deploy_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let tvc = matches.value_of("TVC");
     let params = matches.value_of("PARAMS");
+    let wc = matches.value_of("WC");
     let abi = Some(
         matches.value_of("ABI")
             .map(|s| s.to_string())
@@ -356,8 +359,13 @@ fn deploy_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
             .or(config.keys_path.clone())
             .ok_or("keypair file not defined. Supply it in config file or command line.".to_string())?
     );
-    print_args!(matches, tvc, params, abi, keys);
-    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), params.unwrap(), &keys.unwrap())
+    print_args!(matches, tvc, params, abi, keys, wc);
+
+    let wc = wc.map(|v| i32::from_str_radix(v, 10))
+        .transpose()
+        .map_err(|e| format!("failed to parse workchain id: {}", e))?
+        .unwrap_or(0);
+    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), params.unwrap(), &keys.unwrap(), wc)
 }
 
 fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
