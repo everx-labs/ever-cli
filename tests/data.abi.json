@@ -1,0 +1,43 @@
+{
+	"ABI version": 1,
+	"functions": [
+		{
+			"name": "sendTransaction",
+			"inputs": [
+				{"name":"dest","type":"address"},
+				{"name":"value","type":"uint128"},
+				{"name":"bounce","type":"bool"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "getId",
+			"inputs": [
+			],
+			"outputs": [
+				{"name":"id","type":"uint256"}
+			]
+		},
+		{
+			"name": "getKey",
+			"inputs": [
+			],
+			"outputs": [
+				{"name":"key","type":"uint256"}
+			]
+		},
+		{
+			"name": "constructor",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		}
+	],
+	"data": [
+		{"key":1,"name":"m_id","type":"uint256"}
+	],
+	"events": [
+	]
+}
