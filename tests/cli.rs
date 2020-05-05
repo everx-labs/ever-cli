@@ -118,3 +118,36 @@ fn test_genaddr_initdata() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
+    let giver_abi_name = "tests/samples/giver.abi.json";
+    let precalculated_addr = "0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e";
+    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("--abi")
+        .arg(giver_abi_name)
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("sendGrams")
+        // use precalculated wallet address
+        .arg(r#"{"dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e","amount":1000000000}"#);
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("deploy")
+        .arg("tests/samples/wallet.tvc")
+        .arg("{}")
+        .arg("--abi")
+        .arg("tests/samples/wallet.abi.json")
+        .arg("--sign")
+        .arg(seed_phrase);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(precalculated_addr))
+        .stdout(predicate::str::contains("Transaction succeded."));
+
+    Ok(())
+}

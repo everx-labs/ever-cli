@@ -49,7 +49,7 @@ fn prepare_message(
     keys: Option<String>,
 ) -> Result<EncodedMessage, String> {    
     
-    let keys = load_keypair(keys)?;
+    let keys = keys.map(|k| load_keypair(&k)).transpose()?;
 
     ton.contracts.create_run_message(
         addr,
