@@ -12,46 +12,17 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use crate::crypto::{generate_keypair_from_mnemonic, KeyPair};
-use crate::helpers::read_keys;
+use crate::crypto::load_keypair;
 use chrono::{TimeZone, Local};
 use hex;
 use std::time::SystemTime;
 use ton_client_rs::{
-    TonClient, TonClientConfig, TonAddress, Ed25519KeyPair, EncodedMessage
+    TonClient, TonClientConfig, TonAddress, EncodedMessage
 };
 use ton_types::cells_serialization::{BagOfCells};
 
 fn now() -> u32 {
     SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as u32
-}
-
-fn keypair_to_ed25519pair(pair: KeyPair) -> Result<Ed25519KeyPair, String> {
-    let mut buffer = [0u8; 64];
-    let public_vec = hex::decode(&pair.public)
-        .map_err(|e| format!("failed to decode public key: {}", e))?;
-    let private_vec = hex::decode(&pair.secret)
-        .map_err(|e| format!("failed to decode private key: {}", e))?;
-
-    buffer[..32].copy_from_slice(&private_vec);
-    buffer[32..].copy_from_slice(&public_vec);
-
-    Ok(Ed25519KeyPair::zero().from_bytes(buffer))
-}
-
-fn load_keypair(keys: Option<String>) -> Result<Option<Ed25519KeyPair>, String> {
-    match keys {
-        Some(keys) => {
-            if keys.find(' ').is_none() {
-                let keys = read_keys(&keys)?;
-                Ok(Some(keys))
-            } else {
-                let pair = generate_keypair_from_mnemonic(&keys)?;
-                Ok(Some(keypair_to_ed25519pair(pair)?))
-            }
-        },
-        None => Ok(None),
-    }
 }
 
 fn create_client(url: String) -> Result<TonClient, String> {
