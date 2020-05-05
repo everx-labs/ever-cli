@@ -186,6 +186,15 @@ pub fn extract_pubkey(mnemonic: &str) -> Result<(), String> {
     Ok(())
 }
 
+pub fn generate_keypair(keys_path: &str, mnemonic: &str) -> Result<(), String> {
+    let keys = keypair_to_ed25519pair(generate_keypair_from_mnemonic(mnemonic)?)?;
+    let keys_json = serde_json::to_string_pretty(&keys).unwrap();
+    std::fs::write(keys_path, &keys_json)
+        .map_err(|e| format!("failed to create file with keys: {}", e))?;
+    println!("Succeeded.");
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

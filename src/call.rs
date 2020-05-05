@@ -181,7 +181,7 @@ pub fn call_contract(
             .output
     };
 
-    println!("Succeded.");
+    println!("Succeeded.");
     if !result.is_null() {
         println!("Result: {}", serde_json::to_string_pretty(&result).unwrap());
     }

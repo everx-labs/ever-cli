@@ -39,7 +39,7 @@ pub fn get_account(conf: Config, addr: &str) -> Result<(), String> {
         None,
         None,
     ).map_err(|e| format!("failed to query account info: {}", e.to_string()))?;
-    println!("Succeded.");
+    println!("Succeeded.");
 
     if query_result.len() == 1 {
         let acc = &query_result[0];

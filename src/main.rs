@@ -30,7 +30,7 @@ use account::get_account;
 use call::{call_contract, call_contract_with_msg, generate_message};
 use clap::ArgMatches;
 use config::{Config, set_config};
-use crypto::{generate_mnemonic, extract_pubkey};
+use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use deploy::deploy_contract;
 use genaddr::generate_address;
 
@@ -91,8 +91,15 @@ fn main_internal() -> Result <(), String> {
         (@subcommand genpubkey =>
             (about: "Generates seed phrase.")
             (author: "TONLabs")
+            (@arg PHRASE: +required +takes_value "Seed phrase (12 words).")
+        )
+        (@subcommand getkeypair =>
+            (about: "Generates keypair from seed phrase and saves it to file.")
+            (author: "TONLabs")
+            (@arg KEY_FILE: +required +takes_value "Path to file where to store keypair.")
             (@arg PHRASE: +required +takes_value "Seed phrase (12 words)")
-        )        
+            (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+        )
         (@subcommand genaddr =>
             (@setting AllowNegativeNumbers)
             (about: "Calculates smart contract address in different formats. By default, input tvc file isn't modified.")
@@ -210,6 +217,9 @@ fn main_internal() -> Result <(), String> {
     if let Some(m) = matches.subcommand_matches("genaddr") {
         return genaddr_command(m, conf);
     }
+    if let Some(m) = matches.subcommand_matches("getkeypair") {
+        return getkeypair_command(m, conf);
+    }
     if let Some(m) = matches.subcommand_matches("account") {
         return account_command(m, conf);
     }
@@ -263,6 +273,13 @@ fn genphrase_command(_matches: &ArgMatches, _config: Config) -> Result<(), Strin
 fn genpubkey_command(matches: &ArgMatches, _config: Config) -> Result<(), String> {
     let mnemonic = matches.value_of("PHRASE").unwrap();
     extract_pubkey(mnemonic)
+}
+
+fn getkeypair_command(matches: &ArgMatches, _config: Config) -> Result<(), String> {
+    let key_file = matches.value_of("KEY_FILE");
+    let phrase = matches.value_of("PHRASE");
+    print_args!(matches, key_file, phrase);
+    generate_keypair(key_file.unwrap(), phrase.unwrap())
 }
 
 fn send_command(matches: &ArgMatches, config: Config) -> Result<(), String> {

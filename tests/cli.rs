@@ -29,7 +29,7 @@ fn test_call_giver() -> Result<(), Box<dyn std::error::Error>> {
         .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1000000000}"#);
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Succeded"));
+        .stdout(predicate::str::contains("Succeeded"));
 
     Ok(())
 }
@@ -46,7 +46,7 @@ fn test_genaddr_genkey() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Raw address"))
         .stdout(predicate::str::contains("Seed phrase"))
-        .stdout(predicate::str::contains("Succeded"));
+        .stdout(predicate::str::contains("Succeeded"));
 
     Ok(())
 }
@@ -66,7 +66,7 @@ fn test_genaddr() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("keys:"))
         .stdout(predicate::str::contains("Raw address"))
         .stdout(predicate::str::contains("Seed phrase"))
-        .stdout(predicate::str::contains("Succeded"));
+        .stdout(predicate::str::contains("Succeeded"));
     Ok(())
 }
 
@@ -81,7 +81,7 @@ fn test_genaddr_setkey() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Raw address"))
-        .stdout(predicate::str::contains("Succeded"));
+        .stdout(predicate::str::contains("Succeeded"));
     Ok(())
 }
 
@@ -96,7 +96,7 @@ fn test_genaddr_wc() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Raw address: -1"))
-        .stdout(predicate::str::contains("Succeded"));
+        .stdout(predicate::str::contains("Succeeded"));
     Ok(())
 }
 
@@ -114,7 +114,7 @@ fn test_genaddr_initdata() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("TVC file updated"))
-        .stdout(predicate::str::contains("Succeded"));
+        .stdout(predicate::str::contains("Succeeded"));
 
     Ok(())
 }
@@ -147,7 +147,24 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(precalculated_addr))
-        .stdout(predicate::str::contains("Transaction succeded."));
+        .stdout(predicate::str::contains("Transaction succeeded."));
+
+    Ok(())
+}
+
+#[test]
+fn test_getkeypair() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("getkeypair")
+        .arg("tests/samples/tmp.json")
+        .arg("ghost frost pool buzz rival mad naive rare shell tooth smart praise");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."));
+
+    let checked_keys = std::fs::read_to_string("tests/samples/tmp.json").unwrap();
+    let expected_keys = std::fs::read_to_string("tests/samples/exp.json").unwrap();
+    assert_eq!(expected_keys, checked_keys);
 
     Ok(())
 }

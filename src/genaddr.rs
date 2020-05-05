@@ -35,7 +35,7 @@ pub fn generate_address(
     let ton = TonClient::default()
         .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))?;
 
-        let contract = std::fs::read(tvc)
+    let contract = std::fs::read(tvc)
         .map_err(|e| format!("failed to read smart contract file: {}", e.to_string()))?;
 
     let abi = std::fs::read_to_string(abi)
@@ -87,7 +87,7 @@ pub fn generate_address(
         println!("Bounceable address (for later access): {}", &calc_userfriendly_address(wc, &addr256, true, false));
     }
 
-    println!("Succeded");
+    println!("Succeeded");
     Ok(())
 }
 
