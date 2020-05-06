@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use crate::helpers::read_keys;
+use crate::crypto::load_keypair;
 use ton_client_rs::TonClient;
 
 pub fn deploy_contract(conf: Config, tvc: &str, abi: &str, params: &str, keys_file: &str, wc: i32) -> Result<(), String> {
@@ -22,7 +22,7 @@ pub fn deploy_contract(conf: Config, tvc: &str, abi: &str, params: &str, keys_fi
     let abi = std::fs::read_to_string(abi)
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
     
-    let keys = read_keys(keys_file)?;
+    let keys = load_keypair(keys_file)?;
     
     let contract = std::fs::read(tvc)
         .map_err(|e| format!("failed to read smart contract file: {}", e.to_string()))?;

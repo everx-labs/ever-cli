@@ -43,18 +43,13 @@ pub fn keypair_to_ed25519pair(pair: KeyPair) -> Result<Ed25519KeyPair, String> {
     Ok(Ed25519KeyPair::zero().from_bytes(buffer))
 }
 
-pub fn load_keypair(keys: Option<String>) -> Result<Option<Ed25519KeyPair>, String> {
-    match keys {
-        Some(keys) => {
-            if keys.find(' ').is_none() {
-                let keys = read_keys(&keys)?;
-                Ok(Some(keys))
-            } else {
-                let pair = generate_keypair_from_mnemonic(&keys)?;
-                Ok(Some(keypair_to_ed25519pair(pair)?))
-            }
-        },
-        None => Ok(None),
+pub fn load_keypair(keys: &str) -> Result<Ed25519KeyPair, String> {
+    if keys.find(' ').is_none() {
+        let keys = read_keys(&keys)?;
+        Ok(keys)
+    } else {
+        let pair = generate_keypair_from_mnemonic(&keys)?;
+        Ok(keypair_to_ed25519pair(pair)?)
     }
 }
 
