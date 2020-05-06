@@ -20,6 +20,7 @@ use ton_client_rs::{TonClient, TonAddress};
 use serde_json;
 use std::fs::OpenOptions;
 use ton_sdk;
+use crate::crypto::{gen_seed_phrase, generate_keypair_from_mnemonic, keypair_to_ed25519pair};
 
 pub fn generate_address(
     _conf: Config,
@@ -40,48 +41,43 @@ pub fn generate_address(
     let abi = std::fs::read_to_string(abi)
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
 
-    let mut new_keys_file = None;
-    let mut print_keys = false;
-    let keys = if let Some(filename) = keys_file {
-        if new_keys {
-            new_keys_file = Some(filename);
-            ton.crypto.generate_ed25519_keys()
-                .map_err(|e| format!("keypair generation failed: {}", e.to_string()))?
-        } else {
-            read_keys(filename)?
-        }
+    let (phrase, keys) = if keys_file.is_some() && !new_keys {
+        (None, read_keys(keys_file.unwrap())?)
     } else {
-        print_keys = true;
-        ton.crypto.generate_ed25519_keys()
-            .map_err(|e| format!("failed to generate keypair: {}", e.to_string()))?
+        let seed_phr = gen_seed_phrase()?;
+        let pair = generate_keypair_from_mnemonic(&seed_phr)?;
+        (Some(seed_phr), keypair_to_ed25519pair(pair)?)
     };
-        
+    
     let initial_data = initial_data.map(|s| s.to_string());
+    
     let wc = i32::from_str_radix(wc_str.unwrap_or("0"), 10)
-        .map_err(|e| format!("failed to parse workchain id: {}", e))?;
-
-        let addr = ton.contracts.get_deploy_address(
+    .map_err(|e| format!("failed to parse workchain id: {}", e))?;
+    
+    let addr = ton.contracts.get_deploy_address(
         &abi,
         &contract,
         initial_data.clone().map(|d| d.into()),
         &keys.public,
         wc,
     ).map_err(|e| format!("failed to generate address: {}", e.to_string()))?;
-
+    
+    println!();
+    if let Some(phr) = phrase {
+        println!(r#"Seed phrase: "{}""#, phr);
+        println!();
+    }
     println!("Raw address: {}", addr);
-
+    
     if update_tvc {
         update_contract_state(tvc, &keys.public.0, initial_data, &abi)?;
     }
-
-    let keys_json = serde_json::to_string_pretty(&keys).unwrap();
-    if new_keys_file.is_some() {
-        std::fs::write(new_keys_file.unwrap(), &keys_json).unwrap();
+    
+    if new_keys && keys_file.is_some() {
+        let keys_json = serde_json::to_string_pretty(&keys).unwrap();
+        std::fs::write(keys_file.unwrap(), &keys_json).unwrap();
     }
-    if print_keys {
-        println!("Keypair: {}", keys_json);
-    }
-
+    
     if let TonAddress::Std(wc, addr256) = addr {
         println!("testnet:");
         println!("Non-bounceable address (for init): {}", &calc_userfriendly_address(wc, &addr256, false, true));

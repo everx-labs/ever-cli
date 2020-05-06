@@ -1,8 +1,10 @@
+use crate::helpers::read_keys;
 use ton_client::InteropContext;
 use ton_client::{tc_json_request, InteropString};
 use ton_client::{tc_read_json_response, tc_destroy_json_response, JsonResponse};
 use serde_json::{Value};
 use ton_client::{tc_create_context, tc_destroy_context};
+use ton_client_rs::Ed25519KeyPair;
 
 const HD_PATH: &str = "m/44'/396'/0'/0/0";
 const WORD_COUNT: u8 = 12;
@@ -25,6 +27,34 @@ fn interop_string_to_string(istr: InteropString) -> String {
     unsafe {
         let utf8 = std::slice::from_raw_parts(istr.content, istr.len as usize);
         String::from_utf8(utf8.to_vec()).unwrap()
+    }
+}
+
+pub fn keypair_to_ed25519pair(pair: KeyPair) -> Result<Ed25519KeyPair, String> {
+    let mut buffer = [0u8; 64];
+    let public_vec = hex::decode(&pair.public)
+        .map_err(|e| format!("failed to decode public key: {}", e))?;
+    let private_vec = hex::decode(&pair.secret)
+        .map_err(|e| format!("failed to decode private key: {}", e))?;
+
+    buffer[..32].copy_from_slice(&private_vec);
+    buffer[32..].copy_from_slice(&public_vec);
+
+    Ok(Ed25519KeyPair::zero().from_bytes(buffer))
+}
+
+pub fn load_keypair(keys: Option<String>) -> Result<Option<Ed25519KeyPair>, String> {
+    match keys {
+        Some(keys) => {
+            if keys.find(' ').is_none() {
+                let keys = read_keys(&keys)?;
+                Ok(Some(keys))
+            } else {
+                let pair = generate_keypair_from_mnemonic(&keys)?;
+                Ok(Some(keypair_to_ed25519pair(pair)?))
+            }
+        },
+        None => Ok(None),
     }
 }
 
@@ -91,7 +121,7 @@ fn parse_string(r: String) -> Result<String, String> {
     }
 }
 
-fn gen_seed_phrase() -> Result<String, String> {
+pub fn gen_seed_phrase() -> Result<String, String> {
     let client = SdkClient::new();
     parse_string(client.request(
         "crypto.mnemonic.from.random",
