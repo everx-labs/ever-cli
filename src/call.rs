@@ -29,9 +29,9 @@ fn create_client(url: String) -> Result<TonClient, String> {
     TonClient::new(&TonClientConfig{
         base_url: Some(url),
         message_retries_count: Some(0),
-        message_expiration_timeout: Some(20000),
+        message_expiration_timeout: Some(60000),
         message_expiration_timeout_grow_factor: Some(1.5),
-        message_processing_timeout: Some(20000),
+        message_processing_timeout: Some(60000),
         message_processing_timeout_grow_factor: Some(1.5),
         wait_for_timeout: None,
         access_key: None,
