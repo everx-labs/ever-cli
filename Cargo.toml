@@ -17,7 +17,7 @@ base64 = "0.10.1"
 clap = "2.32"
 crc16 = "0.4.0"
 chrono = "0.4"
-ed25519-dalek = "^0.9.1"
+ed25519-dalek = "1.0.0-pre.3"
 hex = "0.3.2"
 qr2term = "0.2.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -25,8 +25,8 @@ serde_json = "1.0"
 serde_derive = "1.0.91"
 
 ton-client-rs = { git = 'https://github.com/tonlabs/ton-client-rs.git', default-features = false, branch = "0.23.0-rc" }
-ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git',  default_features = false, features = ["node_interaction"], branch = "0.21.200-rc" }
-ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', default-features = false, branch = "0.21.200-rc" }
+ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git',  default_features = false, features = ["node_interaction"] }
+ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', default-features = false}
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
 
 [dev-dependencies]
