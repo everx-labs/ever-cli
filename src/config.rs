@@ -18,15 +18,27 @@ fn default_url() -> String {
     TESTNET.to_string()
 }
 
+fn default_retries() -> u8 {
+    5
+}
+
+fn default_timeout() -> u32 {
+    60000
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "default_url")]
     pub url: String,
     #[serde(default)]
-    pub wc: i8,
+    pub wc: i32,
     pub addr: Option<String>,
     pub abi_path: Option<String>,
     pub keys_path: Option<String>,
+    #[serde(default = "default_retries")]
+    pub retries: u8,
+    #[serde(default = "default_timeout")]
+    pub timeout: u32,
 }
 
 impl Config {
@@ -37,6 +49,8 @@ impl Config {
             addr: None,
             abi_path: None,
             keys_path: None,
+            retries: default_retries(),
+            timeout: default_timeout(),
         }
     }
 
@@ -54,6 +68,9 @@ pub fn set_config(
     addr: Option<&str>,
     abi: Option<&str>,
     keys: Option<&str>,
+    wc: Option<&str>,
+    retries: Option<&str>,
+    timeout: Option<&str>,
 ) -> Result<(), String> {
         if let Some(s) = url {
             conf.url = s.to_string();
@@ -66,6 +83,18 @@ pub fn set_config(
         }
         if let Some(s) = keys {
             conf.keys_path = Some(s.to_string());
+        }
+        if let Some(retries) = retries {
+            conf.retries = u8::from_str_radix(retries, 10)
+                .map_err(|e| format!(r#"failed to parse "retries": {}"#, e))?;
+        }
+        if let Some(timeout) = timeout {
+            conf.timeout = u32::from_str_radix(timeout, 10)
+                .map_err(|e| format!(r#"failed to parse "timeout": {}"#, e))?;
+        }
+        if let Some(wc) = wc {
+            conf.wc = i32::from_str_radix(wc, 10)
+                .map_err(|e| format!(r#"failed to parse "workchain id": {}"#, e))?;
         }
         let conf_str = serde_json::to_string(&conf)
             .map_err(|_| "failed to serialize config object".to_string())?;

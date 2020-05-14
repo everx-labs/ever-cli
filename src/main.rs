@@ -71,7 +71,7 @@ fn main_internal() -> Result <(), String> {
         None => "none",
     };
 
-    let matches = clap_app! (tonlabs_cli =>        
+    let matches = clap_app! (tonlabs_cli =>
         (version: &*format!("0.1 ({})", build_info))
         (author: "TONLabs")
         (about: "TONLabs console tool for TON")
@@ -170,13 +170,18 @@ fn main_internal() -> Result <(), String> {
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
         (@subcommand config =>
-            (about: "Writes parameters to config file that can be used later in subcommands.")
+            (@setting AllowLeadingHyphen)
+            (about: "Saves certain default values for options into config file.")
             (version: "0.1")
             (author: "TONLabs")
             (@arg URL: --url +takes_value "Url to connect.")
             (@arg ABI: --abi +takes_value conflicts_with[DATA] "File with contract ABI.")
             (@arg KEYS: --keys +takes_value "File with keypair.")
-            (@arg ADDR: --addr +takes_value "Contract address.")            
+            (@arg ADDR: --addr +takes_value "Contract address.")
+            (@arg WC: --wc +takes_value "Workchain id.")
+            (@arg RETRIES: --retries +takes_value "Number of attempts to call smart contract function if previous attempt was unsuccessful.")
+            (@arg TIMEOUT: --timeout +takes_value "Contract call timeout in ms.")
+            (@arg LIST: --list conflicts_with[URL ABI KEYS ADDR RETRIES TIMEOUT WC] "Prints all config parameters.")
         )
         (@subcommand account =>
             (@setting AllowLeadingHyphen)
@@ -381,17 +386,29 @@ fn deploy_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let wc = wc.map(|v| i32::from_str_radix(v, 10))
         .transpose()
         .map_err(|e| format!("failed to parse workchain id: {}", e))?
-        .unwrap_or(0);
+        .unwrap_or(config.wc);
     deploy_contract(config, tvc.unwrap(), &abi.unwrap(), params.unwrap(), &keys.unwrap(), wc)
 }
 
-fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
-    let url = matches.value_of("URL");
-    let address = matches.value_of("ADDR");
-    let keys = matches.value_of("KEYS");
-    let abi = matches.value_of("ABI");
-    print_args!(matches, url, address, keys, abi);
-    set_config(config, "tonlabs-cli.conf.json", url, address, abi, keys)
+fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {    
+    if matches.is_present("LIST") {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&config)
+                .map_err(|e| format!("failed to print config parameters: {}", e))?
+        );
+        Ok(())
+    } else {
+        let url = matches.value_of("URL");
+        let address = matches.value_of("ADDR");
+        let keys = matches.value_of("KEYS");
+        let abi = matches.value_of("ABI");
+        let wc = matches.value_of("WC");
+        let retries = matches.value_of("RETRIES");
+        let timeout = matches.value_of("TIMEOUT");
+        print_args!(matches, url, address, keys, abi, wc, retries, timeout);
+        set_config(config, "tonlabs-cli.conf.json", url, address, abi, keys, wc, retries, timeout)
+    }
 }
 
 fn genaddr_command(matches: &ArgMatches, config: Config) -> Result<(), String> {

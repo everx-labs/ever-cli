@@ -25,13 +25,13 @@ fn now() -> u32 {
     SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as u32
 }
 
-fn create_client(url: String) -> Result<TonClient, String> {
+fn create_client(conf: &Config) -> Result<TonClient, String> {
     TonClient::new(&TonClientConfig{
-        base_url: Some(url),
-        message_retries_count: Some(0),
-        message_expiration_timeout: Some(60000),
+        base_url: Some(conf.url.clone()),
+        message_retries_count: Some(conf.retries),
+        message_expiration_timeout: Some(conf.timeout),
         message_expiration_timeout_grow_factor: Some(1.5),
-        message_processing_timeout: Some(60000),
+        message_processing_timeout: Some(conf.timeout),
         message_processing_timeout_grow_factor: Some(1.5),
         wait_for_timeout: None,
         access_key: None,
@@ -144,7 +144,7 @@ pub fn call_contract(
     keys: Option<String>,
     local: bool,
 ) -> Result<(), String> {
-    let ton = create_client(conf.url.clone())?;
+    let ton = create_client(&conf)?;
 
     let ton_addr = TonAddress::from_str(addr)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
@@ -228,7 +228,7 @@ pub fn generate_message(
 }
 
 pub fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) -> Result<(), String> {
-    let ton = create_client(conf.url.clone())?;
+    let ton = create_client(&conf)?;
 
     let (msg, method) = unpack_message(&str_msg)?;
     print_encoded_message(&msg);
