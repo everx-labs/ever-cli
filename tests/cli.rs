@@ -5,15 +5,37 @@ use std::process::Command;
 const BIN_NAME: &str = "tonos-cli";
 
 #[test]
-fn test_config_url() -> Result<(), Box<dyn std::error::Error>> {
+fn test_config() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--url")
-        .arg("http://0.0.0.0");
+        .arg("http://0.0.0.0")
+        .arg("--retries")
+        .arg("10")
+        .arg("--timeout")
+        .arg("25000")
+        .arg("--wc")
+        .arg("-2");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Succeeded"));
 
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""url": "http://0.0.0.0""#))
+        .stdout(predicate::str::contains(r#""retries": 10"#))
+        .stdout(predicate::str::contains(r#""timeout": 25000"#))
+        .stdout(predicate::str::contains(r#""wc": -2"#));
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--wc")
+        .arg("0")
+        .assert()
+        .success();
     Ok(())
 }
 

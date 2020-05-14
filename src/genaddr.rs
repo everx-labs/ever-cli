@@ -23,7 +23,7 @@ use ton_sdk;
 use crate::crypto::{gen_seed_phrase, generate_keypair_from_mnemonic, keypair_to_ed25519pair};
 
 pub fn generate_address(
-    _conf: Config,
+    conf: Config,
     tvc: &str,
     abi: &str,
     wc_str: Option<&str>,
@@ -51,8 +51,10 @@ pub fn generate_address(
     
     let initial_data = initial_data.map(|s| s.to_string());
     
-    let wc = i32::from_str_radix(wc_str.unwrap_or("0"), 10)
-    .map_err(|e| format!("failed to parse workchain id: {}", e))?;
+    let wc = wc_str.map(|wc| i32::from_str_radix(wc, 10))
+        .transpose()
+        .map_err(|e| format!("failed to parse workchain id: {}", e))?
+        .unwrap_or(conf.wc);
     
     let addr = ton.contracts.get_deploy_address(
         &abi,
