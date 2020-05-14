@@ -18,6 +18,14 @@ fn default_url() -> String {
     TESTNET.to_string()
 }
 
+fn default_retries() -> u8 {
+    5
+}
+
+fn default_timeout() -> u32 {
+    60000
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "default_url")]
@@ -27,6 +35,10 @@ pub struct Config {
     pub addr: Option<String>,
     pub abi_path: Option<String>,
     pub keys_path: Option<String>,
+    #[serde(default = "default_retries")]
+    pub retries: u8,
+    #[serde(default = "default_timeout")]
+    pub timeout: u32,
 }
 
 impl Config {
@@ -37,6 +49,8 @@ impl Config {
             addr: None,
             abi_path: None,
             keys_path: None,
+            retries: 5,
+            timeout: 60000,
         }
     }
 

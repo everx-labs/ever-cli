@@ -176,7 +176,8 @@ fn main_internal() -> Result <(), String> {
             (@arg URL: --url +takes_value "Url to connect.")
             (@arg ABI: --abi +takes_value conflicts_with[DATA] "File with contract ABI.")
             (@arg KEYS: --keys +takes_value "File with keypair.")
-            (@arg ADDR: --addr +takes_value "Contract address.")            
+            (@arg ADDR: --addr +takes_value "Contract address.")
+            (@arg LIST: -l --list conflicts_with[URL ABI KEYS ADDR] "Contract address.")
         )
         (@subcommand account =>
             (@setting AllowLeadingHyphen)
@@ -386,12 +387,21 @@ fn deploy_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
 }
 
 fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
-    let url = matches.value_of("URL");
-    let address = matches.value_of("ADDR");
-    let keys = matches.value_of("KEYS");
-    let abi = matches.value_of("ABI");
-    print_args!(matches, url, address, keys, abi);
-    set_config(config, "tonlabs-cli.conf.json", url, address, abi, keys)
+    if matches.is_present("LIST") {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&config)
+                .map_err(|e| format!("failed to print config parameters: {}", e))?
+        );
+        Ok(())
+    } else {
+        let url = matches.value_of("URL");
+        let address = matches.value_of("ADDR");
+        let keys = matches.value_of("KEYS");
+        let abi = matches.value_of("ABI");
+        print_args!(matches, url, address, keys, abi);
+        set_config(config, "tonlabs-cli.conf.json", url, address, abi, keys)
+    }
 }
 
 fn genaddr_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
