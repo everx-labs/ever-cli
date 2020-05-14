@@ -61,6 +61,27 @@ If `--abi` or `--sign` option is omitted in parameters it must present in config
 
     tonos-cli call [--abi <abi_file>] [--sign <keyfile>] <address> <method> <params>
 
+If `--abi` or `--sign` option is omitted in parameters, it must be specified in the config file. See below for more details.
+
+Alternative command:
+
+    tonos-cli callex <method> [<address>] [<abi>] [<keys>] params...
+
+`params...` - one or more function arguments in the form of  `--name value`.
+
+`address`, `abi`, and `keys` parameters can be omitted. In this case default values will be used from config file.
+
+Example:
+
+    tonos-cli callex submitTransaction 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e SafeMultisigWallet.abi.json msig.keys.json --dest 0:c63a050fe333fac24750e90e4c6056c477a2526f6217b5b519853c30495882c9 --value 1.5T --bounce false --allBalance false --payload ""
+
+Integer and address types can be supplied without quotes. 
+
+`--value 1.5T` - suffix `T` converts integer to nanotokens -> `1500000000`. The same as `--value 1500000000`.
+
+Arrays can be used without `[]` brackets.
+
+
 Run get-method:
 
     tonos-cli run [--abi <abi_file>] <address> <method> <params>

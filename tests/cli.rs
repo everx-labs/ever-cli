@@ -189,3 +189,63 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_callex() -> Result<(), Box<dyn std::error::Error>> {
+    let giver_abi_name = "tests/samples/giver.abi.json";
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("callex")
+        .arg("sendGrams")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg(giver_abi_name)
+        .arg("--")
+        .arg("--dest")
+        .arg("0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e")
+        .arg("--amount")
+        .arg("0.2T");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e""#))
+        .stdout(predicate::str::contains(r#""amount":"0200000000""#))
+        .stdout(predicate::str::contains("Succeeded"));
+
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+        cmd.arg("callex")
+            .arg("sendGrams")
+            .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+            .arg(giver_abi_name)
+            .arg("--")
+            .arg("--dest")
+            .arg("0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e")
+            .arg("--amount")
+            .arg("1000000000");
+        cmd.assert()
+            .success();
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e""#))
+        .stdout(predicate::str::contains(r#""amount":"1000000000""#))
+        .stdout(predicate::str::contains("Succeeded"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+        cmd.arg("callex")            
+            .arg("sendGrams")
+            .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+            .arg(giver_abi_name)
+            .arg("--")
+            .arg("--dest")
+            .arg("0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e")
+            .arg("--amount")
+            .arg("0x10000");
+        cmd.assert()
+            .success();
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e""#))
+        .stdout(predicate::str::contains(r#""amount":"0x10000""#))
+        .stdout(predicate::str::contains("Succeeded"));
+
+    Ok(())
+}

@@ -21,6 +21,7 @@ extern crate serde_derive;
 mod account;
 mod call;
 mod config;
+mod convert;
 mod crypto;
 mod deploy;
 mod genaddr;
@@ -28,8 +29,8 @@ mod helpers;
 mod voting;
 
 use account::get_account;
-use call::{call_contract, call_contract_with_msg, generate_message};
-use clap::ArgMatches;
+use call::{call_contract, call_contract_with_msg, generate_message, parse_params};
+use clap::{ArgMatches, SubCommand, Arg, AppSettings};
 use config::{Config, set_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use deploy::deploy_contract;
@@ -72,6 +73,24 @@ fn main_internal() -> Result <(), String> {
         Some(s) => s,
         None => "none",
     };
+
+    let callex_sub_command = SubCommand::with_name("callex")
+        .about("Sends external message to contract with encoded function call.")
+        .setting(AppSettings::AllowMissingPositional)
+        .setting(AppSettings::AllowLeadingHyphen)  
+        .setting(AppSettings::TrailingVarArg)
+        .setting(AppSettings::DontCollapseArgsInUsage)
+        .arg(Arg::with_name("METHOD")
+            .help("Name of the calling method."))
+        .arg(Arg::with_name("ADDRESS")
+            .help("Contract address."))
+        .arg(Arg::with_name("ABI")
+            .help("Path to contract ABI file."))
+        .arg(Arg::with_name("SIGN")
+            .help("Path to keypair file used to sign message."))
+        .arg(Arg::with_name("PARAMS")
+            .help("Method arguments. Must be a list of --name value ... pairs or a json string with all arguments.")
+            .multiple(true));
 
     let matches = clap_app! (tonlabs_cli =>
         (version: &*format!("0.1 ({})", build_info))
@@ -129,6 +148,7 @@ fn main_internal() -> Result <(), String> {
             (@arg WC: --wc +takes_value "Workchain id of the smart contract (default 0).")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
+        (subcommand: callex_sub_command)
         (@subcommand call =>
             (@setting AllowLeadingHyphen)
             (about: "Sends external message to contract with encoded function call.")
@@ -223,6 +243,9 @@ fn main_internal() -> Result <(), String> {
             return convert_tokens(m);
         }
     }
+    if let Some(m) = matches.subcommand_matches("callex") {
+        return callex_command(m, conf);
+    }
     if let Some(m) = matches.subcommand_matches("call") {
         return call_command(m, conf, CallType::Call);
     }
@@ -283,25 +306,9 @@ fn main_internal() -> Result <(), String> {
 
 fn convert_tokens(matches: &ArgMatches) -> Result<(), String> {
     let amount = matches.value_of("AMOUNT").unwrap();
-    let parts: Vec<&str> = amount.split(".").collect();
-    if parts.len() >= 1 && parts.len() <= 2 {
-        let mut result = String::new();
-        result += parts[0];
-        if parts.len() == 2 {
-            let fraction = format!("{:0<9}", parts[1]);
-            if fraction.len() != 9 {
-                return Err("invalid fractional part".to_string());
-            }
-            result += &fraction;
-        } else {
-            result += "000000000";
-        }
-        u64::from_str_radix(&result, 10)
-            .map_err(|e| format!("failed to parse amount: {}", e))?;
-        println!("{}", result);
-        return Ok(());
-    }
-    return Err("Invalid amout value".to_string());
+    let result = convert::convert_token(amount)?;
+    println!("{}", result);
+    Ok(())
 }
 
 fn genphrase_command(_matches: &ArgMatches, _config: Config) -> Result<(), String> {
@@ -396,6 +403,41 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
                 lifetime)
         },
     }
+}
+
+fn callex_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+    let method = matches.value_of("METHOD");
+    let address = Some(
+        matches.value_of("ADDRESS")
+            .map(|s| s.to_string())
+            .or(config.addr.clone())
+            .ok_or("ADDRESS is not defined. Supply it in config file or in command line.".to_string())?
+    );
+    let abi = Some(
+        matches.value_of("ABI")
+        .map(|s| s.to_string())
+        .or(config.abi_path.clone())
+        .ok_or("ABI is not defined. Supply it in config file or in command line.".to_string())?
+    );
+    let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
+        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+    let params = Some(parse_params(
+        matches.values_of("PARAMS").unwrap().collect::<Vec<_>>(), &loaded_abi, method.clone().unwrap()
+    )?);
+    let keys = matches.value_of("SIGN")
+        .map(|s| s.to_string())
+        .or(config.keys_path.clone());
+    
+    print_args!(matches, address, method, params, abi, keys);
+    call_contract(
+        config,
+        &address.unwrap(),
+        loaded_abi,
+        method.unwrap(),
+        &params.unwrap(),
+        keys,
+        false,
+    )
 }
 
 fn deploy_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
