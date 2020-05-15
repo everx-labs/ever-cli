@@ -35,6 +35,10 @@ By default, tonos-cli connects to `https://net.ton.dev` network.
 
     tonos-cli genpubkey
 
+### 3) Generate keyfile from seed phrase
+
+    tonos-cli getkeypair <keyfile.json> "<seed_phrase>"
+
 ### Smart contract commands:
 
 ### 1) Generate Contract Address
