@@ -135,7 +135,7 @@ fn decode_call_parameters(ton: &TonClient, msg: &EncodedMessage, abi: &str) -> R
     ))
 }
 
-pub fn call_contract(
+pub fn call_contract_with_result(
     conf: Config,
     addr: &str,
     abi: String,
@@ -143,7 +143,7 @@ pub fn call_contract(
     params: &str,
     keys: Option<String>,
     local: bool,
-) -> Result<(), String> {
+) -> Result<serde_json::Value, String> {
     let ton = create_client(&conf)?;
 
     let ton_addr = TonAddress::from_str(addr)
@@ -180,6 +180,19 @@ pub fn call_contract(
             .map_err(|e| format!("Failed: {}", e.to_string()))?
             .output
     };
+    Ok(result)
+}
+
+pub fn call_contract(
+    conf: Config,
+    addr: &str,
+    abi: String,
+    method: &str,
+    params: &str,
+    keys: Option<String>,
+    local: bool
+) -> Result<(), String> {
+    let result = call_contract_with_result(conf, addr, abi, method, params, keys, local)?;
 
     println!("Succeeded.");
     if !result.is_null() {

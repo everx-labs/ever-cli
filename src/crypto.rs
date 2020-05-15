@@ -56,12 +56,12 @@ pub fn load_keypair(keys: &str) -> Result<Ed25519KeyPair, String> {
 // TODO: SdkClient structure is a temporary solution to use crypto
 // functions from sdk. Remove it when ton-client-rs will support all
 // necessary functions.
-struct SdkClient {
+pub struct SdkClient {
     context: InteropContext,
 }
 
 impl SdkClient {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let context: InteropContext;
         unsafe {
             context = tc_create_context()
@@ -71,7 +71,7 @@ impl SdkClient {
 
     
 
-    fn request(
+    pub fn request(
         &self,
         method_name: &str,
         params: Value,
@@ -107,7 +107,7 @@ impl Drop for SdkClient {
     }
 }
 
-fn parse_string(r: String) -> Result<String, String> {
+pub fn parse_string(r: String) -> Result<String, String> {
     let json = serde_json::from_str(&r).map_err(|e| format!("failed to parse sdk client result: {}", e))?;
     if let Value::String(s) = json {
         Ok(s)

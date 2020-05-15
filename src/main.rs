@@ -19,12 +19,13 @@ extern crate serde_json;
 extern crate serde_derive;
 
 mod account;
+mod call;
 mod config;
 mod crypto;
 mod deploy;
 mod genaddr;
 mod helpers;
-mod call;
+mod voting;
 
 use account::get_account;
 use call::{call_contract, call_contract_with_msg, generate_message};
@@ -33,6 +34,7 @@ use config::{Config, set_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use deploy::deploy_contract;
 use genaddr::generate_address;
+use voting::{create_proposal, decode_proposal, vote};
 
 const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
@@ -191,6 +193,26 @@ fn main_internal() -> Result <(), String> {
             (@arg ADDRESS: +required +takes_value "Smart contract address.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
+        (@subcommand proposal =>
+            (@subcommand create =>
+                (about: "Submits proposal transaction in multisignature wallet with text comment.")
+                (@arg ADDRESS: +required +takes_value "Address of multisignature wallet.")
+                (@arg DEST: +required +takes_value "Address of proposal contract.")
+                (@arg COMMENT: +required +takes_value "Proposal description (max symbols 382).")
+                (@arg KEYS: +required +takes_value "Seed phrase or path to keypair file.")
+            )
+            (@subcommand vote =>
+                (about: "Confirms proposal transaction in multisignature wallet.")
+                (@arg ADDRESS: +required +takes_value "Address of multisignature wallet.")
+                (@arg ID: +required +takes_value "Proposal transaction id.")
+                (@arg KEYS: +required +takes_value "Seed phrase or path to keypair file.")
+            )
+            (@subcommand decode =>
+                (about: "Prints comment string from proposal transaction.")
+                (@arg ADDRESS: +required +takes_value "Address of multisignature wallet.")
+                (@arg ID: +required +takes_value "Proposal transaction id.")
+            )
+        )
         (@setting SubcommandRequired)
     ).get_matches();
 
@@ -233,6 +255,17 @@ fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("genpubkey") {
         return genpubkey_command(m, conf);
+    }
+    if let Some(m) = matches.subcommand_matches("proposal") {
+        if let Some(m) = m.subcommand_matches("create") {
+            return proposal_create_command(m, conf);
+        }
+        if let Some(m) = m.subcommand_matches("vote") {
+            return proposal_vote_command(m, conf);
+        }
+        if let Some(m) = m.subcommand_matches("decode") {
+            return proposal_decode_command(m, conf);
+        }
     }
     if let Some(_) = matches.subcommand_matches("version") {
         println!(
@@ -428,4 +461,29 @@ fn account_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     print_args!(matches, address);
     get_account(config, address.unwrap())
+}
+
+fn proposal_create_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+    let address = matches.value_of("ADDRESS");
+    let dest = matches.value_of("DEST");
+    let keys = matches.value_of("KEYS");
+    let comment = matches.value_of("COMMENT");
+    print_args!(matches, address, comment, keys);
+    create_proposal(config, address.unwrap(), keys, dest.unwrap(), comment.unwrap())
+
+}
+
+fn proposal_vote_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+    let address = matches.value_of("ADDRESS");
+    let keys = matches.value_of("KEYS");
+    let id = matches.value_of("ID");
+    print_args!(matches, address, id, keys);
+    vote(config, address.unwrap(), keys, id.unwrap())
+}
+
+fn proposal_decode_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+    let address = matches.value_of("ADDRESS");
+    let id = matches.value_of("ID");
+    print_args!(matches, address, id);
+    decode_proposal(config, address.unwrap(), id.unwrap())
 }
