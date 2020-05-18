@@ -24,9 +24,9 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_derive = "1.0.91"
 
-ton-client-rs = { git = 'https://github.com/tonlabs/ton-client-rs.git', default-features = false, branch = "decode-internal" }
+ton-client-rs = { git = 'https://github.com/tonlabs/ton-client-rs.git', default-features = false, branch = "0.23.0-rc" }
 ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git',  default_features = false, features = ["node_interaction"] }
-ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', default-features = false}
+ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', default-features = false }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
 
 [dev-dependencies]

@@ -162,6 +162,8 @@ pub fn call_contract_with_result(
             None
         )
         .map_err(|e| format!("run failed: {}", e.to_string()))?
+        .output
+        
     } else {
         println!("Generating external inbound message...");
         let msg = prepare_message(
