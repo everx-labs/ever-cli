@@ -260,7 +260,7 @@ pub fn decode_proposal(
 				).map_err(|e| format!("failed to parse comment from transaction payload: {}", e))?
 			).map_err(|e| format!("failed to convert comment to string: {}", e))?;
 	
-			println!("Proposal Comment: {}", comment);
+			println!("Comment: {}", comment);
 			return Ok(());
 		}
 	}
