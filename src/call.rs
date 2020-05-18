@@ -126,7 +126,8 @@ fn decode_call_parameters(ton: &TonClient, msg: &EncodedMessage, abi: &str) -> R
         
     let result = ton.contracts.decode_input_message_body(
         &abi,
-        &data[..]
+        &data[..],
+        false
     ).map_err(|e| format!("couldn't decode message body: {}", e))?;
 
     Ok((
