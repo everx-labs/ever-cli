@@ -181,7 +181,7 @@ pub fn create_proposal(
 	let params = json!({
 		"dest": dest,
 		"value": 1000000,
-		"bounce": true,
+		"bounce": false,
 		"allBalance": false,
 		"payload": body_base64,
 	});
