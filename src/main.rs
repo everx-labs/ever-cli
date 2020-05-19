@@ -27,6 +27,7 @@ mod deploy;
 mod genaddr;
 mod helpers;
 mod voting;
+mod getconfig;
 
 use account::get_account;
 use call::{call_contract, call_contract_with_msg, generate_message, parse_params};
@@ -35,6 +36,7 @@ use config::{Config, set_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use deploy::deploy_contract;
 use genaddr::generate_address;
+use getconfig::query_global_config;
 use voting::{create_proposal, decode_proposal, vote};
 
 const VERBOSE_MODE: bool = true;
@@ -233,6 +235,10 @@ fn main_internal() -> Result <(), String> {
                 (@arg ID: +required +takes_value "Proposal transaction id.")
             )
         )
+        (@subcommand getconfig =>
+            (about: "Reads global configuration parameter with defined index.")
+            (@arg INDEX: +required +takes_value "Parameter index.")
+        )
         (@setting SubcommandRequired)
     ).get_matches();
 
@@ -289,6 +295,9 @@ fn main_internal() -> Result <(), String> {
         if let Some(m) = m.subcommand_matches("decode") {
             return proposal_decode_command(m, conf);
         }
+    }
+    if let Some(m) = matches.subcommand_matches("getconfig") {
+        return getconfig_command(m, conf);
     }
     if let Some(_) = matches.subcommand_matches("version") {
         println!(
@@ -528,4 +537,10 @@ fn proposal_decode_command(matches: &ArgMatches, config: Config) -> Result<(), S
     let id = matches.value_of("ID");
     print_args!(matches, address, id);
     decode_proposal(config, address.unwrap(), id.unwrap())
+}
+
+fn getconfig_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+    let index = matches.value_of("INDEX");
+    print_args!(matches, index);
+    query_global_config(config, index.unwrap())
 }
