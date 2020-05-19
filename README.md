@@ -39,6 +39,12 @@ By default, tonos-cli connects to `https://net.ton.dev` network.
 
     tonos-cli getkeypair <keyfile.json> "<seed_phrase>"
 
+### Query commands:
+
+### 1) Get global config
+
+    tonos-cli getconfig <index>
+    
 ### Smart contract commands:
 
 ### 1) Generate Contract Address
