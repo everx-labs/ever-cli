@@ -167,6 +167,8 @@ pub fn create_proposal(
 	keys: Option<&str>,
 	dest: &str,
 	text: &str,
+	lifetime: u32,
+	offline: bool,
 ) -> Result<(), String> {
 
 	let msg_body: serde_json::Value = serde_json::from_str(
@@ -184,17 +186,31 @@ pub fn create_proposal(
 		"bounce": false,
 		"allBalance": false,
 		"payload": body_base64,
-	});
+	}).to_string();
 
- 	call::call_contract(
-		conf,
-		addr,
-		MSIG_ABI.to_string(),
-		"submitTransaction",
-		&serde_json::to_string(&params).unwrap(),
-		keys.map(|s| s.to_owned()),
-		false
-	)
+	let keys = keys.map(|s| s.to_owned());
+
+	if offline {
+		call::generate_message(
+			conf,
+			addr,
+			MSIG_ABI.to_string(),
+			"submitTransaction",
+			&params,
+			keys,
+			lifetime)
+	} else {
+
+		call::call_contract(
+			conf,
+			addr,
+			MSIG_ABI.to_string(),
+			"submitTransaction",
+			&params,
+			keys,
+			false
+		)
+	}
 }
 
 pub fn vote(
@@ -202,21 +218,37 @@ pub fn vote(
 	addr: &str,
 	keys: Option<&str>,
 	trid: &str,
+	lifetime: u32,
+	offline: bool,
 ) -> Result<(), String> {
 
 	let params = json!({
 		"transactionId": trid,
-	});
+	}).to_string();
 
- 	call::call_contract(
-		conf,
-		addr,
-		MSIG_ABI.to_string(),
-		"confirmTransaction",
-		&serde_json::to_string(&params).unwrap(),
-		keys.map(|s| s.to_owned()),
-		false
-	)
+	let keys = keys.map(|s| s.to_owned());
+
+	if offline {
+		call::generate_message(
+			conf,
+			addr,
+			MSIG_ABI.to_string(),
+			"confirmTransaction",
+			&params,
+			keys,
+			lifetime
+		)
+	} else {
+		call::call_contract(
+			conf,
+			addr,
+			MSIG_ABI.to_string(),
+			"confirmTransaction",
+			&params,
+			keys,
+			false
+		)
+	}
 }
 
 pub fn decode_proposal(
@@ -235,7 +267,7 @@ pub fn decode_proposal(
 		true
 	)?;
 
-	let txns = result["output"]["transactions"].as_array()
+	let txns = result["transactions"].as_array()
 		.ok_or(format!(r#"failed to decode result: "transactions" array not found"#))?;
 
 	for txn in txns {

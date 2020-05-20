@@ -10,7 +10,7 @@ readme = "README.md"
 license-file = "LICENSE.md"
 keywords = ["TON", "SDK", "smart contract", "tonlabs"]
 edition = "2018"
-version = "0.1.5"
+version = "0.1.6"
 
 [dependencies]
 base64 = "0.10.1"

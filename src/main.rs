@@ -236,12 +236,16 @@ fn main_internal() -> Result <(), String> {
                 (@arg DEST: +required +takes_value "Address of proposal contract.")
                 (@arg COMMENT: +required +takes_value "Proposal description (max symbols 382).")
                 (@arg KEYS: +required +takes_value "Seed phrase or path to keypair file.")
+                (@arg OFFLINE: -f --offline "Prints signed message to terminal instead of sending it.")
+                (@arg LIFETIME: -l --lifetime +takes_value "Period of time in seconds while message is valid.")
             )
             (@subcommand vote =>
                 (about: "Confirms proposal transaction in multisignature wallet.")
                 (@arg ADDRESS: +required +takes_value "Address of multisignature wallet.")
                 (@arg ID: +required +takes_value "Proposal transaction id.")
                 (@arg KEYS: +required +takes_value "Seed phrase or path to keypair file.")
+                (@arg OFFLINE: -f --offline "Prints signed message to terminal instead of sending it.")
+                (@arg LIFETIME: -l --lifetime +takes_value "Period of time in seconds while message is valid.")
             )
             (@subcommand decode =>
                 (about: "Prints comment string from proposal transaction.")
@@ -547,17 +551,36 @@ fn proposal_create_command(matches: &ArgMatches, config: Config) -> Result<(), S
     let dest = matches.value_of("DEST");
     let keys = matches.value_of("KEYS");
     let comment = matches.value_of("COMMENT");
-    print_args!(matches, address, comment, keys);
-    create_proposal(config, address.unwrap(), keys, dest.unwrap(), comment.unwrap())
+    let lifetime = matches.value_of("LIFETIME");
+    let offline = matches.is_present("OFFLINE");
+    print_args!(matches, address, comment, keys, lifetime);
 
+    let lifetime = lifetime.map(|val| {
+        u32::from_str_radix(val, 10)
+            .map_err(|e| format!("failed to parse lifetime: {}", e))
+    })
+    .transpose()?
+    .unwrap_or(config.timeout);
+
+    create_proposal(config, address.unwrap(), keys, dest.unwrap(), comment.unwrap(), lifetime, offline)
 }
 
 fn proposal_vote_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let keys = matches.value_of("KEYS");
     let id = matches.value_of("ID");
-    print_args!(matches, address, id, keys);
-    vote(config, address.unwrap(), keys, id.unwrap())
+    let lifetime = matches.value_of("LIFETIME");
+    let offline = matches.is_present("OFFLINE");
+    print_args!(matches, address, id, keys, lifetime);
+
+    let lifetime = lifetime.map(|val| {
+        u32::from_str_radix(val, 10)
+            .map_err(|e| format!("failed to parse lifetime: {}", e))
+    })
+    .transpose()?
+    .unwrap_or(config.timeout);
+
+    vote(config, address.unwrap(), keys, id.unwrap(), lifetime, offline)
 }
 
 fn proposal_decode_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
