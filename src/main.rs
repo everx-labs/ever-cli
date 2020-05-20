@@ -3,7 +3,6 @@
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.  You may obtain a copy of the
- * License at: https://ton.dev/licenses
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,7 +29,7 @@ mod voting;
 mod getconfig;
 
 use account::get_account;
-use call::{call_contract, call_contract_with_msg, generate_message, parse_params};
+use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings};
 use config::{Config, set_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
@@ -92,6 +91,21 @@ fn main_internal() -> Result <(), String> {
             .help("Path to keypair file used to sign message."))
         .arg(Arg::with_name("PARAMS")
             .help("Method arguments. Must be a list of --name value ... pairs or a json string with all arguments.")
+            .multiple(true));
+
+    let runget_sub_command = SubCommand::with_name("runget")
+        .about("Runs contract get-method.")
+        .setting(AppSettings::AllowLeadingHyphen)  
+        .setting(AppSettings::TrailingVarArg)
+        .setting(AppSettings::DontCollapseArgsInUsage)
+        .arg(Arg::with_name("ADDRESS")
+            .required(true)
+            .help("Contract address."))
+        .arg(Arg::with_name("METHOD")
+            .required(true)
+            .help("Name of the calling method."))
+        .arg(Arg::with_name("PARAMS")
+            .help("Arguments for the contract method.")
             .multiple(true));
 
     let matches = clap_app! (tonlabs_cli =>
@@ -172,6 +186,7 @@ fn main_internal() -> Result <(), String> {
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
         (@subcommand message =>
+            (@setting AllowLeadingHyphen)
             (about: "Generates a signed message with encoded function call.")
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Contract address.")
@@ -184,15 +199,14 @@ fn main_internal() -> Result <(), String> {
         )
         (@subcommand run =>
             (@setting AllowLeadingHyphen)
-            (about: "Runs contract's get-method.")
-            (version: "0.1")
-            (author: "TONLabs")
+            (about: "Runs contract function locally.")
             (@arg ADDRESS: +required +takes_value "Contract address.")
-            (@arg METHOD: +required +takes_value conflicts_with[BODY] "Name of calling contract method.")
-            (@arg PARAMS: +required +takes_value conflicts_with[BODY] "Arguments for the contract method.")
-            (@arg ABI: --abi +takes_value conflicts_with[BODY] "Json file with contract ABI.")
+            (@arg METHOD: +required +takes_value "Name of calling contract method.")
+            (@arg PARAMS: +required +takes_value "Arguments for the contract method.")
+            (@arg ABI: --abi +takes_value "Json file with contract ABI.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
+        (subcommand: runget_sub_command)
         (@subcommand config =>
             (@setting AllowLeadingHyphen)
             (about: "Saves certain default values for options into config file.")
@@ -257,6 +271,9 @@ fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("run") {
         return call_command(m, conf, CallType::Run);
+    }
+    if let Some(m) = matches.subcommand_matches("runget") {
+        return runget_command(m, conf);
     }
     if let Some(m) = matches.subcommand_matches("message") {
         return call_command(m, conf, CallType::Msg);
@@ -447,6 +464,17 @@ fn callex_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
         keys,
         false,
     )
+}
+
+fn runget_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+    let address = matches.value_of("ADDRESS");
+    let method = matches.value_of("METHOD");
+    let params = matches.values_of("PARAMS");
+    let params = params.map(|values| {
+        json!(values.collect::<Vec<_>>()).to_string()
+    });
+    print_args!(matches, address, method, params);
+    run_get_method(config, address.unwrap(), method.unwrap(), params)
 }
 
 fn deploy_command(matches: &ArgMatches, config: Config) -> Result<(), String> {

@@ -138,6 +138,60 @@ fn decode_call_parameters(ton: &TonClient, msg: &EncodedMessage, abi: &str) -> R
     ))
 }
 
+fn parse_integer_param(value: &str) -> Result<String, String> {
+    let value = value.trim_matches('\"');
+
+    if value.ends_with('T') {
+        convert::convert_token(value.trim_end_matches('T'))
+    } else {
+        Ok(value.to_owned())
+    }
+}
+
+fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<String, String> {
+    let abi_obj = Contract::load(abi.as_bytes()).map_err(|e| format!("failed to parse ABI: {}", e))?;
+    let functions = abi_obj.functions();
+        
+    let func_obj = functions.get(method).unwrap();
+    let inputs = func_obj.input_params();
+
+    let mut params_json = json!({ });
+    for input in inputs {
+        let mut iter = params_vec.iter();
+        let _param = iter.find(|x| x.trim_start_matches('-') == input.name)
+            .ok_or(format!(r#"argument "{}" of type "{}" not found"#, input.name, input.kind))?;
+
+        let value = iter.next()
+            .ok_or(format!(r#"argument "{}" of type "{}" has no value"#, input.name, input.kind))?
+            .to_string();
+
+        let value = match input.kind {
+            ParamType::Uint(_) | ParamType::Int(_) => {
+                json!(parse_integer_param(&value)?)
+            },
+            ParamType::Array(ref x) => {
+                if let ParamType::Uint(_) = **x {
+                    let mut result_vec: Vec<String> = vec![];
+                    for i in value.split(|c| c == ',' || c == '[' || c == ']') {
+                        if i != "" {
+                            result_vec.push(parse_integer_param(i)?)
+                        }
+                    }
+                    json!(result_vec)
+                } else {
+                    json!(value)
+                }
+            },
+            _ => {
+                json!(value)
+            }
+        };
+        params_json[input.name.clone()] = value;
+    }
+
+    serde_json::to_string(&params_json).map_err(|e| format!("{}", e))
+}
+
 pub fn call_contract_with_result(
     conf: Config,
     addr: &str,
@@ -271,60 +325,6 @@ pub fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) -> Res
     Ok(())
 }
 
-fn parse_integer_param(value: &str) -> Result<String, String> {
-    let value = value.trim_matches('\"');
-
-    if value.ends_with('T') {
-        convert::convert_token(value.trim_end_matches('T'))
-    } else {
-        Ok(value.to_owned())
-    }
-}
-
-fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<String, String> {
-    let abi_obj = Contract::load(abi.as_bytes()).map_err(|e| format!("failed to parse ABI: {}", e))?;
-    let functions = abi_obj.functions();
-        
-    let func_obj = functions.get(method).unwrap();
-    let inputs = func_obj.input_params();
-
-    let mut params_json = json!({ });
-    for input in inputs {
-        let mut iter = params_vec.iter();
-        let _param = iter.find(|x| x.trim_start_matches('-') == input.name)
-            .ok_or(format!(r#"argument "{}" of type "{}" not found"#, input.name, input.kind))?;
-
-        let value = iter.next()
-            .ok_or(format!(r#"argument "{}" of type "{}" has no value"#, input.name, input.kind))?
-            .to_string();
-
-        let value = match input.kind {
-            ParamType::Uint(_) | ParamType::Int(_) => {
-                json!(parse_integer_param(&value)?)
-            },
-            ParamType::Array(ref x) => {
-                if let ParamType::Uint(_) = **x {
-                    let mut result_vec: Vec<String> = vec![];
-                    for i in value.split(|c| c == ',' || c == '[' || c == ']') {
-                        if i != "" {
-                            result_vec.push(parse_integer_param(i)?)
-                        }
-                    }
-                    json!(result_vec)
-                } else {
-                    json!(value)
-                }
-            },
-            _ => {
-                json!(value)
-            }
-        };
-        params_json[input.name.clone()] = value;
-    }
-
-    serde_json::to_string(&params_json).map_err(|e| format!("{}", e))
-}
-
 pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<String, String> {
     if params_vec.len() == 1 {
         // if there is only 1 parameter it must be a json string with arguments
@@ -332,4 +332,25 @@ pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<St
     } else {
         build_json_from_params(params_vec, abi, method)
     }
+}
+
+pub fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>) -> Result<(), String> {
+    let ton = create_client(&conf)?;
+
+    let ton_addr = TonAddress::from_str(addr)
+        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
+
+    println!("Running get-method...");
+    let result = ton.contracts.run_get(
+            Some(&ton_addr),
+            None,
+            method,
+            params.map(|p| p.into()),
+        )
+        .map_err(|e| format!("run failed: {}", e.to_string()))?
+        .output;
+    
+    println!("Succeded.");
+    println!("Result: {}", result);
+    Ok(())
 }

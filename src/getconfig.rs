@@ -210,7 +210,6 @@ pub fn query_global_config(conf: Config, index: &str) -> Result<(), String> {
     
     let config_name = format!("p{}", index);
 
-    println!("Quering...");
     let last_key_block_query = ton.queries.blocks.query(
         "{}",
         "id prev_key_block_seqno",
