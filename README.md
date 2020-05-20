@@ -65,6 +65,8 @@ If `--abi` or `--sign` option is omitted in parameters it must present in config
 
 ### 3) Call Method
 
+Call contract in blockchain:
+
     tonos-cli call [--abi <abi_file>] [--sign <keyfile>] <address> <method> <params>
 
 If `--abi` or `--sign` option is omitted in parameters, it must be specified in the config file. See below for more details.
@@ -88,11 +90,22 @@ Integer and address types can be supplied without quotes.
 Arrays can be used without `[]` brackets.
 
 
-Run get-method:
+Run contract method locally:
 
     tonos-cli run [--abi <abi_file>] <address> <method> <params>
 
-If `--abi` or `--sign` option is omitted in parameters, it must be specified in the config file. See below for more details.
+If `--abi` option is omitted in parameters, it must be specified in the config file. See below for more details.
+
+Run funC get-method:
+
+    tonos-cli runget <address> <method> [<params>...]
+
+`params` can have multiple values: one for each function parameter. Example: 
+
+    tonos-cli runget -1:3333333333333333333333333333333333333333333333333333333333333333 compute_returned_stake 0x4107f968dc3caf85c2aa4e7d1b842d835d743855f62afe87e5862012be3eff4f
+
+    tonos-cli runget -1:3333333333333333333333333333333333333333333333333333333333333333 active_election_id
+
 
 ### 4) Generate signed message
 
