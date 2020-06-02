@@ -257,6 +257,11 @@ fn main_internal() -> Result <(), String> {
             (about: "Reads global configuration parameter with defined index.")
             (@arg INDEX: +required +takes_value "Parameter index.")
         )
+        (@subcommand nodeid =>
+            (about: "Calculates node ID from validator public key")
+            (@arg KEY: --pubkey +takes_value "Validator public key.")
+            (@arg KEY_PAIR: --keypair +takes_value "Validator key pair as 12 words mnemonic or file path.")
+        )
         (@setting SubcommandRequired)
     ).get_matches();
 
@@ -319,6 +324,9 @@ fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("getconfig") {
         return getconfig_command(m, conf);
+    }
+    if let Some(m) = matches.subcommand_matches("nodeid") {
+        return nodeid_command(m);
     }
     if let Some(_) = matches.subcommand_matches("version") {
         println!(
@@ -594,4 +602,22 @@ fn getconfig_command(matches: &ArgMatches, config: Config) -> Result<(), String>
     let index = matches.value_of("INDEX");
     print_args!(matches, index);
     query_global_config(config, index.unwrap())
+}
+
+fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
+    let key = matches.value_of("KEY");
+    let keypair = matches.value_of("KEY_PAIR");
+    print_args!(matches, key, keypair);
+    let nodeid = if let Some(key) = key {
+        let vec = hex::decode(key)
+            .map_err(|e| format!("failed to decode public key: {}", e))?;
+        convert::nodeid_from_pubkey(&vec)?
+    } else if let Some(pair) = keypair {
+        let pair = crypto::load_keypair(pair)?;
+        convert::nodeid_from_pubkey(&pair.public.0)?
+    } else {
+        return Err("Either public key or key pair parameter should be provided".to_owned());
+    };
+    println!("{}", nodeid);
+    Ok(())
 }

@@ -23,6 +23,7 @@ qr2term = "0.2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_derive = "1.0.91"
+sha2 = "0.8"
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
 ton-client-rs = { git = 'https://github.com/tonlabs/ton-client-rs.git', default-features = false, branch = "0.23.0-rc" }

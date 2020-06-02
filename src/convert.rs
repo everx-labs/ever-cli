@@ -10,6 +10,9 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
+
+use sha2::{Sha256, Digest};
+
 pub fn convert_token(amount: &str) -> Result<String, String> {
     let parts: Vec<&str> = amount.split(".").collect();
     if parts.len() >= 1 && parts.len() <= 2 {
@@ -30,4 +33,17 @@ pub fn convert_token(amount: &str) -> Result<String, String> {
         return Ok(result);
     }
     Err("Invalid amout value".to_string())
+}
+
+pub fn nodeid_from_pubkey(key: &[u8]) -> Result<String, String> {
+    if key.len() != 32 {
+        return Err("Public key must be 32 byte long".to_owned());
+    }
+    let mut hasher = Sha256::new();
+    // node id magic
+    hasher.input(&[0xc6, 0xb4, 0x13, 0x48]);
+    //key
+    hasher.input(key);
+
+    Ok(hex::encode(&hasher.result()))
 }
