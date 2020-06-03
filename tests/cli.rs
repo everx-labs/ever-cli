@@ -249,3 +249,32 @@ fn test_callex() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_nodeid() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("nodeid")
+        .arg("--pubkey")
+        .arg("cde8fbf86c44e4ed2095f83b6f3c97b7aec55a77e06e843f8b9ffeab66ad4b32");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("cdae19f3d5a96d016e74d656ef15e35839b554ae2590bec0dce5e6608cb7f837"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("nodeid")
+        .arg("--keypair")
+        .arg("tests/samples/exp.json");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("e8c5df53b6205e8db639629d2cd2552b354501021a9f223bb72e81e75f37f64a"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("nodeid")
+        .arg("--keypair")
+        .arg("ghost frost pool buzz rival mad naive rare shell tooth smart praise");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("e8c5df53b6205e8db639629d2cd2552b354501021a9f223bb72e81e75f37f64a"));
+
+    Ok(())
+}
