@@ -2,6 +2,10 @@
 
 `tonos-cli` is a command line interface utility designed to work with TON blockchain.
 
+## Prerequisites
+
+- [Rust](https://www.rust-lang.org/tools/install) >= 1.43.x installed
+
 ## How to build
 
     cargo build [--release]
