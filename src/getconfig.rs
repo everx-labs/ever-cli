@@ -211,21 +211,21 @@ pub fn query_global_config(conf: Config, index: &str) -> Result<(), String> {
     let config_name = format!("p{}", index);
 
     let last_key_block_query = ton.queries.blocks.query(
-        "{}",
+        "{}".into(),
         "id prev_key_block_seqno",
         Some(OrderBy{ path: "seq_no".to_owned(), direction: SortDirection::Descending }),
         Some(1),
     ).map_err(|e| format!("failed to query last key block: {}", e.to_string()))?;
 
     let config_query = ton.queries.blocks.query(
-        &json!({
+        json!({
             "seq_no": {
                 "eq": last_key_block_query[0]["prev_key_block_seqno"].as_u64().unwrap() 
             },
             "workchain_id": {
                 "eq": -1 
             }
-        }).to_string(),
+        }).into(),
         QUERY_FIELDS,
         None,
         None,

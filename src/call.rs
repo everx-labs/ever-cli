@@ -54,7 +54,7 @@ fn prepare_message(
 
     ton.contracts.create_run_message(
         addr,
-        abi,
+        abi.into(),
         method,
         header.map(|v| v.into()),
         params.into(),
@@ -126,7 +126,7 @@ fn decode_call_parameters(ton: &TonClient, msg: &EncodedMessage, abi: &str) -> R
         .map_err(|e| format!("couldn't create body BOC: {}", e))?;
         
     let result = ton.contracts.decode_input_message_body(
-        &abi,
+        abi.into(),
         &data[..],
         false
     ).map_err(|e| format!("couldn't decode message body: {}", e))?;
@@ -210,11 +210,13 @@ pub fn call_contract_with_result(
         ton.contracts.run_local(
             &ton_addr,
             None,
-            &abi,
+            abi.into(),
             method,
             None,
             params.into(),
-            None
+            None,
+            None,
+            false
         )
         .map_err(|e| format!("run failed: {}", e.to_string()))?
         .output
@@ -234,7 +236,7 @@ pub fn call_contract_with_result(
         print_encoded_message(&msg);
         println!("Processing... ");
 
-        ton.contracts.process_message(msg, Some(&abi), Some(method), None)
+        ton.contracts.process_message(msg, Some(abi.into()), Some(method), None)
             .map_err(|e| format!("Failed: {}", e.to_string()))?
             .output
     };
@@ -311,7 +313,7 @@ pub fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) -> Res
     println!("Processing... ");
     let result = ton.contracts.process_message(
         msg,
-        Some(&abi),
+        Some(abi.into()),
         Some(&method),
         None
     )
