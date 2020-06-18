@@ -293,7 +293,7 @@ pub fn decode_proposal(
 				.map_err(|e| format!("failed to create tonclient: {}", e.to_string()))?;
 
 			let result = ton.contracts.decode_input_message_body(
-				TRANSFER_WITH_COMMENT,
+				TRANSFER_WITH_COMMENT.into(),
 				&base64::decode(&body).unwrap(),
 				true,
 			).map_err(|e| format!("failed to decode proposal payload: {}", e))?;

@@ -31,9 +31,9 @@ pub fn get_account(conf: Config, addr: &str) -> Result<(), String> {
     
     println!("Processing...");
     let query_result = ton.queries.accounts.query(
-        &json!({
+        json!({
             "id": { "eq": addr }
-        }).to_string(),
+        }).into(),
         ACCOUNT_FIELDS,
         None,
         None,

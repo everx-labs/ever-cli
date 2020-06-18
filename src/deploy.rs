@@ -27,7 +27,7 @@ pub fn deploy_contract(conf: Config, tvc: &str, abi: &str, params: &str, keys_fi
         .map_err(|e| format!("failed to read smart contract file: {}", e.to_string()))?;
     
     println!("Deploying...");
-    let result = ton.contracts.deploy(&abi, &contract, None, params.into(), None, &keys, wc)
+    let result = ton.contracts.deploy(abi.into(), &contract, None, params.into(), None, &keys, wc)
         .map_err(|e| format!("deploy failed: {}", e.to_string()))?;
 
     println!("Transaction succeeded.");

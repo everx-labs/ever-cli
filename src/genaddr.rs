@@ -56,7 +56,7 @@ pub fn generate_address(
         .unwrap_or(conf.wc);
     
     let addr = ton.contracts.get_deploy_address(
-        &abi,
+        abi.clone().into(),
         &contract,
         initial_data.clone().map(|d| d.into()),
         &keys.public,
