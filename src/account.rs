@@ -10,9 +10,10 @@
 * See the License for the specific TON DEV software governing permissions and
 * limitations under the License.
 */
+use crate::call::create_client_verbose;
 use crate::config::Config;
 use serde_json::json;
-use ton_client_rs::{TonClient, TonAddress};
+use ton_client_rs::TonAddress;
 
 const ACCOUNT_FIELDS: &str = r#"
     acc_type_name
@@ -23,8 +24,7 @@ const ACCOUNT_FIELDS: &str = r#"
 "#;
 
 pub fn get_account(conf: Config, addr: &str) -> Result<(), String> {
-    let ton = TonClient::new_with_base_url(&conf.url)
-        .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))?;
+    let ton = create_client_verbose(&conf)?;
 
     TonAddress::from_str(addr)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;

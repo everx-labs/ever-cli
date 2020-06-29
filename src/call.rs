@@ -40,6 +40,11 @@ fn create_client(conf: &Config) -> Result<TonClient, String> {
     .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))
 }
 
+pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
+    println!("Connecting to {}", conf.url);
+    create_client(conf)
+}
+
 fn prepare_message(
     ton: &TonClient,
     addr: &TonAddress,
@@ -200,7 +205,7 @@ pub fn call_contract_with_result(
     keys: Option<String>,
     local: bool,
 ) -> Result<serde_json::Value, String> {
-    let ton = create_client(&conf)?;
+    let ton = create_client_verbose(&conf)?;
 
     let ton_addr = TonAddress::from_str(addr)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
@@ -301,7 +306,7 @@ pub fn generate_message(
 }
 
 pub fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) -> Result<(), String> {
-    let ton = create_client(&conf)?;
+    let ton = create_client_verbose(&conf)?;
 
     let (msg, method) = unpack_message(&str_msg)?;
     print_encoded_message(&msg);
@@ -336,7 +341,7 @@ pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<St
 }
 
 pub fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>) -> Result<(), String> {
-    let ton = create_client(&conf)?;
+    let ton = create_client_verbose(&conf)?;
 
     let ton_addr = TonAddress::from_str(addr)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;

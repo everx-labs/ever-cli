@@ -122,13 +122,22 @@ Run funC get-method:
 
 ### 6) Store Parameter Values in the Configuration File
 
-tonos-cli can remember some parameter values and use it automatically in `deploy`, `call` and `run` subcommands.
+tonos-cli can remember some parameter values and use it automatically in all subcommands.
 
     tonos-cli config [--url <url>] [--abi <abifile>] [--keys <keysfile>]
 
-Example: `tonos-cli config --abi wallet.abi.json --keys wallet_keys.json`
+Example: `tonos-cli config --url https://main.ton.dev --abi wallet.abi.json --keys wallet_keys.json`
 
-After that you can omit `--abi` and `--sign` parameters in `deploy`, `call` and `run` subcommands. 
+After that you can omit `--abi` and `--sign` parameters in `deploy`, `call` and `run` subcommands and cli by default will connect to main.ton.dev network.
+
+`config` command creates config file in current working directory which will be used by cli at every start. To override searching config file in current dir use the following methods:
+
+ - define environment variable `TONOSCLI_CONFIG` with path to your config file;
+ - define global option `--config <path_to_file>` before any other subcommand (example: `tonos-cli --config ../config.json call ...`).
+
+ Global option has higher priority than env variable.
+
+ Also you can explicitly define network in every subcommand by using global option `--url <network>` (example: `tonos-cli --url https://main.ton.dev account <address>`).
 
 ### 7) Get Account Info
 

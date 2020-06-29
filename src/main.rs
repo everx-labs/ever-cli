@@ -6,7 +6,7 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARR{ANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
@@ -36,10 +36,13 @@ use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use deploy::deploy_contract;
 use genaddr::generate_address;
 use getconfig::query_global_config;
+use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
 
 const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
+const CONFIG_BASE_NAME: &'static str = "tonlabs-cli.conf.json";
+
 enum CallType {
     Run,
     Call,
@@ -60,6 +63,15 @@ macro_rules! print_args {
             )*
         }
     };
+}
+
+fn default_config_name() -> Result<String, String> {
+    env::current_dir()
+        .map_err(|e| format!("cannot get current dir: {}", e))
+        .map(|dir| {
+            dir.join(PathBuf::from(CONFIG_BASE_NAME))
+                .to_str().unwrap().to_string()
+        })
 }
 
 fn main() -> Result<(), i32> {    
@@ -112,6 +124,8 @@ fn main_internal() -> Result <(), String> {
         (version: &*format!("0.1 ({})", build_info))
         (author: "TONLabs")
         (about: "TONLabs console tool for TON")
+        (@arg NETWORK: -u --url +takes_value "Network to connect.")
+        (@arg CONFIG: -c --config +takes_value "Path to tonos-cli configuration file.") 
         (@subcommand version =>
             (about: "Prints build and version info.")
         )
@@ -265,7 +279,24 @@ fn main_internal() -> Result <(), String> {
         (@setting SubcommandRequired)
     ).get_matches();
 
-    let conf = Config::from_file("tonlabs-cli.conf.json").unwrap_or(Config::new());
+    let config_file = matches.value_of("CONFIG").map(|v| v.to_string())
+        .or(env::var("TONOSCLI_CONFIG").ok())
+        .unwrap_or(default_config_name()?);
+
+    let mut conf = match Config::from_file(&config_file) {
+        Some(c) => {
+            println!("Config: {}", config_file);
+            c
+        },
+        None => {
+            println!("Config: default");
+            Config::new()
+        },
+    };
+
+    if let Some(url) = matches.value_of("NETWORK") {
+        conf.url = url.to_string();
+    }
 
     if let Some(m) = matches.subcommand_matches("convert") {
         if let Some(m) = m.subcommand_matches("tokens") {

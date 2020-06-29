@@ -10,13 +10,12 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
+use crate::call::create_client_verbose;
 use crate::config::Config;
 use crate::crypto::load_keypair;
-use ton_client_rs::TonClient;
 
 pub fn deploy_contract(conf: Config, tvc: &str, abi: &str, params: &str, keys_file: &str, wc: i32) -> Result<(), String> {
-    let ton = TonClient::new_with_base_url(&conf.url)
-        .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))?;
+    let ton = create_client_verbose(&conf)?;
     
     let abi = std::fs::read_to_string(abi)
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
