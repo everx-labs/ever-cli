@@ -43,7 +43,9 @@ fn test_config() -> Result<(), Box<dyn std::error::Error>> {
 fn test_call_giver() -> Result<(), Box<dyn std::error::Error>> {
     let giver_abi_name = "tests/samples/giver.abi.json";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("call")
+    cmd.arg("--url")
+        .arg("http://0.0.0.0")
+        .arg("call")
         .arg("--abi")
         .arg(giver_abi_name)
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
@@ -164,7 +166,9 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
     
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("call")
+    cmd.arg("--url")
+        .arg("http://0.0.0.0")
+        .arg("call")
         .arg("--abi")
         .arg(giver_abi_name)
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
@@ -276,5 +280,48 @@ fn test_nodeid() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("e8c5df53b6205e8db639629d2cd2552b354501021a9f223bb72e81e75f37f64a"));
 
+    Ok(())
+}
+
+#[test]
+fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
+    
+    // config from cmd lime
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg("./tests/conf1.json")
+        .arg("account")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
+    cmd.assert()
+        .failure()
+        .stdout(predicate::str::contains("Connecting to https://test.ton.dev"));
+
+    // config from env variable
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.env("TONOSCLI_CONFIG", "./tests/conf2.json")
+        .arg("account")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
+    cmd.assert()
+        .failure()
+        .stdout(predicate::str::contains("Connecting to https://test2.ton.dev"));
+
+    // config from cmd line has higher priority than env variable
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg("./tests/conf1.json")
+        .env("TONOSCLI_CONFIG", "./tests/conf2.json")
+        .arg("account")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
+    cmd.assert()
+        .failure()
+        .stdout(predicate::str::contains("Connecting to https://test.ton.dev"));
+
+    // if there is neither --config nor env variable then config file is searched in current working dir
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Connecting to http://0.0.0.0"));
     Ok(())
 }

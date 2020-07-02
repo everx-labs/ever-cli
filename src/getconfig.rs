@@ -10,9 +10,10 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
+use crate::call::create_client_verbose;
 use crate::config::Config;
 use serde_json::json;
-use ton_client_rs::{TonClient, OrderBy, SortDirection};
+use ton_client_rs::{OrderBy, SortDirection};
 
 const QUERY_FIELDS: &str = r#"
 master { 
@@ -202,8 +203,7 @@ master {
 "#;
 
 pub fn query_global_config(conf: Config, index: &str) -> Result<(), String> {
-    let ton = TonClient::new_with_base_url(&conf.url)
-        .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))?;
+    let ton = create_client_verbose(&conf)?;
 
     let _i = i32::from_str_radix(index, 10)
         .map_err(|e| format!(r#"failed to parse "index": {}"#, e))?;
@@ -211,11 +211,15 @@ pub fn query_global_config(conf: Config, index: &str) -> Result<(), String> {
     let config_name = format!("p{}", index);
 
     let last_key_block_query = ton.queries.blocks.query(
-        "{}".into(),
+        json!({ "workchain_id": { "eq":-1 } }).into(),
         "id prev_key_block_seqno",
         Some(OrderBy{ path: "seq_no".to_owned(), direction: SortDirection::Descending }),
         Some(1),
     ).map_err(|e| format!("failed to query last key block: {}", e.to_string()))?;
+
+    if last_key_block_query.len() == 0 {
+      Err("Key block not found".to_string())?;
+    }
 
     let config_query = ton.queries.blocks.query(
         json!({
