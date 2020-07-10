@@ -24,9 +24,10 @@ mod convert;
 mod crypto;
 mod deploy;
 mod genaddr;
-mod helpers;
-mod voting;
 mod getconfig;
+mod helpers;
+mod multisig;
+mod voting;
 
 use account::get_account;
 use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method};
@@ -36,6 +37,7 @@ use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use deploy::deploy_contract;
 use genaddr::generate_address;
 use getconfig::query_global_config;
+use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
 
@@ -267,6 +269,7 @@ fn main_internal() -> Result <(), String> {
                 (@arg ID: +required +takes_value "Proposal transaction id.")
             )
         )
+        (subcommand: create_multisig_command())
         (@subcommand getconfig =>
             (about: "Reads global configuration parameter with defined index.")
             (@arg INDEX: +required +takes_value "Parameter index.")
@@ -352,6 +355,9 @@ fn main_internal() -> Result <(), String> {
         if let Some(m) = m.subcommand_matches("decode") {
             return proposal_decode_command(m, conf);
         }
+    }
+    if let Some(m) = matches.subcommand_matches("multisig") {
+        return multisig_command(m, conf);
     }
     if let Some(m) = matches.subcommand_matches("getconfig") {
         return getconfig_command(m, conf);
