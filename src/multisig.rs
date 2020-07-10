@@ -157,11 +157,11 @@ pub const TRANSFER_WITH_COMMENT: &str = r#"{
 
 pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("multisig")
-        .about("Multisignature wallet commands.")
-        .setting(AppSettings::AllowLeadingHyphen)  
-        .setting(AppSettings::TrailingVarArg)
+        .about("Multisignature wallet commands.")        
+        .setting(AppSettings::AllowNegativeNumbers)
         .setting(AppSettings::DontCollapseArgsInUsage)
         .subcommand(SubCommand::with_name("send")
+            .setting(AppSettings::AllowLeadingHyphen)
             .about("Transfer funds from multisignature wallet to recepient.")
             .arg(Arg::with_name("ADDRESS")
                 .long("--addr")
