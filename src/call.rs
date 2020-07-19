@@ -13,14 +13,15 @@
 use crate::config::Config;
 use crate::crypto::load_keypair;
 use crate::convert;
+use crate::helpers::{create_client_verbose, now, load_ton_address, load_tvc};
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
 use hex;
-use std::time::SystemTime;
 use ton_client_rs::{
-    TonClient, TonClientConfig, TonAddress, EncodedMessage
+    TonClient, TonAddress, EncodedMessage
 };
 use ton_types::cells_serialization::{BagOfCells};
+use std::io::Cursor;
 
 const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
 
@@ -34,43 +35,15 @@ impl log::Log for SimpleLogger {
     fn log(&self, record: &log::Record) {
 		match record.level() {
 			log::Level::Error | log::Level::Warn => {
-				eprintln!("{}", record.args());
+				eprintln!("{} - {}", record.level(), record.args());
 			}
 			_ => {
-				println!("{}", record.args());
+				println!("{} - {}", record.level(), record.args());
 			}
 		}
     }
 
     fn flush(&self) {}
-}
-
-fn now() -> u32 {
-    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as u32
-}
-
-fn create_client(conf: &Config) -> Result<TonClient, String> {
-    TonClient::new(&TonClientConfig{
-        base_url: Some(conf.url.clone()),
-        message_retries_count: Some(conf.retries),
-        message_expiration_timeout: Some(conf.timeout),
-        message_expiration_timeout_grow_factor: Some(1.5),
-        message_processing_timeout: Some(conf.timeout),
-        wait_for_timeout: None,
-        access_key: None,
-        out_of_sync_threshold: None,
-    })
-    .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))
-}
-
-pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
-    println!("Connecting to {}", conf.url);
-
-    log::set_max_level(MAX_LEVEL);
-    log::set_boxed_logger(Box::new(SimpleLogger))
-        .map_err(|e| format!("failed to init logger: {}", e))?;
-    
-    create_client(conf)
 }
 
 fn prepare_message(
@@ -154,7 +127,24 @@ fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String> {
     Ok((msg, method))
 }
 
-fn decode_call_parameters(ton: &TonClient, msg: &EncodedMessage, abi: &str) -> Result<(String, String), String> {
+fn pack_state(mut msg: EncodedMessage, state: Option<Vec<u8>>) -> Result<EncodedMessage, String> {
+    if state.is_some() {
+        let mut buff = Cursor::new(state.unwrap());
+        let image = ton_sdk::ContractImage::from_state_init(&mut buff)
+            .map_err(|e| format!("unable to load contract image: {}", e))?;
+        let state_init = image.state_init();
+        let mut raw_msg = ton_sdk::Contract::deserialize_message(&msg.message_body[..])
+            .map_err(|e| format!("cannot deserialize buffer to msg: {}", e))?;
+        raw_msg.set_state_init(state_init);
+        let (msg_bytes, message_id) = ton_sdk::Contract::serialize_message(&raw_msg)
+            .map_err(|e| format!("cannot serialize msg with state: {}", e))?;
+        msg.message_body = msg_bytes;
+        msg.message_id = message_id.to_string();
+    }
+    Ok(msg)
+}
+
+pub fn decode_call_parameters(ton: &TonClient, msg: &EncodedMessage, abi: &str) -> Result<(String, String), String> {
     let tvm_msg = ton_sdk::Contract::deserialize_message(&msg.message_body[..]).unwrap();
     let body_slice = tvm_msg.body().unwrap();
 
@@ -237,11 +227,10 @@ pub fn call_contract_with_result(
     params: &str,
     keys: Option<String>,
     local: bool,
+    tvc_file: Option<&str>
 ) -> Result<serde_json::Value, String> {
     let ton = create_client_verbose(&conf)?;
-
-    let ton_addr = TonAddress::from_str(addr)
-        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
+    let ton_addr = load_ton_address(addr)?;
 
     let result = if local {
         println!("Running get-method...");
@@ -260,6 +249,7 @@ pub fn call_contract_with_result(
         .output
         
     } else {
+        
         println!("Generating external inbound message...");
         let msg = prepare_message(
             &ton,
@@ -271,6 +261,9 @@ pub fn call_contract_with_result(
             keys,
         )?;
 
+        let state = tvc_file.map(|v| load_tvc(v)).transpose()?;
+        let msg = pack_state(msg, state)?;
+        
         print_encoded_message(&msg);
         println!("Processing... ");
 
@@ -288,9 +281,10 @@ pub fn call_contract(
     method: &str,
     params: &str,
     keys: Option<String>,
-    local: bool
+    local: bool,
+    tvc_file: Option<&str>,
 ) -> Result<(), String> {
-    let result = call_contract_with_result(conf, addr, abi, method, params, keys, local)?;
+    let result = call_contract_with_result(conf, addr, abi, method, params, keys, local, tvc_file)?;
 
     println!("Succeeded.");
     if !result.is_null() {
@@ -307,6 +301,7 @@ pub fn generate_message(
     params: &str,
     keys: Option<String>,
     lifetime: u32,
+    tvc_file: Option<&str>,
 ) -> Result<(), String> {
     let ton = TonClient::default()
         .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))?;
@@ -328,12 +323,18 @@ pub fn generate_message(
         Some(serde_json::to_string(&header).unwrap()),
         keys,
     )?;
+    let state = tvc_file.map(|v| load_tvc(v)).transpose()?;
+    let msg = pack_state(msg, state)?;
     print_encoded_message(&msg);
 
     let str_msg = pack_message(&msg, method);
     println!("Message: {}", &str_msg);
     println!();
-    qr2term::print_qr(&str_msg).unwrap();
+    let res = qr2term::print_qr(&str_msg)
+        .map_err(|e| format!("cannot generate QR-code: {}", e));
+    if res.is_err() {
+        println!("{}", res.unwrap_err());
+    }
     println!();
     Ok(())
 }

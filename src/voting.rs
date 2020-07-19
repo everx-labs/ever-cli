@@ -53,7 +53,9 @@ pub fn create_proposal(
 			"submitTransaction",
 			&params,
 			keys,
-			lifetime)
+			lifetime,
+			None,
+		)
 	} else {
 
 		call::call_contract(
@@ -63,7 +65,8 @@ pub fn create_proposal(
 			"submitTransaction",
 			&params,
 			keys,
-			false
+			false,
+			None
 		)
 	}
 }
@@ -91,7 +94,8 @@ pub fn vote(
 			"confirmTransaction",
 			&params,
 			keys,
-			lifetime
+			lifetime,
+			None,
 		)
 	} else {
 		call::call_contract(
@@ -101,7 +105,8 @@ pub fn vote(
 			"confirmTransaction",
 			&params,
 			keys,
-			false
+			false,
+			None
 		)
 	}
 }
@@ -119,7 +124,8 @@ pub fn decode_proposal(
 		"getTransactions",
 		"{}",
 		None,
-		true
+		true,
+		None
 	)?;
 
 	let txns = result["transactions"].as_array()
