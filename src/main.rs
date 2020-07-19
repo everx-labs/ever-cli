@@ -26,6 +26,7 @@ mod deploy;
 mod genaddr;
 mod getconfig;
 mod helpers;
+mod image;
 mod multisig;
 mod voting;
 
@@ -244,6 +245,17 @@ fn main_internal() -> Result <(), String> {
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Smart contract address.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            (@subcommand replaytxn =>
+                (about: "Replays account transaction locally using smart contract image file.")
+                (@arg TVC: --tvc +takes_value "Path to smart contract image file (tvc).")
+                (@arg TXN: --txnid +takes_value "ID of transaction which should be replayed.")
+            )
+            (@subcommand replaystate =>
+                (about: "Replays all transactions for account until defined transaction and saves new contract state to tvc file.")
+                (@arg TVC: --tvc +takes_value "Path to original smart contract image (tvc).")
+                (@arg TXN: --txnid +takes_value "ID of threshold transaction.")
+                (@arg ABI: --abi +takes_value "Path to file with contract ABI.")
+            )
         )
         (@subcommand proposal =>
             (@subcommand create =>
@@ -337,7 +349,17 @@ fn main_internal() -> Result <(), String> {
         return getkeypair_command(m, conf);
     }
     if let Some(m) = matches.subcommand_matches("account") {
-        return account_command(m, conf);
+        let address = m.value_of("ADDRESS")
+            .map(|s| s.to_string())
+            .or(conf.addr.clone())
+            .ok_or("ADDRESS is not defined".to_string())?;
+        if let Some(m) = m.subcommand_matches("replaytxn") {
+            return replaytxn_command(m, conf, &address);
+        }
+        if let Some(m) = m.subcommand_matches("replaystate") {
+            return replaystate_command(m, conf, &address);
+        }
+        return account_command(m, conf, &address);
     }
     if let Some(m) = matches.subcommand_matches("genphrase") {
         return genphrase_command(m, conf);
@@ -585,8 +607,8 @@ fn genaddr_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     generate_address(config, tvc.unwrap(), abi.unwrap(), wc, keys, new_keys, init_data, update_tvc)
 }
 
-fn account_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
-    let address = matches.value_of("ADDRESS");
+fn account_command(matches: &ArgMatches, config: Config, address: &str) -> Result<(), String> {
+    let address = Some(address);
     print_args!(matches, address);
     get_account(config, address.unwrap())
 }
@@ -657,4 +679,27 @@ fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
     };
     println!("{}", nodeid);
     Ok(())
+}
+
+fn replaytxn_command(matches: &ArgMatches, config: Config, address: &str) -> Result<(), String> {
+    let address = Some(address);
+    let tvc = matches.value_of("TVC");
+    let transaction_id = matches.value_of("TXN");    
+    print_args!(matches, address, tvc, transaction_id);
+    image::replay_transaction(config, address.unwrap(), tvc.unwrap(), transaction_id.unwrap())
+}
+
+fn replaystate_command(matches: &ArgMatches, config: Config, address: &str) -> Result<(), String> {
+    let address = Some(address);
+    let tvc = matches.value_of("TVC");
+    let last_txn_id = matches.value_of("TXN");
+    let abi = matches.value_of("ABI")
+        .map(|s| s.to_string())
+        .or(config.abi_path.clone());
+    
+    print_args!(matches, address, tvc, last_txn_id, abi);
+    let abi = abi.map(|v| std::fs::read_to_string(v)
+        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))
+    ).transpose()?;
+    image::replay_state(config, address.unwrap(), tvc.unwrap(), last_txn_id, abi)
 }

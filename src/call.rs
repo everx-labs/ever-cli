@@ -13,36 +13,18 @@
 use crate::config::Config;
 use crate::crypto::load_keypair;
 use crate::convert;
+use crate::helpers::create_client_verbose;
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
 use hex;
 use std::time::SystemTime;
 use ton_client_rs::{
-    TonClient, TonClientConfig, TonAddress, EncodedMessage
+    TonClient, TonAddress, EncodedMessage
 };
 use ton_types::cells_serialization::{BagOfCells};
 
 fn now() -> u32 {
     SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as u32
-}
-
-fn create_client(conf: &Config) -> Result<TonClient, String> {
-    TonClient::new(&TonClientConfig{
-        base_url: Some(conf.url.clone()),
-        message_retries_count: Some(conf.retries),
-        message_expiration_timeout: Some(conf.timeout),
-        message_expiration_timeout_grow_factor: Some(1.5),
-        message_processing_timeout: Some(conf.timeout),
-        message_processing_timeout_grow_factor: Some(1.5),
-        wait_for_timeout: None,
-        access_key: None,
-    })
-    .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))
-}
-
-pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
-    println!("Connecting to {}", conf.url);
-    create_client(conf)
 }
 
 fn prepare_message(
@@ -121,7 +103,7 @@ fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String> {
     Ok((msg, method))
 }
 
-fn decode_call_parameters(ton: &TonClient, msg: &EncodedMessage, abi: &str) -> Result<(String, String), String> {
+pub fn decode_call_parameters(ton: &TonClient, msg: &EncodedMessage, abi: &str) -> Result<(String, String), String> {
     let tvm_msg = ton_sdk::Contract::deserialize_message(&msg.message_body[..]).unwrap();
     let body_slice = tvm_msg.body().unwrap();
 
