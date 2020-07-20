@@ -22,6 +22,29 @@ use ton_client_rs::{
 };
 use ton_types::cells_serialization::{BagOfCells};
 
+const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
+
+struct SimpleLogger;
+
+impl log::Log for SimpleLogger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.level() < MAX_LEVEL
+    }
+
+    fn log(&self, record: &log::Record) {
+		match record.level() {
+			log::Level::Error | log::Level::Warn => {
+				eprintln!("{}", record.args());
+			}
+			_ => {
+				println!("{}", record.args());
+			}
+		}
+    }
+
+    fn flush(&self) {}
+}
+
 fn now() -> u32 {
     SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as u32
 }
@@ -33,15 +56,20 @@ fn create_client(conf: &Config) -> Result<TonClient, String> {
         message_expiration_timeout: Some(conf.timeout),
         message_expiration_timeout_grow_factor: Some(1.5),
         message_processing_timeout: Some(conf.timeout),
-        message_processing_timeout_grow_factor: Some(1.5),
         wait_for_timeout: None,
         access_key: None,
+        out_of_sync_threshold: None,
     })
     .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))
 }
 
 pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
     println!("Connecting to {}", conf.url);
+
+    log::set_max_level(MAX_LEVEL);
+    log::set_boxed_logger(Box::new(SimpleLogger))
+        .map_err(|e| format!("failed to init logger: {}", e))?;
+    
     create_client(conf)
 }
 
@@ -86,7 +114,8 @@ fn pack_message(msg: &EncodedMessage, method: &str) -> String {
         "msg": {
             "message_id": msg.message_id,
             "message_body": hex::encode(&msg.message_body),
-            "expire": msg.expire
+            "expire": msg.expire,
+            "address": msg.address,
         },
         "method": method,
     });
@@ -114,9 +143,13 @@ fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String> {
         .ok_or(r#"couldn't find "message_body" key in message"#)?;
     let message_body = hex::decode(message_body).unwrap();
     let expire = json_msg["msg"]["expire"].as_u64().map(|x| x as u32);
+    let address = json_msg["msg"]["address"].as_str()
+        .ok_or(r#"couldn't find "address" key in message"#)?;
+    let address = TonAddress::from_str(address)
+        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
     
     let msg = EncodedMessage {
-        message_id, message_body, expire
+        message_id, message_body, expire, address
     };
     Ok((msg, method))
 }
@@ -241,7 +274,7 @@ pub fn call_contract_with_result(
         print_encoded_message(&msg);
         println!("Processing... ");
 
-        ton.contracts.process_message(msg, Some(abi.into()), Some(method), None)
+        ton.contracts.process_message(msg, Some(abi.into()), Some(method), true)
             .map_err(|e| format!("Failed: {}", e.to_string()))?
             .output
     };
@@ -320,7 +353,7 @@ pub fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) -> Res
         msg,
         Some(abi.into()),
         Some(&method),
-        None
+        true
     )
     .map_err(|e| format!("Failed: {}", e.to_string()))?;
 
