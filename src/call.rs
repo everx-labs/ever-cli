@@ -109,18 +109,20 @@ fn print_encoded_message(msg: &EncodedMessage) {
     }
 }
 
-fn pack_message(msg: &EncodedMessage, method: &str) -> String {
-    let json_msg = json!({
-        "msg": {
-            "message_id": msg.message_id,
-            "message_body": hex::encode(&msg.message_body),
-            "expire": msg.expire,
-            "address": msg.address,
-        },
-        "method": method,
-    });
-
-    hex::encode(serde_json::to_string(&json_msg).unwrap())
+fn pack_message(msg: &EncodedMessage, method: &str, is_raw: bool) -> String {
+    if is_raw {
+        hex::encode(&msg.message_body)
+    } else {
+        let json_msg = json!({
+            "msg": {
+                "message_id": msg.message_id,
+                "message_body": hex::encode(&msg.message_body),
+                "expire": msg.expire
+            },
+            "method": method,
+        });
+        hex::encode(serde_json::to_string(&json_msg).unwrap())
+    }
 }
 
 fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String> {
@@ -307,6 +309,8 @@ pub fn generate_message(
     params: &str,
     keys: Option<String>,
     lifetime: u32,
+    is_raw: bool,
+    output: Option<&str>,
 ) -> Result<(), String> {
     let ton = TonClient::default()
         .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))?;
@@ -330,11 +334,18 @@ pub fn generate_message(
     )?;
     print_encoded_message(&msg);
 
-    let str_msg = pack_message(&msg, method);
-    println!("Message: {}", &str_msg);
-    println!();
-    qr2term::print_qr(&str_msg).unwrap();
-    println!();
+    let str_msg = pack_message(&msg, method, is_raw);
+    if output.is_some() {
+        let out_file = output.unwrap();
+        std::fs::write(out_file, hex::decode(str_msg).unwrap())
+            .map_err(|e| format!("cannot write message to file: {}", e))?;
+        println!("Message saved to file {}", out_file);
+    } else {
+        println!("Message: {}", &str_msg);
+        println!();
+        qr2term::print_qr(&str_msg).unwrap();
+        println!();
+    }
     Ok(())
 }
 

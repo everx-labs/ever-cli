@@ -99,6 +99,28 @@ master {
         flat_gas_limit
         flat_gas_price
       }
+      p22 {
+        bytes {
+          underload soft_limit hard_limit
+        }
+        gas {
+          underload soft_limit hard_limit
+        }
+        lt_delta {
+          underload soft_limit hard_limit
+        }
+      }
+      p23 {
+        bytes {
+          underload soft_limit hard_limit
+        }
+        gas {
+          underload soft_limit hard_limit
+        }
+        lt_delta {
+          underload soft_limit hard_limit
+        }
+      }
       p24 {
         lump_price bit_price cell_price ihr_price_factor first_frac next_frac
       }

@@ -27,6 +27,7 @@ mod genaddr;
 mod getconfig;
 mod helpers;
 mod multisig;
+mod sendfile;
 mod voting;
 
 use account::get_account;
@@ -212,6 +213,8 @@ fn main_internal() -> Result <(), String> {
             (@arg SIGN: --sign +takes_value "Keypair used to sign message.")
             (@arg LIFETIME: --lifetime +takes_value "Period of time in seconds while message is valid.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            (@arg OUTPUT: -o --output +takes_value "Path to file where to store message.")
+            (@arg RAW: --raw "Creates raw message boc.")
         )
         (@subcommand run =>
             (@setting AllowLeadingHyphen)
@@ -278,6 +281,10 @@ fn main_internal() -> Result <(), String> {
             (about: "Calculates node ID from validator public key")
             (@arg KEY: --pubkey +takes_value "Validator public key.")
             (@arg KEY_PAIR: --keypair +takes_value "Validator key pair as 12 words mnemonic or file path.")
+        )
+        (@subcommand sendfile =>
+            (about: "Sends boc file with external inbound message to account.")
+            (@arg BOC: +required +takes_value "Boc file with message.")
         )
         (@setting SubcommandRequired)
     ).get_matches();
@@ -365,6 +372,9 @@ fn main_internal() -> Result <(), String> {
     if let Some(m) = matches.subcommand_matches("nodeid") {
         return nodeid_command(m);
     }
+    if let Some(m) = matches.subcommand_matches("sendfile") {
+        return sendfile_command(m, conf);
+    }
     if let Some(_) = matches.subcommand_matches("version") {
         println!(
             "tonlabs-cli {}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
@@ -424,6 +434,9 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
     let lifetime = matches.value_of("LIFETIME");
+    let raw = matches.is_present("RAW");
+    let output = matches.value_of("OUTPUT");
+
     let abi = Some(
         matches.value_of("ABI")
             .map(|s| s.to_string())
@@ -442,7 +455,7 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
         }
     };
 
-    print_args!(matches, address, method, params, abi, keys, lifetime);
+    print_args!(matches, address, method, params, abi, keys, lifetime, output);
 
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
@@ -475,7 +488,10 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
                 method.unwrap(),
                 params.unwrap(),
                 keys,
-                lifetime)
+                lifetime,
+                raw,
+                output,
+            )
         },
     }
 }
@@ -657,4 +673,10 @@ fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
     };
     println!("{}", nodeid);
     Ok(())
+}
+
+fn sendfile_command(m: &ArgMatches, conf: Config) -> Result<(), String> {
+    let boc = m.value_of("BOC");
+    print_args!(m, boc);
+    sendfile::sendfile(conf, boc.unwrap())
 }
