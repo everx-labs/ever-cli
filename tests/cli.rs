@@ -325,3 +325,30 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Connecting to http://0.0.0.0"));
     Ok(())
 }
+
+#[test]
+fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--url")
+        .arg("https://net.ton.dev")
+        .arg("message")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("sendTransaction")
+        .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":1000000000,"bounce":true}"#)
+        .arg("--abi")
+        .arg("./tests/samples/wallet.abi.json")
+        .arg("--raw")
+        .arg("--output")
+        .arg("call.boc");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--url")
+        .arg("https://net.ton.dev")
+        .arg("sendfile")
+        .arg("call.boc");
+    cmd.assert()
+        .success();
+    Ok(())
+}

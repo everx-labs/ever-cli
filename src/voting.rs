@@ -53,7 +53,9 @@ pub fn create_proposal(
 			"submitTransaction",
 			&params,
 			keys,
-			lifetime)
+			lifetime,
+			false,
+			None)
 	} else {
 
 		call::call_contract(
@@ -91,7 +93,9 @@ pub fn vote(
 			"confirmTransaction",
 			&params,
 			keys,
-			lifetime
+			lifetime,
+			false,
+			None,
 		)
 	} else {
 		call::call_contract(
