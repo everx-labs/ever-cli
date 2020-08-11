@@ -243,9 +243,20 @@ fn send(
             .to_owned()
     } else {
         "".to_owned()
-    };
-    
-    let params = json!({
+	};
+	
+	send_with_body(conf, addr, dest, value, keys, &body)
+}
+
+pub fn send_with_body(
+	conf: Config,
+    addr: &str,
+    dest: &str,
+    value: &str,
+	keys: &str,
+	body: &str,
+) -> Result<(), String> {
+	let params = json!({
         "dest": dest,
         "value": convert::convert_token(value)?,
         "bounce": true,

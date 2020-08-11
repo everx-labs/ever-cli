@@ -23,6 +23,8 @@ mod config;
 mod convert;
 mod crypto;
 mod deploy;
+mod depool;
+mod depool_abi;
 mod genaddr;
 mod getconfig;
 mod helpers;
@@ -36,13 +38,14 @@ use clap::{ArgMatches, SubCommand, Arg, AppSettings};
 use config::{Config, set_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use deploy::deploy_contract;
+use depool::{create_depool_command, depool_command};
 use genaddr::generate_address;
 use getconfig::query_global_config;
 use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
 
-const VERBOSE_MODE: bool = true;
+pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
 const CONFIG_BASE_NAME: &'static str = "tonlabs-cli.conf.json";
 
@@ -52,6 +55,7 @@ enum CallType {
     Msg,
 }
 
+#[macro_export]
 macro_rules! print_args {
     ($m:ident, $( $arg:ident ),* ) => {
         if ($m.is_present("VERBOSE") || VERBOSE_MODE) {
@@ -235,6 +239,7 @@ fn main_internal() -> Result <(), String> {
             (@arg ABI: --abi +takes_value conflicts_with[DATA] "File with contract ABI.")
             (@arg KEYS: --keys +takes_value "File with keypair.")
             (@arg ADDR: --addr +takes_value "Contract address.")
+            (@arg WALLET: --wallet +takes_value "Multisig wallet address. Used in commands which send internal messages through multisig wallets.")
             (@arg WC: --wc +takes_value "Workchain id.")
             (@arg RETRIES: --retries +takes_value "Number of attempts to call smart contract function if previous attempt was unsuccessful.")
             (@arg TIMEOUT: --timeout +takes_value "Contract call timeout in ms.")
@@ -273,6 +278,7 @@ fn main_internal() -> Result <(), String> {
             )
         )
         (subcommand: create_multisig_command())
+        (subcommand: create_depool_command())
         (@subcommand getconfig =>
             (about: "Reads global configuration parameter with defined index.")
             (@arg INDEX: +required +takes_value "Parameter index.")
@@ -365,6 +371,9 @@ fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("multisig") {
         return multisig_command(m, conf);
+    }
+    if let Some(m) = matches.subcommand_matches("depool") {
+        return depool_command(m, conf);
     }
     if let Some(m) = matches.subcommand_matches("getconfig") {
         return getconfig_command(m, conf);
@@ -578,13 +587,14 @@ fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     } else {
         let url = matches.value_of("URL");
         let address = matches.value_of("ADDR");
+        let wallet = matches.value_of("WALLET");
         let keys = matches.value_of("KEYS");
         let abi = matches.value_of("ABI");
         let wc = matches.value_of("WC");
         let retries = matches.value_of("RETRIES");
         let timeout = matches.value_of("TIMEOUT");
-        print_args!(matches, url, address, keys, abi, wc, retries, timeout);
-        set_config(config, "tonlabs-cli.conf.json", url, address, abi, keys, wc, retries, timeout)
+        print_args!(matches, url, address, wallet, keys, abi, wc, retries, timeout);
+        set_config(config, "tonlabs-cli.conf.json", url, address, wallet, abi, keys, wc, retries, timeout)
     }
 }
 
