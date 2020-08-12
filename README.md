@@ -194,3 +194,48 @@ The contract should be in the `Active` state.
 #### 7) Use the `call` subcommand to execute contract methods in blockchain.
 
     tonos-cli call --abi contract.abi.json --sign contract_keys.json <raw_address> methodName {<method_args>}
+
+## DePool commands
+
+Tonos-cli allows to communicate with depool contract using multisignature wallet. All depool commands are started with `tonos-cli depool` .
+
+For all commands:
+
+`--addr` - address of depool.
+`--walllet` - address of multisig wallet.
+`--sign` - path to keyfile or seed phrase of multisig wallet.
+
+All commands allow to omit `--addr`, `--wallet` and `--sign` options only if this values are defined in config file:
+
+    tonos-cli config --addr <address> --wallet <address> --keys <path_to_keys or seed_phrase>
+
+### Deposit stakes
+
+all `--value` parameters must be defined in tons, like this: `--value 10.5`, it means value is 10,5 tons.
+
+#### 1) Ordinary stake
+
+    tonos-cli depool [--addr <depool_address>] stake ordinary [--wallet <msig_address>] --value <number> [--autoresume-off] [--sign <key_file or seed_phrase>]
+
+`--autoresume-off` - participant stake will not be automatically reinvested to the next round.
+
+#### 2) Vesting stake
+
+    tonos-cli depool [--addr <depool_address>] stake vesting [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>]
+
+
+#### 3) Lock stake
+
+    tonos-cli depool [--addr <depool_address>] stake lock [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>]
+
+### Remove stakes
+
+    tonos-cli depool [--addr <depool_address>] stake remove [--wallet <msig_address>] --value <number> [--from-round <number>] [--sign <key_file or seed_phrase>]
+
+### Transfer stakes
+
+    tonos-cli depool [--addr <depool_address>] stake transfer [--wallet <msig_address>] --value <number> --dest <address> [--sign <key_file or seed_phrase>]
+
+### Enable/disable autoresuming
+
+    tonos-cli depool [--addr <depool_address>] autoresume on | off [--wallet <msig_address>] [--sign <key_file or seed_phrase>]
