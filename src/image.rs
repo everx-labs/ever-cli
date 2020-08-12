@@ -202,6 +202,9 @@ fn execute_one(
         code: state.code.clone(),
         data: state.data.clone(),
         last_paid: last_paid,
+        boc: None,
+        code_hash: None,
+        data_hash: None,
     };
 
     let msg = EncodedMessage {
