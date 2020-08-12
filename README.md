@@ -239,3 +239,13 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, it 
 ### Enable/disable autoresuming
 
     tonos-cli depool [--addr <depool_address>] autoresume on | off [--wallet <msig_address>] [--sign <key_file or seed_phrase>]
+
+### View depool events
+
+    tonos-cli depool [--addr <depool_address>] events [--since <utime>]
+
+Prints depool events since defined unixtime. if `--since` is omitted then prints all depool events.
+
+    tonos-cli depool [--addr <depool_address>] events --wait-one
+
+Waits until new event will be emitted and then prints it to the stdout.

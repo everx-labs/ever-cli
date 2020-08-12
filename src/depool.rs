@@ -11,14 +11,16 @@
  * limitations under the License.
  */
 use crate::{print_args, VERBOSE_MODE};
-use crate::crypto::{SdkClient};
+use crate::call::create_client_verbose;
 use crate::config::Config;
 use crate::convert;
+use crate::crypto::{SdkClient};
 use crate::depool_abi::DEPOOL_ABI;
-use crate::helpers::load_ton_address;
+use crate::helpers::{load_ton_address, now};
 use crate::multisig::send_with_body;
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 use serde_json;
+use ton_client_rs::{OrderBy, SortDirection, TonClient};
 
 pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
     let wallet_arg = Arg::with_name("MSIG")
@@ -126,6 +128,18 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
             .subcommand(SubCommand::with_name("off")
                 .arg(wallet_arg.clone())
                 .arg(keys_arg.clone())))
+        .subcommand(SubCommand::with_name("events")
+            .about("Prints depool events.")
+            .setting(AppSettings::AllowLeadingHyphen)
+            .arg(Arg::with_name("SINCE")
+                .takes_value(true)
+                .long("--since")
+                .short("-s")
+                .help("Prints events since this unixtime."))
+            .arg(Arg::with_name("WAITONE")
+                .long("--wait-one")
+                .short("-w")
+                .help("Waits until new event will be emitted.")) )
 }
 
 struct CommandData<'a> {
@@ -209,8 +223,97 @@ pub fn depool_command(m: &ArgMatches, conf: Config) -> Result<(), String> {
             return set_autoresume_command(matches, conf, &depool, &wallet, &keys, enable_autoresume);
         }
     }
+    if let Some(m) = m.subcommand_matches("events") {
+        return events_command(m, conf, &depool)
+    }
     Err("unknown depool command".to_owned())
 }
+
+/*
+ * Events command
+ */
+
+fn events_command(m: &ArgMatches, conf: Config, depool: &str) -> Result<(), String> {
+    let since = m.value_of("SINCE");
+    let wait_for = m.is_present("WAITONE");
+    let depool = Some(depool);
+    print_args!(m, depool, since);
+    if !wait_for {
+        let since = since.map(|s| {
+                u32::from_str_radix(s, 10)
+                    .map_err(|e| format!(r#"cannot parse "since" option: {}"#, e))
+            })
+            .transpose()?
+            .unwrap_or(0);
+        get_events(conf, depool.unwrap(), since)
+    } else {
+        wait_for_event(conf, depool.unwrap())
+    }
+}
+
+fn events_filter(addr: &str, since: u32) -> serde_json::Value {
+    json!({ 
+        "src": { "eq": addr },
+        "msg_type": {"eq": 2 },
+        "created_at": {"ge": since }
+    })
+}
+
+fn print_event(ton: &TonClient, event: &serde_json::Value) {
+    println!("event {}", event["id"].as_str().unwrap());
+    
+    let body = base64::decode(event["body"].as_str().unwrap()).unwrap();
+    let result = ton.contracts.decode_output_message_body(
+        DEPOOL_ABI.into(),
+        &body[..],
+    );
+    let (name, args) = if result.is_err() {
+        ("unknown".to_owned(), "{}".to_owned())
+    } else {
+        let result = result.unwrap();
+        (result.function, serde_json::to_string(&result.output).unwrap())
+    };
+
+    println!("{} {} ({})\n{}\n", 
+        name,
+        event["created_at"].as_u64().unwrap(),
+        event["created_at_string"].as_str().unwrap(),
+        args
+    );
+}
+
+fn get_events(conf: Config, depool: &str, since: u32) -> Result<(), String> {
+    let ton = create_client_verbose(&conf)?;
+    let _addr = load_ton_address(depool)?;
+
+    let events = ton.queries.messages.query(
+        events_filter(depool, since).into(),
+        "id body created_at created_at_string",
+        Some(OrderBy{ path: "created_at".to_owned(), direction: SortDirection::Descending }),
+        None,
+    ).map_err(|e| format!("failed to query depool events: {}", e.to_string()))?;
+    println!("{} events found", events.len());
+    for event in &events {
+        print_event(&ton, event);
+    }
+    println!("Done");
+    Ok(())
+}
+
+fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
+    let ton = create_client_verbose(&conf)?;
+    let _addr = load_ton_address(depool)?;
+    println!("Waiting for a new event...");
+    let event = ton.queries.messages.wait_for(
+        events_filter(depool, now()).into(),
+        "id body created_at created_at_string",
+    ).map_err(|e| format!("failed to query event: {}", e.to_string()))?;
+    print_event(&ton, &event);
+    Ok(())
+}
+/*
+ * Stake commands
+ */
 
 fn ordinary_stake_command<'a>(
     m: &ArgMatches,
@@ -223,7 +326,6 @@ fn ordinary_stake_command<'a>(
     print_args!(m, depool, wallet, stake, keys, unused_stake, autoresume);
     add_ordinary_stake(cmd, unused_stake, !disable_reinvest)
 }
-
 
 fn transfer_stake_command<'a>(
     m: &ArgMatches,
@@ -339,7 +441,6 @@ fn transfer_stake(cmd: CommandData, dest: &str) -> Result<(), String> {
     let body = encode_transfer_stake(dest, stake)?;
     send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, "0.1", &cmd.keys, &body)
 }
-
 
 fn set_reinvest(
     conf: Config,
