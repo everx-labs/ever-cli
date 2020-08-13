@@ -13,10 +13,10 @@
 use crate::config::Config;
 use crate::crypto::load_keypair;
 use crate::convert;
+use crate::helpers::now;
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
 use hex;
-use std::time::SystemTime;
 use ton_client_rs::{
     TonClient, TonClientConfig, TonAddress, EncodedMessage
 };
@@ -45,10 +45,6 @@ impl log::Log for SimpleLogger {
     fn flush(&self) {}
 }
 
-fn now() -> u32 {
-    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as u32
-}
-
 fn create_client(conf: &Config) -> Result<TonClient, String> {
     TonClient::new(&TonClientConfig{
         base_url: Some(conf.url.clone()),
@@ -56,7 +52,7 @@ fn create_client(conf: &Config) -> Result<TonClient, String> {
         message_expiration_timeout: Some(conf.timeout),
         message_expiration_timeout_grow_factor: Some(1.5),
         message_processing_timeout: Some(conf.timeout),
-        wait_for_timeout: None,
+        wait_for_timeout: Some(60 * 60000),
         access_key: None,
         out_of_sync_threshold: None,
     })

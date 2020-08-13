@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 use ton_client_rs::{Ed25519KeyPair, TonAddress};
+use std::time::SystemTime;
 
 pub fn read_keys(filename: &str) -> Result<Ed25519KeyPair, String> {
     let keys_str = std::fs::read_to_string(filename)
@@ -22,4 +23,8 @@ pub fn read_keys(filename: &str) -> Result<Ed25519KeyPair, String> {
 pub fn load_ton_address(addr: &str) -> Result<TonAddress, String> {
     TonAddress::from_str(addr)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))
+}
+
+pub fn now() -> u32 {
+    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as u32
 }
