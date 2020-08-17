@@ -202,7 +202,7 @@ Tonos-cli allows to communicate with depool contract using multisignature wallet
 For all commands:
 
 `--addr` - address of depool.
-`--walllet` - address of multisig wallet.
+`--wallet` - address of multisig wallet.
 `--sign` - path to keyfile or seed phrase of multisig wallet.
 
 All commands allow to omit `--addr`, `--wallet` and `--sign` options only if this values are defined in config file:
