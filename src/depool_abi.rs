@@ -22,20 +22,10 @@
 				{"name":"minRoundStake","type":"uint64"},
 				{"name":"proxy0","type":"address"},
 				{"name":"proxy1","type":"address"},
-				{"name":"proxy2","type":"address"},
-				{"name":"depoolValidator","type":"address"},
-				{"name":"nodeWallet","type":"address"},
+				{"name":"validatorWallet","type":"address"},
 				{"name":"minStake","type":"uint64"}
 			],
 			"outputs": [
-			]
-		},
-		{
-			"name": "getValidatorReward",
-			"inputs": [
-			],
-			"outputs": [
-				{"name":"reward","type":"uint64"}
 			]
 		},
 		{
@@ -45,14 +35,12 @@
 			],
 			"outputs": [
 				{"name":"total","type":"uint64"},
-				{"name":"available","type":"uint64"},
-				{"name":"invested","type":"uint64"},
+				{"name":"pauseStake","type":"uint64"},
 				{"name":"reinvest","type":"bool"},
 				{"name":"reward","type":"uint64"},
-				{"name":"pauseStake","type":"uint64"},
 				{"name":"stakes","type":"map(uint64,uint64)"},
-				{"name":"vestings","type":"map(uint64,uint64)"},
-				{"name":"locks","type":"map(uint64,uint64)"}
+				{"components":[{"name":"isActive","type":"bool"},{"name":"amount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"vestings","type":"map(uint64,tuple)"},
+				{"components":[{"name":"isActive","type":"bool"},{"name":"amount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"locks","type":"map(uint64,tuple)"}
 			]
 		},
 		{
@@ -62,21 +50,33 @@
 			"outputs": [
 				{"name":"minStake","type":"uint64"},
 				{"name":"minRoundStake","type":"uint64"},
-				{"name":"minNodeStake","type":"uint64"},
+				{"name":"minValidatorStake","type":"uint64"},
+				{"name":"validatorWallet","type":"address"},
+				{"name":"proxies","type":"address[]"},
 				{"name":"interest","type":"uint64"},
-				{"name":"notifyFee","type":"uint64"},
-				{"name":"addFee","type":"uint64"},
-				{"name":"removeFee","type":"uint64"},
-				{"name":"pauseFee","type":"uint64"},
-				{"name":"setReinvestFee","type":"uint64"},
-				{"name":"nodeWallet","type":"address"}
+				{"name":"addStakeFee","type":"uint64"},
+				{"name":"addVestingOrLockFee","type":"uint64"},
+				{"name":"removeOrdinaryStakeFee","type":"uint64"},
+				{"name":"withdrawPartAfterCompletingFee","type":"uint64"},
+				{"name":"withdrawAllAfterCompletingFee","type":"uint64"},
+				{"name":"transferStakeFee","type":"uint64"},
+				{"name":"retOrReinvFee","type":"uint64"},
+				{"name":"answerMsgFee","type":"uint64"},
+				{"name":"proxyFee","type":"uint64"}
 			]
 		},
 		{
 			"name": "addOrdinaryStake",
 			"inputs": [
-				{"name":"unusedStake","type":"uint64"},
 				{"name":"reinvest","type":"bool"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "removeOrdinaryStake",
+			"inputs": [
+				{"name":"withdrawValue","type":"uint64"}
 			],
 			"outputs": [
 			]
@@ -102,26 +102,17 @@
 			]
 		},
 		{
-			"name": "removeStake",
+			"name": "withdrawPartAfterCompleting",
 			"inputs": [
-				{"name":"doRemoveFromCurrentRound","type":"bool"},
-				{"name":"targetValue","type":"uint64"}
+				{"name":"withdrawValue","type":"uint64"}
 			],
 			"outputs": [
 			]
 		},
 		{
-			"name": "setReinvest",
+			"name": "withdrawAllAfterCompleting",
 			"inputs": [
-				{"name":"flag","type":"bool"}
-			],
-			"outputs": [
-			]
-		},
-		{
-			"name": "pauseStake",
-			"inputs": [
-				{"name":"amount","type":"uint64"}
+				{"name":"doWithdrawAll","type":"bool"}
 			],
 			"outputs": [
 			]
@@ -129,7 +120,7 @@
 		{
 			"name": "transferStake",
 			"inputs": [
-				{"name":"destination","type":"address"},
+				{"name":"dest","type":"address"},
 				{"name":"amount","type":"uint64"}
 			],
 			"outputs": [
@@ -231,15 +222,7 @@
 			"inputs": [
 			],
 			"outputs": [
-				{"components":[{"name":"id","type":"uint64"},{"name":"supposedElectedAt","type":"uint32"},{"name":"supposedUnfreeze","type":"uint32"},{"name":"step","type":"uint8"},{"name":"completionReason","type":"uint8"},{"name":"participantQty","type":"uint32"},{"name":"stake","type":"uint64"},{"name":"rewards","type":"uint64"},{"name":"unused","type":"uint64"},{"name":"vsetHash","type":"uint256"},{"name":"start","type":"uint64"},{"name":"end","type":"uint64"}],"name":"rounds","type":"map(uint64,tuple)"}
-			]
-		},
-		{
-			"name": "withdrawValidatorReward",
-			"inputs": [
-				{"name":"amount","type":"uint64"}
-			],
-			"outputs": [
+				{"components":[{"name":"id","type":"uint64"},{"name":"supposedElectedAt","type":"uint32"},{"name":"unfreeze","type":"uint32"},{"name":"step","type":"uint8"},{"name":"completionReason","type":"uint8"},{"name":"participantQty","type":"uint32"},{"name":"stake","type":"uint64"},{"name":"rewards","type":"uint64"},{"name":"unused","type":"uint64"},{"name":"start","type":"uint64"},{"name":"end","type":"uint64"},{"name":"vsetHash","type":"uint256"}],"name":"rounds","type":"map(uint64,tuple)"}
 			]
 		}
 	],
@@ -249,6 +232,15 @@
 		{
 			"name": "dePoolPoolClosed",
 			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "roundStakeIsAccepted",
+			"inputs": [
+				{"name":"queryId","type":"uint64"},
+				{"name":"comment","type":"uint32"}
 			],
 			"outputs": [
 			]
@@ -265,7 +257,7 @@
 		{
 			"name": "RoundCompleted",
 			"inputs": [
-				{"components":[{"name":"id","type":"uint64"},{"name":"supposedElectedAt","type":"uint32"},{"name":"supposedUnfreeze","type":"uint32"},{"name":"step","type":"uint8"},{"name":"completionReason","type":"uint8"},{"name":"participantQty","type":"uint32"},{"name":"stake","type":"uint64"},{"name":"rewards","type":"uint64"},{"name":"unused","type":"uint64"},{"name":"vsetHash","type":"uint256"},{"name":"start","type":"uint64"},{"name":"end","type":"uint64"}],"name":"round","type":"tuple"}
+				{"components":[{"name":"id","type":"uint64"},{"name":"supposedElectedAt","type":"uint32"},{"name":"unfreeze","type":"uint32"},{"name":"step","type":"uint8"},{"name":"completionReason","type":"uint8"},{"name":"participantQty","type":"uint32"},{"name":"stake","type":"uint64"},{"name":"rewards","type":"uint64"},{"name":"unused","type":"uint64"},{"name":"start","type":"uint64"},{"name":"end","type":"uint64"},{"name":"vsetHash","type":"uint256"}],"name":"round","type":"tuple"}
 			],
 			"outputs": [
 			]

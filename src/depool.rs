@@ -53,14 +53,9 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
         .long("--beneficiary")
         .short("-b")
         .help("Smart contract address which will own lock stake rewards.");
-    let unused_arg = Arg::with_name("UNUSED")
-        .takes_value(true)
-        .long("--unused")
-        .short("-u")
-        .help("Stake value that must be deposited from unused part of stake.");
     let reinvest_arg = Arg::with_name("AUTORESUME")
         .long("--autoresume-off")
-        .help("Enables autoresume flag for participant if it is disabled.");
+        .help("Disables autoresume flag for participant. In this case stake will be invested only to one round.");
     let dest_arg = Arg::with_name("DEST")
         .takes_value(true)
         .long("--dest")
@@ -82,8 +77,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
                 .arg(keys_arg.clone())
-                .arg(reinvest_arg)
-                .arg(unused_arg))
+                .arg(reinvest_arg))
             .subcommand(SubCommand::with_name("vesting")
                 .about("Deposits vesting stake in depool from multisignature wallet.")
                 .setting(AppSettings::AllowLeadingHyphen)
@@ -110,17 +104,19 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(keys_arg.clone())
                 .arg(dest_arg.clone()))
             .subcommand(SubCommand::with_name("remove")
-                .about("Withdraws stake from depool to multisignature wallet.")
+                .about("Withdraws ordinary stake from current pooling round of depool to the multisignature wallet.")
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
-                .arg(keys_arg.clone())
-                .arg(Arg::with_name("FROM_POOLING_ROUND")
-                    .long("--from-round")
-                    .short("-f")
-                    .help("Defines if stake must be removed from current polling round, not only from unused part."))))
-        .subcommand(SubCommand::with_name("autoresume")
-            .about("Allows to disable/enable auto investment of stake into next round.")
+                .arg(keys_arg.clone()))
+            .subcommand(SubCommand::with_name("withdrawPart")
+                .about("Withdraws part of the stake after round completion.")
+                .setting(AppSettings::AllowLeadingHyphen)
+                .arg(wallet_arg.clone())
+                .arg(value_arg.clone())
+                .arg(keys_arg.clone())))
+        .subcommand(SubCommand::with_name("withdraw")
+            .about("Allows to disable auto investment of the stake into next round and withdraw all the stakes after round completion.")
             .setting(AppSettings::AllowLeadingHyphen)
             .subcommand(SubCommand::with_name("on")
                 .arg(wallet_arg.clone())
@@ -209,18 +205,23 @@ pub fn depool_command(m: &ArgMatches, conf: Config) -> Result<(), String> {
                 CommandData::from_matches_and_conf(m, conf, depool)?,
             );
         }
+        if let Some(m) = m.subcommand_matches("withdrawPart") {
+            return withdraw_stake_command(m,
+                CommandData::from_matches_and_conf(m, conf, depool)?,
+            );
+        }
         if let Some(m) = m.subcommand_matches("transfer") {
             return transfer_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
             );
         }
     }
-    if let Some(m) = m.subcommand_matches("autoresume") {
+    if let Some(m) = m.subcommand_matches("withdraw") {
         let matches = m.subcommand_matches("on").or(m.subcommand_matches("off"));
         if let Some(matches) = matches {
             let (wallet, keys) = parse_wallet_data(&matches, &conf)?;
-            let enable_autoresume = m.subcommand_matches("on").is_some();
-            return set_autoresume_command(matches, conf, &depool, &wallet, &keys, enable_autoresume);
+            let enable_withdraw = m.subcommand_matches("on").is_some();
+            return set_withdraw_command(matches, conf, &depool, &wallet, &keys, enable_withdraw);
         }
     }
     if let Some(m) = m.subcommand_matches("events") {
@@ -319,12 +320,11 @@ fn ordinary_stake_command<'a>(
     m: &ArgMatches,
     cmd: CommandData
 ) -> Result<(), String> {
-    let unused_stake = m.value_of("UNUSED");
     let disable_reinvest = m.is_present("AUTORESUME");
     let autoresume = Some(if disable_reinvest { "false" } else { "true" });
     let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
-    print_args!(m, depool, wallet, stake, keys, unused_stake, autoresume);
-    add_ordinary_stake(cmd, unused_stake, !disable_reinvest)
+    print_args!(m, depool, wallet, stake, keys, autoresume);
+    add_ordinary_stake(cmd, !disable_reinvest)
 }
 
 fn transfer_stake_command<'a>(
@@ -373,14 +373,21 @@ fn remove_stake_command(
     m: &ArgMatches,
     cmd: CommandData,
 ) -> Result<(), String> {
-    let from_pooling_round = m.is_present("FROM_POOLING_ROUND");
-    let from_round = Some(if from_pooling_round { "true" } else { "false" });
     let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
-    print_args!(m, depool, wallet, stake, keys, from_round);
-   remove_stake(cmd, from_pooling_round)
+    print_args!(m, depool, wallet, stake, keys);
+   remove_stake(cmd)
 }
 
-fn set_autoresume_command(
+fn withdraw_stake_command(
+    m: &ArgMatches,
+    cmd: CommandData,
+) -> Result<(), String> {
+    let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
+    print_args!(m, depool, wallet, stake, keys);
+   withdraw_stake(cmd)
+}
+
+fn set_withdraw_command(
     m: &ArgMatches,
     conf: Config,
     depool: &str,
@@ -389,20 +396,16 @@ fn set_autoresume_command(
     enable: bool,
 ) -> Result<(), String> {
     let (depool, wallet, keys) = (Some(depool), Some(wallet), Some(keys));
-    let autoresume = Some(if enable { "true" } else { "false" });
-    print_args!(m, depool, wallet, keys, autoresume);
-    set_reinvest(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap(), enable)
+    let withdraw = Some(if enable { "true" } else { "false" });
+    print_args!(m, depool, wallet, keys, withdraw);
+    set_withdraw(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap(), enable)
 }
 
 fn add_ordinary_stake(
     cmd: CommandData,
-    unused_stake: Option<&str>,
     autoresume: bool,
 ) -> Result<(), String> {
-    let unused_stake = u64::from_str_radix(
-        &convert::convert_token(unused_stake.unwrap_or("0"))?, 10,
-    ).unwrap();
-    let body = encode_add_ordinary_stake(unused_stake, autoresume)?;
+    let body = encode_add_ordinary_stake(autoresume)?;
     send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, cmd.stake, &cmd.keys, &body)
 }
 
@@ -424,12 +427,21 @@ fn add_exotic_stake(
 
 fn remove_stake(
     cmd: CommandData,
-    from_pooling_round: bool,
 ) -> Result<(), String> {
     let stake = u64::from_str_radix(
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
-    let body = encode_remove_stake(stake, from_pooling_round)?;
+    let body = encode_remove_stake(stake)?;
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, "0.05", &cmd.keys, &body)
+}
+
+fn withdraw_stake(
+    cmd: CommandData,
+) -> Result<(), String> {
+    let stake = u64::from_str_radix(
+        &convert::convert_token(cmd.stake)?, 10,
+    ).unwrap();
+    let body = encode_withdraw_stake(stake)?;
     send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, "0.05", &cmd.keys, &body)
 }
 
@@ -442,14 +454,14 @@ fn transfer_stake(cmd: CommandData, dest: &str) -> Result<(), String> {
     send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, "0.1", &cmd.keys, &body)
 }
 
-fn set_reinvest(
+fn set_withdraw(
     conf: Config,
     depool: &str,
     wallet: &str,
     keys: &str,
     enable: bool,
 ) -> Result<(), String> {
-    let body = encode_set_reinvest(enable)?;
+    let body = encode_set_withdraw(enable)?;
     send_with_body(conf, wallet, depool, "0.03", keys, &body)
 }
 
@@ -474,15 +486,14 @@ fn encode_body(func: &str, params: serde_json::Value) -> Result<String, String> 
         .map(|s| s.to_owned())
 }
 
-fn encode_set_reinvest(flag: bool) -> Result<String, String> {
-    encode_body("setReinvest", json!({
-        "flag": flag
+fn encode_set_withdraw(flag: bool) -> Result<String, String> {
+    encode_body("withdrawAllAfterCompleting", json!({
+        "doWithdrawAll": flag
     }))
 }
 
-fn encode_add_ordinary_stake(unused: u64, reinvest: bool) -> Result<String, String> {
+fn encode_add_ordinary_stake(reinvest: bool) -> Result<String, String> {
 	encode_body("addOrdinaryStake", json!({
-        "unusedStake": unused,
         "reinvest": reinvest
     }))
 }
@@ -503,16 +514,21 @@ fn encode_add_lock_stake(beneficiary: &str, tperiod: u32, wperiod: u32) -> Resul
     }))
 }
 
-fn encode_remove_stake(target_value: u64, from_current_round: bool) -> Result<String, String> {
-	encode_body("removeStake", json!({
-        "doRemoveFromCurrentRound": from_current_round,
-        "targetValue": target_value
+fn encode_remove_stake(target_value: u64) -> Result<String, String> {
+	encode_body("removeOrdinaryStake", json!({
+        "withdrawValue": target_value
+    }))
+}
+
+fn encode_withdraw_stake(target_value: u64) -> Result<String, String> {
+	encode_body("withdrawPartAfterCompleting", json!({
+        "withdrawValue": target_value
     }))
 }
 
 fn encode_transfer_stake(dest: &str, amount: u64) -> Result<String, String> {
 	encode_body("transferStake", json!({
-        "destination": dest,
+        "dest": dest,
         "amount": amount
     }))
 }

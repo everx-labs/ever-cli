@@ -236,9 +236,9 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, it 
 
     tonos-cli depool [--addr <depool_address>] stake transfer [--wallet <msig_address>] --value <number> --dest <address> [--sign <key_file or seed_phrase>]
 
-### Enable/disable autoresuming
+### Enable/disable withdraw
 
-    tonos-cli depool [--addr <depool_address>] autoresume on | off [--wallet <msig_address>] [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] withdraw on | off [--wallet <msig_address>] [--sign <key_file or seed_phrase>]
 
 ### View depool events
 
