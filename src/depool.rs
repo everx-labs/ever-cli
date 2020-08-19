@@ -115,6 +115,12 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
                 .arg(keys_arg.clone())))
+        .subcommand(SubCommand::with_name("replenish")
+            .about("Transfers funds from the multisignature wallet to the depool contract (NOT A STAKE).")
+            .setting(AppSettings::AllowLeadingHyphen)
+            .arg(wallet_arg.clone())
+            .arg(value_arg.clone())
+            .arg(keys_arg.clone()))
         .subcommand(SubCommand::with_name("withdraw")
             .about("Allows to disable auto investment of the stake into next round and withdraw all the stakes after round completion.")
             .setting(AppSettings::AllowLeadingHyphen)
@@ -227,6 +233,11 @@ pub fn depool_command(m: &ArgMatches, conf: Config) -> Result<(), String> {
     if let Some(m) = m.subcommand_matches("events") {
         return events_command(m, conf, &depool)
     }
+    if let Some(m) = m.subcommand_matches("replenish") {
+        return replenish_command(m,
+            CommandData::from_matches_and_conf(m, conf, depool)?,
+        );
+    }
     Err("unknown depool command".to_owned())
 }
 
@@ -327,6 +338,15 @@ fn ordinary_stake_command<'a>(
     add_ordinary_stake(cmd, !disable_reinvest)
 }
 
+fn replenish_command<'a>(
+    m: &ArgMatches,
+    cmd: CommandData
+) -> Result<(), String> {
+    let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
+    print_args!(m, depool, wallet, stake, keys);
+    replenish_stake(cmd)
+}
+
 fn transfer_stake_command<'a>(
     m: &ArgMatches,
     cmd: CommandData
@@ -406,6 +426,13 @@ fn add_ordinary_stake(
     autoresume: bool,
 ) -> Result<(), String> {
     let body = encode_add_ordinary_stake(autoresume)?;
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, cmd.stake, &cmd.keys, &body)
+}
+
+fn replenish_stake(
+    cmd: CommandData
+) -> Result<(), String> {
+    let body = encode_replenish_stake()?;
     send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, cmd.stake, &cmd.keys, &body)
 }
 
@@ -495,6 +522,11 @@ fn encode_set_withdraw(flag: bool) -> Result<String, String> {
 fn encode_add_ordinary_stake(reinvest: bool) -> Result<String, String> {
 	encode_body("addOrdinaryStake", json!({
         "reinvest": reinvest
+    }))
+}
+
+fn encode_replenish_stake() -> Result<String, String> {
+	encode_body("receiveFunds", json!({
     }))
 }
 
