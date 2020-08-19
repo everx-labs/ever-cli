@@ -249,3 +249,10 @@ Prints depool events since defined unixtime. if `--since` is omitted then prints
     tonos-cli depool [--addr <depool_address>] events --wait-one
 
 Waits until new event will be emitted and then prints it to the stdout.
+
+
+### Replenish contract balance
+
+Transfers funds from the multisignature wallet to the depool contract (NOT A STAKE).
+
+    tonos-cli depool [--addr <depool_address>] replenish --value <number> [--wallet <msig_address>] [--sign <key_file or seed_phrase>]
