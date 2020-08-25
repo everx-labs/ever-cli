@@ -47,7 +47,7 @@ use voting::{create_proposal, decode_proposal, vote};
 
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
-const CONFIG_BASE_NAME: &'static str = "tonlabs-cli.conf.json";
+const CONFIG_BASE_NAME: &'static str = "tonos-cli.conf.json";
 
 enum CallType {
     Run,
@@ -89,11 +89,6 @@ fn main() -> Result<(), i32> {
 }
 
 fn main_internal() -> Result <(), String> {
-    let build_info = match option_env!("BUILD_INFO") {
-        Some(s) => s,
-        None => "none",
-    };
-
     let callex_sub_command = SubCommand::with_name("callex")
         .about("Sends external message to contract with encoded function call.")
         .setting(AppSettings::AllowMissingPositional)
@@ -127,16 +122,17 @@ fn main_internal() -> Result <(), String> {
             .help("Arguments for the contract method.")
             .multiple(true));
 
-    let matches = clap_app! (tonlabs_cli =>
-        (version: &*format!("0.1 ({})", build_info))
+    let matches = clap_app! (tonos_cli =>
+        (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
         (author: "TONLabs")
-        (about: "TONLabs console tool for TON")
+        (about: "Console tool for TON")
         (@arg NETWORK: -u --url +takes_value "Network to connect.")
         (@arg CONFIG: -c --config +takes_value "Path to tonos-cli configuration file.") 
         (@subcommand version =>
             (about: "Prints build and version info.")
         )
         (@subcommand convert =>
+            (about: "Converts tokens to nanotokens.")
             (@subcommand tokens =>
                 (about: "Converts tokens to nanotokens.")
                 (@arg AMOUNT: +required +takes_value "Token amount value")
@@ -161,7 +157,7 @@ fn main_internal() -> Result <(), String> {
         (@subcommand genaddr =>
             (@setting AllowNegativeNumbers)
             (about: "Calculates smart contract address in different formats. By default, input tvc file isn't modified.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg TVC: +required +takes_value "Compiled smart contract (tvc file).")
             (@arg ABI: +required +takes_value "Json file with contract ABI.")
@@ -176,7 +172,7 @@ fn main_internal() -> Result <(), String> {
             (@setting AllowNegativeNumbers)
             (@setting AllowLeadingHyphen)
             (about: "Deploy smart contract to blockchain.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg TVC: +required +takes_value "Compiled smart contract (tvc file)")
             (@arg PARAMS: +required +takes_value "Constructor arguments.")
@@ -189,9 +185,9 @@ fn main_internal() -> Result <(), String> {
         (@subcommand call =>
             (@setting AllowLeadingHyphen)
             (about: "Sends external message to contract with encoded function call.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
-            (@arg ADDRESS: +required +takes_value "Contract address.")
+            (@arg ADDRESS: --addr +takes_value "Contract address. It can be set in the config file.")
             (@arg METHOD: +required +takes_value "Name of calling contract method.")
             (@arg PARAMS: +required +takes_value "Arguments for the contract method.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
@@ -200,7 +196,7 @@ fn main_internal() -> Result <(), String> {
         )
         (@subcommand send =>
             (about: "Sends prepared message to contract.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg MESSAGE: +required +takes_value "Message to send.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
@@ -210,7 +206,7 @@ fn main_internal() -> Result <(), String> {
             (@setting AllowLeadingHyphen)
             (about: "Generates a signed message with encoded function call.")
             (author: "TONLabs")
-            (@arg ADDRESS: +required +takes_value "Contract address.")
+            (@arg ADDRESS: --addr +takes_value "Contract address. It can be set in the config file.")
             (@arg METHOD: +required +takes_value "Name of calling contract method.")
             (@arg PARAMS: +required +takes_value "Arguments for the contract method.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
@@ -223,7 +219,7 @@ fn main_internal() -> Result <(), String> {
         (@subcommand run =>
             (@setting AllowLeadingHyphen)
             (about: "Runs contract function locally.")
-            (@arg ADDRESS: +required +takes_value "Contract address.")
+            (@arg ADDRESS: --addr +takes_value "Contract address. It can be set in the config file.")
             (@arg METHOD: +required +takes_value "Name of calling contract method.")
             (@arg PARAMS: +required +takes_value "Arguments for the contract method.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
@@ -233,7 +229,7 @@ fn main_internal() -> Result <(), String> {
         (@subcommand config =>
             (@setting AllowLeadingHyphen)
             (about: "Saves certain default values for options into config file.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg URL: --url +takes_value "Url to connect.")
             (@arg ABI: --abi +takes_value conflicts_with[DATA] "File with contract ABI.")
@@ -248,9 +244,9 @@ fn main_internal() -> Result <(), String> {
         (@subcommand account =>
             (@setting AllowLeadingHyphen)
             (about: "Gets account information.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
-            (@arg ADDRESS: +required +takes_value "Smart contract address.")
+            (@arg ADDRESS: +takes_value "Smart contract address. It can be set in the config file.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
         (@subcommand proposal =>
@@ -439,7 +435,12 @@ fn send_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
 }
 
 fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<(), String> {
-    let address = matches.value_of("ADDRESS");
+    let address = Some(
+        matches.value_of("ADDRESS")
+            .map(|s| s.to_string())
+            .or(config.addr.clone())
+            .ok_or("address is not defined. Supply it in the config file or in the command line.".to_string())?
+    );
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
     let lifetime = matches.value_of("LIFETIME");
@@ -466,6 +467,11 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
 
     print_args!(matches, address, method, params, abi, keys, lifetime, output);
 
+    let address = address.unwrap();
+
+    helpers::load_ton_address(&address)
+        .map_err(|e| format!("invalid address: {}", e))?;
+
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
     
@@ -474,7 +480,7 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
             let local = if let CallType::Call = call { false } else { true };
             call_contract(
                 config,
-                address.unwrap(),
+                &address,
                 abi,
                 method.unwrap(),
                 params.unwrap(),
@@ -492,7 +498,7 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
 
             generate_message(
                 config,
-                address.unwrap(),
+                &address,
                 abi,
                 method.unwrap(),
                 params.unwrap(),
@@ -594,7 +600,7 @@ fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
         let retries = matches.value_of("RETRIES");
         let timeout = matches.value_of("TIMEOUT");
         print_args!(matches, url, address, wallet, keys, abi, wc, retries, timeout);
-        set_config(config, "tonlabs-cli.conf.json", url, address, wallet, abi, keys, wc, retries, timeout)
+        set_config(config, "tonos-cli.conf.json", url, address, wallet, abi, keys, wc, retries, timeout)
     }
 }
 
@@ -612,9 +618,19 @@ fn genaddr_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
 }
 
 fn account_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
-    let address = matches.value_of("ADDRESS");
+    let address = Some(
+        matches.value_of("ADDRESS")
+            .map(|s| s.to_string())
+            .or(config.addr.clone())
+            .ok_or("address is not defined. Supply it in the config file or in the command line.".to_string())?
+    );
+
     print_args!(matches, address);
-    get_account(config, address.unwrap())
+    let address = address.unwrap();
+    helpers::load_ton_address(&address)
+    .map_err(|e| format!("invalid address: {}", e))?;
+
+    get_account(config, &address)
 }
 
 fn proposal_create_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
