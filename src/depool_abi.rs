@@ -35,7 +35,7 @@
 			],
 			"outputs": [
 				{"name":"total","type":"uint64"},
-				{"name":"pauseStake","type":"uint64"},
+				{"name":"withdrawValue","type":"uint64"},
 				{"name":"reinvest","type":"bool"},
 				{"name":"reward","type":"uint64"},
 				{"name":"stakes","type":"map(uint64,uint64)"},
@@ -53,6 +53,7 @@
 				{"name":"minValidatorStake","type":"uint64"},
 				{"name":"validatorWallet","type":"address"},
 				{"name":"proxies","type":"address[]"},
+				{"name":"poolClosed","type":"bool"},
 				{"name":"interest","type":"uint64"},
 				{"name":"addStakeFee","type":"uint64"},
 				{"name":"addVestingOrLockFee","type":"uint64"},
@@ -62,7 +63,18 @@
 				{"name":"transferStakeFee","type":"uint64"},
 				{"name":"retOrReinvFee","type":"uint64"},
 				{"name":"answerMsgFee","type":"uint64"},
-				{"name":"proxyFee","type":"uint64"}
+				{"name":"proxyFee","type":"uint64"},
+				{"name":"participantFraction","type":"uint64"},
+				{"name":"validatorFraction","type":"uint64"},
+				{"name":"validatorWalletMinStake","type":"uint64"}
+			]
+		},
+		{
+			"name": "getParticipants",
+			"inputs": [
+			],
+			"outputs": [
+				{"name":"participants","type":"address[]"}
 			]
 		},
 		{
@@ -250,6 +262,22 @@
 			"inputs": [
 				{"name":"queryId","type":"uint64"},
 				{"name":"comment","type":"uint32"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "proxyHasRejectedTheStake",
+			"inputs": [
+				{"name":"queryId","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "proxyHasRejectedRecoverRequest",
+			"inputs": [
+				{"name":"roundId","type":"uint64"}
 			],
 			"outputs": [
 			]
