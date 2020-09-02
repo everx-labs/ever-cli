@@ -12,7 +12,7 @@
 
 ## How to test
 
-    cargo test
+    cargo test -- --test-threads 1
 
 ## How to run
 
