@@ -27,7 +27,7 @@ sha2 = "0.8"
 log = "0.4.11"
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
-ton-client-rs = { git = 'https://github.com/tonlabs/ton-client-rs.git', tag = "0.25.0" }
+ton-client-rs = { git = 'https://github.com/tonlabs/ton-client-rs.git', tag = "0.26.0" }
 ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = "0" }
 ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = "0" }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }

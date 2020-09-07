@@ -1,0 +1,4 @@
+[submodule "ton-labs-contracts"]
+	path = ton-labs-contracts
+	url = https://github.com/tonlabs/ton-labs-contracts.git
+	branch = master
