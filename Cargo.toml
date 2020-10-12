@@ -10,7 +10,7 @@ readme = "README.md"
 license = "Apache-2.0"
 keywords = ["TON", "SDK", "smart contract", "tonlabs"]
 edition = "2018"
-version = "0.1.17"
+version = "0.1.18"
 
 [dependencies]
 base64 = "0.10.1"
@@ -27,7 +27,7 @@ sha2 = "0.8"
 log = "0.4.11"
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
-ton-client-rs = { git = 'https://github.com/tonlabs/ton-client-rs.git', tag = "0.25.0" }
+ton-client-rs = { git = 'https://github.com/tonlabs/ton-client-rs.git', tag = "0.26.0" }
 ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = "0" }
 ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = "0" }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
