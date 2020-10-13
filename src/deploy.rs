@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::call::create_client_verbose;
+use crate::helpers::create_client_verbose;
 use crate::config::Config;
 use crate::crypto::load_keypair;
 

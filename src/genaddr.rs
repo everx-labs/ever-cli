@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use crate::helpers::read_keys;
+use crate::helpers::{create_client_local, read_keys};
 use crc16::*;
 use base64;
 use ed25519_dalek::PublicKey;
-use ton_client_rs::{TonClient, TonAddress};
+use ton_client_rs::TonAddress;
 use serde_json;
 use std::fs::OpenOptions;
 use ton_sdk;
@@ -31,8 +31,7 @@ pub fn generate_address(
     initial_data: Option<&str>,
     update_tvc: bool,
 ) -> Result<(), String> {
-    let ton = TonClient::default()
-        .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))?;
+    let ton = create_client_local()?;    
 
     let contract = std::fs::read(tvc)
         .map_err(|e| format!("failed to read smart contract file: {}", e.to_string()))?;
