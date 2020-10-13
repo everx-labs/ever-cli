@@ -25,6 +25,10 @@ fn default_timeout() -> u32 {
     60000
 }
 
+fn default_false() -> bool {
+    false
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "default_url")]
@@ -39,6 +43,8 @@ pub struct Config {
     pub retries: u8,
     #[serde(default = "default_timeout")]
     pub timeout: u32,
+    #[serde(default = "default_false")]
+    pub is_json: bool,
 }
 
 impl Config {
@@ -52,6 +58,7 @@ impl Config {
             keys_path: None,
             retries: default_retries(),
             timeout: default_timeout(),
+            is_json: default_false(),
         }
     }
 

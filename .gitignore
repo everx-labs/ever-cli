@@ -1,3 +1,9 @@
 target
 *.lock
 .vscode
+/tonlabs-cli.conf.json
+/call.boc
+/key1
+/tests/data.tvc
+/tests/samples/wallet.keys.json
+/tests/samples/tmp.json
