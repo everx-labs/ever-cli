@@ -95,7 +95,7 @@ fn main_internal() -> Result <(), String> {
     };
 
     let callex_sub_command = SubCommand::with_name("callex")
-        .about("Sends external message to contract with encoded function call.")
+        .about("Sends external message to contract with encoded function call (alternative syntax).")
         .setting(AppSettings::AllowMissingPositional)
         .setting(AppSettings::AllowLeadingHyphen)  
         .setting(AppSettings::TrailingVarArg)
@@ -137,6 +137,7 @@ fn main_internal() -> Result <(), String> {
             (about: "Prints build and version info.")
         )
         (@subcommand convert =>
+            (about: "Converts tokens to nanotokens.")
             (@subcommand tokens =>
                 (about: "Converts tokens to nanotokens.")
                 (@arg AMOUNT: +required +takes_value "Token amount value")
@@ -147,7 +148,7 @@ fn main_internal() -> Result <(), String> {
             (author: "TONLabs")
         )
         (@subcommand genpubkey =>
-            (about: "Generates seed phrase.")
+            (about: "Generates public key.")
             (author: "TONLabs")
             (@arg PHRASE: +required +takes_value "Seed phrase (12 words).")
         )
@@ -254,8 +255,8 @@ fn main_internal() -> Result <(), String> {
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
         (@subcommand proposal =>
+            (about: "Submits proposal transaction in multisignature wallet with text comment.")
             (@subcommand create =>
-                (about: "Submits proposal transaction in multisignature wallet with text comment.")
                 (@arg ADDRESS: +required +takes_value "Address of multisignature wallet.")
                 (@arg DEST: +required +takes_value "Address of proposal contract.")
                 (@arg COMMENT: +required +takes_value "Proposal description (max symbols 382).")
