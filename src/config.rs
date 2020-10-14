@@ -39,6 +39,7 @@ pub struct Config {
     pub retries: u8,
     #[serde(default = "default_timeout")]
     pub timeout: u32,
+    pub is_json: bool,
 }
 
 impl Config {
@@ -52,6 +53,7 @@ impl Config {
             keys_path: None,
             retries: default_retries(),
             timeout: default_timeout(),
+            is_json: false,
         }
     }
 

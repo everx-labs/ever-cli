@@ -134,7 +134,8 @@ fn main_internal() -> Result <(), String> {
         (author: "TONLabs")
         (about: "TONLabs console tool for TON")
         (@arg NETWORK: -u --url +takes_value "Network to connect.")
-        (@arg CONFIG: -c --config +takes_value "Path to tonos-cli configuration file.") 
+        (@arg CONFIG: -c --config +takes_value "Path to tonos-cli configuration file.")
+        (@arg JSON: -j --json "Cli prints output in json format.")
         (@subcommand version =>
             (about: "Prints build and version info.")
         )
@@ -298,20 +299,23 @@ fn main_internal() -> Result <(), String> {
         (@setting SubcommandRequired)
     ).get_matches();
 
+    let is_json = matches.is_present("JSON");
+
     let config_file = matches.value_of("CONFIG").map(|v| v.to_string())
         .or(env::var("TONOSCLI_CONFIG").ok())
         .unwrap_or(default_config_name()?);
 
     let mut conf = match Config::from_file(&config_file) {
         Some(c) => {
-            println!("Config: {}", config_file);
+            if !is_json { println!("Config: {}", config_file); }
             c
         },
         None => {
-            println!("Config: default");
+            if !is_json { println!("Config: default"); }
             Config::new()
         },
     };
+    conf.is_json = is_json;
 
     if let Some(url) = matches.value_of("NETWORK") {
         conf.url = url.to_string();
