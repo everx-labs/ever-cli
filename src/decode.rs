@@ -297,3 +297,22 @@ mod msg_printer {
         result
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_msg_json() {
+        let msg_boc = std::fs::read("tests/samples/wallet.boc").unwrap();
+        let out = decode_message(msg_boc, Some("tests/samples/wallet.abi.json".to_owned()), true).unwrap();
+        let _ : serde_json::Value = serde_json::from_str(&out).unwrap();
+    }
+
+    #[test]
+    fn test_decode_body_json() {
+        let body = "te6ccgEBAQEARAAAgwAAALqUCTqWL8OX7JivfJrAAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMQAAAAAAAAAAAAAAAEeGjADA==";
+        let out = decode_body(body, "tests/samples/wallet.abi.json", true).unwrap();
+        let _ : serde_json::Value = serde_json::from_str(&out).unwrap();
+    }
+}

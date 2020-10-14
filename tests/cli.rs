@@ -305,13 +305,12 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
     // config from cmd lime
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
-        .arg("./tests/conf1.json")
+        .arg("tests/conf1.json")
         .arg("account")
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
         .failure()
         .stdout(predicate::str::contains("Connecting to https://test.ton.dev"));
-
     // config from env variable
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.env("TONOSCLI_CONFIG", "./tests/conf2.json")
@@ -324,7 +323,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
     // config from cmd line has higher priority than env variable
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
-        .arg("./tests/conf1.json")
+        .arg("tests/conf1.json")
         .env("TONOSCLI_CONFIG", "./tests/conf2.json")
         .arg("account")
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
@@ -414,6 +413,38 @@ fn test_account_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
         .failure()
         .stderr(predicate::str::contains("The following required arguments were not provided:"))
         .stderr(predicate::str::contains("<ADDRESS>"));
+
+    Ok(())
+}
+
+#[test]
+fn test_decode_msg() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json").arg("decode")
+        .arg("msg").arg("tests/samples/wallet.boc")
+        .arg("--abi").arg("tests/samples/wallet.abi.json");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("sendTransaction"))
+        .stdout(predicate::str::contains("dest"))
+        .stdout(predicate::str::contains("value"))
+        .stdout(predicate::str::contains("bounce"));
+
+    Ok(())
+}
+
+#[test]
+fn test_decode_body() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json").arg("decode")
+        .arg("body").arg("te6ccgEBAQEARAAAgwAAALqUCTqWL8OX7JivfJrAAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMQAAAAAAAAAAAAAAAEeGjADA==")
+        .arg("--abi").arg("tests/samples/wallet.abi.json");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("sendTransaction"))
+        .stdout(predicate::str::contains("dest"))
+        .stdout(predicate::str::contains("value"))
+        .stdout(predicate::str::contains("bounce"));
 
     Ok(())
 }
