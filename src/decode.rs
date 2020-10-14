@@ -15,6 +15,7 @@ use crate::config::Config;
 use crate::helpers::create_client_local;
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
+use ton_types::Cell;
 
 fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
     matches.value_of("ABI")
@@ -86,11 +87,21 @@ fn print_decoded_body(body_vec: Vec<u8>, abi: &str) -> Result<(), String> {
         abi.into(),
         &body_vec,
         false,
-    ).map_err(|e| format!("failed to decode msg body: {}", e))?;
+    ).or_else(|_| ton.contracts.decode_input_message_body(
+        abi.into(),
+        &body_vec,
+        true,
+    )).or_else(|e| {
+        let mut boc = vec![];
+        serialize_tree_of_cells(&Cell::default(), &mut boc).unwrap();
+        if hex::encode(&boc) == hex::encode(&body_vec) {
+            Err(format!("body is empty"))
+        } else {
+            Err(format!("failed to decode msg body: {}", e))
+        }
+    })?;
 
-    println!("Decoded body:\n{}({})", res.function, serde_json::to_string_pretty(&res.output).unwrap());
-    //println!("function: {}", );
-    //println!("arguments: {}", );
+    println!("DecodedBody: {}({})", res.function, serde_json::to_string_pretty(&res.output).unwrap());
     Ok(())
 }
 
