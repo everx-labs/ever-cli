@@ -445,6 +445,96 @@ fn test_decode_body() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("dest"))
         .stdout(predicate::str::contains("value"))
         .stdout(predicate::str::contains("bounce"));
+    Ok(())
+}
+
+#[test]
+fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("body").arg("te6ccgEBAgEAkwABW1ByqHsAAAF1QnI+qZ/1tsdEUQb8jxj9vr/H4WuiQwfD5ESNbO4lcz2Kca2KavABAMAQYZcjaCLLbO1phXFWOD/kmlkZ1g7FyjgSIEHRpXeeIDiQ3f7FKVd+oeq6VxVlAti+jigqVmtrn8wmBEgbyT8P+5iyVBuoBWSPJetGndR2b83eA6LP5vtB2MFXHClAfKM=")
+        .arg("--abi").arg("tests/samples/Subscription.abi.json");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("constructor: {"))
+        .stdout(predicate::str::contains("\"wallet\": \"-1:adb63a228837e478c7edf5fe3f0b5d12183e1f22246b67712b99ec538d6c5357\""));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json").arg("decode")
+        .arg("body").arg("te6ccgEBAgEAkwABW1ByqHsAAAF1QnI+qZ/1tsdEUQb8jxj9vr/H4WuiQwfD5ESNbO4lcz2Kca2KavABAMAQYZcjaCLLbO1phXFWOD/kmlkZ1g7FyjgSIEHRpXeeIDiQ3f7FKVd+oeq6VxVlAti+jigqVmtrn8wmBEgbyT8P+5iyVBuoBWSPJetGndR2b83eA6LP5vtB2MFXHClAfKM=")
+        .arg("--abi").arg("tests/samples/Subscription.abi.json");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("\"BodyCall\":"))
+        .stdout(predicate::str::contains("\"constructor\":"))
+        .stdout(predicate::str::contains("\"wallet\":"))
+        .stdout(predicate::str::contains("-1:adb63a228837e478c7edf5fe3f0b5d12183e1f22246b67712b99ec538d6c5357"));
+
+
+    //test getting ABI from config
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--abi")
+        .arg("tests/samples/Subscription.abi.json");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("body").arg("te6ccgEBAgEAkwABW1ByqHsAAAF1QnI+qZ/1tsdEUQb8jxj9vr/H4WuiQwfD5ESNbO4lcz2Kca2KavABAMAQYZcjaCLLbO1phXFWOD/kmlkZ1g7FyjgSIEHRpXeeIDiQ3f7FKVd+oeq6VxVlAti+jigqVmtrn8wmBEgbyT8P+5iyVBuoBWSPJetGndR2b83eA6LP5vtB2MFXHClAfKM=");
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("constructor: {"))
+        .stdout(predicate::str::contains("\"wallet\": \"-1:adb63a228837e478c7edf5fe3f0b5d12183e1f22246b67712b99ec538d6c5357\""));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json").arg("decode")
+        .arg("body").arg("te6ccgEBAgEAkwABW1ByqHsAAAF1QnI+qZ/1tsdEUQb8jxj9vr/H4WuiQwfD5ESNbO4lcz2Kca2KavABAMAQYZcjaCLLbO1phXFWOD/kmlkZ1g7FyjgSIEHRpXeeIDiQ3f7FKVd+oeq6VxVlAti+jigqVmtrn8wmBEgbyT8P+5iyVBuoBWSPJetGndR2b83eA6LP5vtB2MFXHClAfKM=");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("\"BodyCall\":"))
+        .stdout(predicate::str::contains("\"constructor\":"))
+        .stdout(predicate::str::contains("\"wallet\":"))
+        .stdout(predicate::str::contains("-1:adb63a228837e478c7edf5fe3f0b5d12183e1f22246b67712b99ec538d6c5357"));
+
+
+    //test that abi in commandline is preferred
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--abi")
+        .arg("tests/samples/wallet.abi.json");
+    cmd.assert()
+        .success();
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json").arg("decode")
+        .arg("body").arg("te6ccgEBAgEAkwABW1ByqHsAAAF1QnI+qZ/1tsdEUQb8jxj9vr/H4WuiQwfD5ESNbO4lcz2Kca2KavABAMAQYZcjaCLLbO1phXFWOD/kmlkZ1g7FyjgSIEHRpXeeIDiQ3f7FKVd+oeq6VxVlAti+jigqVmtrn8wmBEgbyT8P+5iyVBuoBWSPJetGndR2b83eA6LP5vtB2MFXHClAfKM=")
+        .arg("--abi").arg("tests/samples/Subscription.abi.json");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("\"BodyCall\":"))
+        .stdout(predicate::str::contains("\"constructor\":"))
+        .stdout(predicate::str::contains("\"wallet\":"))
+        .stdout(predicate::str::contains("-1:adb63a228837e478c7edf5fe3f0b5d12183e1f22246b67712b99ec538d6c5357"));
+
+    //test error on wrong body
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json").arg("decode")
+        .arg("body").arg("\"123\"")
+        .arg("--abi").arg("tests/samples/Subscription.abi.json");
+    cmd.assert()
+        .failure()
+        .stdout(predicate::str::contains("body is not a valid base64 string"));
+
+    //test error on empty body
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json").arg("decode")
+        .arg("body").arg("")
+        .arg("--abi").arg("tests/samples/Subscription.abi.json");
+    cmd.assert()
+        .failure()
+        .stdout(predicate::str::contains("3006"));
 
     Ok(())
 }
