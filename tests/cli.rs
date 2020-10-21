@@ -391,15 +391,65 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
-        .arg("0:3333333333333333333333333333333333333333333333333333333333333333");
+        .arg("-100:3333333333333333333333333333333333333333333333333333333333333333");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Account not found"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg("0:0000000000000000000000000000000000000000000000000000000000000001");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Account not found"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg("0:UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYK4");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Account not found"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg("0:0000000000000000000000000000000000000000000000000000000000000000");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("acc_type:      Uninit"));
+
+    //Deleted account 0:0f757d65c88fbda83d3f08e9688344bd896a2afcb944bce96069f0c5db024ab6 Uncomment when fixed
+    //let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    //cmd.arg("account")
+    //    .arg("0:0f757d65c88fbda83d3f08e9688344bd896a2afcb944bce96069f0c5db024ab6");
+    //cmd.assert()
+    //   .success()
+    //     .stdout(predicate::str::contains("acc_type:"));
+
     Ok(())
+
+
 }
 
 #[test]
 fn test_account_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg("https://net.ton.dev");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account");
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("The following required arguments were not provided:"))
+        .stderr(predicate::str::contains("<ADDRESS>"));
+
+    Ok(())
+}
+#[test]
+fn test_account_from_config() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--url")
@@ -536,5 +586,25 @@ fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std:
         .failure()
         .stdout(predicate::str::contains("3006"));
 
+    Ok(())
+}
+
+
+#[test]
+fn test_convert_command() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("convert").arg("tokens").arg("1");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("1000000000"));
+    // change when fixed to 0
+    cmd.arg("convert").arg("tokens").arg("0");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("0000000000"));
+    cmd.arg("convert").arg("tokens").arg("0");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("0000000000"));
     Ok(())
 }
