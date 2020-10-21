@@ -22,6 +22,7 @@ mod call;
 mod config;
 mod convert;
 mod crypto;
+mod decode;
 mod deploy;
 mod depool;
 mod depool_abi;
@@ -37,6 +38,7 @@ use call::{call_contract, call_contract_with_msg, generate_message, parse_params
 use clap::{ArgMatches, SubCommand, Arg, AppSettings};
 use config::{Config, set_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
+use decode::{create_decode_command, decode_command};
 use deploy::deploy_contract;
 use depool::{create_depool_command, depool_command};
 use genaddr::generate_address;
@@ -90,7 +92,7 @@ fn main() -> Result<(), i32> {
 
 fn main_internal() -> Result <(), String> {
     let callex_sub_command = SubCommand::with_name("callex")
-        .about("Sends external message to contract with encoded function call.")
+        .about("Sends external message to contract with encoded function call (alternative syntax).")
         .setting(AppSettings::AllowMissingPositional)
         .setting(AppSettings::AllowLeadingHyphen)  
         .setting(AppSettings::TrailingVarArg)
@@ -127,7 +129,8 @@ fn main_internal() -> Result <(), String> {
         (author: "TONLabs")
         (about: "Console tool for TON")
         (@arg NETWORK: -u --url +takes_value "Network to connect.")
-        (@arg CONFIG: -c --config +takes_value "Path to tonos-cli configuration file.") 
+        (@arg CONFIG: -c --config +takes_value "Path to tonos-cli configuration file.")
+        (@arg JSON: -j --json "Cli prints output in json format.")
         (@subcommand version =>
             (about: "Prints build and version info.")
         )
@@ -143,7 +146,7 @@ fn main_internal() -> Result <(), String> {
             (author: "TONLabs")
         )
         (@subcommand genpubkey =>
-            (about: "Generates seed phrase.")
+            (about: "Generates public key.")
             (author: "TONLabs")
             (@arg PHRASE: +required +takes_value "Seed phrase (12 words).")
         )
@@ -250,8 +253,8 @@ fn main_internal() -> Result <(), String> {
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
         (@subcommand proposal =>
+            (about: "Submits proposal transaction in multisignature wallet with text comment.")
             (@subcommand create =>
-                (about: "Submits proposal transaction in multisignature wallet with text comment.")
                 (@arg ADDRESS: +required +takes_value "Address of multisignature wallet.")
                 (@arg DEST: +required +takes_value "Address of proposal contract.")
                 (@arg COMMENT: +required +takes_value "Proposal description (max symbols 382).")
@@ -275,6 +278,7 @@ fn main_internal() -> Result <(), String> {
         )
         (subcommand: create_multisig_command())
         (subcommand: create_depool_command())
+        (subcommand: create_decode_command())
         (@subcommand getconfig =>
             (about: "Reads global configuration parameter with defined index.")
             (@arg INDEX: +required +takes_value "Parameter index.")
@@ -291,20 +295,23 @@ fn main_internal() -> Result <(), String> {
         (@setting SubcommandRequired)
     ).get_matches();
 
+    let is_json = matches.is_present("JSON");
+
     let config_file = matches.value_of("CONFIG").map(|v| v.to_string())
         .or(env::var("TONOSCLI_CONFIG").ok())
         .unwrap_or(default_config_name()?);
 
     let mut conf = match Config::from_file(&config_file) {
         Some(c) => {
-            println!("Config: {}", config_file);
+            if !is_json { println!("Config: {}", config_file); }
             c
         },
         None => {
-            println!("Config: default");
+            if !is_json { println!("Config: default"); }
             Config::new()
         },
     };
+    conf.is_json = is_json;
 
     if let Some(url) = matches.value_of("NETWORK") {
         conf.url = url.to_string();
@@ -379,6 +386,9 @@ fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("sendfile") {
         return sendfile_command(m, conf);
+    }
+    if let Some(m) = matches.subcommand_matches("decode") {
+        return decode_command(m, conf);
     }
     if let Some(_) = matches.subcommand_matches("version") {
         println!(

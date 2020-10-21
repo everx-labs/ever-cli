@@ -13,61 +13,14 @@
 use crate::config::Config;
 use crate::crypto::load_keypair;
 use crate::convert;
-use crate::helpers::now;
+use crate::helpers::{now, create_client_verbose};
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
 use hex;
 use ton_client_rs::{
-    TonClient, TonClientConfig, TonAddress, EncodedMessage
+    TonClient, TonAddress, EncodedMessage
 };
 use ton_types::cells_serialization::{BagOfCells};
-
-const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
-
-struct SimpleLogger;
-
-impl log::Log for SimpleLogger {
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() < MAX_LEVEL
-    }
-
-    fn log(&self, record: &log::Record) {
-		match record.level() {
-			log::Level::Error | log::Level::Warn => {
-				eprintln!("{}", record.args());
-			}
-			_ => {
-				println!("{}", record.args());
-			}
-		}
-    }
-
-    fn flush(&self) {}
-}
-
-fn create_client(conf: &Config) -> Result<TonClient, String> {
-    TonClient::new(&TonClientConfig{
-        base_url: Some(conf.url.clone()),
-        message_retries_count: Some(conf.retries),
-        message_expiration_timeout: Some(conf.timeout),
-        message_expiration_timeout_grow_factor: Some(1.5),
-        message_processing_timeout: Some(conf.timeout),
-        wait_for_timeout: Some(60 * 60000),
-        access_key: None,
-        out_of_sync_threshold: None,
-    })
-    .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))
-}
-
-pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
-    println!("Connecting to {}", conf.url);
-
-    log::set_max_level(MAX_LEVEL);
-    log::set_boxed_logger(Box::new(SimpleLogger))
-        .map_err(|e| format!("failed to init logger: {}", e))?;
-    
-    create_client(conf)
-}
 
 fn prepare_message(
     ton: &TonClient,
@@ -125,7 +78,7 @@ fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String> {
     let bytes = hex::decode(str_msg)
         .map_err(|e| format!("couldn't unpack message: {}", e))?;
     
-        let str_msg = std::str::from_utf8(&bytes)
+    let str_msg = std::str::from_utf8(&bytes)
         .map_err(|e| format!("message is corrupted: {}", e))?;
 
     let json_msg: serde_json::Value = serde_json::from_str(str_msg)
