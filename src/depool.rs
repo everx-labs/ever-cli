@@ -11,16 +11,15 @@
  * limitations under the License.
  */
 use crate::{print_args, VERBOSE_MODE};
-use crate::helpers::create_client_verbose;
 use crate::config::Config;
 use crate::convert;
-use crate::crypto::{SdkClient};
 use crate::depool_abi::DEPOOL_ABI;
-use crate::helpers::{load_ton_address, now};
+use crate::helpers::{create_client_local, create_client_verbose, load_abi, load_ton_address, now, TonClient};
 use crate::multisig::send_with_body;
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 use serde_json;
-use ton_client_rs::{OrderBy, SortDirection, TonClient};
+use ton_client::abi::{ParamsOfEncodeMessageBody, ParamsOfDecodeMessageBody, CallSet, Signer};
+use ton_client::net::{OrderBy, ParamsOfQueryCollection, ParamsOfWaitForCollection, SortDirection};
 
 pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
     let wallet_arg = Arg::with_name("MSIG")
@@ -185,7 +184,7 @@ fn parse_stake_data<'a>(m: &'a ArgMatches, conf: &Config) -> Result<(String, &'a
     Ok((wallet, stake, keys))
 }
 
-pub fn depool_command(m: &ArgMatches, conf: Config) -> Result<(), String> {
+pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), String> {
     let depool = m.value_of("ADDRESS")
         .map(|s| s.to_string())
         .or(conf.addr.clone())
@@ -197,34 +196,34 @@ pub fn depool_command(m: &ArgMatches, conf: Config) -> Result<(), String> {
         if let Some(m) = m.subcommand_matches("ordinary") {
             return ordinary_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
-            );
+            ).await;
         }
         if let Some(m) = m.subcommand_matches("vesting") {
             return exotic_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
                 true
-            );
+            ).await;
         }
         if let Some(m) = m.subcommand_matches("lock") {
             return exotic_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
                 false
-            );
+            ).await;
         }
         if let Some(m) = m.subcommand_matches("remove") {
             return remove_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
-            );
+            ).await;
         }
         if let Some(m) = m.subcommand_matches("withdrawPart") {
             return withdraw_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
-            );
+            ).await;
         }
         if let Some(m) = m.subcommand_matches("transfer") {
             return transfer_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
-            );
+            ).await;
         }
     }
     if let Some(m) = m.subcommand_matches("withdraw") {
@@ -232,16 +231,16 @@ pub fn depool_command(m: &ArgMatches, conf: Config) -> Result<(), String> {
         if let Some(matches) = matches {
             let (wallet, keys) = parse_wallet_data(&matches, &conf)?;
             let enable_withdraw = m.subcommand_matches("on").is_some();
-            return set_withdraw_command(matches, conf, &depool, &wallet, &keys, enable_withdraw);
+            return set_withdraw_command(matches, conf, &depool, &wallet, &keys, enable_withdraw).await;
         }
     }
     if let Some(m) = m.subcommand_matches("events") {
-        return events_command(m, conf, &depool)
+        return events_command(m, conf, &depool).await
     }
     if let Some(m) = m.subcommand_matches("replenish") {
         return replenish_command(m,
             CommandData::from_matches_and_conf(m, conf, depool)?,
-        );
+        ).await;
     }
     if let Some(m) = m.subcommand_matches("ticktock") {
         let (wallet, keys) = parse_wallet_data(&m, &conf)?;
@@ -254,7 +253,7 @@ pub fn depool_command(m: &ArgMatches, conf: Config) -> Result<(), String> {
  * Events command
  */
 
-fn events_command(m: &ArgMatches, conf: Config, depool: &str) -> Result<(), String> {
+async fn events_command(m: &ArgMatches<'_>, conf: Config, depool: &str) -> Result<(), String> {
     let since = m.value_of("SINCE");
     let wait_for = m.is_present("WAITONE");
     let depool = Some(depool);
@@ -266,9 +265,9 @@ fn events_command(m: &ArgMatches, conf: Config, depool: &str) -> Result<(), Stri
             })
             .transpose()?
             .unwrap_or(0);
-        get_events(conf, depool.unwrap(), since)
+        get_events(conf, depool.unwrap(), since).await
     } else {
-        wait_for_event(conf, depool.unwrap())
+        wait_for_event(conf, depool.unwrap()).await
     }
 }
 
@@ -280,19 +279,23 @@ fn events_filter(addr: &str, since: u32) -> serde_json::Value {
     })
 }
 
-fn print_event(ton: &TonClient, event: &serde_json::Value) {
+fn print_event(ton: TonClient, event: &serde_json::Value) {
     println!("event {}", event["id"].as_str().unwrap());
     
-    let body = base64::decode(event["body"].as_str().unwrap()).unwrap();
-    let result = ton.contracts.decode_output_message_body(
-        DEPOOL_ABI.into(),
-        &body[..],
+    let body = event["body"].as_str().unwrap();
+    let result = ton_client::abi::decode_message_body(
+        ton.clone(),
+        ParamsOfDecodeMessageBody {
+            abi: load_abi(DEPOOL_ABI).unwrap(),
+            body: body.to_owned(),
+            is_internal: false,
+        },
     );
     let (name, args) = if result.is_err() {
         ("unknown".to_owned(), "{}".to_owned())
     } else {
         let result = result.unwrap();
-        (result.function, serde_json::to_string(&result.output).unwrap())
+        (result.name, serde_json::to_string(&result.value).unwrap())
     };
 
     println!("{} {} ({})\n{}\n", 
@@ -303,59 +306,71 @@ fn print_event(ton: &TonClient, event: &serde_json::Value) {
     );
 }
 
-fn get_events(conf: Config, depool: &str, since: u32) -> Result<(), String> {
+async fn get_events(conf: Config, depool: &str, since: u32) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
     let _addr = load_ton_address(depool)?;
 
-    let events = ton.queries.messages.query(
-        events_filter(depool, since).into(),
-        "id body created_at created_at_string",
-        Some(OrderBy{ path: "created_at".to_owned(), direction: SortDirection::Descending }),
-        None,
-    ).map_err(|e| format!("failed to query depool events: {}", e.to_string()))?;
-    println!("{} events found", events.len());
-    for event in &events {
-        print_event(&ton, event);
+    let events = ton_client::net::query_collection(
+        ton.clone(),
+        ParamsOfQueryCollection {
+            collection: "messages".to_owned(),
+            filter: Some(events_filter(depool, since)),
+            result: "id body created_at created_at_string".to_owned(),
+            order: Some(vec![OrderBy{ path: "created_at".to_owned(), direction: SortDirection::DESC }]),
+            limit: None,
+        },
+    ).await.map_err(|e| format!("failed to query depool events: {}", e))?;
+    println!("{} events found", events.result.len());
+    for event in &events.result {
+        print_event(ton.clone(), event);
     }
     println!("Done");
     Ok(())
 }
 
-fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
+async fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
     let _addr = load_ton_address(depool)?;
     println!("Waiting for a new event...");
-    let event = ton.queries.messages.wait_for(
-        events_filter(depool, now()).into(),
-        "id body created_at created_at_string",
-    ).map_err(|e| format!("failed to query event: {}", e.to_string()))?;
-    print_event(&ton, &event);
+    let event = ton_client::net::wait_for_collection(
+        ton.clone(),
+        ParamsOfWaitForCollection {
+            collection: "messages".to_owned(),
+            filter: Some(events_filter(depool, now())),
+            result: "id body created_at created_at_string".to_owned(),
+            timeout: None,
+        },
+        
+    ).await.map_err(|e| format!("failed to query event: {}", e.to_string()))?;
+    print_event(ton.clone(), &event.result);
     Ok(())
 }
 /*
  * Stake commands
  */
 
-fn ordinary_stake_command<'a>(
-    m: &ArgMatches,
-    cmd: CommandData
+async fn ordinary_stake_command(
+    m: &ArgMatches<'_>,
+    cmd: CommandData<'_>,
 ) -> Result<(), String> {
-    let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
+    let (depool, wallet, stake, keys) = 
+        (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
     print_args!(m, depool, wallet, stake, keys);
-    add_ordinary_stake(cmd)
+    add_ordinary_stake(cmd).await
 }
 
-fn replenish_command<'a>(
-    m: &ArgMatches,
-    cmd: CommandData
+async fn replenish_command(
+    m: &ArgMatches<'_>,
+    cmd: CommandData<'_>,
 ) -> Result<(), String> {
-    let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
+    let (depool, wallet, stake, keys) = 
+        (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
     print_args!(m, depool, wallet, stake, keys);
-    replenish_stake(cmd)
+    replenish_stake(cmd).await
 }
 
-fn ticktock_command<'a>(
-    m: &ArgMatches,
+async fn ticktock_command(
+    m: &ArgMatches<'_>,
     conf: Config,
     depool: &str,
     wallet: &str,
@@ -363,23 +378,24 @@ fn ticktock_command<'a>(
 ) -> Result<(), String> {
     let (depool, wallet, keys) = (Some(depool), Some(wallet), Some(keys));
     print_args!(m, depool, wallet, keys);
-    call_ticktock(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap())
+    call_ticktock(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap()).await
 }
 
-fn transfer_stake_command<'a>(
-    m: &ArgMatches,
-    cmd: CommandData
+async fn transfer_stake_command(
+    m: &ArgMatches<'_>,
+    cmd: CommandData<'_>,
 ) -> Result<(), String> {
     let dest = Some(m.value_of("DEST")
         .ok_or("destination address is not defined.".to_string())?);
-    let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
+    let (depool, wallet, stake, keys) = 
+        (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
     print_args!(m, depool, wallet, stake, keys, dest);
-    transfer_stake(cmd, dest.unwrap())
+    transfer_stake(cmd, dest.unwrap()).await
 }
 
-fn exotic_stake_command(
-    m: &ArgMatches,
-    cmd: CommandData,
+async fn exotic_stake_command(
+    m: &ArgMatches<'_>,
+    cmd: CommandData<'_>,
     is_vesting: bool,
 ) -> Result<(), String> {
     let withdrawal_period = Some(m.value_of("WPERIOD")
@@ -405,29 +421,29 @@ fn exotic_stake_command(
         .and_then(period_checker)?;
     let wperiod = wperiod * 86400;
     let tperiod = tperiod * 86400;
-    add_exotic_stake(cmd, beneficiary.unwrap(), wperiod, tperiod, is_vesting)
+    add_exotic_stake(cmd, beneficiary.unwrap(), wperiod, tperiod, is_vesting).await
 }
 
-fn remove_stake_command(
-    m: &ArgMatches,
-    cmd: CommandData,
+async fn remove_stake_command(
+    m: &ArgMatches<'_>,
+    cmd: CommandData<'_>,
 ) -> Result<(), String> {
     let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
     print_args!(m, depool, wallet, stake, keys);
-   remove_stake(cmd)
+   remove_stake(cmd).await
 }
 
-fn withdraw_stake_command(
-    m: &ArgMatches,
-    cmd: CommandData,
+async fn withdraw_stake_command(
+    m: &ArgMatches<'_>,
+    cmd: CommandData<'_>,
 ) -> Result<(), String> {
     let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
     print_args!(m, depool, wallet, stake, keys);
-   withdraw_stake(cmd)
+   withdraw_stake(cmd).await
 }
 
-fn set_withdraw_command(
-    m: &ArgMatches,
+async fn set_withdraw_command(
+    m: &ArgMatches<'_>,
     conf: Config,
     depool: &str,
     wallet: &str,
@@ -437,40 +453,37 @@ fn set_withdraw_command(
     let (depool, wallet, keys) = (Some(depool), Some(wallet), Some(keys));
     let withdraw = Some(if enable { "true" } else { "false" });
     print_args!(m, depool, wallet, keys, withdraw);
-    set_withdraw(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap(), enable)
+    set_withdraw(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap(), enable).await
 }
 
-fn add_ordinary_stake( 
-    cmd: CommandData,
-) -> Result<(), String> {
+async fn add_ordinary_stake(cmd: CommandData<'_>) -> Result<(), String> {
     let stake = u64::from_str_radix(&convert::convert_token(cmd.stake)?, 10)
         .map_err(|e| format!(r#"failed to parse stake value: {}"#, e))?;
-    let body = encode_add_ordinary_stake(stake)?;
+    let body = encode_add_ordinary_stake(stake).await?;
     let fee = u64::from_str_radix(&convert::convert_token(&cmd.depool_fee)?, 10)
         .map_err(|e| format!(r#"failed to parse depool fee value: {}"#, e))?;
     let value = (fee + stake) as f64 * 1.0 / 1e9;
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &format!("{}", value), &cmd.keys, &body)
+
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &format!("{}", value), &cmd.keys, &body).await
 }
 
-fn replenish_stake(
-    cmd: CommandData
-) -> Result<(), String> {
-    let body = encode_replenish_stake()?;
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, cmd.stake, &cmd.keys, &body)
+async fn replenish_stake(cmd: CommandData<'_>) -> Result<(), String> {
+    let body = encode_replenish_stake().await?;
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, cmd.stake, &cmd.keys, &body).await
 }
 
-fn call_ticktock(
+async fn call_ticktock(
     conf: Config,
     depool: &str,
     wallet: &str,
     keys: &str,
 ) -> Result<(), String> {
     let body = encode_ticktock()?;
-    send_with_body(conf, wallet, depool, "1", keys, &body)
+    send_with_body(conf, wallet, depool, "1", keys, &body).await
 }
 
-fn add_exotic_stake(
-    cmd: CommandData,
+async fn add_exotic_stake(
+    cmd: CommandData<'_>,
     beneficiary: &str,
     wp: u32,
     tp: u32,
@@ -480,95 +493,90 @@ fn add_exotic_stake(
     let stake = u64::from_str_radix(&convert::convert_token(cmd.stake)?, 10)
         .map_err(|e| format!(r#"failed to parse stake value: {}"#, e))?;
     let body = if is_vesting {
-        encode_add_vesting_stake(stake, beneficiary, tp, wp)?
+        encode_add_vesting_stake(stake, beneficiary, tp, wp).await?
     } else {
-        encode_add_lock_stake(stake, beneficiary, tp, wp)?
+        encode_add_lock_stake(stake, beneficiary, tp, wp).await?
     };
     let fee = u64::from_str_radix(&convert::convert_token(&cmd.depool_fee)?, 10)
         .map_err(|e| format!(r#"failed to parse depool fee value: {}"#, e))?;
     let value = (fee + stake) as f64 * 1.0 / 1e9;
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &format!("{}", value), &cmd.keys, &body)
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &format!("{}", value), &cmd.keys, &body).await
 }
 
-fn remove_stake(
-    cmd: CommandData,
+async fn remove_stake(
+    cmd: CommandData<'_>,
 ) -> Result<(), String> {
     let stake = u64::from_str_radix(
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
-    let body = encode_remove_stake(stake)?;
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body)
+    let body = encode_remove_stake(stake).await?;
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body).await
 }
 
-fn withdraw_stake(
-    cmd: CommandData,
+async fn withdraw_stake(
+    cmd: CommandData<'_>,
 ) -> Result<(), String> {
     let stake = u64::from_str_radix(
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
-    let body = encode_withdraw_stake(stake)?;
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body)
+    let body = encode_withdraw_stake(stake).await?;
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body).await
 }
 
-fn transfer_stake(cmd: CommandData, dest: &str) -> Result<(), String> {
+async fn transfer_stake(cmd: CommandData<'_>, dest: &str) -> Result<(), String> {
     load_ton_address(dest)?;
     let stake = u64::from_str_radix(
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
-    let body = encode_transfer_stake(dest, stake)?;
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body)
+    let body = encode_transfer_stake(dest, stake).await?;
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body).await
 }
 
-fn set_withdraw(
+async fn set_withdraw(
     conf: Config,
     depool: &str,
     wallet: &str,
     keys: &str,
     enable: bool,
 ) -> Result<(), String> {
-    let body = encode_set_withdraw(enable)?;
-    let value = conf.depool_fee.clone().to_string();
-    send_with_body(conf, wallet, depool, &value, keys, &body)
+    let body = encode_set_withdraw(enable).await?;
+    let value = conf.depool_fee.to_string();
+    send_with_body(conf, wallet, depool, &value, keys, &body).await
 }
 
-fn encode_body(func: &str, params: serde_json::Value) -> Result<String, String> {
-    let client = SdkClient::new();
-	let abi: serde_json::Value = serde_json::from_str(DEPOOL_ABI).unwrap();
-    let result = client.request(
-        "contracts.run.body",
-        json!({
-            "abi": abi,
-            "function": func,
-            "params": params,
-			"internal": true,
-        })
-    )?;
-    let json_body: serde_json::Value = serde_json::from_str(&result)
-        .map_err(|e| format!("failed to encode msg body: {}", e))?;
-    json_body.get("bodyBase64")
-        .ok_or(format!(r#"internal error: "bodyBase64" not found in sdk call result"#))?
-        .as_str()
-        .ok_or(format!(r#"internal error: "bodyBase64" field is not a string"#))
-        .map(|s| s.to_owned())
+async fn encode_body(func: &str, params: serde_json::Value) -> Result<String, String> {
+    let client = create_client_local()?;
+    ton_client::abi::encode_message_body(
+        client.clone(),
+        ParamsOfEncodeMessageBody {
+            abi: load_abi(DEPOOL_ABI)?,
+            call_set: CallSet::some_with_function_and_input(func, params).unwrap(),
+            is_internal: true,
+            signer: Signer::None,
+            processing_try_index: None,
+        },
+    ).await
+    .map_err(|e| format!("failed to encode body: {}", e))
+    .map(|r| r.body)
 }
 
-fn encode_set_withdraw(flag: bool) -> Result<String, String> {
+async fn encode_set_withdraw(flag: bool) -> Result<String, String> {
     if flag {
         encode_body("withdrawAll", json!({}))
     } else {
         encode_body("cancelWithdrawal", json!({}))
-    }
+    }.await
 }
 
-fn encode_add_ordinary_stake(stake: u64) -> Result<String, String> {
+async fn encode_add_ordinary_stake(stake: u64) -> Result<String, String> {
 	encode_body("addOrdinaryStake", json!({
         "stake": stake
-    }))
+    })).await
 }
 
-fn encode_replenish_stake() -> Result<String, String> {
+async fn encode_replenish_stake() -> Result<String, String> {
 	encode_body("receiveFunds", json!({
-    }))
+    })).await
 }
 
 fn encode_ticktock() -> Result<String, String> {
@@ -576,39 +584,49 @@ fn encode_ticktock() -> Result<String, String> {
     }))
 }
 
-fn encode_add_vesting_stake(stake: u64, beneficiary: &str, tperiod: u32, wperiod: u32) -> Result<String, String> {
+async fn encode_add_vesting_stake(
+    stake: u64,
+    beneficiary: &str,
+    tperiod: u32,
+    wperiod: u32,
+) -> Result<String, String> {
 	encode_body("addVestingStake", json!({
         "stake": stake,
         "beneficiary": beneficiary,
         "withdrawalPeriod": wperiod,
         "totalPeriod": tperiod
-    }))
+    })).await
 }
 
-fn encode_add_lock_stake(stake: u64, beneficiary: &str, tperiod: u32, wperiod: u32) -> Result<String, String> {
+async fn encode_add_lock_stake(
+    stake: u64,
+    beneficiary: &str,
+    tperiod: u32,
+    wperiod: u32,
+) -> Result<String, String> {
 	encode_body("addLockStake", json!({
         "stake": stake,
         "beneficiary": beneficiary,
         "withdrawalPeriod": wperiod,
         "totalPeriod": tperiod
-    }))
+    })).await
 }
 
-fn encode_remove_stake(target_value: u64) -> Result<String, String> {
+async fn encode_remove_stake(target_value: u64) -> Result<String, String> {
 	encode_body("withdrawFromPoolingRound", json!({
         "withdrawValue": target_value
-    }))
+    })).await
 }
 
-fn encode_withdraw_stake(target_value: u64) -> Result<String, String> {
+async fn encode_withdraw_stake(target_value: u64) -> Result<String, String> {
 	encode_body("withdrawPart", json!({
         "withdrawValue": target_value
-    }))
+    })).await
 }
 
-fn encode_transfer_stake(dest: &str, amount: u64) -> Result<String, String> {
+async fn encode_transfer_stake(dest: &str, amount: u64) -> Result<String, String> {
 	encode_body("transferStake", json!({
         "dest": dest,
         "amount": amount
-    }))
+    })).await
 }

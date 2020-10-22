@@ -10,193 +10,75 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::read_keys;
-use ton_client::InteropContext;
-use ton_client::{tc_json_request, InteropString};
-use ton_client::{tc_read_json_response, tc_destroy_json_response, JsonResponse};
-use serde_json::{Value};
-use ton_client::{tc_create_context, tc_destroy_context};
-use ton_client_rs::Ed25519KeyPair;
+use crate::helpers::{create_client_local, read_keys, WORD_COUNT, HD_PATH};
+use ton_client::crypto::{
+    KeyPair,
+    mnemonic_from_random,
+    hdkey_xprv_from_mnemonic,
+    hdkey_secret_from_xprv,
+    nacl_sign_keypair_from_secret_key,
+    hdkey_derive_from_xprv_path,
+    ParamsOfHDKeySecretFromXPrv,
+    ParamsOfHDKeyDeriveFromXPrvPath,
+    ParamsOfHDKeyXPrvFromMnemonic,
+    ParamsOfNaclSignKeyPairFromSecret,
+    ParamsOfMnemonicFromRandom
+};
 
-const HD_PATH: &str = "m/44'/396'/0'/0/0";
-const WORD_COUNT: u8 = 12;
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Clone)]
-pub struct KeyPair {
-    pub public: String,
-    pub secret: String,
-}
-
-fn interop_string_from(s: &String) -> InteropString {
-    InteropString {
-        content: s.as_ptr(),
-        len: s.len() as u32,
-    }
-}
-
-fn interop_string_to_string(istr: InteropString) -> String {
-    unsafe {
-        let utf8 = std::slice::from_raw_parts(istr.content, istr.len as usize);
-        String::from_utf8(utf8.to_vec()).unwrap()
-    }
-}
-
-pub fn keypair_to_ed25519pair(pair: KeyPair) -> Result<Ed25519KeyPair, String> {
-    let mut buffer = [0u8; 64];
-    let public_vec = hex::decode(&pair.public)
-        .map_err(|e| format!("failed to decode public key: {}", e))?;
-    let private_vec = hex::decode(&pair.secret)
-        .map_err(|e| format!("failed to decode private key: {}", e))?;
-
-    buffer[..32].copy_from_slice(&private_vec);
-    buffer[32..].copy_from_slice(&public_vec);
-
-    Ok(Ed25519KeyPair::zero().from_bytes(buffer))
-}
-
-pub fn load_keypair(keys: &str) -> Result<Ed25519KeyPair, String> {
+pub fn load_keypair(keys: &str) -> Result<KeyPair, String> {
     if keys.find(' ').is_none() {
         let keys = read_keys(&keys)?;
         Ok(keys)
     } else {
-        let pair = generate_keypair_from_mnemonic(&keys)?;
-        Ok(keypair_to_ed25519pair(pair)?)
-    }
-}
-
-// TODO: SdkClient structure is a temporary solution to use crypto
-// functions from sdk. Remove it when ton-client-rs will support all
-// necessary functions.
-pub struct SdkClient {
-    context: InteropContext,
-}
-
-impl SdkClient {
-    pub fn new() -> Self {
-        let context: InteropContext;
-        unsafe {
-            context = tc_create_context()
-        }
-        Self { context }
-    }
-
-    
-
-    pub fn request(
-        &self,
-        method_name: &str,
-        params: Value,
-    ) -> Result<String, String> {
-        unsafe {
-            let params_json = if params.is_null() { String::new() } else { params.to_string() };
-            let response_ptr = tc_json_request(
-                self.context,
-                interop_string_from(&method_name.to_string()),
-                interop_string_from(&params_json),
-            );
-            let interop_response = tc_read_json_response(response_ptr);
-            let response = JsonResponse {
-                result_json: interop_string_to_string(interop_response.result_json),
-                error_json: interop_string_to_string(interop_response.error_json),
-            };
-             //interop_response.to_response();
-            tc_destroy_json_response(response_ptr);
-            if response.error_json.is_empty() {
-                Ok(response.result_json)
-            } else {
-                Err(response.error_json)
-            }
-        }
-    }
-}
-
-impl Drop for SdkClient {
-    fn drop(&mut self) {
-        unsafe {
-            tc_destroy_context(self.context)
-        }
-    }
-}
-
-fn parse_json(r: String) -> Result<serde_json::Value, String> {
-    serde_json::from_str(&r)
-        .map_err(|e| format!("failed to parse sdk client result: {}", e))
-}
-
-fn parse_string(r: String) -> Result<String, String> {
-    let json = parse_json(r)?;
-    match json {
-        Value::String(s) => Ok(s),
-        _ => Err("failed to parse sdk client result: string expected".to_string()),
-    }
-}
-
-fn parse_bool(r: String) -> Result<bool, String> {
-    let json = parse_json(r)?;
-    match json {
-        Value::Bool(b) => Ok(b),
-        _ => Err("failed to parse sdk client result: bool expected".to_string())
+        generate_keypair_from_mnemonic(&keys)
     }
 }
 
 pub fn gen_seed_phrase() -> Result<String, String> {
-    let client = SdkClient::new();
-    parse_string(client.request(
-        "crypto.mnemonic.from.random",
-        json!({
-            "dictionary": 1,
-            "wordCount": WORD_COUNT
-        })
-    )?)
+    let client = create_client_local()?;
+    mnemonic_from_random(
+        client,
+        ParamsOfMnemonicFromRandom {
+            dictionary: Some(1),
+            word_count: Some(WORD_COUNT),
+        },
+    )
+    .map_err(|e| format!("{}", e))
+    .map(|r| r.phrase)
 }
 
 pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String> {
-    let client = SdkClient::new();
+    let client = create_client_local()?;
+    let hdk_master = hdkey_xprv_from_mnemonic(
+        client.clone(),
+        ParamsOfHDKeyXPrvFromMnemonic {
+            dictionary: Some(1),
+            word_count: Some(WORD_COUNT),
+            phrase: mnemonic.to_string(),
+        },
+    ).map_err(|e| format!("{}", e))?;
 
-    let is_valid = parse_bool(client.request(
-        "crypto.mnemonic.verify",
-        json!({
-            "phrase": mnemonic,
-            "dictionary": 1,
-            "wordCount": WORD_COUNT,
-        }),
-    )?)?;
+    let hdk_root = hdkey_derive_from_xprv_path(
+        client.clone(),
+        ParamsOfHDKeyDeriveFromXPrvPath {
+            xprv: hdk_master.xprv,
+            path: HD_PATH.to_string(),
+        },
+    ).map_err(|e| format!("{}", e))?;
 
-    if !is_valid {
-        return Err(format!("seed phrase is invalid"));
-    }
+    let secret = hdkey_secret_from_xprv(
+        client.clone(),
+        ParamsOfHDKeySecretFromXPrv {
+            xprv: hdk_root.xprv,
+        },
+    ).map_err(|e| format!("{}", e))?;
 
-    let hdk_master = parse_string(client.request(
-        "crypto.hdkey.xprv.from.mnemonic",
-        json!({
-            "dictionary":1,
-            "wordCount": WORD_COUNT,
-            "phrase": mnemonic.to_string(),
-        })
-    )?)?;
-
-    let hdk_root = parse_string(client.request(
-        "crypto.hdkey.xprv.derive.path",
-        json!({
-            "serialized": hdk_master,
-            "path": HD_PATH.to_string(),
-            "compliant": false,
-        })
-    )?)?;
-
-    let secret = parse_string(client.request(
-        "crypto.hdkey.xprv.secret",
-        json!({
-            "serialized": hdk_root
-        })
-    )?)?;
-
-    let mut keypair: KeyPair = serde_json::from_str(&client.request(
-        "crypto.nacl.sign.keypair.fromSecretKey",
-        json!(secret)
-    )?)
-    .map_err(|e| format!("failed to parse KeyPair from json: {}", e))?;
+    let mut keypair: KeyPair = nacl_sign_keypair_from_secret_key(
+        client.clone(),
+        ParamsOfNaclSignKeyPairFromSecret {
+            secret: secret.secret,
+        },
+    ).map_err(|e| format!("failed to get KeyPair from secret key: {}", e))?;
 
     // special case if secret contains public key too.
     let secret = hex::decode(&keypair.secret).unwrap();
@@ -224,7 +106,7 @@ pub fn extract_pubkey(mnemonic: &str) -> Result<(), String> {
 }
 
 pub fn generate_keypair(keys_path: &str, mnemonic: &str) -> Result<(), String> {
-    let keys = keypair_to_ed25519pair(generate_keypair_from_mnemonic(mnemonic)?)?;
+    let keys = generate_keypair_from_mnemonic(mnemonic)?;
     let keys_json = serde_json::to_string_pretty(&keys).unwrap();
     std::fs::write(keys_path, &keys_json)
         .map_err(|e| format!("failed to create file with keys: {}", e))?;

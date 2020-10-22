@@ -534,7 +534,7 @@ fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std:
         .arg("--abi").arg("tests/samples/Subscription.abi.json");
     cmd.assert()
         .failure()
-        .stdout(predicate::str::contains("3006"));
+        .stdout(predicate::str::contains("failed to decode body"));
 
     Ok(())
 }

@@ -12,7 +12,7 @@
  */
 use crate::{print_args, VERBOSE_MODE};
 use crate::config::Config;
-use crate::helpers::create_client_local;
+use crate::helpers::{decode_msg_body, create_client_local};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::Cell;
@@ -95,20 +95,16 @@ fn print_decoded_body(body_vec: Vec<u8>, abi: &str, is_json: bool) -> Result<Str
     if body_vec.cmp(&empty_boc) == std::cmp::Ordering::Equal {
         return Err(format!("body is empty"));
     }
-    let res = ton.contracts.decode_input_message_body(
-        abi.into(),
-        &body_vec,
-        false,
-    ).or_else(|_| ton.contracts.decode_input_message_body(
-        abi.into(),
-        &body_vec,
-        true,
-    )).map_err(|e| format!("failed to decode msg body: {}", e))?;
 
+    let body_base64 = base64::encode(&body_vec);
+    let mut res = decode_msg_body(ton.clone(), abi, &body_base64, false)
+        .or_else(|_| decode_msg_body(ton.clone(), abi, &body_base64, true))?;
+
+    let output = res.value.take().unwrap();
     Ok(if is_json {
-        format!(" \"BodyCall\": {{\n  \"{}\": {}\n }}", res.function, res.output)
+        format!(" \"BodyCall\": {{\n  \"{}\": {}\n }}", res.name, output)
     } else {
-        format!("{}: {}", res.function, serde_json::to_string_pretty(&res.output).unwrap())
+        format!("{}: {}", res.name, serde_json::to_string_pretty(&output).unwrap())
     })
 }
 

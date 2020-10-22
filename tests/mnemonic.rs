@@ -23,7 +23,7 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
 
    //just test check exits all other checks in test_invalid_mnemonic
     const WRONG_SEED: &str = "unit follow zone decline glare flower crisp vocal adapt magic much mesh cherry ";
-    const WRONG_SEED_ERROR_TEXT: &str = "seed phrase is invalid";
+    const WRONG_SEED_ERROR_TEXT: &str = "Invalid bip39 phrase";
     
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("genpubkey").arg(WRONG_SEED);
