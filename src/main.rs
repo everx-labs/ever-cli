@@ -190,9 +190,9 @@ fn main_internal() -> Result <(), String> {
             (about: "Sends external message to contract with encoded function call.")
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
-            (@arg ADDRESS: --addr +takes_value "Contract address. It can be set in the config file.")
+            (@arg ADDRESS: +required +takes_value "Contract address. It can be set in the config file.")
             (@arg METHOD: +required +takes_value "Name of calling contract method.")
-            (@arg PARAMS: +required +takes_value "Arguments for the contract method.")
+            (@arg PARAMS: +takes_value "Arguments for the contract method.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
             (@arg SIGN: --sign +takes_value "Keypair used to sign message.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
@@ -209,9 +209,9 @@ fn main_internal() -> Result <(), String> {
             (@setting AllowLeadingHyphen)
             (about: "Generates a signed message with encoded function call.")
             (author: "TONLabs")
-            (@arg ADDRESS: --addr +takes_value "Contract address. It can be set in the config file.")
+            (@arg ADDRESS: +required +takes_value "Contract address. It can be set in the config file.")
             (@arg METHOD: +required +takes_value "Name of calling contract method.")
-            (@arg PARAMS: +required +takes_value "Arguments for the contract method.")
+            (@arg PARAMS: +takes_value "Arguments for the contract method.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
             (@arg SIGN: --sign +takes_value "Keypair used to sign message.")
             (@arg LIFETIME: --lifetime +takes_value "Period of time in seconds while message is valid.")
@@ -222,9 +222,9 @@ fn main_internal() -> Result <(), String> {
         (@subcommand run =>
             (@setting AllowLeadingHyphen)
             (about: "Runs contract function locally.")
-            (@arg ADDRESS: --addr +takes_value "Contract address. It can be set in the config file.")
+            (@arg ADDRESS: +required +takes_value "Contract address. It can be set in the config file.")
             (@arg METHOD: +required +takes_value "Name of calling contract method.")
-            (@arg PARAMS: +required +takes_value "Arguments for the contract method.")
+            (@arg PARAMS: +takes_value "Arguments for the contract method.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
@@ -445,14 +445,27 @@ fn send_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
 }
 
 fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<(), String> {
-    let address = Some(
+    let address = if matches.is_present("PARAMS") {
+        matches.value_of("ADDRESS").map(|s| s.to_string())
+    } else {
+        Some(
+            matches.value_of("PARAMS")
+                .map(|s| s.to_string())
+                .or(config.addr.clone())
+                .ok_or("ADDRESS is not defined. Supply it in config file or in command line.".to_string())?
+        )
+    };
+    let method = if matches.is_present("PARAMS") {
+        matches.value_of("METHOD")
+    } else {
         matches.value_of("ADDRESS")
-            .map(|s| s.to_string())
-            .or(config.addr.clone())
-            .ok_or("address is not defined. Supply it in the config file or in the command line.".to_string())?
-    );
-    let method = matches.value_of("METHOD");
-    let params = matches.value_of("PARAMS");
+    };
+    let params = if matches.is_present("PARAMS") {
+        matches.value_of("PARAMS")
+    } else {
+        matches.value_of("METHOD")
+    };
+
     let lifetime = matches.value_of("LIFETIME");
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
