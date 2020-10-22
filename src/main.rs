@@ -10,12 +10,10 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-#[macro_use]
-extern crate clap;
-#[macro_use]
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
+#[macro_use] extern crate clap;
+#[macro_use] extern crate log;
+#[macro_use] extern crate serde_json;
+#[macro_use] extern crate serde_derive;
 
 mod account;
 mod call;
@@ -23,6 +21,7 @@ mod config;
 mod convert;
 mod crypto;
 mod decode;
+mod debot;
 mod deploy;
 mod depool;
 mod depool_abi;
@@ -38,6 +37,7 @@ use call::{call_contract, call_contract_with_msg, generate_message, parse_params
 use clap::{ArgMatches, SubCommand, Arg, AppSettings};
 use config::{Config, set_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
+use debot::{create_debot_command, debot_command};
 use decode::{create_decode_command, decode_command};
 use deploy::deploy_contract;
 use depool::{create_depool_command, depool_command};
@@ -284,6 +284,7 @@ fn main_internal() -> Result <(), String> {
         (subcommand: create_multisig_command())
         (subcommand: create_depool_command())
         (subcommand: create_decode_command())
+        (subcommand: create_debot_command())
         (@subcommand getconfig =>
             (about: "Reads global configuration parameter with defined index.")
             (@arg INDEX: +required +takes_value "Parameter index.")
@@ -394,6 +395,9 @@ fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("decode") {
         return decode_command(m, conf);
+    }
+    if let Some(m) = matches.subcommand_matches("debot") {
+        return debot_command(m, conf);
     }
     if let Some(_) = matches.subcommand_matches("version") {
         println!(
