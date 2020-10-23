@@ -1,6 +1,7 @@
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::process::Command;
+use std::fs;
 
 const BIN_NAME: &str = "tonos-cli";
 
@@ -409,8 +410,8 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("account")
         .arg("0:UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYK4");
     cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("Account not found"));
+        .failure()
+        .stdout(predicate::str::contains("invalid address"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
@@ -457,6 +458,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_account_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
+    fs::remove_file("tonos-cli.conf.json")?;
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--url")
@@ -472,24 +474,7 @@ fn test_account_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-#[test]
-fn test_account_from_config() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg("https://net.ton.dev");
-    cmd.assert()
-        .success();
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("account");
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("The following required arguments were not provided:"))
-        .stderr(predicate::str::contains("<ADDRESS>"));
-
-    Ok(())
-}
 
 #[test]
 fn test_decode_msg() -> Result<(), Box<dyn std::error::Error>> {
@@ -621,10 +606,7 @@ fn test_convert_command() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("1000000000"));
     // change when fixed to 0
-    cmd.arg("convert").arg("tokens").arg("0");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("0000000000"));
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("convert").arg("tokens").arg("0");
     cmd.assert()
         .success()
