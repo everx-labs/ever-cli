@@ -378,6 +378,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success();
 
+    // address from command line
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
         .arg("-1:3333333333333333333333333333333333333333333333333333333333333333");
@@ -395,6 +396,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Account not found"));
+
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
@@ -425,9 +427,32 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
     //   .success()
     //     .stdout(predicate::str::contains("acc_type:"));
 
+
+    // address from config
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--addr")
+        .arg("-1:3333333333333333333333333333333333333333333333333333333333333333");
+    cmd.assert()
+        .success();
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("acc_type:      Active"))
+        .stdout(predicate::str::contains("balance:"))
+        .stdout(predicate::str::contains("last_paid:"))
+        .stdout(predicate::str::contains("last_trans_lt:"))
+        .stdout(predicate::str::contains("data(boc):"));
+    //command line address is preferred to config address
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account").arg("-1:9999999999999999999999999999999999999999999999999999999999999999");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Input arguments:"))
+        .stdout(predicate::str::contains("address: -1:9999999999999999999999999999999999999999999999999999999999999999"));
+
     Ok(())
-
-
 }
 
 #[test]
@@ -443,8 +468,7 @@ fn test_account_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("account");
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("The following required arguments were not provided:"))
-        .stderr(predicate::str::contains("<ADDRESS>"));
+        .stdout(predicate::str::contains("address is not defined. Supply it in the config file or in the command line."));
 
     Ok(())
 }
@@ -588,7 +612,6 @@ fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std:
 
     Ok(())
 }
-
 
 #[test]
 fn test_convert_command() -> Result<(), Box<dyn std::error::Error>> {
