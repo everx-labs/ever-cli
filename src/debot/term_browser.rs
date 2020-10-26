@@ -11,7 +11,7 @@
 * limitations under the License.
 */
 use crate::config::Config;
-use crate::crypto::{generate_keypair_from_mnemonic, keypair_to_ed25519pair};
+use crate::crypto::load_keypair;
 use crate::helpers::load_ton_address;
 use debot_engine::{BrowserCallbacks, DAction, DEngine, STATE_EXIT};
 use std::cell::RefCell;
@@ -117,15 +117,16 @@ impl BrowserCallbacks for Callbacks {
     /// Debot engine requests keys to sign something
     fn load_key(&self, keys: &mut Ed25519KeyPair) {
         let mut value = String::new();
-        self.input("enter seed phrase", &mut value);
+        let enter_str = "enter seed phrase or path to keypair file";
+        self.input(enter_str, &mut value);
 
-        let mut pair = generate_keypair_from_mnemonic(&value);
-        while let Err(_) = pair {
-            println!("Invalid seed phrase. Try again");
-            self.input("enter seed phrase", &mut value);
-            pair = generate_keypair_from_mnemonic(&value);
+        let mut pair = load_keypair(&value);
+        while let Err(e) = pair {
+            println!("Invalid keys: {}. Try again.", e);
+            self.input(enter_str, &mut value);
+            pair = load_keypair(&value);
         }
-        *keys = keypair_to_ed25519pair(pair.unwrap()).unwrap();
+        *keys = pair.unwrap();
     }
     /// Debot asks to run action of another debot
     fn invoke_debot(&self, debot: TonAddress, action: DAction) -> Result<(), String> {
@@ -188,4 +189,82 @@ pub fn run_debot_browser(addr: &str, abi: Option<String>, config: Config) -> Res
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod browser_tests {
+    use super::*;
+    
+    use stdio_override::StdinOverride;
+    use std::fs::File;
+
+    const PUBLIC: &'static str = "9711a04f0b19474272bc7bae5472a8fbbb6ef71ce9c193f5ec3f5af808069a41";
+    const PRIVATE: &'static str = "cdf2a820517fa783b9b6094d15e650af92d485084ab217fc2c859f02d49623f3";
+    const SEED: &'static str = "episode polar pistol excite essence van cover fox visual gown yellow minute";
+    const KEYS_FILE: &'static str = "./keys.json";
+
+    fn create_keypair_file(name: &str) {
+        let mut file = File::create(name).unwrap();
+        file.write_all(format!(r#"{{
+            "public": "{}",
+            "secret": "{}"
+        }}"#, PUBLIC, PRIVATE).as_bytes()).unwrap();
+    }
+
+    fn prepare_stdin_file_with_path_to_file(stdin_name: &str) {
+        create_keypair_file(KEYS_FILE);
+        let mut file = File::create(&stdin_name).unwrap();
+        file.write_all(format!("{}\n", KEYS_FILE).as_bytes()).unwrap();
+    }
+
+    fn prepare_stdin_file_with_seedphrase(stdin_name: &str) {
+        let mut file = File::create(&stdin_name).unwrap();
+        file.write_all(format!("{}", SEED).as_bytes()).unwrap();
+    }
+
+    fn create_callbacks() -> Callbacks {
+        let browser = Rc::new(RefCell::new(TerminalBrowser::new("localhost".to_owned())));
+        Callbacks::new(Rc::clone(&browser))
+    }
+
+    #[test]
+    fn load_key_from_file() {
+        let stdin_file = "./keys.txt";
+
+        prepare_stdin_file_with_path_to_file(stdin_file);
+        let guard = StdinOverride::override_file(stdin_file).unwrap();
+
+        let callbacks = create_callbacks();
+        
+        let mut keys = Ed25519KeyPair::zero();
+        callbacks.load_key(&mut keys);
+        
+        drop(guard);
+        std::fs::remove_file(KEYS_FILE).unwrap();
+        
+        assert_eq!(format!("{}", keys.public), PUBLIC);
+        assert_eq!(format!("{}", keys.secret), PRIVATE);
+        
+        std::fs::remove_file(stdin_file).unwrap();
+    }
+
+    #[test]
+    fn load_key_from_seed() {
+        let stdin_file = "./seed.txt";
+
+        prepare_stdin_file_with_seedphrase(stdin_file);
+        let guard = StdinOverride::override_file(stdin_file).unwrap();
+
+        let callbacks = create_callbacks();
+        
+        let mut keys = Ed25519KeyPair::zero();
+        callbacks.load_key(&mut keys);
+        
+        drop(guard);
+        
+        assert_eq!(format!("{}", keys.public), PUBLIC);
+        assert_eq!(format!("{}", keys.secret), PRIVATE);
+        
+        std::fs::remove_file(stdin_file).unwrap();
+    }
 }
