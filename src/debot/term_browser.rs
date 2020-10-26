@@ -121,8 +121,8 @@ impl BrowserCallbacks for Callbacks {
         self.input(enter_str, &mut value);
 
         let mut pair = load_keypair(&value);
-        while let Err(_) = pair {
-            println!("Invalid keys. Try again.");
+        while let Err(e) = pair {
+            println!("Invalid keys: {}. Try again.", e);
             self.input(enter_str, &mut value);
             pair = load_keypair(&value);
         }
