@@ -259,7 +259,14 @@ mod tests {
             "extra",
             "",
             " ",
-            "123"
+            "123",
+            "extra/1",
+            "extra .1",
+            "extra ,1",
+            "0x0",
+            "0:3333333333333333333333333333333333333333333333333333333333333333",
+            "-alert()-",
+            "multiply extra monitor fog rocket defy attack right night jaguar hollow enlist multiply extra monitor fog rocket defy attack right night jaguar hollow enlist multiply extra monitor fog rocket defy attack right night jaguar hollow enlist multiply extra monitor fog rocket defy attack right night jaguar hollow enlist multiply extra monitor fog rocket defy attack right night jaguar hollow enlist multiply extra monitor fog rocket defy attack right night jaguar hollow enlist"
         ];
 
         for phrase in invalid_phrases {
