@@ -40,8 +40,8 @@ impl log::Log for SimpleLogger {
 pub fn read_keys(filename: &str) -> Result<Ed25519KeyPair, String> {
     let keys_str = std::fs::read_to_string(filename)
         .map_err(|e| format!("failed to read keypair file: {}", e.to_string()))?;
-    let keys: Ed25519KeyPair = serde_json::from_str(&keys_str).unwrap();
-    Ok(keys)
+    serde_json::from_str(&keys_str)
+        .map_err(|e| format!("failed to parse keypair file: {}", e))
 }
 
 pub fn load_ton_address(addr: &str) -> Result<TonAddress, String> {

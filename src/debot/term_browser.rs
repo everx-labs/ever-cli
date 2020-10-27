@@ -15,7 +15,7 @@ use crate::crypto::load_keypair;
 use crate::helpers::load_ton_address;
 use debot_engine::{BrowserCallbacks, DAction, DEngine, STATE_EXIT};
 use std::cell::RefCell;
-use std::io::{self, Write};
+use std::io::{self, BufRead, Write};
 use std::rc::Rc;
 use ton_client_rs::{Ed25519KeyPair, TonAddress};
 
@@ -97,36 +97,18 @@ impl BrowserCallbacks for Callbacks {
 
     // Debot engine asks user to enter argument for an action.
     fn input(&self, prefix: &str, value: &mut String) {
-        let mut input_str = "".to_owned();
-        let mut argc = 0;
-        while argc == 0 {
-            print!("{} > ", prefix);
-            let _ = io::stdout().flush();
-            if let Err(e) = io::stdin().read_line(&mut input_str) {
-                println!("failed to read line: {}", e)
-            }
-            argc = input_str
-                .split_whitespace()
-                .map(|x| x.parse::<String>().unwrap())
-                .collect::<Vec<String>>()
-                .len();
-        }
-        *value = input_str.trim().to_owned();
+        let stdio = io::stdin();
+        let mut reader = stdio.lock();    
+        let mut writer = io::stdout();
+        *value = input(prefix, &mut reader, &mut writer);
     }
 
     /// Debot engine requests keys to sign something
     fn load_key(&self, keys: &mut Ed25519KeyPair) {
-        let mut value = String::new();
-        let enter_str = "enter seed phrase or path to keypair file";
-        self.input(enter_str, &mut value);
-
-        let mut pair = load_keypair(&value);
-        while let Err(e) = pair {
-            println!("Invalid keys: {}. Try again.", e);
-            self.input(enter_str, &mut value);
-            pair = load_keypair(&value);
-        }
-        *keys = pair.unwrap();
+        let stdio = io::stdin();
+        let mut reader = stdio.lock();    
+        let mut writer = io::stdout();
+        *keys = input_keys(&mut reader, &mut writer);
     }
     /// Debot asks to run action of another debot
     fn invoke_debot(&self, debot: TonAddress, action: DAction) -> Result<(), String> {
@@ -146,6 +128,33 @@ impl BrowserCallbacks for Callbacks {
         Ok(())
     }
 }
+
+fn input<R, W>(prefix: &str, reader: &mut R, writer: &mut W) -> String
+where
+    R: BufRead,
+    W: Write,    
+{
+    let mut input_str = "".to_owned();
+    let mut argc = 0;
+    while argc == 0 {
+        print!("{} > ", prefix);
+        if let Err(e) = writer.flush() {
+            println!("failed to flush: {}", e);
+            return input_str;
+        }
+        if let Err(e) = reader.read_line(&mut input_str) {
+            println!("failed to read line: {}", e);
+            return input_str;
+        }
+        argc = input_str
+            .split_whitespace()
+            .map(|x| x.parse::<String>().unwrap())
+            .collect::<Vec<String>>()
+            .len();
+    }
+    input_str.trim().to_owned()
+} 
+    
 
 fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
     let mut a_str = String::new();
@@ -173,6 +182,23 @@ fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
     Ok((n, argc, argv))
 }
 
+fn input_keys<R, W>(reader: &mut R, writer: &mut W) -> Ed25519KeyPair
+where
+    R: BufRead,
+    W: Write,  
+{
+    let enter_str = "enter seed phrase or path to keypair file";
+    let mut value = input(enter_str, reader, writer);
+
+    let mut pair = load_keypair(&value);
+    while let Err(e) = pair {
+        println!("Invalid keys: {}. Try again.", e);
+        value = input(enter_str, reader, writer);
+        pair = load_keypair(&value);
+    }
+    pair.unwrap()
+}
+
 pub fn run_debot_browser(addr: &str, abi: Option<String>, config: Config) -> Result<(), String> {
     let url = config.url.clone();
     let browser = Rc::new(RefCell::new(TerminalBrowser::new(config.url)));
@@ -194,8 +220,6 @@ pub fn run_debot_browser(addr: &str, abi: Option<String>, config: Config) -> Res
 #[cfg(test)]
 mod browser_tests {
     use super::*;
-    
-    use stdio_override::StdinOverride;
     use std::fs::File;
 
     const PUBLIC: &'static str = "9711a04f0b19474272bc7bae5472a8fbbb6ef71ce9c193f5ec3f5af808069a41";
@@ -211,60 +235,26 @@ mod browser_tests {
         }}"#, PUBLIC, PRIVATE).as_bytes()).unwrap();
     }
 
-    fn prepare_stdin_file_with_path_to_file(stdin_name: &str) {
-        create_keypair_file(KEYS_FILE);
-        let mut file = File::create(&stdin_name).unwrap();
-        file.write_all(format!("{}\n", KEYS_FILE).as_bytes()).unwrap();
-    }
-
-    fn prepare_stdin_file_with_seedphrase(stdin_name: &str) {
-        let mut file = File::create(&stdin_name).unwrap();
-        file.write_all(format!("{}", SEED).as_bytes()).unwrap();
-    }
-
-    fn create_callbacks() -> Callbacks {
-        let browser = Rc::new(RefCell::new(TerminalBrowser::new("localhost".to_owned())));
-        Callbacks::new(Rc::clone(&browser))
-    }
-
     #[test]
     fn load_key_from_file() {
-        let stdin_file = "./keys.txt";
+        let mut in_data = KEYS_FILE.as_bytes();
+        let mut out_data = vec![];
 
-        prepare_stdin_file_with_path_to_file(stdin_file);
-        let guard = StdinOverride::override_file(stdin_file).unwrap();
-
-        let callbacks = create_callbacks();
-        
-        let mut keys = Ed25519KeyPair::zero();
-        callbacks.load_key(&mut keys);
-        
-        drop(guard);
-        std::fs::remove_file(KEYS_FILE).unwrap();
+        create_keypair_file(KEYS_FILE);
+        let keys = input_keys(&mut in_data, &mut out_data);
         
         assert_eq!(format!("{}", keys.public), PUBLIC);
-        assert_eq!(format!("{}", keys.secret), PRIVATE);
-        
-        std::fs::remove_file(stdin_file).unwrap();
+        assert_eq!(format!("{}", keys.secret), PRIVATE);        
     }
 
     #[test]
     fn load_key_from_seed() {
-        let stdin_file = "./seed.txt";
+        let mut in_data = SEED.as_bytes();
+        let mut out_data = vec![];
 
-        prepare_stdin_file_with_seedphrase(stdin_file);
-        let guard = StdinOverride::override_file(stdin_file).unwrap();
-
-        let callbacks = create_callbacks();
-        
-        let mut keys = Ed25519KeyPair::zero();
-        callbacks.load_key(&mut keys);
-        
-        drop(guard);
+        let keys = input_keys(&mut in_data, &mut out_data);
         
         assert_eq!(format!("{}", keys.public), PUBLIC);
         assert_eq!(format!("{}", keys.secret), PRIVATE);
-        
-        std::fs::remove_file(stdin_file).unwrap();
     }
 }
