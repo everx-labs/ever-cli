@@ -119,12 +119,24 @@ impl Drop for SdkClient {
     }
 }
 
-pub fn parse_string(r: String) -> Result<String, String> {
-    let json = serde_json::from_str(&r).map_err(|e| format!("failed to parse sdk client result: {}", e))?;
-    if let Value::String(s) = json {
-        Ok(s)
-    } else {
-        Err("failed to parse sdk client result: string expected".to_string())
+fn parse_json(r: String) -> Result<serde_json::Value, String> {
+    serde_json::from_str(&r)
+        .map_err(|e| format!("failed to parse sdk client result: {}", e))
+}
+
+fn parse_string(r: String) -> Result<String, String> {
+    let json = parse_json(r)?;
+    match json {
+        Value::String(s) => Ok(s),
+        _ => Err("failed to parse sdk client result: string expected".to_string()),
+    }
+}
+
+fn parse_bool(r: String) -> Result<bool, String> {
+    let json = parse_json(r)?;
+    match json {
+        Value::Bool(b) => Ok(b),
+        _ => Err("failed to parse sdk client result: bool expected".to_string())
     }
 }
 
@@ -141,6 +153,19 @@ pub fn gen_seed_phrase() -> Result<String, String> {
 
 pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String> {
     let client = SdkClient::new();
+
+    let is_valid = parse_bool(client.request(
+        "crypto.mnemonic.verify",
+        json!({
+            "phrase": mnemonic,
+            "dictionary": 1,
+            "wordCount": WORD_COUNT,
+        }),
+    )?)?;
+
+    if !is_valid {
+        return Err(format!("seed phrase is invalid"));
+    }
 
     let hdk_master = parse_string(client.request(
         "crypto.hdkey.xprv.from.mnemonic",
@@ -222,6 +247,24 @@ mod tests {
         let keypair = generate_keypair_from_mnemonic(mnemonic).unwrap();
         assert_eq!(&keypair.public, "8cf557aab2666867a1174e3147d89ddf28c2041a7322522276cd1cf1df47ae73");
         assert_eq!(&keypair.secret, "f63d3d11e0dc91f730f22d5397f269e01f1a5f984879c8581ac87f099bfd3b3a");
+    }
+
+    #[test]
+    fn test_invalid_mnemonic() {
+        let invalid_phrases = vec![
+            "multiply extra monitor fog rocket defy attack right night jaguar hollow enlist ",
+            "multiply  extra monitor fog rocket defy attack right night jaguar hollow enlist",
+            "multipl extra monitor fog rocket defy attack right night jaguar hollow enlist",
+            "s",
+            "extra",
+            "",
+            " ",
+            "123"
+        ];
+
+        for phrase in invalid_phrases {
+            assert!(generate_keypair_from_mnemonic(phrase).is_err());
+        }
     }
 
 }
