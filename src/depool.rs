@@ -478,7 +478,7 @@ fn transfer_stake(cmd: CommandData, dest: &str) -> Result<(), String> {
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
     let body = encode_transfer_stake(dest, stake)?;
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, "0.1", &cmd.keys, &body)
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, "0.135", &cmd.keys, &body)
 }
 
 fn set_withdraw(
