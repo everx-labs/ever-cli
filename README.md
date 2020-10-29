@@ -8,7 +8,8 @@
 
 ## How to build
 
-    cargo build [--release]
+    cargo update
+    cargo build [--release] [-j8]
 
 ## How to test
 
