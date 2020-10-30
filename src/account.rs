@@ -43,16 +43,31 @@ pub fn get_account(conf: Config, addr: &str) -> Result<(), String> {
     if query_result.len() == 1 {
         let acc = &query_result[0];
         println!("acc_type:      {}", acc["acc_type_name"].as_str().unwrap());
-        let balance_str = &acc["balance"].as_str().unwrap()[2..];
-        println!("balance:       {}", u64::from_str_radix(balance_str, 16).unwrap());
-        println!("last_paid:     {}", acc["last_paid"].as_u64().unwrap());
-        println!("last_trans_lt: {}", acc["last_trans_lt"].as_str().unwrap());
+        let balance_str = acc["balance"].as_str();
+        if balance_str.is_some() {
+            let balance = &balance_str.unwrap()[2..];
+            println!("balance:       {}", u64::from_str_radix(balance, 16).unwrap());
+        } else {
+            println!("balance:       null");
+        }
+        let last_paid_str = acc["last_paid"].as_u64();
+        if last_paid_str.is_some() {
+            println!("last_paid:     {}", last_paid_str.unwrap());
+        } else {
+            println!("last_paid:     null");
+        }
+        let last_trans_str = acc["last_trans_lt"].as_str();
+        if last_trans_str.is_some() {
+            println!("last_trans_lt: {}", last_trans_str.unwrap());
+        } else {
+            println!("last_trans_lt: null");
+        }
         let data_str = acc["data"].as_str();
         if data_str.is_some() {
             let data_vec = base64::decode(data_str.unwrap()).unwrap();
-            println!("data(boc): {}", hex::encode(&data_vec));
+            println!("data(boc):     {}", hex::encode(&data_vec));
         } else {
-            println!("data(boc): null");
+            println!("data(boc):     null");
         }
     } else {
         println!("Account not found.");
