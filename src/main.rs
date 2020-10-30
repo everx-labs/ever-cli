@@ -91,11 +91,6 @@ fn main() -> Result<(), i32> {
 }
 
 fn main_internal() -> Result <(), String> {
-    let build_info = match option_env!("BUILD_INFO") {
-        Some(s) => s,
-        None => "none",
-    };
-
     let callex_sub_command = SubCommand::with_name("callex")
         .about("Sends external message to contract with encoded function call (alternative syntax).")
         .setting(AppSettings::AllowMissingPositional)
@@ -130,7 +125,13 @@ fn main_internal() -> Result <(), String> {
             .multiple(true));
 
     let matches = clap_app! (tonlabs_cli =>
-        (version: &*format!("0.1 ({})", build_info))
+        (version: &*format!("tonlabs-cli {}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
+        env!("CARGO_PKG_VERSION"),
+            env!("BUILD_GIT_COMMIT"),
+            env!("BUILD_TIME") ,
+            env!("BUILD_GIT_DATE"),
+            env!("BUILD_GIT_BRANCH")
+        ))
         (author: "TONLabs")
         (about: "TONLabs console tool for TON")
         (@arg NETWORK: -u --url +takes_value "Network to connect.")
@@ -165,7 +166,7 @@ fn main_internal() -> Result <(), String> {
         (@subcommand genaddr =>
             (@setting AllowNegativeNumbers)
             (about: "Calculates smart contract address in different formats. By default, input tvc file isn't modified.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg TVC: +required +takes_value "Compiled smart contract (tvc file).")
             (@arg ABI: +required +takes_value "Json file with contract ABI.")
@@ -180,7 +181,7 @@ fn main_internal() -> Result <(), String> {
             (@setting AllowNegativeNumbers)
             (@setting AllowLeadingHyphen)
             (about: "Deploy smart contract to blockchain.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg TVC: +required +takes_value "Compiled smart contract (tvc file)")
             (@arg PARAMS: +required +takes_value "Constructor arguments.")
@@ -193,7 +194,7 @@ fn main_internal() -> Result <(), String> {
         (@subcommand call =>
             (@setting AllowLeadingHyphen)
             (about: "Sends external message to contract with encoded function call.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Contract address.")
             (@arg METHOD: +required +takes_value "Name of calling contract method.")
@@ -204,7 +205,7 @@ fn main_internal() -> Result <(), String> {
         )
         (@subcommand send =>
             (about: "Sends prepared message to contract.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg MESSAGE: +required +takes_value "Message to send.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
@@ -237,7 +238,7 @@ fn main_internal() -> Result <(), String> {
         (@subcommand config =>
             (@setting AllowLeadingHyphen)
             (about: "Saves certain default values for options into config file.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg URL: --url +takes_value "Url to connect.")
             (@arg ABI: --abi +takes_value conflicts_with[DATA] "File with contract ABI.")
@@ -252,7 +253,7 @@ fn main_internal() -> Result <(), String> {
         (@subcommand account =>
             (@setting AllowLeadingHyphen)
             (about: "Gets account information.")
-            (version: "0.1")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Smart contract address.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
