@@ -32,7 +32,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .long("--value")
         .short("-v")
-        .help("Stake value.");
+        .help("Value in tons.");
     let keys_arg = Arg::with_name("SIGN")
         .takes_value(true)
         .long("--sign")
@@ -53,9 +53,6 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
         .long("--beneficiary")
         .short("-b")
         .help("Smart contract address which will own lock stake rewards.");
-    let reinvest_arg = Arg::with_name("AUTORESUME")
-        .long("--autoresume-off")
-        .help("Disables autoresume flag for participant. In this case stake will be invested only to one round.");
     let dest_arg = Arg::with_name("DEST")
         .takes_value(true)
         .long("--dest")
@@ -76,8 +73,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
-                .arg(keys_arg.clone())
-                .arg(reinvest_arg))
+                .arg(keys_arg.clone()))
             .subcommand(SubCommand::with_name("vesting")
                 .about("Deposits vesting stake in depool from multisignature wallet.")
                 .setting(AppSettings::AllowLeadingHyphen)
@@ -150,12 +146,14 @@ struct CommandData<'a> {
     wallet: String,
     keys: String,
     stake: &'a str,
+    depool_fee: String,
 }
 
 impl<'a> CommandData<'a> {
     pub fn from_matches_and_conf(m: &'a ArgMatches, conf: Config, depool: String) -> Result<Self, String> {
         let (wallet, stake, keys) = parse_stake_data(m, &conf)?;
-        Ok(CommandData {conf, depool, wallet, stake, keys})
+        let depool_fee = conf.depool_fee.clone().to_string();
+        Ok(CommandData {conf, depool, wallet, stake, keys, depool_fee})
     }
 }
 
@@ -331,11 +329,9 @@ fn ordinary_stake_command<'a>(
     m: &ArgMatches,
     cmd: CommandData
 ) -> Result<(), String> {
-    let disable_reinvest = m.is_present("AUTORESUME");
-    let autoresume = Some(if disable_reinvest { "false" } else { "true" });
     let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
-    print_args!(m, depool, wallet, stake, keys, autoresume);
-    add_ordinary_stake(cmd, !disable_reinvest)
+    print_args!(m, depool, wallet, stake, keys);
+    add_ordinary_stake(cmd)
 }
 
 fn replenish_command<'a>(
@@ -421,12 +417,16 @@ fn set_withdraw_command(
     set_withdraw(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap(), enable)
 }
 
-fn add_ordinary_stake(
+fn add_ordinary_stake( 
     cmd: CommandData,
-    autoresume: bool,
 ) -> Result<(), String> {
-    let body = encode_add_ordinary_stake(autoresume)?;
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, cmd.stake, &cmd.keys, &body)
+    let stake = u64::from_str_radix(&convert::convert_token(cmd.stake)?, 10)
+        .map_err(|e| format!(r#"failed to parse stake value: {}"#, e))?;
+    let body = encode_add_ordinary_stake(stake)?;
+    let fee = u64::from_str_radix(&convert::convert_token(&cmd.depool_fee)?, 10)
+        .map_err(|e| format!(r#"failed to parse depool fee value: {}"#, e))?;
+    let value = (fee + stake) as f64 * 1.0 / 1e9;
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &format!("{}", value), &cmd.keys, &body)
 }
 
 fn replenish_stake(
@@ -444,12 +444,17 @@ fn add_exotic_stake(
     is_vesting: bool,
 ) -> Result<(), String> {
     load_ton_address(beneficiary)?;
+    let stake = u64::from_str_radix(&convert::convert_token(cmd.stake)?, 10)
+        .map_err(|e| format!(r#"failed to parse stake value: {}"#, e))?;
     let body = if is_vesting {
-        encode_add_vesting_stake(beneficiary, tp, wp)?
+        encode_add_vesting_stake(stake, beneficiary, tp, wp)?
     } else {
-        encode_add_lock_stake(beneficiary, tp, wp)?
+        encode_add_lock_stake(stake, beneficiary, tp, wp)?
     };
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, cmd.stake, &cmd.keys, &body)
+    let fee = u64::from_str_radix(&convert::convert_token(&cmd.depool_fee)?, 10)
+        .map_err(|e| format!(r#"failed to parse depool fee value: {}"#, e))?;
+    let value = (fee + stake) as f64 * 1.0 / 1e9;
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &format!("{}", value), &cmd.keys, &body)
 }
 
 fn remove_stake(
@@ -459,7 +464,7 @@ fn remove_stake(
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
     let body = encode_remove_stake(stake)?;
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, "0.05", &cmd.keys, &body)
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body)
 }
 
 fn withdraw_stake(
@@ -469,7 +474,7 @@ fn withdraw_stake(
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
     let body = encode_withdraw_stake(stake)?;
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, "0.05", &cmd.keys, &body)
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body)
 }
 
 fn transfer_stake(cmd: CommandData, dest: &str) -> Result<(), String> {
@@ -478,7 +483,7 @@ fn transfer_stake(cmd: CommandData, dest: &str) -> Result<(), String> {
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
     let body = encode_transfer_stake(dest, stake)?;
-    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, "0.135", &cmd.keys, &body)
+    send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body)
 }
 
 fn set_withdraw(
@@ -489,7 +494,8 @@ fn set_withdraw(
     enable: bool,
 ) -> Result<(), String> {
     let body = encode_set_withdraw(enable)?;
-    send_with_body(conf, wallet, depool, "0.03", keys, &body)
+    let value = conf.depool_fee.clone().to_string();
+    send_with_body(conf, wallet, depool, &value, keys, &body)
 }
 
 fn encode_body(func: &str, params: serde_json::Value) -> Result<String, String> {
@@ -514,14 +520,16 @@ fn encode_body(func: &str, params: serde_json::Value) -> Result<String, String> 
 }
 
 fn encode_set_withdraw(flag: bool) -> Result<String, String> {
-    encode_body("withdrawAllAfterCompleting", json!({
-        "doWithdrawAll": flag
-    }))
+    if flag {
+        encode_body("withdrawAll", json!({}))
+    } else {
+        encode_body("cancelWithdrawal", json!({}))
+    }
 }
 
-fn encode_add_ordinary_stake(reinvest: bool) -> Result<String, String> {
+fn encode_add_ordinary_stake(stake: u64) -> Result<String, String> {
 	encode_body("addOrdinaryStake", json!({
-        "reinvest": reinvest
+        "stake": stake
     }))
 }
 
@@ -530,16 +538,18 @@ fn encode_replenish_stake() -> Result<String, String> {
     }))
 }
 
-fn encode_add_vesting_stake(beneficiary: &str, tperiod: u32, wperiod: u32) -> Result<String, String> {
+fn encode_add_vesting_stake(stake: u64, beneficiary: &str, tperiod: u32, wperiod: u32) -> Result<String, String> {
 	encode_body("addVestingStake", json!({
+        "stake": stake,
         "beneficiary": beneficiary,
         "withdrawalPeriod": wperiod,
         "totalPeriod": tperiod
     }))
 }
 
-fn encode_add_lock_stake(beneficiary: &str, tperiod: u32, wperiod: u32) -> Result<String, String> {
+fn encode_add_lock_stake(stake: u64, beneficiary: &str, tperiod: u32, wperiod: u32) -> Result<String, String> {
 	encode_body("addLockStake", json!({
+        "stake": stake,
         "beneficiary": beneficiary,
         "withdrawalPeriod": wperiod,
         "totalPeriod": tperiod
@@ -547,13 +557,13 @@ fn encode_add_lock_stake(beneficiary: &str, tperiod: u32, wperiod: u32) -> Resul
 }
 
 fn encode_remove_stake(target_value: u64) -> Result<String, String> {
-	encode_body("removeOrdinaryStake", json!({
+	encode_body("withdrawFromPoolingRound", json!({
         "withdrawValue": target_value
     }))
 }
 
 fn encode_withdraw_stake(target_value: u64) -> Result<String, String> {
-	encode_body("withdrawPartAfterCompleting", json!({
+	encode_body("withdrawPart", json!({
         "withdrawValue": target_value
     }))
 }

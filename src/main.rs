@@ -249,6 +249,7 @@ fn main_internal() -> Result <(), String> {
             (@arg RETRIES: --retries +takes_value "Number of attempts to call smart contract function if previous attempt was unsuccessful.")
             (@arg TIMEOUT: --timeout +takes_value "Contract call timeout in ms.")
             (@arg LIST: --list conflicts_with[URL ABI KEYS ADDR RETRIES TIMEOUT WC] "Prints all config parameters.")
+            (@arg DEPOOL_FEE: --depool_fee +takes_value "Value added to message sent to depool to cover it's fees (change will be returned).")
         )
         (@subcommand account =>
             (@setting AllowLeadingHyphen)
@@ -609,8 +610,9 @@ fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
         let wc = matches.value_of("WC");
         let retries = matches.value_of("RETRIES");
         let timeout = matches.value_of("TIMEOUT");
-        print_args!(matches, url, address, wallet, keys, abi, wc, retries, timeout);
-        set_config(config, "tonlabs-cli.conf.json", url, address, wallet, abi, keys, wc, retries, timeout)
+        let depool_fee = matches.value_of("DEPOOL_FEE");
+        print_args!(matches, url, address, wallet, keys, abi, wc, retries, timeout, depool_fee);
+        set_config(config, "tonlabs-cli.conf.json", url, address, wallet, abi, keys, wc, retries, timeout, depool_fee)
     }
 }
 
