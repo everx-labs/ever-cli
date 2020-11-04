@@ -23,9 +23,7 @@
 				{"name":"validatorAssurance","type":"uint64"},
 				{"name":"proxyCode","type":"cell"},
 				{"name":"validatorWallet","type":"address"},
-				{"name":"association","type":"address"},
 				{"name":"participantRewardFraction","type":"uint8"},
-				{"name":"validatorRewardFraction","type":"uint8"},
 				{"name":"balanceThreshold","type":"uint64"}
 			],
 			"outputs": [
@@ -192,6 +190,13 @@
 			]
 		},
 		{
+			"name": "getLastRoundInfo",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
 			"name": "getParticipantInfo",
 			"inputs": [
 				{"name":"addr","type":"address"}
@@ -216,8 +221,6 @@
 				{"name":"validatorAssurance","type":"uint64"},
 				{"name":"participantRewardFraction","type":"uint8"},
 				{"name":"validatorRewardFraction","type":"uint8"},
-				{"name":"associationRewardFraction","type":"uint8"},
-				{"name":"association","type":"address"},
 				{"name":"balanceThreshold","type":"uint64"},
 				{"name":"validatorWallet","type":"address"},
 				{"name":"proxies","type":"address[]"},
