@@ -117,6 +117,11 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
             .arg(wallet_arg.clone())
             .arg(value_arg.clone())
             .arg(keys_arg.clone()))
+        .subcommand(SubCommand::with_name("ticktock")
+            .about("Call DePool 'ticktock()' function to update its state. 1 ton is attached to this call (change will be returned).")
+            .setting(AppSettings::AllowLeadingHyphen)
+            .arg(wallet_arg.clone())
+            .arg(keys_arg.clone()))
         .subcommand(SubCommand::with_name("withdraw")
             .about("Allows to disable auto investment of the stake into next round and withdraw all the stakes after round completion.")
             .setting(AppSettings::AllowLeadingHyphen)
@@ -236,6 +241,10 @@ pub fn depool_command(m: &ArgMatches, conf: Config) -> Result<(), String> {
             CommandData::from_matches_and_conf(m, conf, depool)?,
         );
     }
+    if let Some(m) = m.subcommand_matches("ticktock") {
+        let (wallet, keys) = parse_wallet_data(&m, &conf)?;
+        return ticktock_command(m, conf, &depool, &wallet, &keys);
+    }
     Err("unknown depool command".to_owned())
 }
 
@@ -343,6 +352,18 @@ fn replenish_command<'a>(
     replenish_stake(cmd)
 }
 
+fn ticktock_command<'a>(
+    m: &ArgMatches,
+    conf: Config,
+    depool: &str,
+    wallet: &str,
+    keys: &str,
+) -> Result<(), String> {
+    let (depool, wallet, keys) = (Some(depool), Some(wallet), Some(keys));
+    print_args!(m, depool, wallet, keys);
+    call_ticktock(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap())
+}
+
 fn transfer_stake_command<'a>(
     m: &ArgMatches,
     cmd: CommandData
@@ -434,6 +455,16 @@ fn replenish_stake(
 ) -> Result<(), String> {
     let body = encode_replenish_stake()?;
     send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, cmd.stake, &cmd.keys, &body)
+}
+
+fn call_ticktock(
+    conf: Config,
+    depool: &str,
+    wallet: &str,
+    keys: &str,
+) -> Result<(), String> {
+    let body = encode_ticktock()?;
+    send_with_body(conf, wallet, depool, "1", keys, &body)
 }
 
 fn add_exotic_stake(
@@ -535,6 +566,11 @@ fn encode_add_ordinary_stake(stake: u64) -> Result<String, String> {
 
 fn encode_replenish_stake() -> Result<String, String> {
 	encode_body("receiveFunds", json!({
+    }))
+}
+
+fn encode_ticktock() -> Result<String, String> {
+	encode_body("ticktock", json!({
     }))
 }
 
