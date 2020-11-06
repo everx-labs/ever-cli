@@ -21,6 +21,10 @@ fn default_retries() -> u8 {
     5
 }
 
+fn default_depool_fee() -> f32 {
+    0.5
+}
+
 fn default_timeout() -> u32 {
     60000
 }
@@ -45,6 +49,8 @@ pub struct Config {
     pub timeout: u32,
     #[serde(default = "default_false")]
     pub is_json: bool,
+    #[serde(default = "default_depool_fee")]
+    pub depool_fee: f32,
 }
 
 impl Config {
@@ -59,6 +65,7 @@ impl Config {
             retries: default_retries(),
             timeout: default_timeout(),
             is_json: default_false(),
+            depool_fee: default_depool_fee(),
         }
     }
 
@@ -80,6 +87,7 @@ pub fn set_config(
     wc: Option<&str>,
     retries: Option<&str>,
     timeout: Option<&str>,
+    depool_fee: Option<&str>, 
 ) -> Result<(), String> {
         if let Some(s) = url {
             conf.url = s.to_string();
@@ -107,6 +115,13 @@ pub fn set_config(
         if let Some(wc) = wc {
             conf.wc = i32::from_str_radix(wc, 10)
                 .map_err(|e| format!(r#"failed to parse "workchain id": {}"#, e))?;
+        }
+        if let Some(depool_fee) = depool_fee {
+            conf.depool_fee = depool_fee.parse::<f32>()
+                .map_err(|e| format!(r#"failed to parse "depool_fee": {}"#, e))?;
+        }
+        if conf.depool_fee < 0.5 {
+            return Err("Minimal value for depool fee is 0.5".to_string());
         }
         let conf_str = serde_json::to_string(&conf)
             .map_err(|_| "failed to serialize config object".to_string())?;
