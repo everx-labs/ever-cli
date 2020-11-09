@@ -184,7 +184,7 @@ fn main_internal() -> Result <(), String> {
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg TVC: +required +takes_value "Compiled smart contract (tvc file)")
-            (@arg PARAMS: +required +takes_value "Constructor arguments.")
+            (@arg PARAMS: +required +takes_value "Constructor arguments. Can be passed via a filename.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
             (@arg SIGN: --sign +takes_value "Keypair used to sign 'constructor message'.")
             (@arg WC: --wc +takes_value "Workchain id of the smart contract (default 0).")
@@ -198,7 +198,7 @@ fn main_internal() -> Result <(), String> {
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Contract address.")
             (@arg METHOD: +required +takes_value "Name of calling contract method.")
-            (@arg PARAMS: +required +takes_value "Arguments for the contract method.")
+            (@arg PARAMS: +required +takes_value "Arguments for the contract method. Can be passed via a filename.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
             (@arg SIGN: --sign +takes_value "Keypair used to sign message.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
@@ -217,7 +217,7 @@ fn main_internal() -> Result <(), String> {
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Contract address.")
             (@arg METHOD: +required +takes_value "Name of calling contract method.")
-            (@arg PARAMS: +required +takes_value "Arguments for the contract method.")
+            (@arg PARAMS: +required +takes_value "Arguments for the contract method. Can be passed via a filename.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
             (@arg SIGN: --sign +takes_value "Keypair used to sign message.")
             (@arg LIFETIME: --lifetime +takes_value "Period of time in seconds while message is valid.")
@@ -230,7 +230,7 @@ fn main_internal() -> Result <(), String> {
             (about: "Runs contract function locally.")
             (@arg ADDRESS: +required +takes_value "Contract address.")
             (@arg METHOD: +required +takes_value "Name of calling contract method.")
-            (@arg PARAMS: +required +takes_value "Arguments for the contract method.")
+            (@arg PARAMS: +required +takes_value "Arguments for the contract method. Can be passed via a filename.")
             (@arg ABI: --abi +takes_value "Json file with contract ABI.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
@@ -455,6 +455,19 @@ fn send_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     call_contract_with_msg(config, message.unwrap().to_owned(), abi)
 }
 
+fn load_params(params: Option<&str>) -> String {
+    if params.is_some() {
+        let params_val = params.unwrap();
+        if params_val.find('{').is_none() {
+            let file_data = std::fs::read_to_string(params_val)
+            .map_err(|e| format!("failed to open file with params: {}", e)).unwrap();
+            return file_data;
+        }
+        return params_val.to_string();
+    }
+    return "".to_string();
+}
+
 fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let method = matches.value_of("METHOD");
@@ -481,7 +494,9 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
         }
     };
 
-    print_args!(matches, address, method, params, abi, keys, lifetime, output);
+    let params = load_params(params);
+    let opt = Some(&params);
+    print_args!(matches, address, method, opt, abi, keys, lifetime, output);
 
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
@@ -494,7 +509,7 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
                 address.unwrap(),
                 abi,
                 method.unwrap(),
-                params.unwrap(),
+                &params,
                 keys,
                 local
             )
@@ -512,7 +527,7 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
                 address.unwrap(),
                 abi,
                 method.unwrap(),
-                params.unwrap(),
+                &params,
                 keys,
                 lifetime,
                 raw,
@@ -584,13 +599,15 @@ fn deploy_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
             .or(config.keys_path.clone())
             .ok_or("keypair file not defined. Supply it in config file or command line.".to_string())?
     );
-    print_args!(matches, tvc, params, abi, keys, wc);
+    let params = load_params(params);
+    let opt = Some(&params);
+    print_args!(matches, tvc, opt, abi, keys, wc);
 
     let wc = wc.map(|v| i32::from_str_radix(v, 10))
         .transpose()
         .map_err(|e| format!("failed to parse workchain id: {}", e))?
         .unwrap_or(config.wc);
-    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), params.unwrap(), &keys.unwrap(), wc)
+    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params, &keys.unwrap(), wc)
 }
 
 fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {    
