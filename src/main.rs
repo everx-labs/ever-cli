@@ -46,7 +46,6 @@ use getconfig::query_global_config;
 use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
-use std::process;
 
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
@@ -456,21 +455,13 @@ fn send_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     call_contract_with_msg(config, message.unwrap().to_owned(), abi)
 }
 
-fn load_params(params: Option<&str>) -> String {
-    if params.is_some() {
-        let params_val = params.unwrap();
-        if params_val.find('{').is_none() {
-            let file_data = std::fs::read_to_string(params_val);
-            if file_data.is_err() {
-                println!("Error: Failed to open file with params.");
-                process::exit(1);
-            }
-            let file_data = file_data.unwrap();
-            return file_data;
-        }
-        return params_val.to_string();
-    }
-    return "".to_string();
+fn load_params(params: &str) -> Result<String, String> {
+    Ok(if params.find('{').is_none() {
+        std::fs::read_to_string(params)
+            .map_err(|e| format!("failed to load params from file: {}", e))?
+    } else {
+        params.to_string()
+    })
 }
 
 fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<(), String> {
@@ -499,9 +490,8 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
         }
     };
 
-    let params = load_params(params);
-    let opt = Some(&params);
-    print_args!(matches, address, method, opt, abi, keys, lifetime, output);
+    let params = Some(load_params(params.unwrap())?);
+    print_args!(matches, address, method, params, abi, keys, lifetime, output);
 
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
@@ -514,7 +504,7 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
                 address.unwrap(),
                 abi,
                 method.unwrap(),
-                &params,
+                &params.unwrap(),
                 keys,
                 local
             )
@@ -532,7 +522,7 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
                 address.unwrap(),
                 abi,
                 method.unwrap(),
-                &params,
+                &params.unwrap(),
                 keys,
                 lifetime,
                 raw,
@@ -604,15 +594,14 @@ fn deploy_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
             .or(config.keys_path.clone())
             .ok_or("keypair file not defined. Supply it in config file or command line.".to_string())?
     );
-    let params = load_params(params);
-    let opt = Some(&params);
-    print_args!(matches, tvc, opt, abi, keys, wc);
+    let params = Some(load_params(params.unwrap())?);
+    print_args!(matches, tvc, params, abi, keys, wc);
 
     let wc = wc.map(|v| i32::from_str_radix(v, 10))
         .transpose()
         .map_err(|e| format!("failed to parse workchain id: {}", e))?
         .unwrap_or(config.wc);
-    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params, &keys.unwrap(), wc)
+    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc)
 }
 
 fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {    
