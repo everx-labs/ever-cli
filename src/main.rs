@@ -46,6 +46,7 @@ use getconfig::query_global_config;
 use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
+use std::process;
 
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
@@ -459,8 +460,12 @@ fn load_params(params: Option<&str>) -> String {
     if params.is_some() {
         let params_val = params.unwrap();
         if params_val.find('{').is_none() {
-            let file_data = std::fs::read_to_string(params_val)
-            .map_err(|e| format!("failed to open file with params: {}", e)).unwrap();
+            let file_data = std::fs::read_to_string(params_val);
+            if file_data.is_err() {
+                println!("Error: Failed to open file with params.");
+                process::exit(1);
+            }
+            let file_data = file_data.unwrap();
             return file_data;
         }
         return params_val.to_string();
