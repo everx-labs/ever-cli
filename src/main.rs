@@ -35,7 +35,7 @@ mod voting;
 use account::get_account;
 use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings};
-use config::{Config, set_config};
+use config::{Config, set_config, clear_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use debot::{create_debot_command, debot_command};
 use decode::{create_decode_command, decode_command};
@@ -124,8 +124,8 @@ fn main_internal() -> Result <(), String> {
             .help("Arguments for the contract method.")
             .multiple(true));
 
-    let matches = clap_app! (tonlabs_cli =>
-        (version: &*format!("tonlabs-cli {}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
+    let matches = clap_app! (tonos_cli =>
+        (version: &*format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
         env!("CARGO_PKG_VERSION"),
             env!("BUILD_GIT_COMMIT"),
             env!("BUILD_TIME") ,
@@ -250,6 +250,19 @@ fn main_internal() -> Result <(), String> {
             (@arg TIMEOUT: --timeout +takes_value "Contract call timeout in ms.")
             (@arg LIST: --list conflicts_with[URL ABI KEYS ADDR RETRIES TIMEOUT WC] "Prints all config parameters.")
             (@arg DEPOOL_FEE: --depool_fee +takes_value "Value added to message sent to depool to cover it's fees (change will be returned).")
+            (@subcommand clear =>
+                (@setting AllowLeadingHyphen)
+                (about: "Resets certain default values for options in the config file. Resets all values if used without options.")
+                (@arg URL: --url "Url to connect.")
+                (@arg ABI: --abi "File with contract ABI.")
+                (@arg KEYS: --keys "File with keypair.")
+                (@arg ADDR: --addr "Contract address.")
+                (@arg WALLET: --wallet "Multisig wallet address. Used in commands which send internal messages through multisig wallets.")
+                (@arg WC: --wc "Workchain id.")
+                (@arg RETRIES: --retries "Number of attempts to call smart contract function if previous attempt was unsuccessful.")
+                (@arg TIMEOUT: --timeout "Contract call timeout in ms.")
+                (@arg DEPOOL_FEE: --depool_fee "Value added to message sent to depool to cover it's fees (change will be returned).")
+            )
         )
         (@subcommand account =>
             (@setting AllowLeadingHyphen)
@@ -403,7 +416,7 @@ fn main_internal() -> Result <(), String> {
     }
     if let Some(_) = matches.subcommand_matches("version") {
         println!(
-            "tonlabs-cli {}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
+            "tonos-cli {}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
             env!("CARGO_PKG_VERSION"),
             env!("BUILD_GIT_COMMIT"),
             env!("BUILD_TIME") ,
@@ -604,27 +617,47 @@ fn deploy_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc)
 }
 
-fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {    
-    if matches.is_present("LIST") {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&config)
-                .map_err(|e| format!("failed to print config parameters: {}", e))?
-        );
-        Ok(())
-    } else {
-        let url = matches.value_of("URL");
-        let address = matches.value_of("ADDR");
-        let wallet = matches.value_of("WALLET");
-        let keys = matches.value_of("KEYS");
-        let abi = matches.value_of("ABI");
-        let wc = matches.value_of("WC");
-        let retries = matches.value_of("RETRIES");
-        let timeout = matches.value_of("TIMEOUT");
-        let depool_fee = matches.value_of("DEPOOL_FEE");
-        print_args!(matches, url, address, wallet, keys, abi, wc, retries, timeout, depool_fee);
-        set_config(config, "tonlabs-cli.conf.json", url, address, wallet, abi, keys, wc, retries, timeout, depool_fee)
+fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+    let mut result = Ok(());
+    if !matches.is_present("LIST") {
+        if let Some(clear_matches) = matches.subcommand_matches("clear") {
+            let url = clear_matches.is_present("URL");
+            let address = clear_matches.is_present("ADDR");
+            let wallet = clear_matches.is_present("WALLET");
+            let keys = clear_matches.is_present("KEYS");
+            let abi = clear_matches.is_present("ABI");
+            let wc = clear_matches.is_present("WC");
+            let retries = clear_matches.is_present("RETRIES");
+            let timeout = clear_matches.is_present("TIMEOUT");
+            let depool_fee = clear_matches.is_present("DEPOOL_FEE");
+            result = clear_config(config, CONFIG_BASE_NAME, url, address, wallet, abi, keys, wc, retries, timeout, depool_fee);
+        } else {
+            let url = matches.value_of("URL");
+            let address = matches.value_of("ADDR");
+            let wallet = matches.value_of("WALLET");
+            let keys = matches.value_of("KEYS");
+            let abi = matches.value_of("ABI");
+            let wc = matches.value_of("WC");
+            let retries = matches.value_of("RETRIES");
+            let timeout = matches.value_of("TIMEOUT");
+            let depool_fee = matches.value_of("DEPOOL_FEE");
+            result = set_config(config, CONFIG_BASE_NAME, url, address, wallet, abi, keys, wc, retries, timeout, depool_fee);
+        }
     }
+    let config = match Config::from_file(CONFIG_BASE_NAME) {
+        Some(c) => {
+            c
+        },
+        None => {
+            Config::new()
+        },
+    };
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&config)
+            .map_err(|e| format!("failed to print config parameters: {}", e))?
+    );
+    result
 }
 
 fn genaddr_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
