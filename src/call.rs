@@ -33,7 +33,6 @@ fn prepare_message(
 ) -> Result<EncodedMessage, String> {    
     
     let keys = keys.map(|k| load_keypair(&k)).transpose()?;
-
     ton.contracts.create_run_message(
         addr,
         abi.into(),
@@ -66,7 +65,8 @@ fn pack_message(msg: &EncodedMessage, method: &str, is_raw: bool) -> String {
             "msg": {
                 "message_id": msg.message_id,
                 "message_body": hex::encode(&msg.message_body),
-                "expire": msg.expire
+                "expire": msg.expire,
+                "address": msg.address
             },
             "method": method,
         });
