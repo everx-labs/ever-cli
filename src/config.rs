@@ -17,6 +17,10 @@ fn default_url() -> String {
     TESTNET.to_string()
 }
 
+fn default_wc() -> i32 {
+    0
+}
+
 fn default_retries() -> u8 {
     5
 }
@@ -37,7 +41,7 @@ fn default_false() -> bool {
 pub struct Config {
     #[serde(default = "default_url")]
     pub url: String,
-    #[serde(default)]
+    #[serde(default = "default_wc")]
     pub wc: i32,
     pub addr: Option<String>,
     pub wallet: Option<String>,
@@ -57,7 +61,7 @@ impl Config {
     pub fn new() -> Self {
         Config {
             url: default_url(),
-            wc: 0,
+            wc: default_wc(),
             addr: None,
             wallet: None,
             abi_path: None,
@@ -74,6 +78,68 @@ impl Config {
         let conf: Config = serde_json::from_str(&conf_str).ok()?;
         Some(conf)
     }
+}
+
+pub fn clear_config(
+    mut conf: Config,
+    path: &str,
+    url: bool,
+    addr: bool,
+    wallet: bool,
+    abi: bool,
+    keys: bool,
+    wc: bool,
+    retries: bool,
+    timeout: bool,
+    depool_fee: bool, 
+) -> Result<(), String> {
+    if url {
+        conf.url = default_url();
+    }
+    if addr {
+        conf.addr = None;
+    }
+    if wallet {
+        conf.wallet = None;
+    }
+    if abi {
+        conf.abi_path = None;
+    }
+    if keys {
+        conf.keys_path = None;
+    }
+    if retries {
+        conf.retries = default_retries();
+    }
+    if timeout {
+        conf.timeout = default_timeout();
+    }
+    if wc {
+        conf.wc = default_wc();
+    }
+    if depool_fee {
+        conf.depool_fee = default_depool_fee();
+    }
+    if (url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee) == false {
+        conf = Config {
+            url: default_url(),
+            wc: default_wc(),
+            addr: None,
+            wallet: None,
+            abi_path: None,
+            keys_path: None,
+            retries: default_retries(),
+            timeout: default_timeout(),
+            is_json: default_false(),
+            depool_fee: default_depool_fee(),
+        };
+    }
+    let conf_str = serde_json::to_string(&conf)
+        .map_err(|_| "failed to serialize config object".to_string())?;
+
+    std::fs::write(path, conf_str).map_err(|e| format!("failed to write config file: {}", e))?;
+    println!("Succeeded.");
+    Ok(())
 }
 
 pub fn set_config(
