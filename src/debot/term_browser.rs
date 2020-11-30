@@ -114,12 +114,19 @@ impl BrowserCallbacks for Callbacks {
     fn invoke_debot(&self, debot: TonAddress, action: DAction) -> Result<(), String> {
         debug!("fetching debot {} action {}", &debot, action.name);
         println!("invoking debot {}", &debot);
-        let callbacks = Box::new(Callbacks::new(Rc::clone(&self.browser)));
+        let browser = Rc::new(
+            RefCell::new(
+                TerminalBrowser::new(self.browser.borrow().network.clone())
+            )
+        );
+        let callbacks = Box::new(Callbacks::new(Rc::clone(&browser)));
+        
         let mut debot = DEngine::new(debot, None, &self.browser.borrow().network, callbacks);
         debot.fetch()?;
+        
         debot.execute_action(&action)?;
         loop {
-            let action = self.browser.borrow().select_action();
+            let action = browser.borrow().select_action();
             match action {
                 Some(act) => debot.execute_action(&act)?,
                 None => break,
