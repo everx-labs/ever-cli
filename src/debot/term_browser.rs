@@ -206,12 +206,12 @@ where
     pair.unwrap()
 }
 
-pub fn run_debot_browser(addr: &str, abi: Option<String>, config: Config) -> Result<(), String> {
+pub fn run_debot_browser(addr: &str, config: Config) -> Result<(), String> {
     let url = config.url.clone();
     let browser = Rc::new(RefCell::new(TerminalBrowser::new(config.url)));
 
     let callbacks = Box::new(Callbacks::new(Rc::clone(&browser)));
-    let mut debot = DEngine::new(load_ton_address(addr)?, abi, &url, callbacks);
+    let mut debot = DEngine::new(load_ton_address(addr)?, None, &url, callbacks);
     debot.start()?;
 
     loop {

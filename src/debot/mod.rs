@@ -31,12 +31,6 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                         .required(true)
                         .help("Debot address."),
                 )
-                .arg(
-                    Arg::with_name("ABI")
-                        .long("--abi")
-                        .takes_value(true)
-                        .help("Debot ABI."),
-                ),
         )
 }
 
@@ -75,16 +69,5 @@ pub fn debot_command(m: &ArgMatches, config: Config) -> Result<(), String> {
 
 fn fetch_command(m: &ArgMatches, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
-    let abi = m
-        .value_of("ABI")
-        .map(|s| s.to_string())
-        .or(config.abi_path.clone());
-
-    let abi = abi
-        .map(|s| {
-            std::fs::read_to_string(s)
-                .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))
-        })
-        .transpose()?;
-    return run_debot_browser(addr.unwrap(), abi, config);
+    return run_debot_browser(addr.unwrap(), config);
 }
