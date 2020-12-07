@@ -614,7 +614,7 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
         .transpose()
         .map_err(|e| format!("failed to parse workchain id: {}", e))?
         .unwrap_or(config.wc);
-    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), params.unwrap(), &keys.unwrap(), wc).await
+    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc).await
 }
 
 fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {

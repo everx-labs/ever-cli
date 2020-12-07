@@ -40,8 +40,8 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
     let accounts = query_result.result;
     println!("Succeeded.");
 
-    if query_result.len() == 1 {
-        let acc = &query_result[0];
+    if accounts.len() == 1 {
+        let acc = &accounts[0];
         let acc_type = acc["acc_type_name"].as_str().unwrap();
         if acc_type != "NonExist" {
             println!("acc_type:      {}", acc_type);

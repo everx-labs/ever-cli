@@ -244,7 +244,7 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
     }
     if let Some(m) = m.subcommand_matches("ticktock") {
         let (wallet, keys) = parse_wallet_data(&m, &conf)?;
-        return ticktock_command(m, conf, &depool, &wallet, &keys);
+        return ticktock_command(m, conf, &depool, &wallet, &keys).await;
     }
     Err("unknown depool command".to_owned())
 }
@@ -478,7 +478,7 @@ async fn call_ticktock(
     wallet: &str,
     keys: &str,
 ) -> Result<(), String> {
-    let body = encode_ticktock()?;
+    let body = encode_ticktock().await?;
     send_with_body(conf, wallet, depool, "1", keys, &body).await
 }
 
@@ -575,13 +575,11 @@ async fn encode_add_ordinary_stake(stake: u64) -> Result<String, String> {
 }
 
 async fn encode_replenish_stake() -> Result<String, String> {
-	encode_body("receiveFunds", json!({
-    })).await
+	encode_body("receiveFunds", json!({})).await
 }
 
-fn encode_ticktock() -> Result<String, String> {
-	encode_body("ticktock", json!({
-    }))
+async fn encode_ticktock() -> Result<String, String> {
+	encode_body("ticktock", json!({})).await
 }
 
 async fn encode_add_vesting_stake(
