@@ -12,7 +12,7 @@
 */
 use super::term_signing_box::TerminalSigningBox;
 use crate::config::Config;
-use crate::helpers::{create_client_verbose, load_ton_address, TonClient};
+use crate::helpers::{create_client, load_ton_address, TonClient};
 use std::io::{self, BufRead, Write};
 use std::sync::{Arc, RwLock};
 use ton_client::crypto::SigningBoxHandle;
@@ -204,7 +204,8 @@ pub async fn run_debot_browser(
     abi: Option<String>,
     config: Config,
 ) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
+    println!("Connecting to {}", config.url);
+    let ton = create_client(&config)?;
     let browser = Arc::new(RwLock::new(TerminalBrowser::new(ton.clone())));
 
     let callbacks = Arc::new(Callbacks::new(Arc::clone(&browser)));

@@ -28,13 +28,13 @@ where
     let mut pair = Err("no keypair".to_string());
     for _ in 0..tries {
         let value = input(enter_str, reader, writer);
-        pair = match load_keypair(&value) {
-            Ok(k) => Ok(k),
-            Err(e) => {
-                println!("Invalid keys: {}. Try again.", e);
-                Err(e.to_string())
-            }
-        };
+        pair = load_keypair(&value).map_err(|e| {
+            println!("Invalid keys: {}. Try again.", e);
+            e.to_string()
+        });
+        if pair.is_ok() {
+            break;
+        }
     }
     pair
 }
