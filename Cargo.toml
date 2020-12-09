@@ -30,8 +30,8 @@ log = {version = "0.4.11", features = ["std"] }
 tokio = { version = "0.2", features = ["full"], default-features = false }
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
-ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git' }
-ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git' }
+ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', branch = 'dengine-new-calls' }
+ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', branch = 'dengine-new-calls' }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
 ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git" }
 
