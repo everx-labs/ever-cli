@@ -26,6 +26,8 @@ serde_derive = "1.0.91"
 sha2 = "0.8"
 log = "0.4.11"
 simplelog = "0.8.0"
+num = "^0.2"
+num-traits = "^0.2.8"
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
 ton-client-rs = { git = 'https://github.com/tonlabs/ton-client-rs.git', tag = "0.26.0" }

@@ -25,6 +25,7 @@ mod debot;
 mod deploy;
 mod depool;
 mod depool_abi;
+mod disasm;
 mod genaddr;
 mod getconfig;
 mod helpers;
@@ -41,6 +42,7 @@ use debot::{create_debot_command, debot_command};
 use decode::{create_decode_command, decode_command};
 use deploy::deploy_contract;
 use depool::{create_depool_command, depool_command};
+use disasm::{create_disasm_command, disasm_command};
 use genaddr::generate_address;
 use getconfig::query_global_config;
 use multisig::{create_multisig_command, multisig_command};
@@ -300,6 +302,7 @@ fn main_internal() -> Result <(), String> {
         (subcommand: create_depool_command())
         (subcommand: create_decode_command())
         (subcommand: create_debot_command())
+        (subcommand: create_disasm_command())
         (@subcommand getconfig =>
             (about: "Reads global configuration parameter with defined index.")
             (@arg INDEX: +required +takes_value "Parameter index.")
@@ -413,6 +416,9 @@ fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("debot") {
         return debot_command(m, conf);
+    }
+    if let Some(m) = matches.subcommand_matches("disasm") {
+        return disasm_command(m);
     }
     if let Some(_) = matches.subcommand_matches("version") {
         println!(
