@@ -23,8 +23,7 @@
 				{"name":"validatorAssurance","type":"uint64"},
 				{"name":"proxyCode","type":"cell"},
 				{"name":"validatorWallet","type":"address"},
-				{"name":"participantRewardFraction","type":"uint8"},
-				{"name":"balanceThreshold","type":"uint64"}
+				{"name":"participantRewardFraction","type":"uint8"}
 			],
 			"outputs": [
 			]
@@ -183,6 +182,14 @@
 			]
 		},
 		{
+			"name": "setValidatorRewardFraction",
+			"inputs": [
+				{"name":"fraction","type":"uint8"}
+			],
+			"outputs": [
+			]
+		},
+		{
 			"name": "receiveFunds",
 			"inputs": [
 			],
@@ -207,8 +214,8 @@
 				{"name":"reinvest","type":"bool"},
 				{"name":"reward","type":"uint64"},
 				{"name":"stakes","type":"map(uint64,uint64)"},
-				{"components":[{"name":"amount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"vestings","type":"map(uint64,tuple)"},
-				{"components":[{"name":"amount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"locks","type":"map(uint64,tuple)"}
+				{"components":[{"name":"remainingAmount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"vestings","type":"map(uint64,tuple)"},
+				{"components":[{"name":"remainingAmount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"locks","type":"map(uint64,tuple)"}
 			]
 		},
 		{
@@ -235,6 +242,14 @@
 			],
 			"outputs": [
 				{"name":"participants","type":"address[]"}
+			]
+		},
+		{
+			"name": "getDePoolBalance",
+			"inputs": [
+			],
+			"outputs": [
+				{"name":"value0","type":"int256"}
 			]
 		},
 		{
@@ -311,6 +326,15 @@
 			"name": "TooLowDePoolBalance",
 			"inputs": [
 				{"name":"replenishment","type":"uint256"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "RewardFractionsChanged",
+			"inputs": [
+				{"name":"validator","type":"uint8"},
+				{"name":"participants","type":"uint8"}
 			],
 			"outputs": [
 			]
