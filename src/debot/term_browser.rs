@@ -122,22 +122,23 @@ impl BrowserCallbacks for Callbacks {
     async fn invoke_debot(&self, debot: String, action: DAction) -> Result<(), String> {
         debug!("fetching debot {} action {}", &debot, action.name);
         println!("invoking debot {}", &debot);
+        let ton_cl = self.browser.read().unwrap().client.clone();
         let browser = Arc::new(
             RwLock::new(
-                TerminalBrowser::new(self.browser.read().unwrap().client.clone())
+                TerminalBrowser::new(ton_cl.clone())
             )
         );
         let callbacks = Arc::new(Callbacks::new(Arc::clone(&browser)));
         let mut debot = DEngine::new_with_client(
             debot,
             None,
-            self.browser.read().unwrap().client.clone(),
+            ton_cl.clone(),
             callbacks,
         );
         debot.fetch().await?;
         debot.execute_action(&action).await?;
         loop {
-            let action = self.browser.read().unwrap().select_action();
+            let action = browser.read().unwrap().select_action();
             match action {
                 Some(act) => debot.execute_action(&act).await?,
                 None => break,
