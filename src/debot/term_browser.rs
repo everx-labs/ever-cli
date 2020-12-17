@@ -121,7 +121,7 @@ impl BrowserCallbacks for Callbacks {
     /// Debot asks to run action of another debot
     async fn invoke_debot(&self, debot: String, action: DAction) -> Result<(), String> {
         debug!("fetching debot {} action {}", &debot, action.name);
-        println!("invoking debot {}", &debot);
+        println!("Invoking debot {}", &debot);
         let ton_cl = self.browser.read().unwrap().client.clone();
         let browser = Arc::new(
             RwLock::new(
@@ -129,18 +129,18 @@ impl BrowserCallbacks for Callbacks {
             )
         );
         let callbacks = Arc::new(Callbacks::new(Arc::clone(&browser)));
-        let mut debot = DEngine::new_with_client(
-            debot,
+        let mut debot_eng = DEngine::new_with_client(
+            debot.clone(),
             None,
             ton_cl.clone(),
             callbacks,
         );
-        debot.fetch().await?;
-        debot.execute_action(&action).await?;
+        debot_eng.fetch().await?;
+        debot_eng.execute_action(&action).await?;
         loop {
             let action = browser.read().unwrap().select_action();
             match action {
-                Some(act) => debot.execute_action(&act).await?,
+                Some(act) => debot_eng.execute_action(&act).await?,
                 None => break,
             }
         }
