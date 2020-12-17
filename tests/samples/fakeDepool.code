@@ -1,0 +1,1175 @@
+.globl	constructor
+.public	constructor
+.type	constructor, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7_with_init_storage$
+}
+IF
+;; constructor protection
+GETGLOB 6
+THROWIF 51
+PUSHINT 1
+SETGLOB 6
+;; end constructor protection
+ENDS
+ACCEPT
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	addOrdinaryStake
+.public	addOrdinaryStake
+.type	addOrdinaryStake, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+; Decode stake
+LDU 64
+ENDS
+;; param: stake
+; function addOrdinaryStake
+; expValue
+; end expValue
+;; push identifier stake
+DUP
+; colValue
+SETGLOB 10
+; end colValue
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+DROP
+; end function addOrdinaryStake
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	addOrdinaryStake_internal
+.type	addOrdinaryStake_internal, @function
+;; param: stake
+; function addOrdinaryStake
+; expValue
+; end expValue
+;; push identifier stake
+DUP
+; colValue
+SETGLOB 10
+; end colValue
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+DROP
+; end function addOrdinaryStake
+
+.globl	addVestingStake
+.public	addVestingStake
+.type	addVestingStake, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+; Decode stake
+LDU 64
+; Decode beneficiary
+LDMSGADDR
+; Decode withdrawalPeriod
+LDUQ 32
+PUSHCONT {
+	;; load next cell
+	LDREF
+	ENDS
+	CTOS
+	LDU 32
+}
+IFNOT
+; Decode totalPeriod
+LDUQ 32
+PUSHCONT {
+	;; load next cell
+	LDREF
+	ENDS
+	CTOS
+	LDU 32
+}
+IFNOT
+ENDS
+;; param: stake
+;; param: beneficiary
+;; param: withdrawalPeriod
+;; param: totalPeriod
+; function addVestingStake
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+;; push identifier stake
+PUSH S3
+; colValue
+SETGLOB 10
+; end colValue
+; expValue
+; end expValue
+;; push identifier beneficiary
+PUSH S2
+; colValue
+SETGLOB 12
+; end colValue
+; expValue
+; end expValue
+;; push identifier withdrawalPeriod
+; colValue
+; end colValue
+; expValue
+; end expValue
+;; push identifier totalPeriod
+; colValue
+; end colValue
+SWAP
+SETGLOB 13
+SETGLOB 14
+DROP2
+; end function addVestingStake
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	addVestingStake_internal
+.type	addVestingStake_internal, @function
+;; param: stake
+;; param: beneficiary
+;; param: withdrawalPeriod
+;; param: totalPeriod
+; function addVestingStake
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+;; push identifier stake
+PUSH S3
+; colValue
+SETGLOB 10
+; end colValue
+; expValue
+; end expValue
+;; push identifier beneficiary
+PUSH S2
+; colValue
+SETGLOB 12
+; end colValue
+; expValue
+; end expValue
+;; push identifier withdrawalPeriod
+; colValue
+; end colValue
+; expValue
+; end expValue
+;; push identifier totalPeriod
+; colValue
+; end colValue
+SWAP
+SETGLOB 13
+SETGLOB 14
+DROP2
+; end function addVestingStake
+
+.globl	addLockStake
+.public	addLockStake
+.type	addLockStake, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+; Decode stake
+LDU 64
+; Decode beneficiary
+LDMSGADDR
+; Decode withdrawalPeriod
+LDUQ 32
+PUSHCONT {
+	;; load next cell
+	LDREF
+	ENDS
+	CTOS
+	LDU 32
+}
+IFNOT
+; Decode totalPeriod
+LDUQ 32
+PUSHCONT {
+	;; load next cell
+	LDREF
+	ENDS
+	CTOS
+	LDU 32
+}
+IFNOT
+ENDS
+;; param: stake
+;; param: beneficiary
+;; param: withdrawalPeriod
+;; param: totalPeriod
+; function addLockStake
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+;; push identifier stake
+PUSH S3
+; colValue
+SETGLOB 10
+; end colValue
+; expValue
+; end expValue
+;; push identifier beneficiary
+PUSH S2
+; colValue
+SETGLOB 12
+; end colValue
+; expValue
+; end expValue
+;; push identifier withdrawalPeriod
+; colValue
+; end colValue
+; expValue
+; end expValue
+;; push identifier totalPeriod
+; colValue
+; end colValue
+SWAP
+SETGLOB 13
+SETGLOB 14
+DROP2
+; end function addLockStake
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	addLockStake_internal
+.type	addLockStake_internal, @function
+;; param: stake
+;; param: beneficiary
+;; param: withdrawalPeriod
+;; param: totalPeriod
+; function addLockStake
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+;; push identifier stake
+PUSH S3
+; colValue
+SETGLOB 10
+; end colValue
+; expValue
+; end expValue
+;; push identifier beneficiary
+PUSH S2
+; colValue
+SETGLOB 12
+; end colValue
+; expValue
+; end expValue
+;; push identifier withdrawalPeriod
+; colValue
+; end colValue
+; expValue
+; end expValue
+;; push identifier totalPeriod
+; colValue
+; end colValue
+SWAP
+SETGLOB 13
+SETGLOB 14
+DROP2
+; end function addLockStake
+
+.globl	withdrawFromPoolingRound
+.public	withdrawFromPoolingRound
+.type	withdrawFromPoolingRound, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+; Decode withdrawValue
+LDU 64
+ENDS
+;; param: withdrawValue
+; function withdrawFromPoolingRound
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+;; push identifier withdrawValue
+; colValue
+; end colValue
+SETGLOB 10
+; end function withdrawFromPoolingRound
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	withdrawFromPoolingRound_internal
+.type	withdrawFromPoolingRound_internal, @function
+;; param: withdrawValue
+; function withdrawFromPoolingRound
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+;; push identifier withdrawValue
+; colValue
+; end colValue
+SETGLOB 10
+; end function withdrawFromPoolingRound
+
+.globl	withdrawPart
+.public	withdrawPart
+.type	withdrawPart, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+; Decode withdrawValue
+LDU 64
+ENDS
+;; param: withdrawValue
+; function withdrawPart
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+;; push identifier withdrawValue
+; colValue
+; end colValue
+SETGLOB 10
+; end function withdrawPart
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	withdrawPart_internal
+.type	withdrawPart_internal, @function
+;; param: withdrawValue
+; function withdrawPart
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+;; push identifier withdrawValue
+; colValue
+; end colValue
+SETGLOB 10
+; end function withdrawPart
+
+.globl	withdrawAll
+.public	withdrawAll
+.type	withdrawAll, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+ENDS
+; function withdrawAll
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+FALSE
+; colValue
+SETGLOB 15
+; end colValue
+; end function withdrawAll
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	withdrawAll_internal
+.type	withdrawAll_internal, @function
+; function withdrawAll
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+FALSE
+; colValue
+SETGLOB 15
+; end colValue
+; end function withdrawAll
+
+.globl	cancelWithdrawal
+.public	cancelWithdrawal
+.type	cancelWithdrawal, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+ENDS
+; function cancelWithdrawal
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+TRUE
+; colValue
+SETGLOB 15
+; end colValue
+; end function cancelWithdrawal
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	cancelWithdrawal_internal
+.type	cancelWithdrawal_internal, @function
+; function cancelWithdrawal
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+TRUE
+; colValue
+SETGLOB 15
+; end colValue
+; end function cancelWithdrawal
+
+.globl	transferStake
+.public	transferStake
+.type	transferStake, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+; Decode dest
+LDMSGADDR
+; Decode amount
+LDU 64
+ENDS
+;; param: dest
+;; param: amount
+; function transferStake
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+;; push identifier amount
+; colValue
+; end colValue
+; expValue
+; end expValue
+;; push identifier dest
+; colValue
+; end colValue
+SETGLOB 10
+SETGLOB 12
+; end function transferStake
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	transferStake_internal
+.type	transferStake_internal, @function
+;; param: dest
+;; param: amount
+; function transferStake
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; expValue
+; end expValue
+;; push identifier amount
+; colValue
+; end colValue
+; expValue
+; end expValue
+;; push identifier dest
+; colValue
+; end colValue
+SETGLOB 10
+SETGLOB 12
+; end function transferStake
+
+.globl	ticktock
+.public	ticktock
+.type	ticktock, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+ENDS
+; function ticktock
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+;; emit StakeSigningRequested
+PUSHSLICE xc000000000000000000000000045163712
+NEWC
+STSLICE
+;; electionId
+PUSHINT 1
+STUR 32
+;; proxy
+PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000005_
+STSLICER
+ENDC
+PUSHINT 1
+SENDRAWMSG
+; end function ticktock
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	ticktock_internal
+.type	ticktock_internal, @function
+; function ticktock
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+;; emit StakeSigningRequested
+PUSHSLICE xc000000000000000000000000045163712
+NEWC
+STSLICE
+;; electionId
+PUSHINT 1
+STUR 32
+;; proxy
+PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000005_
+STSLICER
+ENDC
+PUSHINT 1
+SENDRAWMSG
+; end function ticktock
+
+.globl	receiveFunds
+.public	receiveFunds
+.type	receiveFunds, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+ENDS
+; function receiveFunds
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; end function receiveFunds
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	receiveFunds_internal
+.type	receiveFunds_internal, @function
+; function receiveFunds
+; expValue
+; end expValue
+;; get member sender
+GETGLOB 9
+; colValue
+SETGLOB 11
+; end colValue
+; expValue
+; end expValue
+;; get member value
+CALL $message_balance_macro$
+; colValue
+SETGLOB 16
+; end colValue
+; end function receiveFunds
+
+.globl	getData
+.public	getData
+.type	getData, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+ENDS
+; function getData
+;; ret param: stake
+PUSHINT 0
+;; ret param: sender
+PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
+;; ret param: receiver
+PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
+;; ret param: withdrawal
+;; ret param: total
+;; ret param: reinvest
+;; ret param: value
+PUSHINT 0
+BLKPUSH 3, 0
+;; return
+;; push identifier m_stake
+GETGLOB 10
+;; push identifier m_sender
+GETGLOB 11
+;; push identifier m_receiver
+GETGLOB 12
+;; push identifier m_withdrawal
+GETGLOB 13
+;; push identifier m_total
+GETGLOB 14
+;; push identifier m_reinvest
+GETGLOB 15
+;; push identifier m_value
+GETGLOB 16
+BLKDROP2 7, 7
+;; emitting 7 value(s)
+PUSH S7
+EQINT -1
+PUSHCONT {
+	PUSH S9
+	CTOS
+	LDU 2
+	LDMSGADDR
+	DROP
+	NIP
+	NEWC
+	STSLICECONST xc
+	STSLICE
+	PUSHINT 97
+	STZEROES
+	STSLICECONST 1
+	NEWC
+	STSLICECONST xbb14f64b
+	PUSH S8
+	STUR 64
+	PUSH S7
+	STSLICER
+	PUSH S6
+	STSLICER
+	PUSH S5
+	STUR 32
+	PUSH S4
+	STUR 32
+	PUSH S3
+	STIR 1
+	PUSH S2
+	STUR 128
+	STBREFR
+	ENDC
+	PUSHINT 1
+	SENDRAWMSG
+}
+IF
+BLKDROP 7
+; end function getData
+PUSHCONT {
+	CALL $c7_to_c4$
+}
+IF
+TRUE
+SETGLOB 7
+
+.globl	getData_internal
+.type	getData_internal, @function
+; function getData
+;; ret param: stake
+PUSHINT 0
+;; ret param: sender
+PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
+;; ret param: receiver
+PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
+;; ret param: withdrawal
+;; ret param: total
+;; ret param: reinvest
+;; ret param: value
+PUSHINT 0
+BLKPUSH 3, 0
+;; return
+;; push identifier m_stake
+GETGLOB 10
+;; push identifier m_sender
+GETGLOB 11
+;; push identifier m_receiver
+GETGLOB 12
+;; push identifier m_withdrawal
+GETGLOB 13
+;; push identifier m_total
+GETGLOB 14
+;; push identifier m_reinvest
+GETGLOB 15
+;; push identifier m_value
+GETGLOB 16
+BLKDROP2 7, 7
+; end function getData
+
+.globl	c7_to_c4
+.type	c7_to_c4, @function
+GETGLOB 2
+NEWC
+STU 256
+GETGLOB 3
+STUR 64
+GETGLOB 6
+STUR 1
+NEWC
+GETGLOB 14
+GETGLOB 16
+XCHG s2
+STU 32
+STU 128
+GETGLOB 10
+GETGLOB 11
+GETGLOB 12
+GETGLOB 13
+GETGLOB 15
+REVERSE 7, 0
+STBREF
+STU 64
+STSLICE
+STSLICE
+STU 32
+STI 1
+ENDC
+POP C4
+
+.globl	c4_to_c7
+.type	c4_to_c7, @function
+PUSHROOT
+CTOS        ; c4
+LDU 256      ; pubkey c4
+LDU 64      ; pubkey timestamp c4
+LDU 1       ; pubkey [timestamp] constructor_flag memory
+LDREFRTOS
+LDU 32
+PLDU 128
+SETGLOB 16
+SETGLOB 14
+LDU 64
+LDMSGADDR
+LDMSGADDR
+LDU 32
+PLDI 1
+SETGLOB 15
+SETGLOB 13
+SETGLOB 12
+SETGLOB 11
+SETGLOB 10
+TRUE
+SETGLOB 1   ; pubkey [timestamp] constructor_flag
+SETGLOB 6   ; pubkey [timestamp]
+SETGLOB 3   ; D
+SETGLOB 2
+
+.macro c4_to_c7_with_init_storage
+PUSHROOT
+CTOS        ; c4
+DUP        ; c4 c4
+SBITS      ; c4 bits
+GTINT 1    ; c4 bits>1
+PUSHCONT {
+	LDU 256      ; pubkey c4
+	LDU 64      ; pubkey timestamp c4
+	LDU 1       ; pubkey [timestamp] constructor_flag memory
+	LDREFRTOS
+	LDU 32
+	PLDU 128
+	SETGLOB 16
+	SETGLOB 14
+	LDU 64
+	LDMSGADDR
+	LDMSGADDR
+	LDU 32
+	PLDI 1
+	SETGLOB 15
+	SETGLOB 13
+	SETGLOB 12
+	SETGLOB 11
+	SETGLOB 10
+	TRUE
+	SETGLOB 1   ; pubkey [timestamp] constructor_flag
+	SETGLOB 6   ; pubkey [timestamp]
+	SETGLOB 3   ; D
+	SETGLOB 2
+}
+PUSHCONT {
+	PLDDICT   ; D
+	; init m_stake
+	PUSHINT 0
+	SETGLOB 10
+	; init m_sender
+	PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
+	SETGLOB 11
+	; init m_receiver
+	PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
+	SETGLOB 12
+	; init m_withdrawal
+	PUSHINT 0
+	SETGLOB 13
+	; init m_total
+	PUSHINT 0
+	SETGLOB 14
+	; init m_reinvest
+	PUSHINT 0
+	SETGLOB 15
+	; init m_value
+	PUSHINT 0
+	SETGLOB 16
+	; set contract pubkey
+	PUSHINT 0
+	SWAP
+	PUSHINT 64
+	DICTUGET
+	THROWIFNOT 61
+	PLDU 256
+	SETGLOB 2
+	PUSHINT 0 ; timestamp
+	SETGLOB 3
+	PUSHINT 0 ; constructor_flag
+	SETGLOB 6
+	TRUE
+	SETGLOB 1
+}
+IFELSE
+
+.internal-alias :main_internal,        0
+.internal	:main_internal
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Function: main_internal
+;; param: contract_balance
+;; param: msg_balance
+;; param: int_msg_info
+;; param: msg_body_slice
+PUSHINT 0  ; main_external trans id
+PUSH S2
+CTOS
+LDU 4       ; bounced tail
+LDMSGADDR   ; bounced src tail
+DROP
+SETGLOB 9
+MODPOW2 1
+IFRET
+PUSH S1    ; body
+SEMPTY     ; isEmpty
+IFRET
+PUSH S1 ; body
+LDU 32  ; funcId body'
+PUSH S1 ; funcId body' funcId
+IFNOTRET
+PUSH S1 ; funcId body' funcId
+LESSINT 3            ; funcId body' funcId<3
+PUSH S2              ; funcId body' funcId<3 funcId
+PUSHINT 4294967293   ; funcId body' funcId<3 funcId 4294967293
+GREATER              ; funcId body' funcId<3 funcId>4294967293
+OR                   ; funcId body' funcId<3||funcId>4294967293
+PUSHCONT {
+	DROP2
+	THROW 60
+}
+IFJMP
+SWAP    ; body funcId
+CALL 1
+GETGLOB 7
+ISNULL
+PUSHCONT {
+	DROP
+	THROW 60
+}
+IF
+
+.internal-alias :main_external,        -1
+.internal	:main_external
+PUSHINT -1 ; main_external trans id
+PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
+SETGLOB 9
+PUSH S1
+CALL $c4_to_c7_with_init_storage$
+LDU 1 ; haveSign msgSlice
+SWAP
+PUSHCONT {
+	PUSHINT 512
+	LDSLICEX ; signatureSlice msgSlice
+	DUP      ; signatureSlice msgSlice msgSlice
+	HASHSU   ; signatureSlice msgSlice hashMsgSlice
+	ROT
+	GETGLOB 2
+	CHKSIGNU      ; msgSlice isSigned
+	THROWIFNOT 40 ; msgSlice
+}
+IF
+LDU 64                         ; timestamp msgSlice
+SWAP                           ; msgSlice timestamp
+CALL $replay_protection_macro$ ; msgSlice
+LDU 32  ; expireAt msgSlice
+SWAP    ; msgSlice expireAt
+NOW     ; msgSlice expireAt now
+GREATER ; msgSlice expireAt>now
+THROWIFNOT 57
+LDU  32 ; funcId body
+PUSH S1 ; funcId body funcId
+LESSINT 3            ; funcId body' funcId<3
+PUSH S2              ; funcId body' funcId<3 funcId
+PUSHINT 4294967293   ; funcId body' funcId<3 funcId 4294967293
+GREATER              ; funcId body' funcId<3 funcId>4294967293
+OR                   ; funcId body' funcId<3||funcId>4294967293
+PUSHCONT {
+	DROP2
+	THROW 60
+}
+IFJMP
+SWAP    ; body funcId
+CALL 1
+GETGLOB 7
+ISNULL
+PUSHCONT {
+	DROP
+	THROW 60
+}
+IF
+
