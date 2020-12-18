@@ -89,6 +89,9 @@ impl BrowserCallbacks for Callbacks {
         browser.active_actions = vec![];
     }
 
+    async fn switch_completed(&self) {
+    }
+
     /// Debot asks browser to show user an action from the context
     async fn show_action(&self, act: DAction) {
         let mut browser = self.browser.write().unwrap();
