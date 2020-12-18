@@ -1,15 +1,22 @@
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::process::Command;
+use lazy_static::*;
+use std::env;
 
 const BIN_NAME: &str = "tonos-cli";
+
+lazy_static! {
+    static ref NETWORK: String = env::var("TON_NETWORK_ADDRESS")
+        .unwrap_or("http://127.0.0.1".to_string());
+}
 
 #[test]
 fn test_config() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--url")
-        .arg("http://127.0.0.1")
+        .arg(&*NETWORK)
         .arg("--retries")
         .arg("10")
         .arg("--timeout")
@@ -25,7 +32,7 @@ fn test_config() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--list");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#""url": "http://127.0.0.1""#))
+        .stdout(predicate::str::contains(format!(r#""url": "{}""#, &*NETWORK)))
         .stdout(predicate::str::contains(r#""retries": 10"#))
         .stdout(predicate::str::contains(r#""timeout": 25000"#))
         .stdout(predicate::str::contains(r#""wc": -2"#));
@@ -45,7 +52,7 @@ fn test_call_giver() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--url")
-        .arg("http://127.0.0.1")
+        .arg(&*NETWORK)
         .assert()
         .success();
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -172,7 +179,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--url")
-        .arg("http://127.0.0.1")
+        .arg(&*NETWORK)
         .assert()
         .success();
 
@@ -218,7 +225,7 @@ fn test_depool() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--url")
-        .arg("http://127.0.0.1")
+        .arg(&*NETWORK)
         .assert()
         .success();
 
@@ -602,7 +609,7 @@ fn test_callex() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--url")
-        .arg("http://127.0.0.1")
+        .arg(&*NETWORK)
         .assert()
         .success();
 
@@ -729,7 +736,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Connecting to http://127.0.0.1"));
+        .stdout(predicate::str::contains(format!("Connecting to {}", &*NETWORK)));
     Ok(())
 }
 

@@ -39,3 +39,4 @@ ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git" }
 [dev-dependencies]
 assert_cmd = "0.11"
 predicates = "1"
+lazy_static = "1.4.0"
