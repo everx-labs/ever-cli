@@ -1,0 +1,123 @@
+{
+	"ABI version": 2,
+	"header": ["time", "expire"],
+	"functions": [
+		{
+			"name": "addOrdinaryStake",
+			"inputs": [
+				{"name":"stake","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "addVestingStake",
+			"inputs": [
+				{"name":"stake","type":"uint64"},
+				{"name":"beneficiary","type":"address"},
+				{"name":"withdrawalPeriod","type":"uint32"},
+				{"name":"totalPeriod","type":"uint32"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "addLockStake",
+			"inputs": [
+				{"name":"stake","type":"uint64"},
+				{"name":"beneficiary","type":"address"},
+				{"name":"withdrawalPeriod","type":"uint32"},
+				{"name":"totalPeriod","type":"uint32"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "withdrawFromPoolingRound",
+			"inputs": [
+				{"name":"withdrawValue","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "withdrawPart",
+			"inputs": [
+				{"name":"withdrawValue","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "withdrawAll",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "cancelWithdrawal",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "transferStake",
+			"inputs": [
+				{"name":"dest","type":"address"},
+				{"name":"amount","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "ticktock",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "receiveFunds",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "getData",
+			"inputs": [
+			],
+			"outputs": [
+				{"name":"stake","type":"uint64"},
+				{"name":"sender","type":"address"},
+				{"name":"receiver","type":"address"},
+				{"name":"withdrawal","type":"uint32"},
+				{"name":"total","type":"uint32"},
+				{"name":"reinvest","type":"bool"},
+				{"name":"value","type":"uint128"}
+			]
+		},
+		{
+			"name": "constructor",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		}
+	],
+	"data": [
+	],
+	"events": [
+		{
+			"name": "StakeSigningRequested",
+			"inputs": [
+				{"name":"electionId","type":"uint32"},
+				{"name":"proxy","type":"address"}
+			],
+			"outputs": [
+			]
+		}
+	]
+}
