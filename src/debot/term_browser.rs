@@ -139,11 +139,20 @@ impl BrowserCallbacks for Callbacks {
             callbacks,
         );
         debot_eng.fetch().await?;
-        debot_eng.execute_action(&action).await?;
+        if let Err(e) = debot_eng.execute_action(&action).await {
+            println!("Error. {}", e);
+            return Ok(());
+        }
+
         loop {
             let action = browser.read().unwrap().select_action();
             match action {
-                Some(act) => debot_eng.execute_action(&act).await?,
+                Some(act) => {
+                    if let Err(e) = debot_eng.execute_action(&act).await {
+                        println!("Error. {}", e);
+                        break;
+                    }
+                },
                 None => break,
             }
         }
