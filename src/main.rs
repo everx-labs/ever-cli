@@ -273,6 +273,7 @@ fn main_internal() -> Result <(), String> {
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Smart contract address.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            (@arg DOWNLOAD: -d --download "Downloads BoC of the contract.")
         )
         (@subcommand proposal =>
             (about: "Submits proposal transaction in multisignature wallet with text comment.")
@@ -681,8 +682,9 @@ fn genaddr_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
 
 fn account_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
+    let download = matches.is_present("DOWNLOAD");
     print_args!(matches, address);
-    get_account(config, address.unwrap())
+    get_account(config, address.unwrap(), download)
 }
 
 fn proposal_create_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
