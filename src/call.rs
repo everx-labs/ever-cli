@@ -31,7 +31,7 @@ use ton_client::processing::{
     ParamsOfSendMessage,
     ParamsOfWaitForTransaction,
     wait_for_transaction,
-    send_message
+    send_message,
 };
 use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet};
 
@@ -57,9 +57,14 @@ async fn prepare_message(
     let params = serde_json::from_str(&params)
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
 
-    let call_set = CallSet::some_with_function_and_input(method, params)
-        .map(|mut set| { set.header = header.clone(); set });
-    encode_message(
+        
+    let call_set = Some(CallSet {
+        function_name: method.into(),
+        input: Some(params),
+        header: header.clone(),
+    });
+    
+    let msg = encode_message(
         ton,
         ParamsOfEncodeMessage {
             abi,
@@ -74,10 +79,11 @@ async fn prepare_message(
             processing_try_index: None,
         },
     ).await
-    .map_err(|e| format!("failed to create inbound message: {}", e))
-    .map(|r| EncodedMessage { 
-        message: r.message,
-        message_id: r.message_id,
+    .map_err(|e| format!("failed to create inbound message: {}", e))?;
+
+    Ok(EncodedMessage { 
+        message: msg.message,
+        message_id: msg.message_id,
         expire: header.and_then(|h| h.expire),
         address: addr.to_owned(),
     })
@@ -255,7 +261,9 @@ async fn send_message_and_wait(
         Ok(result.decoded.and_then(|d| d.output).unwrap_or(json!({})))
     } else {
         println!("Processing... ");
-        let callback = |_| { async move {} };
+        let callback = |_| {
+            async move {} 
+        };
 
         let result = send_message(
             ton.clone(),
@@ -349,7 +357,7 @@ pub async fn generate_message(
     let expire_at = lifetime + now;
     let header = FunctionHeader {
         expire: Some(expire_at),
-        time: Some((now as u64) * 1000),
+        time: None,
         pubkey: None,
     };
 

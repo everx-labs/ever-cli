@@ -88,13 +88,15 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             hdkey_derivation_path: HD_PATH.to_string(),
         },
         network: ton_client::net::NetworkConfig {
-            server_address: conf.url.to_owned(),
+            server_address: Some(conf.url.to_owned()),
             network_retries_count: 3,
             message_retries_count: conf.retries as i8,
             message_processing_timeout: 30000,
             wait_for_timeout: 30000,
             out_of_sync_threshold: (conf.timeout / 2),
             access_key: None,
+            endpoints: None,
+            reconnect_timeout: 1000,
         },
     };
     let cli =
