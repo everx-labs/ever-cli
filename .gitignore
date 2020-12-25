@@ -2,6 +2,7 @@ target
 *.lock
 .vscode
 /tonlabs-cli.conf.json
+/tonos-cli.conf.json
 /call.boc
 /key1
 /tests/data.tvc

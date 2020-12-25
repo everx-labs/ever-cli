@@ -48,7 +48,7 @@ use voting::{create_proposal, decode_proposal, vote};
 
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
-const CONFIG_BASE_NAME: &'static str = "tonlabs-cli.conf.json";
+const CONFIG_BASE_NAME: &'static str = "tonos-cli.conf.json";
 
 enum CallType {
     Run,
