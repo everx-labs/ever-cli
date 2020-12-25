@@ -45,7 +45,7 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
         let acc_type = acc["acc_type_name"].as_str().unwrap();
         if acc_type != "NonExist" {
             println!("acc_type:      {}", acc_type);
-            let balance_str = &acc["balance"].as_str().unwrap()[2..];
+            let balance_str = &acc["balance"].as_str().unwrap();
             println!("balance:       {}", u64::from_str_radix(balance_str, 10).unwrap());
             println!("last_paid:     {}", acc["last_paid"].as_u64().unwrap());
             println!("last_trans_lt: {}", acc["last_trans_lt"].as_str().unwrap());
