@@ -365,7 +365,7 @@ async fn main_internal() -> Result <(), String> {
         return deploy_command(m, conf).await;
     } 
     if let Some(m) = matches.subcommand_matches("config") {
-        return config_command(m, conf);
+        return config_command(m, conf, config_file);
     }
     if let Some(m) = matches.subcommand_matches("genaddr") {
         return genaddr_command(m, conf).await;
@@ -617,7 +617,7 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
     deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc).await
 }
 
-fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> Result<(), String> {
     let mut result = Ok(());
     if !matches.is_present("LIST") {
         if let Some(clear_matches) = matches.subcommand_matches("clear") {
@@ -630,7 +630,7 @@ fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
             let retries = clear_matches.is_present("RETRIES");
             let timeout = clear_matches.is_present("TIMEOUT");
             let depool_fee = clear_matches.is_present("DEPOOL_FEE");
-            result = clear_config(config, CONFIG_BASE_NAME, url, address, wallet, abi, keys, wc, retries, timeout, depool_fee);
+            result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee);
         } else {
             let url = matches.value_of("URL");
             let address = matches.value_of("ADDR");
@@ -641,10 +641,10 @@ fn config_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
             let retries = matches.value_of("RETRIES");
             let timeout = matches.value_of("TIMEOUT");
             let depool_fee = matches.value_of("DEPOOL_FEE");
-            result = set_config(config, CONFIG_BASE_NAME, url, address, wallet, abi, keys, wc, retries, timeout, depool_fee);
+            result = set_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee);
         }
     }
-    let config = match Config::from_file(CONFIG_BASE_NAME) {
+    let config = match Config::from_file(config_file.as_str()) {
         Some(c) => {
             c
         },
