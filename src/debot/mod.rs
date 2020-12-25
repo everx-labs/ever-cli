@@ -70,5 +70,5 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 
 async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
-    return run_debot_browser(addr.unwrap(), config);
+    return run_debot_browser(addr.unwrap(), config).await;
 }

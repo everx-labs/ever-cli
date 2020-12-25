@@ -214,7 +214,6 @@ fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
 
 pub async fn run_debot_browser(
     addr: &str,
-    abi: Option<String>,
     config: Config,
 ) -> Result<(), String> {
     println!("Connecting to {}", config.url);
@@ -222,7 +221,7 @@ pub async fn run_debot_browser(
     let browser = Arc::new(RwLock::new(TerminalBrowser::new(ton.clone())));
 
     let callbacks = Arc::new(Callbacks::new(Arc::clone(&browser)));
-    let mut debot = DEngine::new_with_client(load_ton_address(addr)?, abi, ton.clone(), callbacks);
+    let mut debot = DEngine::new_with_client(load_ton_address(addr)?, None, ton.clone(), callbacks);
     debot.start().await?;
 
     loop {
