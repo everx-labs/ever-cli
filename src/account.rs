@@ -17,7 +17,7 @@ use ton_client::net::{ParamsOfQueryCollection, query_collection};
 
 const ACCOUNT_FIELDS: &str = r#"
     acc_type_name
-    balance
+    balance(format: DEC)
     last_paid
     last_trans_lt
     data
