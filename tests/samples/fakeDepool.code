@@ -949,6 +949,82 @@ GETGLOB 16
 BLKDROP2 7, 7
 ; end function getData
 
+.globl	setVestingDonor
+.public	setVestingDonor
+.type	setVestingDonor, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+; Decode donor
+LDMSGADDR
+ENDS
+;; param: donor
+; function setVestingDonor
+; expValue
+; end expValue
+;; push identifier donor
+; colValue
+; end colValue
+SETGLOB 12
+; end function setVestingDonor
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	setVestingDonor_internal
+.type	setVestingDonor_internal, @function
+;; param: donor
+; function setVestingDonor
+; expValue
+; end expValue
+;; push identifier donor
+; colValue
+; end colValue
+SETGLOB 12
+; end function setVestingDonor
+
+.globl	setLockDonor
+.public	setLockDonor
+.type	setLockDonor, @function
+GETGLOB 1
+ISNULL
+PUSHCONT {
+	CALL $c4_to_c7$
+}
+IF
+; Decode input parameters
+; Decode donor
+LDMSGADDR
+ENDS
+;; param: donor
+; function setLockDonor
+; expValue
+; end expValue
+;; push identifier donor
+; colValue
+; end colValue
+SETGLOB 12
+; end function setLockDonor
+CALL $c7_to_c4$
+TRUE
+SETGLOB 7
+
+.globl	setLockDonor_internal
+.type	setLockDonor_internal, @function
+;; param: donor
+; function setLockDonor
+; expValue
+; end expValue
+;; push identifier donor
+; colValue
+; end colValue
+SETGLOB 12
+; end function setLockDonor
+
 .globl	c7_to_c4
 .type	c7_to_c4, @function
 GETGLOB 2

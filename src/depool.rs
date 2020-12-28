@@ -52,6 +52,11 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
         .long("--beneficiary")
         .short("-b")
         .help("Smart contract address which will own lock stake rewards.");
+    let donor_arg = Arg::with_name("DONOR")
+        .takes_value(true)
+        .long("--donor")
+        .short("-d")
+        .help("Donor smart contract address.");
     let dest_arg = Arg::with_name("DEST")
         .takes_value(true)
         .long("--dest")
@@ -65,6 +70,20 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
             .takes_value(true)
             .long("--addr")
             .help("DePool contract address. if the parameter is omitted, then the value `addr` from the config is used"))
+        .subcommand(SubCommand::with_name("donor")
+            .about(r#"Top level command for specifying donor for exotic stakes in depool."#)
+            .subcommand(SubCommand::with_name("vesting")
+                .about("Set the address from which participant can receive a vesting stake.")
+                .setting(AppSettings::AllowLeadingHyphen)
+                .arg(wallet_arg.clone())
+                .arg(keys_arg.clone())
+                .arg(donor_arg.clone()))
+            .subcommand(SubCommand::with_name("lock")
+                .about("Set the address from which participant can receive a lock stake.")
+                .setting(AppSettings::AllowLeadingHyphen)
+                .arg(wallet_arg.clone())
+                .arg(keys_arg.clone())
+                .arg(donor_arg.clone())))
         .subcommand(SubCommand::with_name("stake")
             .about(r#"Top level command for managing stakes in depool. Uses a supplied multisignature wallet to send internal message with stake to depool."#)
             .subcommand(SubCommand::with_name("ordinary")
@@ -191,6 +210,15 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
         .ok_or("depool address is not defined. Supply it in config file or in command line.".to_string())?;
     load_ton_address(&depool)
         .map_err(|e| format!("invalid depool address: {}", e))?;
+
+    if let Some(m) = m.subcommand_matches("donor") {
+        let matches = m.subcommand_matches("vesting").or(m.subcommand_matches("lock"));
+        if let Some(matches) = matches {
+            let is_vesting = m.subcommand_matches("vesting").is_some();
+            let (wallet, keys) = parse_wallet_data(&matches, &conf)?;
+            return set_donor_command(matches, conf, &depool, &wallet, &keys, is_vesting).await;
+        }
+    }
 
     if let Some(m) = m.subcommand_matches("stake") {
         if let Some(m) = m.subcommand_matches("ordinary") {
@@ -393,6 +421,21 @@ async fn transfer_stake_command(
     transfer_stake(cmd, dest.unwrap()).await
 }
 
+async fn set_donor_command(
+    m: &ArgMatches<'_>,
+    conf: Config,
+    depool: &str,
+    wallet: &str,
+    keys: &str,
+    is_vesting: bool,
+) -> Result<(), String> {
+    let (depool, wallet, keys) = (Some(depool), Some(wallet), Some(keys));
+    let donor = Some(m.value_of("DONOR")
+        .ok_or("donor is not defined.".to_string())?);
+    print_args!(m, depool, wallet, keys, donor);
+    set_donor(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap(), is_vesting, donor.unwrap()).await
+}
+
 async fn exotic_stake_command(
     m: &ArgMatches<'_>,
     cmd: CommandData<'_>,
@@ -544,6 +587,19 @@ async fn set_withdraw(
     send_with_body(conf, wallet, depool, &value, keys, &body).await
 }
 
+async fn set_donor(
+    conf: Config,
+    depool: &str,
+    wallet: &str,
+    keys: &str,
+    is_vesting: bool,
+    donor: &str,
+) -> Result<(), String> {
+    let body = encode_set_donor(is_vesting, donor).await?;
+    let value = conf.depool_fee.to_string();
+    send_with_body(conf, wallet, depool, &value, keys, &body).await
+}
+
 async fn encode_body(func: &str, params: serde_json::Value) -> Result<String, String> {
     let client = create_client_local()?;
     ton_client::abi::encode_message_body(
@@ -594,6 +650,18 @@ async fn encode_add_vesting_stake(
         "withdrawalPeriod": wperiod,
         "totalPeriod": tperiod
     })).await
+}
+
+async fn encode_set_donor(is_vesting: bool, donor: &str) -> Result<String, String> {
+    if is_vesting {
+        encode_body("setVestingDonor", json!({
+            "donor": donor
+        }))
+    } else {
+        encode_body("setLockDonor", json!({
+            "donor": donor
+        }))
+    }.await
 }
 
 async fn encode_add_lock_stake(

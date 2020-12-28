@@ -89,6 +89,22 @@
 			]
 		},
 		{
+			"name": "setVestingDonor",
+			"inputs": [
+				{"name":"donor","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "setLockDonor",
+			"inputs": [
+				{"name":"donor","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
 			"name": "transferStake",
 			"inputs": [
 				{"name":"dest","type":"address"},
@@ -215,7 +231,9 @@
 				{"name":"reward","type":"uint64"},
 				{"name":"stakes","type":"map(uint64,uint64)"},
 				{"components":[{"name":"remainingAmount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"vestings","type":"map(uint64,tuple)"},
-				{"components":[{"name":"remainingAmount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"locks","type":"map(uint64,tuple)"}
+				{"components":[{"name":"remainingAmount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"locks","type":"map(uint64,tuple)"},
+				{"name":"vestingDonor","type":"address"},
+				{"name":"lockDonor","type":"address"}
 			]
 		},
 		{
