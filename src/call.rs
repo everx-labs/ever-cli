@@ -13,36 +13,80 @@
 use crate::config::Config;
 use crate::crypto::load_keypair;
 use crate::convert;
-use crate::helpers::{now, create_client_verbose};
+use crate::helpers::{TonClient, now, create_client_verbose, create_client_local, query, load_ton_address, load_abi};
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
 use hex;
-use ton_client_rs::{
-    TonClient, TonAddress, EncodedMessage
+use ton_client::abi::{
+    encode_message,
+    decode_message,
+    ParamsOfDecodeMessage,
+    ParamsOfEncodeMessage,
+    Abi,
+    CallSet,
+    FunctionHeader,
+    Signer
 };
-use ton_types::cells_serialization::{BagOfCells};
+use ton_client::processing::{
+    ParamsOfSendMessage,
+    ParamsOfWaitForTransaction,
+    wait_for_transaction,
+    send_message,
+};
+use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet};
 
-fn prepare_message(
-    ton: &TonClient,
-    addr: &TonAddress,
-    abi: &str,
+struct EncodedMessage {
+    message_id: String,
+    message: String,
+    expire: Option<u32>,
+    address: String,
+}
+
+async fn prepare_message(
+    ton: TonClient,
+    addr: &str,
+    abi: Abi,
     method: &str,
     params: &str,
-    header: Option<String>,
+    header: Option<FunctionHeader>,
     keys: Option<String>,
-) -> Result<EncodedMessage, String> {    
-    
+) -> Result<EncodedMessage, String> {
+    println!("Generating external inbound message...");
+
     let keys = keys.map(|k| load_keypair(&k)).transpose()?;
-    ton.contracts.create_run_message(
-        addr,
-        abi.into(),
-        method,
-        header.map(|v| v.into()),
-        params.into(),
-        keys.as_ref(),
-        None,
-    )
-    .map_err(|e| format!("failed to create inbound message: {}", e))
+    let params = serde_json::from_str(&params)
+        .map_err(|e| format!("arguments are not in json format: {}", e))?;
+
+        
+    let call_set = Some(CallSet {
+        function_name: method.into(),
+        input: Some(params),
+        header: header.clone(),
+    });
+    
+    let msg = encode_message(
+        ton,
+        ParamsOfEncodeMessage {
+            abi,
+            address: Some(addr.to_owned()),
+            deploy_set: None,
+            call_set,
+            signer: if keys.is_some() { 
+                Signer::Keys { keys: keys.unwrap() } 
+            } else {
+                Signer::None
+            },
+            processing_try_index: None,
+        },
+    ).await
+    .map_err(|e| format!("failed to create inbound message: {}", e))?;
+
+    Ok(EncodedMessage { 
+        message: msg.message,
+        message_id: msg.message_id,
+        expire: header.and_then(|h| h.expire),
+        address: addr.to_owned(),
+    })
 }
 
 fn print_encoded_message(msg: &EncodedMessage) {
@@ -57,20 +101,20 @@ fn print_encoded_message(msg: &EncodedMessage) {
     }
 }
 
-fn pack_message(msg: &EncodedMessage, method: &str, is_raw: bool) -> String {
+fn pack_message(msg: &EncodedMessage, method: &str, is_raw: bool) -> Vec<u8> {
     if is_raw {
-        hex::encode(&msg.message_body)
+        base64::decode(&msg.message).unwrap()
     } else {
         let json_msg = json!({
             "msg": {
                 "message_id": msg.message_id,
-                "message_body": hex::encode(&msg.message_body),
+                "message": msg.message,
                 "expire": msg.expire,
-                "address": msg.address
+                "address": msg.address,
             },
             "method": method,
         });
-        hex::encode(serde_json::to_string(&json_msg).unwrap())
+        serde_json::to_string(&json_msg).unwrap().into_bytes()
     }
 }
 
@@ -90,39 +134,34 @@ fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String> {
     let message_id = json_msg["msg"]["message_id"].as_str()
         .ok_or(r#"couldn't find "message_id" key in message"#)?
         .to_owned();
-    let message_body = json_msg["msg"]["message_body"].as_str()
-        .ok_or(r#"couldn't find "message_body" key in message"#)?;
-    let message_body = hex::decode(message_body).unwrap();
+    let message = json_msg["msg"]["message"].as_str()
+        .ok_or(r#"couldn't find "message" key in message"#)?
+        .to_owned();
     let expire = json_msg["msg"]["expire"].as_u64().map(|x| x as u32);
     let address = json_msg["msg"]["address"].as_str()
-        .ok_or(r#"couldn't find "address" key in message"#)?;
-    let address = TonAddress::from_str(address)
-        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
+        .ok_or(r#"couldn't find "address" key in message"#)?
+        .to_owned();
     
     let msg = EncodedMessage {
-        message_id, message_body, expire, address
+        message_id, message, expire, address
     };
     Ok((msg, method))
 }
 
-fn decode_call_parameters(ton: &TonClient, msg: &EncodedMessage, abi: &str) -> Result<(String, String), String> {
-    let tvm_msg = ton_sdk::Contract::deserialize_message(&msg.message_body[..]).unwrap();
-    let body_slice = tvm_msg.body().unwrap();
-
-    let mut data = Vec::new();
-    let bag = BagOfCells::with_root(&body_slice.cell());
-    bag.write_to(&mut data, false)
-        .map_err(|e| format!("couldn't create body BOC: {}", e))?;
-        
-    let result = ton.contracts.decode_input_message_body(
-        abi.into(),
-        &data[..],
-        false
-    ).map_err(|e| format!("couldn't decode message body: {}", e))?;
+fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) -> Result<(String, String), String> {
+    let result = decode_message(
+        ton,
+        ParamsOfDecodeMessage {
+            abi,
+            message: msg.message.clone(),
+        },
+    ).map_err(|e| format!("couldn't decode message: {}", e))?;
 
     Ok((
-        result.function,
-        serde_json::to_string_pretty(&result.output).unwrap()
+        result.name,
+        serde_json::to_string_pretty(
+            &result.value.unwrap_or(json!({}))
+        ).unwrap()
     ))
 }
 
@@ -180,7 +219,79 @@ fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Res
     serde_json::to_string(&params_json).map_err(|e| format!("{}", e))
 }
 
-pub fn call_contract_with_result(
+async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, String> {
+    let accounts = query(
+        ton,
+        "accounts",
+        json!({ "id": { "eq": addr } }),
+        "boc",
+        None,
+    ).await
+    .map_err(|e| format!("failed to query account: {}", e))?;
+
+    if accounts.len() == 0 {
+        return Err(format!("account not found"));
+    }
+
+    let boc = accounts[0]["boc"].as_str().unwrap().to_owned();
+    Ok(boc)
+}
+
+async fn send_message_and_wait(
+    ton: TonClient,
+    addr: &str,
+    abi: Abi,
+    msg: String,
+    local: bool,
+) -> Result<serde_json::Value, String> {
+    if local {
+        println!("Running get-method...");
+        let acc_boc = query_account_boc(ton.clone(), addr).await?;
+
+        let result = run_tvm(
+            ton.clone(),
+            ParamsOfRunTvm {
+                message: msg,
+                account: acc_boc,
+                execution_options: None,
+                abi: Some(abi.clone()),
+            },
+        ).await
+        .map_err(|e| format!("run failed: {:#}", e))?;
+        Ok(result.decoded.and_then(|d| d.output).unwrap_or(json!({})))
+    } else {
+        println!("Processing... ");
+        let callback = |_| {
+            async move {} 
+        };
+
+        let result = send_message(
+            ton.clone(),
+            ParamsOfSendMessage {
+                message: msg.clone(),
+                abi: Some(abi.clone()),
+                send_events: false,
+            },
+            callback,
+        ).await
+        .map_err(|e| format!("Failed: {:#}", e))?;
+
+        let result = wait_for_transaction(
+            ton.clone(),
+            ParamsOfWaitForTransaction {
+                abi: Some(abi.clone()),
+                message: msg.clone(),
+                shard_block_id: result.shard_block_id,
+                send_events: true,
+            },
+            callback.clone(),
+        ).await
+        .map_err(|e| format!("Failed: {:#}", e))?;
+        Ok(result.decoded.and_then(|d| d.output).unwrap_or(json!({})))
+    }
+}
+
+pub async fn call_contract_with_result(
     conf: Config,
     addr: &str,
     abi: String,
@@ -190,49 +301,24 @@ pub fn call_contract_with_result(
     local: bool,
 ) -> Result<serde_json::Value, String> {
     let ton = create_client_verbose(&conf)?;
+    let abi = load_abi(&abi)?;
 
-    let ton_addr = TonAddress::from_str(addr)
-        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
+    let msg = prepare_message(
+        ton.clone(),
+        addr,
+        abi.clone(),
+        method,
+        params,
+        None,
+        keys,
+    ).await?;
 
-    let result = if local {
-        println!("Running get-method...");
-        ton.contracts.run_local(
-            &ton_addr,
-            None,
-            abi.into(),
-            method,
-            None,
-            params.into(),
-            None,
-            None,
-            false
-        )
-        .map_err(|e| format!("run failed: {}", e.to_string()))?
-        .output
-        
-    } else {
-        println!("Generating external inbound message...");
-        let msg = prepare_message(
-            &ton,
-            &ton_addr,
-            &abi,
-            method,
-            params,
-            None,
-            keys,
-        )?;
+    print_encoded_message(&msg);
 
-        print_encoded_message(&msg);
-        println!("Processing... ");
-
-        ton.contracts.process_message(msg, Some(abi.into()), Some(method), true)
-            .map_err(|e| format!("Failed: {}", e.to_string()))?
-            .output
-    };
-    Ok(result)
+    send_message_and_wait(ton.clone(), addr, abi, msg.message, local).await
 }
 
-pub fn call_contract(
+pub async fn call_contract(
     conf: Config,
     addr: &str,
     abi: String,
@@ -241,8 +327,7 @@ pub fn call_contract(
     keys: Option<String>,
     local: bool
 ) -> Result<(), String> {
-    let result = call_contract_with_result(conf, addr, abi, method, params, keys, local)?;
-
+    let result = call_contract_with_result(conf, addr, abi, method, params, keys, local).await?;
     println!("Succeeded.");
     if !result.is_null() {
         println!("Result: {}", serde_json::to_string_pretty(&result).unwrap());
@@ -250,7 +335,7 @@ pub fn call_contract(
     Ok(())
 }
 
-pub fn generate_message(
+pub async fn generate_message(
     _conf: Config,
     addr: &str,
     abi: String,
@@ -261,65 +346,66 @@ pub fn generate_message(
     is_raw: bool,
     output: Option<&str>,
 ) -> Result<(), String> {
-    let ton = TonClient::default()
-        .map_err(|e| format!("failed to create tonclient: {}", e.to_string()))?;
+    let ton = create_client_local()?;
 
-    let ton_addr = TonAddress::from_str(addr)
+    let ton_addr = load_ton_address(addr)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
 
-    let expire_at = lifetime + now();
-    let header = json!({
-        "expire": expire_at
-    });
+    let abi = load_abi(&abi)?;
+
+    let now = now();
+    let expire_at = lifetime + now;
+    let header = FunctionHeader {
+        expire: Some(expire_at),
+        time: None,
+        pubkey: None,
+    };
 
     let msg = prepare_message(
-        &ton,
+        ton.clone(),
         &ton_addr,
-        &abi,
+        abi,
         method,
         params,
-        Some(serde_json::to_string(&header).unwrap()),
+        Some(header),
         keys,
-    )?;
+    ).await?;
     print_encoded_message(&msg);
 
-    let str_msg = pack_message(&msg, method, is_raw);
+    let msg_bytes = pack_message(&msg, method, is_raw);
     if output.is_some() {
         let out_file = output.unwrap();
-        std::fs::write(out_file, hex::decode(str_msg).unwrap())
+        std::fs::write(out_file, msg_bytes)
             .map_err(|e| format!("cannot write message to file: {}", e))?;
         println!("Message saved to file {}", out_file);
     } else {
-        println!("Message: {}", &str_msg);
+        let msg_hex = hex::encode(&msg_bytes);
+        println!("Message: {}", msg_hex);
         println!();
-        qr2term::print_qr(&str_msg).unwrap();
+        qr2term::print_qr(msg_hex).unwrap();
         println!();
     }
     Ok(())
 }
 
-pub fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) -> Result<(), String> {
+pub async fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
+    let abi = load_abi(&abi)?;
 
-    let (msg, method) = unpack_message(&str_msg)?;
+    let (msg, _) = unpack_message(&str_msg)?;
     print_encoded_message(&msg);
 
-    let params = decode_call_parameters(&ton, &msg, &abi)?;
+    let params = decode_call_parameters(ton.clone(), &msg, abi.clone())?;
 
     println!("Calling method {} with parameters:", params.0);
     println!("{}", params.1);
     println!("Processing... ");
-    let result = ton.contracts.process_message(
-        msg,
-        Some(abi.into()),
-        Some(&method),
-        true
-    )
-    .map_err(|e| format!("Failed: {}", e.to_string()))?;
+
+    let result = send_message_and_wait(ton, &msg.address, abi, msg.message, false).await?;
 
     println!("Succeded.");
-    if !result.output.is_null() {
-        println!("Result: {}", serde_json::to_string_pretty(&result.output).unwrap());
+    if !result.is_null() {
+        println!("Result: {}", serde_json::to_string_pretty(&result).unwrap());
     }
     Ok(())
 }
@@ -333,21 +419,30 @@ pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<St
     }
 }
 
-pub fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>) -> Result<(), String> {
+pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
-    let ton_addr = TonAddress::from_str(addr)
+    load_ton_address(addr)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
 
+    let acc_boc = query_account_boc(ton.clone(), addr).await?;
+
+    let params = params.map(|p| serde_json::from_str(&p))
+        .transpose()
+        .map_err(|e| format!("arguments are not in json format: {}", e))?;
+
     println!("Running get-method...");
-    let result = ton.contracts.run_get(
-            Some(&ton_addr),
-            None,
-            method,
-            params.map(|p| p.into()),
-        )
-        .map_err(|e| format!("run failed: {}", e.to_string()))?
-        .output;
+    let result = run_get(
+        ton,
+        ParamsOfRunGet {
+            account: acc_boc,
+            function_name: method.to_owned(),
+            input: params,
+            execution_options: None,
+        },
+    ).await
+    .map_err(|e| format!("run failed: {}", e.to_string()))?
+    .output;
     
     println!("Succeded.");
     println!("Result: {}", result);

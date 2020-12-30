@@ -10,10 +10,10 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::create_client_verbose;
+use crate::helpers::{create_client_verbose, query};
 use crate::config::Config;
 use serde_json::json;
-use ton_client_rs::{OrderBy, SortDirection};
+use ton_client::net::{OrderBy, SortDirection};
 
 const QUERY_FIELDS: &str = r#"
 master { 
@@ -224,7 +224,7 @@ master {
   }
 "#;
 
-pub fn query_global_config(conf: Config, index: &str) -> Result<(), String> {
+pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
     let _i = i32::from_str_radix(index, 10)
@@ -232,18 +232,21 @@ pub fn query_global_config(conf: Config, index: &str) -> Result<(), String> {
     
     let config_name = format!("p{}", index);
 
-    let last_key_block_query = ton.queries.blocks.query(
-        json!({ "workchain_id": { "eq":-1 } }).into(),
+    let last_key_block_query = query(
+        ton.clone(),
+        "blocks",
+        json!({ "workchain_id": { "eq":-1 } }),
         "id prev_key_block_seqno",
-        Some(OrderBy{ path: "seq_no".to_owned(), direction: SortDirection::Descending }),
-        Some(1),
-    ).map_err(|e| format!("failed to query last key block: {}", e.to_string()))?;
+        Some(vec![OrderBy{ path: "seq_no".to_owned(), direction: SortDirection::DESC }]),
+    ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
 
     if last_key_block_query.len() == 0 {
-      Err("Key block not found".to_string())?;
+        Err("Key block not found".to_string())?;
     }
 
-    let config_query = ton.queries.blocks.query(
+    let config_query = query(
+        ton.clone(),
+        "blocks",
         json!({
             "seq_no": {
                 "eq": last_key_block_query[0]["prev_key_block_seqno"].as_u64().unwrap() 
@@ -251,11 +254,10 @@ pub fn query_global_config(conf: Config, index: &str) -> Result<(), String> {
             "workchain_id": {
                 "eq": -1 
             }
-        }).into(),
+        }),
         QUERY_FIELDS,
         None,
-        None,
-    ).map_err(|e| format!("failed to query master block config: {}", e.to_string()))?;
+    ).await.map_err(|e| format!("failed to query master block config: {}", e))?;
 
     let config = &config_query[0]["master"]["config"][&config_name];
     let config_str = serde_json::to_string_pretty(&config)

@@ -12,30 +12,29 @@
  */
 use crate::helpers::create_client_verbose;
 use crate::config::Config;
-use ton_client_rs::{EncodedMessage, TonAddress};
+use ton_client::processing::{ParamsOfSendMessage, send_message};
 
-pub fn sendfile(conf: Config, msg_boc: &str) -> Result<(), String> {
+pub async fn sendfile(conf: Config, msg_boc: &str) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
     let boc_vec = std::fs::read(msg_boc)
         .map_err(|e| format!("failed to read boc file: {}", e))?;
-
     let tvm_msg = ton_sdk::Contract::deserialize_message(&boc_vec[..])
         .map_err(|e| format!("failed to parse message from boc: {}", e))?;
     let dst = tvm_msg.dst()
         .ok_or(format!("failed to parse dst address"))?;
 
-    let ton_addr = TonAddress::from_str(&format!("{}", dst))
-        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
-        
-    println!("Sending message to account {}", ton_addr);
-    let msg = EncodedMessage {
-        message_id: String::new(),
-        message_body: boc_vec,
-        expire: None,
-        address: ton_addr,
+    let callback = |_| {
+        async move {}
     };
-    ton.contracts.send_message(msg)
-        .map_err(|e| format!("Failed: {}", e.to_string()))?;
+
+    println!("Sending message to account {}", dst);
+    let msg = ParamsOfSendMessage {
+        message: base64::encode(&boc_vec),
+        abi: None,
+        send_events: false,
+    };
+    send_message(ton, msg, callback).await
+        .map_err(|e| format!("Failed: {}", e))?;
     println!("Succeded.");
     Ok(())
 }

@@ -13,40 +13,40 @@
 use crate::helpers::create_client_verbose;
 use crate::config::Config;
 use serde_json::json;
-use ton_client_rs::TonAddress;
+use ton_client::net::{ParamsOfQueryCollection, query_collection};
 
 const ACCOUNT_FIELDS: &str = r#"
     acc_type_name
-    balance
+    balance(format: DEC)
     last_paid
     last_trans_lt
     data
 "#;
 
-pub fn get_account(conf: Config, addr: &str) -> Result<(), String> {
+pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
-    TonAddress::from_str(addr)
-        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
-    
     println!("Processing...");
-    let query_result = ton.queries.accounts.query(
-        json!({
-            "id": { "eq": addr }
-        }).into(),
-        ACCOUNT_FIELDS,
-        None,
-        None,
-    ).map_err(|e| format!("failed to query account info: {}", e.to_string()))?;
+    let query_result = query_collection(
+        ton.clone(),
+        ParamsOfQueryCollection {
+            collection: "accounts".to_owned(),
+            filter: Some(json!({ "id": { "eq": addr } })),
+            result: ACCOUNT_FIELDS.to_string(),
+            order: None,
+            limit: Some(1),
+        },
+    ).await.map_err(|e| format!("failed to query account info: {}", e))?;
+    let accounts = query_result.result;
     println!("Succeeded.");
 
-    if query_result.len() == 1 {
-        let acc = &query_result[0];
+    if accounts.len() == 1 {
+        let acc = &accounts[0];
         let acc_type = acc["acc_type_name"].as_str().unwrap();
         if acc_type != "NonExist" {
             println!("acc_type:      {}", acc_type);
-            let balance_str = &acc["balance"].as_str().unwrap()[2..];
-            println!("balance:       {}", u64::from_str_radix(balance_str, 16).unwrap());
+            let balance_str = &acc["balance"].as_str().unwrap();
+            println!("balance:       {}", u64::from_str_radix(balance_str, 10).unwrap());
             println!("last_paid:     {}", acc["last_paid"].as_u64().unwrap());
             println!("last_trans_lt: {}", acc["last_trans_lt"].as_str().unwrap());
             let data_str = acc["data"].as_str();

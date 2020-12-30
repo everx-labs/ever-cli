@@ -10,12 +10,12 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::crypto::{SdkClient};
 use crate::call;
 use crate::config::Config;
 use crate::convert;
+use crate::helpers::{create_client_local, load_abi};
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
-use serde_json;
+use ton_client::abi::{encode_message_body, ParamsOfEncodeMessageBody, CallSet, Signer};
 
 pub const MSIG_ABI: &str = r#"{
 	"ABI version": 2,
@@ -185,14 +185,14 @@ pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
                 .help("Path to keys or seed phrase.")))
 }
 
-pub fn multisig_command(m: &ArgMatches, config: Config) -> Result<(), String> {
+pub async fn multisig_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     if let Some(m) = m.subcommand_matches("send") {
-        return multisig_send_command(m, config);
+        return multisig_send_command(m, config).await;
     }
     Err("unknown multisig command".to_owned())
 }
 
-fn multisig_send_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+async fn multisig_send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS")
         .ok_or(format!("--addr parameter is not defined"))?;
     let dest = matches.value_of("DEST")
@@ -203,27 +203,31 @@ fn multisig_send_command(matches: &ArgMatches, config: Config) -> Result<(), Str
         .ok_or(format!("--value parameter is not defined"))?;
     let comment = matches.value_of("PURPOSE");
 
-    send(config, address, dest, value, keys, comment)
+    send(config, address, dest, value, keys, comment).await
 }
 
-pub fn encode_transfer_body(text: &str) -> Result<String, String> {
+pub async fn encode_transfer_body(text: &str) -> Result<String, String> {
 	let text = hex::encode(text.as_bytes());
-	let client = SdkClient::new();
-	let abi: serde_json::Value = serde_json::from_str(TRANSFER_WITH_COMMENT).unwrap();
-    client.request(
-        "contracts.run.body",
-        json!({
-            "abi": abi,
-            "function": "transfer",
-            "params": json!({
-				"comment": text
-			}),
-			"internal": true,
-        })
-    )
+	let client = create_client_local()?;
+	let abi = load_abi(TRANSFER_WITH_COMMENT)?;
+    encode_message_body(
+		client.clone(),
+        ParamsOfEncodeMessageBody {
+			abi,
+			call_set: CallSet::some_with_function_and_input(
+				"transfer", 
+				json!({ "comment": text	}),
+			).unwrap(),
+			is_internal: true,
+			signer: Signer::None,
+			processing_try_index: None,
+		},
+	).await
+	.map_err(|e| format!("failed to encode transfer body: {}", e))
+	.map(|r| r.body)
 }
 
-fn send(
+async fn send(
     conf: Config,
     addr: &str,
     dest: &str,
@@ -232,23 +236,15 @@ fn send(
     comment: Option<&str>
 ) -> Result<(), String> {
     let body = if let Some(text) = comment {
-        let msg_body: serde_json::Value = 
-            serde_json::from_str(&encode_transfer_body(text)?)
-                .map_err(|e| format!("failed to encode comment: {}", e))?;
-
-        msg_body.get("bodyBase64")
-            .ok_or(format!(r#"internal error: "bodyBase64" not found in sdk call result"#))?
-            .as_str()
-            .ok_or(format!(r#"internal error: "bodyBase64" field is not a string"#))?
-            .to_owned()
+        encode_transfer_body(text).await?
     } else {
         "".to_owned()
 	};
 	
-	send_with_body(conf, addr, dest, value, keys, &body)
+	send_with_body(conf, addr, dest, value, keys, &body).await
 }
 
-pub fn send_with_body(
+pub async fn send_with_body(
 	conf: Config,
     addr: &str,
     dest: &str,
@@ -272,5 +268,5 @@ pub fn send_with_body(
         &params,
         Some(keys.to_owned()),
         false
-    )
+    ).await
 }

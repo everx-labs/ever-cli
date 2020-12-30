@@ -11,17 +11,14 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use crate::helpers::{create_client_local, read_keys};
-use crc16::*;
-use base64;
+use crate::helpers::{create_client_local, read_keys, load_abi, calc_acc_address};
 use ed25519_dalek::PublicKey;
-use ton_client_rs::TonAddress;
-use serde_json;
 use std::fs::OpenOptions;
 use ton_sdk;
-use crate::crypto::{gen_seed_phrase, generate_keypair_from_mnemonic, keypair_to_ed25519pair};
+use crate::crypto::{gen_seed_phrase, generate_keypair_from_mnemonic};
+use ton_client::utils::{convert_address, ParamsOfConvertAddress, AddressStringFormat};
 
-pub fn generate_address(
+pub async fn generate_address(
     conf: Config,
     tvc: &str,
     abi: &str,
@@ -31,36 +28,34 @@ pub fn generate_address(
     initial_data: Option<&str>,
     update_tvc: bool,
 ) -> Result<(), String> {
-    let ton = create_client_local()?;    
-
     let contract = std::fs::read(tvc)
-        .map_err(|e| format!("failed to read smart contract file: {}", e.to_string()))?;
+        .map_err(|e| format!("failed to read smart contract file: {}", e))?;
 
-    let abi = std::fs::read_to_string(abi)
-        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+    let abi_str = std::fs::read_to_string(abi)
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+
+    let abi = load_abi(&abi_str)?;
 
     let (phrase, keys) = if keys_file.is_some() && !new_keys {
         (None, read_keys(keys_file.unwrap())?)
     } else {
         let seed_phr = gen_seed_phrase()?;
         let pair = generate_keypair_from_mnemonic(&seed_phr)?;
-        (Some(seed_phr), keypair_to_ed25519pair(pair)?)
+        (Some(seed_phr), pair)
     };
-    
-    let initial_data = initial_data.map(|s| s.to_string());
     
     let wc = wc_str.map(|wc| i32::from_str_radix(wc, 10))
         .transpose()
         .map_err(|e| format!("failed to parse workchain id: {}", e))?
         .unwrap_or(conf.wc);
-    
-    let addr = ton.contracts.get_deploy_address(
-        abi.clone().into(),
+        
+    let addr = calc_acc_address(
         &contract,
-        initial_data.clone().map(|d| d.into()),
-        &keys.public,
         wc,
-    ).map_err(|e| format!("failed to generate address: {}", e.to_string()))?;
+        keys.public.clone(),
+        initial_data.clone(),
+        abi.clone()
+    ).await?;
     
     println!();
     if let Some(phr) = phrase {
@@ -68,9 +63,11 @@ pub fn generate_address(
         println!();
     }
     println!("Raw address: {}", addr);
-    
+        
     if update_tvc {
-        update_contract_state(tvc, &keys.public.0, initial_data, &abi)?;
+        let initial_data = initial_data.map(|s| s.to_string());
+        let key_bytes = hex::decode(&keys.public).unwrap();
+        update_contract_state(tvc, &key_bytes, initial_data, &abi_str)?;
     }
     
     if new_keys && keys_file.is_some() {
@@ -78,27 +75,28 @@ pub fn generate_address(
         std::fs::write(keys_file.unwrap(), &keys_json).unwrap();
     }
     
-    if let TonAddress::Std(wc, addr256) = addr {
-        println!("testnet:");
-        println!("Non-bounceable address (for init): {}", &calc_userfriendly_address(wc, &addr256, false, true));
-        println!("Bounceable address (for later access): {}", &calc_userfriendly_address(wc, &addr256, true, true));
-        println!("mainnet:");
-        println!("Non-bounceable address (for init): {}", &calc_userfriendly_address(wc, &addr256, false, false));
-        println!("Bounceable address (for later access): {}", &calc_userfriendly_address(wc, &addr256, true, false));
-    }
+    
+    println!("testnet:");
+    println!("Non-bounceable address (for init): {}", calc_userfriendly_address(&addr, false, true)?);
+    println!("Bounceable address (for later access): {}", calc_userfriendly_address(&addr, true, true)?);
+    println!("mainnet:");
+    println!("Non-bounceable address (for init): {}", calc_userfriendly_address(&addr, false, false)?);
+    println!("Bounceable address (for later access): {}", calc_userfriendly_address(&addr, true, false)?);
 
     println!("Succeeded");
     Ok(())
 }
 
-fn calc_userfriendly_address(wc: i8, addr: &[u8], bounce: bool, testnet: bool) -> String {
-    let mut bytes: Vec<u8> = vec![];
-    bytes.push(if bounce { 0x11 } else { 0x51 } + if testnet { 0x80 } else { 0 });
-    bytes.push(wc as u8);
-    bytes.extend_from_slice(addr);
-    let crc = State::<XMODEM>::calculate(&bytes);
-    bytes.extend_from_slice(&crc.to_be_bytes());
-    base64::encode(&bytes)
+fn calc_userfriendly_address(address: &str, bounce: bool, test: bool) -> Result<String, String> {
+    convert_address(
+        create_client_local().unwrap(),
+        ParamsOfConvertAddress {
+            address: address.to_owned(),
+            output_format: AddressStringFormat::Base64{ url: true, bounce, test },
+        }
+    )
+    .map(|r| r.address)
+    .map_err(|e| format!("failed to convert address to base64 form: {}", e))
 }
 
 fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, abi: &str) -> Result<(), String> {

@@ -16,6 +16,7 @@ use simplelog::*;
 use term_browser::run_debot_browser;
 
 pub mod term_browser;
+mod term_signing_box;
 
 pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("debot")
@@ -34,7 +35,7 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
         )
 }
 
-pub fn debot_command(m: &ArgMatches, config: Config) -> Result<(), String> {
+pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let debug = m.is_present("DEBUG");
     let log_conf = ConfigBuilder::new()
         .add_filter_ignore_str("executor")
@@ -62,12 +63,12 @@ pub fn debot_command(m: &ArgMatches, config: Config) -> Result<(), String> {
     CombinedLogger::init(loggers).unwrap();
 
     if let Some(m) = m.subcommand_matches("fetch") {
-        return fetch_command(m, config);
+        return fetch_command(m, config).await;
     }
     Err("unknown debot command".to_owned())
 }
 
-fn fetch_command(m: &ArgMatches, config: Config) -> Result<(), String> {
+async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
-    return run_debot_browser(addr.unwrap(), config);
+    return run_debot_browser(addr.unwrap(), config).await;
 }

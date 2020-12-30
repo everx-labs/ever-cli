@@ -13,7 +13,6 @@
 #[macro_use] extern crate clap;
 #[macro_use] extern crate log;
 #[macro_use] extern crate serde_json;
-#[macro_use] extern crate serde_derive;
 
 mod account;
 mod call;
@@ -49,7 +48,7 @@ use voting::{create_proposal, decode_proposal, vote};
 
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
-const CONFIG_BASE_NAME: &'static str = "tonlabs-cli.conf.json";
+const CONFIG_BASE_NAME: &'static str = "tonos-cli.conf.json";
 
 enum CallType {
     Run,
@@ -83,14 +82,15 @@ fn default_config_name() -> Result<String, String> {
         })
 }
 
-fn main() -> Result<(), i32> {    
-    main_internal().map_err(|err_str| {
+#[tokio::main]
+async fn main() -> Result<(), i32> {
+    main_internal().await.map_err(|err_str| {
         println!("Error: {}", err_str);
         1
     })
 }
 
-fn main_internal() -> Result <(), String> {
+async fn main_internal() -> Result <(), String> {
     let callex_sub_command = SubCommand::with_name("callex")
         .about("Sends external message to contract with encoded function call (alternative syntax).")
         .setting(AppSettings::AllowMissingPositional)
@@ -344,37 +344,37 @@ fn main_internal() -> Result <(), String> {
         }
     }
     if let Some(m) = matches.subcommand_matches("callex") {
-        return callex_command(m, conf);
+        return callex_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("call") {
-        return call_command(m, conf, CallType::Call);
+        return call_command(m, conf, CallType::Call).await;
     }
     if let Some(m) = matches.subcommand_matches("run") {
-        return call_command(m, conf, CallType::Run);
+        return call_command(m, conf, CallType::Run).await;
     }
     if let Some(m) = matches.subcommand_matches("runget") {
-        return runget_command(m, conf);
+        return runget_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("message") {
-        return call_command(m, conf, CallType::Msg);
+        return call_command(m, conf, CallType::Msg).await;
     }
     if let Some(m) = matches.subcommand_matches("send") {
-        return send_command(m, conf);
+        return send_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("deploy") {        
-        return deploy_command(m, conf);
+        return deploy_command(m, conf).await;
     } 
     if let Some(m) = matches.subcommand_matches("config") {
         return config_command(m, conf, config_file);
     }
     if let Some(m) = matches.subcommand_matches("genaddr") {
-        return genaddr_command(m, conf);
+        return genaddr_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("getkeypair") {
         return getkeypair_command(m, conf);
     }
     if let Some(m) = matches.subcommand_matches("account") {
-        return account_command(m, conf);
+        return account_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("genphrase") {
         return genphrase_command(m, conf);
@@ -384,35 +384,35 @@ fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("proposal") {
         if let Some(m) = m.subcommand_matches("create") {
-            return proposal_create_command(m, conf);
+            return proposal_create_command(m, conf).await;
         }
         if let Some(m) = m.subcommand_matches("vote") {
-            return proposal_vote_command(m, conf);
+            return proposal_vote_command(m, conf).await;
         }
         if let Some(m) = m.subcommand_matches("decode") {
-            return proposal_decode_command(m, conf);
+            return proposal_decode_command(m, conf).await;
         }
     }
     if let Some(m) = matches.subcommand_matches("multisig") {
-        return multisig_command(m, conf);
+        return multisig_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("depool") {
-        return depool_command(m, conf);
+        return depool_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("getconfig") {
-        return getconfig_command(m, conf);
+        return getconfig_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("nodeid") {
         return nodeid_command(m);
     }
     if let Some(m) = matches.subcommand_matches("sendfile") {
-        return sendfile_command(m, conf);
+        return sendfile_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("decode") {
         return decode_command(m, conf);
     }
     if let Some(m) = matches.subcommand_matches("debot") {
-        return debot_command(m, conf);
+        return debot_command(m, conf).await;
     }
     if let Some(_) = matches.subcommand_matches("version") {
         println!(
@@ -451,7 +451,7 @@ fn getkeypair_command(matches: &ArgMatches, _config: Config) -> Result<(), Strin
     generate_keypair(key_file.unwrap(), phrase.unwrap())
 }
 
-fn send_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+async fn send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let message = matches.value_of("MESSAGE");
     let abi = Some(
         matches.value_of("ABI")
@@ -465,7 +465,7 @@ fn send_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
 
-    call_contract_with_msg(config, message.unwrap().to_owned(), abi)
+    call_contract_with_msg(config, message.unwrap().to_owned(), abi).await
 }
 
 fn load_params(params: &str) -> Result<String, String> {
@@ -477,7 +477,7 @@ fn load_params(params: &str) -> Result<String, String> {
     })
 }
 
-fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<(), String> {
+async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
@@ -520,7 +520,7 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
                 &params.unwrap(),
                 keys,
                 local
-            )
+            ).await
         },
         CallType::Msg => {
             let lifetime = lifetime.map(|val| {
@@ -540,12 +540,12 @@ fn call_command(matches: &ArgMatches, config: Config, call: CallType) -> Result<
                 lifetime,
                 raw,
                 output,
-            )
+            ).await
         },
     }
 }
 
-fn callex_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+async fn callex_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let method = matches.value_of("METHOD");
     let address = Some(
         matches.value_of("ADDRESS")
@@ -577,10 +577,10 @@ fn callex_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
         &params.unwrap(),
         keys,
         false,
-    )
+    ).await
 }
 
-fn runget_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+async fn runget_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let method = matches.value_of("METHOD");
     let params = matches.values_of("PARAMS");
@@ -588,10 +588,10 @@ fn runget_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
         json!(values.collect::<Vec<_>>()).to_string()
     });
     print_args!(matches, address, method, params);
-    run_get_method(config, address.unwrap(), method.unwrap(), params)
+    run_get_method(config, address.unwrap(), method.unwrap(), params).await
 }
 
-fn deploy_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+async fn deploy_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let tvc = matches.value_of("TVC");
     let params = matches.value_of("PARAMS");
     let wc = matches.value_of("WC");
@@ -614,7 +614,7 @@ fn deploy_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
         .transpose()
         .map_err(|e| format!("failed to parse workchain id: {}", e))?
         .unwrap_or(config.wc);
-    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc)
+    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc).await
 }
 
 fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> Result<(), String> {
@@ -660,7 +660,7 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
     result
 }
 
-fn genaddr_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let tvc = matches.value_of("TVC");
     let wc = matches.value_of("WC");
     let keys = matches.value_of("GENKEY").or(matches.value_of("SETKEY"));
@@ -670,16 +670,16 @@ fn genaddr_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let abi = matches.value_of("ABI");
     let is_update_tvc = if update_tvc { Some("true") } else { None };
     print_args!(matches, tvc, wc, keys, init_data, is_update_tvc);
-    generate_address(config, tvc.unwrap(), abi.unwrap(), wc, keys, new_keys, init_data, update_tvc)
+    generate_address(config, tvc.unwrap(), abi.unwrap(), wc, keys, new_keys, init_data, update_tvc).await
 }
 
-fn account_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     print_args!(matches, address);
-    get_account(config, address.unwrap())
+    get_account(config, address.unwrap()).await
 }
 
-fn proposal_create_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+async fn proposal_create_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let dest = matches.value_of("DEST");
     let keys = matches.value_of("KEYS");
@@ -695,10 +695,18 @@ fn proposal_create_command(matches: &ArgMatches, config: Config) -> Result<(), S
     .transpose()?
     .unwrap_or(config.timeout);
 
-    create_proposal(config, address.unwrap(), keys, dest.unwrap(), comment.unwrap(), lifetime, offline)
+    create_proposal(
+        config,
+        address.unwrap(),
+        keys,
+        dest.unwrap(),
+        comment.unwrap(),
+        lifetime,
+        offline
+    ).await
 }
 
-fn proposal_vote_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+async fn proposal_vote_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let keys = matches.value_of("KEYS");
     let id = matches.value_of("ID");
@@ -713,20 +721,20 @@ fn proposal_vote_command(matches: &ArgMatches, config: Config) -> Result<(), Str
     .transpose()?
     .unwrap_or(config.timeout);
 
-    vote(config, address.unwrap(), keys, id.unwrap(), lifetime, offline)
+    vote(config, address.unwrap(), keys, id.unwrap(), lifetime, offline).await
 }
 
-fn proposal_decode_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+async fn proposal_decode_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let id = matches.value_of("ID");
     print_args!(matches, address, id);
-    decode_proposal(config, address.unwrap(), id.unwrap())
+    decode_proposal(config, address.unwrap(), id.unwrap()).await
 }
 
-fn getconfig_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+async fn getconfig_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let index = matches.value_of("INDEX");
     print_args!(matches, index);
-    query_global_config(config, index.unwrap())
+    query_global_config(config, index.unwrap()).await
 }
 
 fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
@@ -739,7 +747,7 @@ fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
         convert::nodeid_from_pubkey(&vec)?
     } else if let Some(pair) = keypair {
         let pair = crypto::load_keypair(pair)?;
-        convert::nodeid_from_pubkey(&pair.public.0)?
+        convert::nodeid_from_pubkey(&hex::decode(&pair.public).unwrap())?
     } else {
         return Err("Either public key or key pair parameter should be provided".to_owned());
     };
@@ -747,8 +755,8 @@ fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
     Ok(())
 }
 
-fn sendfile_command(m: &ArgMatches, conf: Config) -> Result<(), String> {
+async fn sendfile_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), String> {
     let boc = m.value_of("BOC");
     print_args!(m, boc);
-    sendfile::sendfile(conf, boc.unwrap())
+    sendfile::sendfile(conf, boc.unwrap()).await
 }
