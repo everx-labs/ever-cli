@@ -3,7 +3,7 @@
 ## v1.0.0
 
 ### Breaking changes
-- `tonos-cli` now stores its configuration in `./tonos-cli.config.json`. `tonlabs-cli.conf.json` is now obsolete and can be renamed or deleted.
+- `tonos-cli` now stores its configuration in `./tonos-cli.conf.json`. `tonlabs-cli.conf.json` is now obsolete and can be renamed or deleted.
 - Commands `deploy`, `call`, `callex`, `run`, `message` and others now output errors in a different format, compatible with the corresponding changes in the SDK v1.
 
 ### Fixes
