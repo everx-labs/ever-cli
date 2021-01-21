@@ -206,6 +206,14 @@
 			]
 		},
 		{
+			"name": "setMinStake",
+			"inputs": [
+				{"name":"minStake","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
 			"name": "receiveFunds",
 			"inputs": [
 			],
@@ -353,6 +361,14 @@
 			"inputs": [
 				{"name":"validator","type":"uint8"},
 				{"name":"participants","type":"uint8"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "InternalError",
+			"inputs": [
+				{"name":"ec","type":"uint16"}
 			],
 			"outputs": [
 			]
