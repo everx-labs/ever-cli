@@ -13,3 +13,4 @@
 
 pub mod dinterface;
 pub mod echo;
+pub mod stdout;

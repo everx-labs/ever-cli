@@ -20,6 +20,7 @@ pub mod term_browser;
 mod interfaces;
 pub use interfaces::dinterface::{SUPPORTED_INTERFACES};
 pub use interfaces::echo::{Echo, ECHO_ABI};
+pub use interfaces::stdout::{Stdout, STDOUT_ABI};
 mod term_signing_box;
 
 pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
