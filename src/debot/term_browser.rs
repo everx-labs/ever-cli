@@ -15,13 +15,18 @@ use crate::config::Config;
 use crate::helpers::{create_client, load_ton_address, TonClient};
 use std::io::{self, BufRead, Write};
 use std::sync::{Arc, RwLock};
+use ton_client::abi::{Abi, ParamsOfDecodeMessageBody, decode_message_body};
+use ton_client::boc::{ParamsOfParse, parse_message};
 use ton_client::crypto::SigningBoxHandle;
-use ton_client::debot::{BrowserCallbacks, DAction, DEngine, STATE_EXIT};
+use ton_client::debot::{DEBOT_WC, BrowserCallbacks, DAction, DEngine, STATE_EXIT};
+use std::collections::VecDeque;
+use super::{SUPPORTED_INTERFACES, ECHO_ABI, Echo};
 
 struct TerminalBrowser {
     state_id: u8,
     active_actions: Vec<DAction>,
     client: TonClient,
+    msg_queue: VecDeque<String>,
 }
 
 impl TerminalBrowser {
@@ -30,6 +35,7 @@ impl TerminalBrowser {
             state_id: 0,
             active_actions: vec![],
             client,
+            msg_queue: Default::default(),
         }
     }
 
@@ -56,6 +62,48 @@ impl TerminalBrowser {
             }
             return act.map(|a| a.clone());
         }
+    }
+
+    async fn handle_interface_calls(&mut self, debot: &mut DEngine) -> Result<(), String> {
+        for msg in self.msg_queue.drain(0..) {
+            let parsed = parse_message(
+                self.client.clone(),
+                ParamsOfParse { boc: msg.clone() },
+            ).map_err(|e| format!("{}", e))?;
+            let body = parsed.parsed["body"].as_str().unwrap().to_owned();
+            let iface_addr = parsed.parsed["dst"].as_str().unwrap();
+            let wc_and_addr: Vec<_> = iface_addr.split(':').collect();
+            let interface_id = wc_and_addr[1];
+            let wc = i8::from_str_radix(wc_and_addr[0], 10).unwrap();
+            if wc != DEBOT_WC {
+                println!("invalid interface workchain id: {}", wc);
+                continue;
+            }
+            if !SUPPORTED_INTERFACES.contains(&interface_id) {
+                println!("DInterface {} not supported", interface_id);
+                continue;
+            }
+            let decoded = decode_message_body(
+                self.client.clone(),
+                ParamsOfDecodeMessageBody {
+                    abi: Abi::Json(ECHO_ABI.to_owned()),
+                    body,
+                    is_internal: true,
+                },
+            ).map_err(|e| format!(" failed to decode msg for interface: {}", e))?;
+            debug!("call for interface id {}", interface_id);
+            debug!("request: {} ({})", decoded.name, decoded.value.as_ref().unwrap());
+            let (func_id, return_args) = Echo::call(&decoded.name, &decoded.value.unwrap());
+            debug!("response: {} ({})", func_id, return_args);
+            let result = debot.send(
+                iface_addr.to_owned(), func_id, return_args.to_string()
+            ).await;
+            if let Err(e) = result {
+                debug!("debot.send failed: {}", e);
+                println!("debot call failed: {}", e);
+            }
+        }
+        Ok(())
     }
 }
 
@@ -159,8 +207,9 @@ impl BrowserCallbacks for Callbacks {
         Ok(())
     }
 
-    async fn send(&self, _message: String) {
-        unimplemented!()
+    async fn send(&self, message: String) {
+        let mut browser = self.browser.write().unwrap();
+        browser.msg_queue.push_back(message);
     }
 }
 
@@ -229,6 +278,7 @@ pub async fn run_debot_browser(
     debot.start().await?;
 
     loop {
+        browser.write().unwrap().handle_interface_calls(&mut debot).await?;
         let action = browser.read().unwrap().select_action();
         match action {
             Some(act) => debot.execute_action(&act).await?,
