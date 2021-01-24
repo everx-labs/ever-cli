@@ -14,8 +14,10 @@ use crate::config::Config;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use simplelog::*;
 use term_browser::run_debot_browser;
+use cpp_term_browser::run_cpp_debot_browser;
 
 pub mod term_browser;
+pub mod cpp_term_browser;
 mod term_signing_box;
 
 pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
@@ -31,6 +33,14 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                     Arg::with_name("ADDRESS")
                         .required(true)
                         .help("Debot address."),
+                )
+        )
+        .subcommand(
+            SubCommand::with_name("cpprun")
+                .arg(
+                    Arg::with_name("TVC_PATH")
+                        .required(true)
+                        .help("Debot tvc path."),
                 )
         )
 }
@@ -64,6 +74,8 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 
     if let Some(m) = m.subcommand_matches("fetch") {
         return fetch_command(m, config).await;
+    } else if let Some(m) = m.subcommand_matches("cpprun") {
+        return cpprun_command(m, config).await;
     }
     Err("unknown debot command".to_owned())
 }
@@ -71,4 +83,11 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
     return run_debot_browser(addr.unwrap(), config).await;
+}
+
+async fn cpprun_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), String> {
+    let tvc_path = m.value_of("TVC_PATH").unwrap();
+
+    run_cpp_debot_browser(&tvc_path.to_string(), conf).await?;
+    Ok(())
 }

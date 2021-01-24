@@ -28,6 +28,7 @@ sha2 = "0.8"
 simplelog = "0.8.0"
 log = {version = "0.4.11", features = ["std"] }
 tokio = { version = "0.2", features = ["full"], default-features = false }
+console = "0.14.0"
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
 ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git' }
