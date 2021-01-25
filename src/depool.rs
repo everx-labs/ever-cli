@@ -338,11 +338,13 @@ async fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
             collection: "messages".to_owned(),
             filter: Some(events_filter(depool, now())),
             result: "id body created_at created_at_string".to_owned(),
-            timeout: None,
+            timeout: Some(conf.timeout),
         },
         
-    ).await.map_err(|e| format!("failed to query event: {}", e.to_string()))?;
-    print_event(ton.clone(), &event.result);
+    ).await.map_err(|e| println!("failed to query event: {}", e.to_string()));
+    if event.is_ok() {
+        print_event(ton.clone(), &event.unwrap().result);
+    }
     Ok(())
 }
 /*

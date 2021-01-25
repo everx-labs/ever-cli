@@ -346,6 +346,13 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#"StakeSigningRequested"#))
         .stdout(predicate::str::contains(r#"{"electionId":"1","proxy":"0:0000000000000000000000000000000000000000000000000000000000000002"}"#));
 
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("events")
+        .arg("-w");
+    cmd.assert()
+        .success();
+
     Ok(())
 }
 
