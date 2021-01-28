@@ -96,7 +96,7 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             out_of_sync_threshold: (conf.timeout / 2),
             access_key: None,
             endpoints: None,
-            max_reconnect_timeout: 1000,
+            reconnect_timeout: 1000,
         },
     };
     let cli =
