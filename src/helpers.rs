@@ -96,7 +96,7 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             out_of_sync_threshold: (conf.timeout / 2),
             access_key: None,
             endpoints: None,
-            reconnect_timeout: 1000,
+            max_reconnect_timeout: 1000,
         },
     };
     let cli =
@@ -177,6 +177,7 @@ pub async fn calc_acc_address(
         tvc: base64::encode(tvc),
         workchain_id: Some(wc),
         initial_data: init_data_json,
+        ..Default::default()
     };
     let result = ton_client::abi::encode_message(
         ton.clone(),
