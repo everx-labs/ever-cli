@@ -158,6 +158,10 @@ impl BrowserCallbacks for Callbacks {
         }
         Ok(())
     }
+
+    async fn send(&self, _message: String) {
+        unimplemented!()
+    }
 }
 
 pub(crate) fn input<R, W>(prefix: &str, reader: &mut R, writer: &mut W) -> String
