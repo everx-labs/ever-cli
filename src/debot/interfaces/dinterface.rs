@@ -1,9 +1,11 @@
-use ton_client::debot::{DebotInterfaceExecutor, DebotInterface};
-use std::collections::HashMap;
-use crate::helpers::{TonClient};
-use std::sync::Arc;
+use super::address_input::AddressInput;
 use super::echo::Echo;
 use super::stdout::Stdout;
+use crate::helpers::TonClient;
+use serde_json::Value;
+use std::collections::HashMap;
+use std::sync::Arc;
+use ton_client::debot::{DebotInterface, DebotInterfaceExecutor};
 
 pub struct SupportedInterfaces {
     client: TonClient,
@@ -15,7 +17,6 @@ impl DebotInterfaceExecutor for SupportedInterfaces {
     fn get_interfaces<'a>(&'a self) -> &'a HashMap<String, Arc<dyn DebotInterface + Send + Sync>> {
         &self.interfaces
     }
-    
     fn get_client(&self) -> TonClient {
         self.client.clone()
     }
@@ -25,18 +26,25 @@ impl SupportedInterfaces {
     pub fn new(client: TonClient) -> Self {
         let mut interfaces = HashMap::new();
 
-        /*let iface: Arc<dyn DebotInterface + Send + Sync> =
-            Arc::new(AddressInputInterface::new());
-        interfaces.insert(iface.get_id(), iface);*/
-
-        let iface: Arc<dyn DebotInterface + Send + Sync> =
-            Arc::new(Stdout::new());
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(AddressInput::new());
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> =
-            Arc::new(Echo::new());
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Stdout::new());
+        interfaces.insert(iface.get_id(), iface);
+
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Echo::new());
         interfaces.insert(iface.get_id(), iface);
 
         Self { client, interfaces }
     }
+}
+
+pub fn decode_answer_id(args: &Value) -> Result<u32, String> {
+    u32::from_str_radix(
+        args["answerId"]
+            .as_str()
+            .ok_or(format!("answer id not found in argument list"))?,
+        10,
+    )
+    .map_err(|e| format!("{}", e))
 }

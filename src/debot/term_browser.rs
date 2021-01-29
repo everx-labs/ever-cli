@@ -228,6 +228,20 @@ where
     input_str.trim().to_owned()
 }
 
+pub(crate) fn terminal_input<F>(prompt: &str, validator: F) -> String 
+where
+    F: Fn(&String) -> Result<(), String>
+{
+    let stdio = io::stdin();
+    let mut reader = stdio.lock();
+    let mut writer = io::stdout();
+    let mut value = input(prompt, &mut reader, &mut writer);
+    while let Err(e) = validator(&value) {
+        println!("{}. Try again.", e);
+        value = input(prompt, &mut reader, &mut writer);
+    }
+    value
+}
 fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
     let mut a_str = String::new();
     let mut argc = 0;
