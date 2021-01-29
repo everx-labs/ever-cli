@@ -1,6 +1,7 @@
 use super::address_input::AddressInput;
 use super::echo::Echo;
 use super::stdout::Stdout;
+use super::terminal::Terminal;
 use crate::helpers::TonClient;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -33,6 +34,9 @@ impl SupportedInterfaces {
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Echo::new());
+        interfaces.insert(iface.get_id(), iface);
+
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Terminal::new());
         interfaces.insert(iface.get_id(), iface);
 
         Self { client, interfaces }

@@ -228,9 +228,9 @@ where
     input_str.trim().to_owned()
 }
 
-pub(crate) fn terminal_input<F>(prompt: &str, validator: F) -> String 
+pub(crate) fn terminal_input<F>(prompt: &str, mut validator: F) -> String 
 where
-    F: Fn(&String) -> Result<(), String>
+    F: FnMut(&String) -> Result<(), String>
 {
     let stdio = io::stdin();
     let mut reader = stdio.lock();

@@ -15,3 +15,4 @@ pub mod dinterface;
 pub mod echo;
 pub mod stdout;
 pub mod address_input;
+pub mod terminal;
