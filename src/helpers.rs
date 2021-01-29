@@ -94,9 +94,8 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             message_processing_timeout: 30000,
             wait_for_timeout: 30000,
             out_of_sync_threshold: (conf.timeout / 2),
-            access_key: None,
-            endpoints: None,
             reconnect_timeout: 1000,
+            ..Default::default()
         },
     };
     let cli =
