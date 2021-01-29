@@ -18,7 +18,7 @@ use ton_client::abi::{Signer, CallSet, DeploySet, ParamsOfEncodeMessage};
 
 pub async fn deploy_contract(conf: Config, tvc: &str, abi: &str, params: &str, keys_file: &str, wc: i32) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
-    
+
     let abi = std::fs::read_to_string(abi)
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let abi = load_abi(&abi)?;
@@ -27,7 +27,7 @@ pub async fn deploy_contract(conf: Config, tvc: &str, abi: &str, params: &str, k
 
     let tvc_bytes = &std::fs::read(tvc)
         .map_err(|e| format!("failed to read smart contract file: {}", e))?;
-    
+
     let tvc_base64 = base64::encode(&tvc_bytes);
 
     let addr = calc_acc_address(
@@ -42,7 +42,8 @@ pub async fn deploy_contract(conf: Config, tvc: &str, abi: &str, params: &str, k
     let dset = DeploySet {
         tvc: tvc_base64,
         workchain_id: Some(wc),
-        ..Default::default()
+        initial_data: None,
+        initial_pubkey: None,
     };
     let params = serde_json::from_str(params)
         .map_err(|e| format!("function arguments is not a json: {}", e))?;
