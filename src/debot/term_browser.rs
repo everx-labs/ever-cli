@@ -15,12 +15,11 @@ use crate::config::Config;
 use crate::helpers::{create_client, load_ton_address, TonClient};
 use std::io::{self, BufRead, Write};
 use std::sync::{Arc, RwLock};
-use ton_client::abi::{Abi, ParamsOfDecodeMessageBody, decode_message_body};
 use ton_client::boc::{ParamsOfParse, parse_message};
 use ton_client::crypto::SigningBoxHandle;
-use ton_client::debot::{DEBOT_WC, BrowserCallbacks, DAction, DEngine, STATE_EXIT};
+use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngine, STATE_EXIT};
 use std::collections::VecDeque;
-use super::{SUPPORTED_INTERFACES, ECHO_ABI, STDOUT_ABI, Echo, Stdout};
+use super::{SupportedInterfaces};
 
 struct TerminalBrowser {
     state_id: u8,
@@ -34,7 +33,7 @@ impl TerminalBrowser {
         Self {
             state_id: 0,
             active_actions: vec![],
-            client,
+            client: client.clone(),
             msg_queue: Default::default(),
         }
     }
@@ -67,54 +66,23 @@ impl TerminalBrowser {
     async fn handle_interface_calls(
         client: TonClient,
         msg: String,
-        debot: &mut DEngine
+        debot: &mut DEngine,
+        interfaces: &SupportedInterfaces,
     ) -> Result<(), String> {
         
         let parsed = parse_message(
             client.clone(),
-            ParamsOfParse { boc: msg },
+            ParamsOfParse { boc: msg.clone() },
         ).map_err(|e| format!("{}", e))?;
 
-        let body = parsed.parsed["body"]
-            .as_str()
-            .ok_or(format!("parsed message has no body"))?
-            .to_owned();
         let iface_addr = parsed.parsed["dst"]
             .as_str()
             .ok_or(format!("parsed message has no dst address"))?;
         let wc_and_addr: Vec<_> = iface_addr.split(':').collect();
-        let interface_id = wc_and_addr[1];
-        let wc = i8::from_str_radix(wc_and_addr[0], 10)
-            .map_err(|e| format!("interface dst address has invalid workchain id {}", e))?;
+        let interface_id = wc_and_addr[1].to_string();
         
-        if wc != DEBOT_WC {
-            Err(format!("invalid interface workchain id {}", wc))?;
-        }
-        if !SUPPORTED_INTERFACES.contains(&interface_id) {
-            Err(format!("interface {} not supported", interface_id))?;
-        }
-        debug!("call for interface id {}", interface_id);
-
-        let abi = if interface_id == SUPPORTED_INTERFACES[0] {
-            Abi::Json(ECHO_ABI.to_owned())
-        } else if interface_id == SUPPORTED_INTERFACES[1] {
-            Abi::Json(STDOUT_ABI.to_owned())
-        } else {
-            return Err(format!("unknown interface"));
-        };
-        let decoded = decode_message_body(
-            client.clone(),
-            ParamsOfDecodeMessageBody {
-                abi,
-                body,
-                is_internal: true,
-            },
-        ).map_err(|e| format!(" failed to decode message body: {}", e))?;
-
-        debug!("request: {} ({})", decoded.name, decoded.value.as_ref().unwrap());
-
-        if interface_id == SUPPORTED_INTERFACES[0] {
-            let (func_id, return_args) = Echo::call(&decoded.name, decoded.value.as_ref().unwrap());
+        if let Some(result) = interfaces.try_execute(&msg, &interface_id).await {
+            let (func_id, return_args) = result?;
             debug!("response: {} ({})", func_id, return_args);
             let result = debot.send(
                 iface_addr.to_owned(), func_id, return_args.to_string()
@@ -123,9 +91,7 @@ impl TerminalBrowser {
                 println!("debot call failed: {}", e);
             }
         }
-        if interface_id == SUPPORTED_INTERFACES[1] {
-            Stdout::call(&decoded.name, decoded.value.as_ref().unwrap());
-        }
+
         Ok(())
     }
     
@@ -294,6 +260,8 @@ pub async fn run_debot_browser(
 ) -> Result<(), String> {
     println!("Connecting to {}", config.url);
     let ton = create_client(&config)?;
+    let interfaces = SupportedInterfaces::new(ton.clone());
+
     let browser = Arc::new(RwLock::new(TerminalBrowser::new(ton.clone())));
 
     let callbacks = Arc::new(Callbacks::new(Arc::clone(&browser)));
@@ -303,7 +271,12 @@ pub async fn run_debot_browser(
     loop {
         let mut next_msg = browser.write().unwrap().msg_queue.pop_front();
         while let Some(msg) = next_msg {
-            TerminalBrowser::handle_interface_calls(ton.clone(), msg, &mut debot).await?;
+            TerminalBrowser::handle_interface_calls(
+                ton.clone(),
+                msg,
+                &mut debot,
+                &interfaces,
+            ).await?;
             next_msg = browser.write().unwrap().msg_queue.pop_front();
         }
         let action = browser.read().unwrap().select_action();

@@ -1,9 +1,42 @@
+use ton_client::debot::{DebotInterfaceExecutor, DebotInterface};
+use std::collections::HashMap;
+use crate::helpers::{TonClient};
+use std::sync::Arc;
+use super::echo::Echo;
+use super::stdout::Stdout;
 
-pub const SUPPORTED_INTERFACES: &[&str] = &[
-    "f6927c0d4bdb69e1b52d27f018d156ff04152f00558042ff674f0fec32e4369d",
-    "c91dcc3fddb30485a3a07eb7c1e5e2aceaf75f4bc2678111de1f25291cdda80b"
-];
+pub struct SupportedInterfaces {
+    client: TonClient,
+    interfaces: HashMap<String, Arc<dyn DebotInterface + Send + Sync>>,
+}
 
-trait DebotInterface {
-	
+#[async_trait::async_trait]
+impl DebotInterfaceExecutor for SupportedInterfaces {
+    fn get_interfaces<'a>(&'a self) -> &'a HashMap<String, Arc<dyn DebotInterface + Send + Sync>> {
+        &self.interfaces
+    }
+    
+    fn get_client(&self) -> TonClient {
+        self.client.clone()
+    }
+}
+
+impl SupportedInterfaces {
+    pub fn new(client: TonClient) -> Self {
+        let mut interfaces = HashMap::new();
+
+        /*let iface: Arc<dyn DebotInterface + Send + Sync> =
+            Arc::new(AddressInputInterface::new());
+        interfaces.insert(iface.get_id(), iface);*/
+
+        let iface: Arc<dyn DebotInterface + Send + Sync> =
+            Arc::new(Stdout::new());
+        interfaces.insert(iface.get_id(), iface);
+
+        let iface: Arc<dyn DebotInterface + Send + Sync> =
+            Arc::new(Echo::new());
+        interfaces.insert(iface.get_id(), iface);
+
+        Self { client, interfaces }
+    }
 }

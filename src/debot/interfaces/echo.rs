@@ -1,4 +1,8 @@
 use serde_json::Value;
+use ton_client::debot::{DebotInterface, InterfaceResult};
+use ton_client::abi::Abi;
+
+const ECHO_ID: &'static str = "f6927c0d4bdb69e1b52d27f018d156ff04152f00558042ff674f0fec32e4369d";
 
 pub const ECHO_ABI: &str = r#"
 {
@@ -32,19 +36,33 @@ pub const ECHO_ABI: &str = r#"
 
 pub struct Echo {}
 impl Echo {
-    fn echo(answer_id: u32, request: &str) -> (u32, Value) {
-        ( answer_id, json!({ "response": hex::encode(request.as_bytes()) }) )
+	
+	pub fn new() -> Self {
+		Self{}
+	}
+	
+    fn echo(&self, args: &Value) -> InterfaceResult {
+		let answer_id = u32::from_str_radix(args["answerId"].as_str().unwrap(), 10).unwrap();
+		let request_vec = hex::decode(args["request"].as_str().unwrap()).unwrap();
+		let request = std::str::from_utf8(&request_vec).unwrap();
+		Ok(( answer_id, json!({ "response": hex::encode(request.as_bytes()) }) ))
+    }
+}
+
+#[async_trait::async_trait]
+impl DebotInterface for Echo {
+    fn get_id(&self) -> String {
+        ECHO_ID.to_string()
     }
 
-    pub fn call(func: &str, args: &Value) -> (u32, Value) {
+    fn get_abi(&self) -> Abi {
+        Abi::Json(ECHO_ABI.to_owned())
+    }
+
+    async fn call(&self, func: &str, args: &Value) -> InterfaceResult {
         match func {
-            "echo" => {
-                let answer_id = u32::from_str_radix(args["answerId"].as_str().unwrap(), 10).unwrap();
-                let request_vec = hex::decode(args["request"].as_str().unwrap()).unwrap();
-                let request = std::str::from_utf8(&request_vec).unwrap();
-                Self::echo(answer_id, request)
-            },
-            _ => panic!("interface function not found"),
+            "echo" => self.echo(args),
+            _ => Err(format!("function \"{}\" is not implemented", func)),
         }
     }
 }
