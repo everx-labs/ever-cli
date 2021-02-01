@@ -164,7 +164,7 @@ impl Terminal {
         let fargs = args["fargs"].as_str().ok_or(format!(r#"argument "fargs" not found"#))?;
         let boc_bytes = base64::decode(&fargs)
             .map_err(|e| format!("failed to decode cell from base64: {}", e))?;
-        let mut args_cell = deserialize_tree_of_cells(&mut boc_bytes.as_slice())
+        let args_cell = deserialize_tree_of_cells(&mut boc_bytes.as_slice())
             .map_err(|e| format!("failed to deserialize cell: {}", e))?;
         
         let message = printf(&fmt, |_arg| {
