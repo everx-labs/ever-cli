@@ -67,6 +67,7 @@ const ABI: &str = r#"
 		{
 			"name": "print",
 			"inputs": [
+				{"name":"answerId","type":"uint32"},
 				{"name":"message","type":"bytes"}
 			],
 			"outputs": [
@@ -75,6 +76,7 @@ const ABI: &str = r#"
 		{
 			"name": "printf",
 			"inputs": [
+				{"name":"answerId","type":"uint32"},
 				{"name":"fmt","type":"bytes"},
 				{"name":"fargs","type":"cell"}
 			],
@@ -154,12 +156,14 @@ impl Terminal {
     }
 
     pub fn print(&self, args: &Value) -> InterfaceResult {
-		let message = decode_string_arg(args, "message")?;
+        let answer_id = decode_answer_id(args)?;
+        let message = decode_string_arg(args, "message")?;
 		println!("{}", message);
-		Ok((0, json!({})))
+		Ok((answer_id, json!({})))
     }
 
     pub fn printf(&self, args: &Value) -> InterfaceResult {
+        let answer_id = decode_answer_id(args)?;
         let fmt = decode_string_arg(args, "fmt")?;
         let fargs = args["fargs"].as_str().ok_or(format!(r#"argument "fargs" not found"#))?;
         let boc_bytes = base64::decode(&fargs)
@@ -172,7 +176,7 @@ impl Terminal {
         });
 
 		println!("{}", message);
-		Ok((0, json!({})))
+		Ok((answer_id, json!({})))
     }
 }
 
