@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
- pub const DEPOOL_ABI: &str = r#"
- {
+pub const DEPOOL_ABI: &str = r#"
+{
 	"ABI version": 2,
 	"header": ["time", "expire"],
 	"functions": [
@@ -84,6 +84,22 @@
 		{
 			"name": "cancelWithdrawal",
 			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "setVestingDonor",
+			"inputs": [
+				{"name":"donor","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "setLockDonor",
+			"inputs": [
+				{"name":"donor","type":"address"}
 			],
 			"outputs": [
 			]
@@ -215,7 +231,9 @@
 				{"name":"reward","type":"uint64"},
 				{"name":"stakes","type":"map(uint64,uint64)"},
 				{"components":[{"name":"remainingAmount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"vestings","type":"map(uint64,tuple)"},
-				{"components":[{"name":"remainingAmount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"locks","type":"map(uint64,tuple)"}
+				{"components":[{"name":"remainingAmount","type":"uint64"},{"name":"lastWithdrawalTime","type":"uint64"},{"name":"withdrawalPeriod","type":"uint32"},{"name":"withdrawalValue","type":"uint64"},{"name":"owner","type":"address"}],"name":"locks","type":"map(uint64,tuple)"},
+				{"name":"vestingDonor","type":"address"},
+				{"name":"lockDonor","type":"address"}
 			]
 		},
 		{
@@ -257,7 +275,7 @@
 			"inputs": [
 			],
 			"outputs": [
-				{"components":[{"name":"id","type":"uint64"},{"name":"supposedElectedAt","type":"uint32"},{"name":"unfreeze","type":"uint32"},{"name":"stakeHeldFor","type":"uint32"},{"name":"vsetHashInElectionPhase","type":"uint256"},{"name":"step","type":"uint8"},{"name":"completionReason","type":"uint8"},{"name":"stake","type":"uint64"},{"name":"recoveredStake","type":"uint64"},{"name":"unused","type":"uint64"},{"name":"isValidatorStakeCompleted","type":"bool"},{"name":"rewards","type":"uint64"},{"name":"participantQty","type":"uint32"},{"name":"validatorStake","type":"uint64"},{"name":"validatorRemainingStake","type":"uint64"},{"name":"handledStakesAndRewards","type":"uint64"}],"name":"rounds","type":"map(uint64,tuple)"}
+				{"components":[{"name":"id","type":"uint64"},{"name":"supposedElectedAt","type":"uint32"},{"name":"unfreeze","type":"uint32"},{"name":"stakeHeldFor","type":"uint32"},{"name":"vsetHashInElectionPhase","type":"uint256"},{"name":"step","type":"uint8"},{"name":"completionReason","type":"uint8"},{"name":"stake","type":"uint64"},{"name":"recoveredStake","type":"uint64"},{"name":"unused","type":"uint64"},{"name":"isValidatorStakeCompleted","type":"bool"},{"name":"participantReward","type":"uint64"},{"name":"participantQty","type":"uint32"},{"name":"validatorStake","type":"uint64"},{"name":"validatorRemainingStake","type":"uint64"},{"name":"handledStakesAndRewards","type":"uint64"}],"name":"rounds","type":"map(uint64,tuple)"}
 			]
 		}
 	],
@@ -308,7 +326,7 @@
 		{
 			"name": "RoundCompleted",
 			"inputs": [
-				{"components":[{"name":"id","type":"uint64"},{"name":"supposedElectedAt","type":"uint32"},{"name":"unfreeze","type":"uint32"},{"name":"stakeHeldFor","type":"uint32"},{"name":"vsetHashInElectionPhase","type":"uint256"},{"name":"step","type":"uint8"},{"name":"completionReason","type":"uint8"},{"name":"stake","type":"uint64"},{"name":"recoveredStake","type":"uint64"},{"name":"unused","type":"uint64"},{"name":"isValidatorStakeCompleted","type":"bool"},{"name":"rewards","type":"uint64"},{"name":"participantQty","type":"uint32"},{"name":"validatorStake","type":"uint64"},{"name":"validatorRemainingStake","type":"uint64"},{"name":"handledStakesAndRewards","type":"uint64"}],"name":"round","type":"tuple"}
+				{"components":[{"name":"id","type":"uint64"},{"name":"supposedElectedAt","type":"uint32"},{"name":"unfreeze","type":"uint32"},{"name":"stakeHeldFor","type":"uint32"},{"name":"vsetHashInElectionPhase","type":"uint256"},{"name":"step","type":"uint8"},{"name":"completionReason","type":"uint8"},{"name":"stake","type":"uint64"},{"name":"recoveredStake","type":"uint64"},{"name":"unused","type":"uint64"},{"name":"isValidatorStakeCompleted","type":"bool"},{"name":"participantReward","type":"uint64"},{"name":"participantQty","type":"uint32"},{"name":"validatorStake","type":"uint64"},{"name":"validatorRemainingStake","type":"uint64"},{"name":"handledStakesAndRewards","type":"uint64"}],"name":"round","type":"tuple"}
 			],
 			"outputs": [
 			]
@@ -335,6 +353,14 @@
 			"inputs": [
 				{"name":"validator","type":"uint8"},
 				{"name":"participants","type":"uint8"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "InternalError",
+			"inputs": [
+				{"name":"ec","type":"uint16"}
 			],
 			"outputs": [
 			]

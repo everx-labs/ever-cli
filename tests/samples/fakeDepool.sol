@@ -81,10 +81,17 @@ contract FakeDePool {
         m_value = msg.value;
     }
 
-
     function getData() public view returns (uint64 stake, address sender, address receiver,
         uint32 withdrawal, uint32 total, bool reinvest, uint128 value) {
         return (m_stake, m_sender, m_receiver, m_withdrawal, m_total, m_reinvest, m_value);
+    }
+
+    function setVestingDonor(address donor) public {
+        m_receiver = donor;
+    }
+
+    function setLockDonor(address donor) public {
+        m_receiver = donor;
     }
 
 }
