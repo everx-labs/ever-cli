@@ -232,9 +232,11 @@ async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, String>
     if accounts.len() == 0 {
         return Err(format!("account not found"));
     }
-
-    let boc = accounts[0]["boc"].as_str().unwrap().to_owned();
-    Ok(boc)
+    let boc = accounts[0]["boc"].as_str();
+    if boc.is_none() {
+        return Err(format!("account doesn't contain data"));
+    }
+    Ok(boc.unwrap().to_owned())
 }
 
 async fn send_message_and_wait(
