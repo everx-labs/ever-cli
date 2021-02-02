@@ -6,6 +6,7 @@ use ton_client::debot::{DebotInterface, InterfaceResult};
 use crate::convert::convert_token;
 use ton_types::cells_serialization::deserialize_tree_of_cells;
 use ton_client::encoding::decode_abi_bigint;
+use std::io::{self, Read};
 
 const ID: &'static str = "8796536366ee21852db56dccb60bc564598b618c865fc50c8b1ab740bba128e3";
 
@@ -18,7 +19,8 @@ const ABI: &str = r#"
 			"name": "inputStr",
 			"inputs": [
 				{"name":"answerId","type":"uint32"},
-				{"name":"prompt","type":"bytes"}
+                {"name":"prompt","type":"bytes"},
+                {"name":"multiline","type":"bool"}
 			],
 			"outputs": [
 				{"name":"value","type":"bytes"}
@@ -105,7 +107,17 @@ impl Terminal {
     }
     fn input_str(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
-        let value = terminal_input(&decode_prompt(args)?, |_val| Ok(()));
+        let prompt = decode_prompt(args)?;
+        let multiline = decode_bool_arg(args, "multiline")?;
+        let mut value = String::new();
+        if multiline {
+            println!("{}", &prompt);
+            println!("(Ctrl+D to exit)");
+            std::io::stdin().read_to_string(&mut value)
+                .map_err(|e| format!("input error: {}", e))?;
+        } else {
+            value = terminal_input(&prompt, |_val| Ok(()));
+        }
         Ok((answer_id, json!({ "value": hex::encode(value.as_bytes()) })))
     }
 
@@ -204,11 +216,22 @@ impl DebotInterface for Terminal {
     }
 }
 
-fn decode_string_arg(args: &Value, name: &str) -> Result<String, String> {
-    let hex_str = args[name]
+fn decode_arg(args: &Value, name: &str) -> Result<String, String> {
+    args[name]
         .as_str()
-        .ok_or(format!("\"{}\" not found", name))?;
-    let bytes = hex::decode(hex_str).map_err(|e| format!("{}", e))?;
+        .ok_or(format!("\"{}\" not found", name))
+        .map(|x| x.to_string())
+}
+
+fn decode_bool_arg(args: &Value, name: &str) -> Result<bool, String> {
+    args[name]
+        .as_bool()
+        .ok_or(format!("\"{}\" not found", name))
+}
+
+fn decode_string_arg(args: &Value, name: &str) -> Result<String, String> {
+    let bytes = hex::decode(&decode_arg(args, name)?)
+        .map_err(|e| format!("{}", e))?;
     std::str::from_utf8(&bytes)
         .map_err(|e| format!("{}", e))
         .map(|x| x.to_string())
