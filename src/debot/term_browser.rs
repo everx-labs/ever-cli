@@ -242,7 +242,7 @@ where
     }
     value
 }
-fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
+pub fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
     let mut a_str = String::new();
     let mut argc = 0;
     let mut argv = vec![];

@@ -2,6 +2,7 @@ use super::address_input::AddressInput;
 use super::echo::Echo;
 use super::stdout::Stdout;
 use super::terminal::Terminal;
+use super::menu::Menu;
 use crate::helpers::TonClient;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -39,6 +40,9 @@ impl SupportedInterfaces {
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Terminal::new());
         interfaces.insert(iface.get_id(), iface);
 
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Menu::new());
+        interfaces.insert(iface.get_id(), iface);
+
         Self { client, interfaces }
     }
 }
@@ -51,4 +55,29 @@ pub fn decode_answer_id(args: &Value) -> Result<u32, String> {
         10,
     )
     .map_err(|e| format!("{}", e))
+}
+
+pub fn decode_arg(args: &Value, name: &str) -> Result<String, String> {
+    args[name]
+        .as_str()
+        .ok_or(format!("\"{}\" not found", name))
+        .map(|x| x.to_string())
+}
+
+pub fn decode_bool_arg(args: &Value, name: &str) -> Result<bool, String> {
+    args[name]
+        .as_bool()
+        .ok_or(format!("\"{}\" not found", name))
+}
+
+pub fn decode_string_arg(args: &Value, name: &str) -> Result<String, String> {
+    let bytes = hex::decode(&decode_arg(args, name)?)
+        .map_err(|e| format!("{}", e))?;
+    std::str::from_utf8(&bytes)
+        .map_err(|e| format!("{}", e))
+        .map(|x| x.to_string())
+}
+
+pub fn decode_prompt(args: &Value) -> Result<String, String> {
+    decode_string_arg(args, "prompt")
 }
