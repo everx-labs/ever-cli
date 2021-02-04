@@ -350,7 +350,7 @@ pub async fn generate_message(
 ) -> Result<(), String> {
     let ton = create_client_local()?;
 
-    let ton_addr = load_ton_address(addr)
+    let ton_addr = load_ton_address(addr, &_conf)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
 
     let abi = load_abi(&abi)?;
@@ -424,10 +424,10 @@ pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<St
 pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
-    load_ton_address(addr)
+    let addr = load_ton_address(addr, &conf)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
 
-    let acc_boc = query_account_boc(ton.clone(), addr).await?;
+    let acc_boc = query_account_boc(ton.clone(), addr.as_str()).await?;
 
     let params = params.map(|p| serde_json::from_str(&p))
         .transpose()

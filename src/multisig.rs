@@ -13,7 +13,7 @@
 use crate::call;
 use crate::config::Config;
 use crate::convert;
-use crate::helpers::{create_client_local, load_abi};
+use crate::helpers::{create_client_local, load_abi, load_ton_address};
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 use ton_client::abi::{encode_message_body, ParamsOfEncodeMessageBody, CallSet, Signer};
 
@@ -203,7 +203,8 @@ async fn multisig_send_command(matches: &ArgMatches<'_>, config: Config) -> Resu
         .ok_or(format!("--value parameter is not defined"))?;
     let comment = matches.value_of("PURPOSE");
 
-    send(config, address, dest, value, keys, comment).await
+    let address = load_ton_address(address, &config)?;
+    send(config, address.as_str(), dest, value, keys, comment).await
 }
 
 pub async fn encode_transfer_body(text: &str) -> Result<String, String> {

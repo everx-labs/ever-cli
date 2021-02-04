@@ -859,6 +859,42 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+
+#[test]
+fn test_config_wc() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg("https://net.ton.dev")
+        .arg("--wc")
+        .arg("-1");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg("3333333333333333333333333333333333333333333333333333333333333333");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("acc_type:      Active"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--wc")
+        .arg("0");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg("3333333333333333333333333333333333333333333333333333333333333333");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Account not found"));
+    Ok(())
+}
+
+
 #[test]
 fn test_account_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
