@@ -259,6 +259,10 @@ pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String
         None,
     ).await.map_err(|e| format!("failed to query master block config: {}", e))?;
 
+    if config_query.len() == 0 {
+        Err("Config was not set".to_string())?;
+    }
+
     let config = &config_query[0]["master"]["config"][&config_name];
     let config_str = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("failed to parse config body from sdk: {}", e))?;
