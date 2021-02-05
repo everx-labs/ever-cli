@@ -281,6 +281,61 @@ fn test_depool() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
+    let depool_addr = "0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6";
+    let msig_abi = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.abi.json";
+    let msig_addr = "0:507fc74745d5a259b9939dfbdfd97cd186d13e8a7160206f3054746c1f0518cd";
+    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("body")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg("addOrdinaryStake")
+        .arg(r#"{"stake":65535}"#);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("te6ccgEBAQEADgAAGAqsGP0AAAAAAAD//w=="));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"stake": "4000000000"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("--abi")
+        .arg(msig_abi)
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg(msig_addr)
+        .arg("sendTransaction")
+        .arg(r#"{"dest":"0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6","value":1000000000,"bounce":true,"flags":1,"payload":"te6ccgEBAQEADgAAGAqsGP0AAAAAAAD//w=="}"#);
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"stake": "65535"#));
+
+    Ok(())
+}
+
+#[test]
 fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
     let depool_addr = "0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6";

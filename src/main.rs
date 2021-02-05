@@ -40,12 +40,13 @@ use debot::{create_debot_command, debot_command};
 use decode::{create_decode_command, decode_command};
 use deploy::deploy_contract;
 use depool::{create_depool_command, depool_command};
-use helpers::load_ton_address;
+use helpers::{load_ton_address, load_abi, create_client_local};
 use genaddr::generate_address;
 use getconfig::query_global_config;
 use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
+use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet, Signer};
 
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
@@ -226,6 +227,15 @@ async fn main_internal() -> Result <(), String> {
             (@arg OUTPUT: -o --output +takes_value "Path to file where to store message.")
             (@arg RAW: --raw "Creates raw message boc.")
         )
+        (@subcommand body =>
+            (@setting AllowLeadingHyphen)
+            (about: "Generates a payload for internal function call.")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
+            (author: "TONLabs")
+            (@arg METHOD: +required +takes_value "Name of calling contract method.")
+            (@arg PARAMS: +required +takes_value "Arguments for the contract method. Can be passed via a filename.")
+            (@arg ABI: --abi +takes_value "Json file with contract ABI.")
+        )
         (@subcommand run =>
             (@setting AllowLeadingHyphen)
             (about: "Runs contract function locally.")
@@ -356,6 +366,9 @@ async fn main_internal() -> Result <(), String> {
     if let Some(m) = matches.subcommand_matches("runget") {
         return runget_command(m, conf).await;
     }
+    if let Some(m) = matches.subcommand_matches("body") {
+        return body_command(m, conf).await;
+    }
     if let Some(m) = matches.subcommand_matches("message") {
         return call_command(m, conf, CallType::Msg).await;
     }
@@ -476,6 +489,45 @@ fn load_params(params: &str) -> Result<String, String> {
     } else {
         params.to_string()
     })
+}
+
+async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let method = matches.value_of("METHOD");
+    let params = matches.value_of("PARAMS");
+    let output = matches.value_of("OUTPUT");
+    let abi = Some(
+        matches.value_of("ABI")
+            .map(|s| s.to_string())
+            .or(config.abi_path.clone())
+            .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
+    );
+    let params = Some(load_params(params.unwrap())?);
+    print_args!(matches, method, params, abi, output);
+
+    let params = serde_json::from_str(&params.unwrap())
+        .map_err(|e| format!("arguments are not in json format: {}", e))?;
+
+    let abi = std::fs::read_to_string(abi.unwrap())
+        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+    
+
+    let client = create_client_local()?;
+    let body = ton_client::abi::encode_message_body(
+        client.clone(),
+        ParamsOfEncodeMessageBody {
+            abi: load_abi(&abi)?,
+            call_set: CallSet::some_with_function_and_input(&method.unwrap(), params).unwrap(),
+            is_internal: true,
+            signer: Signer::None,
+            processing_try_index: None,
+        },
+    ).await
+    .map_err(|e| format!("failed to encode body: {}", e))
+    .map(|r| r.body)?;
+
+    println!("Message body: {}", body);
+
+    Ok(())
 }
 
 async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) -> Result<(), String> {
