@@ -4,7 +4,6 @@ use serde_json::Value;
 use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use crate::convert::convert_token;
-use ton_types::cells_serialization::deserialize_tree_of_cells;
 use ton_client::encoding::decode_abi_bigint;
 use std::io::{Read};
 
@@ -76,16 +75,6 @@ const ABI: &str = r#"
 			]
 		},
 		{
-			"name": "printf",
-			"inputs": [
-				{"name":"answerId","type":"uint32"},
-				{"name":"fmt","type":"bytes"},
-				{"name":"fargs","type":"cell"}
-			],
-			"outputs": [
-			]
-		},
-		{
 			"name": "constructor",
 			"inputs": [
 			],
@@ -134,9 +123,6 @@ impl Terminal {
         let answer_id = decode_answer_id(args)?;
         let value = terminal_input(&decode_prompt(args)?, |val| {
             let _ = decode_abi_bigint(val).map_err(|e| format!("{}", e))?;
-            /* number.is negative(){
-                Err(format!("number must be positive"))?;
-            }*/
             Ok(())
         });
         Ok((answer_id, json!({ "value": value })))
@@ -173,23 +159,6 @@ impl Terminal {
 		println!("{}", message);
 		Ok((answer_id, json!({})))
     }
-
-    pub fn printf(&self, args: &Value) -> InterfaceResult {
-        let answer_id = decode_answer_id(args)?;
-        let fmt = decode_string_arg(args, "fmt")?;
-        let fargs = args["fargs"].as_str().ok_or(format!(r#"argument "fargs" not found"#))?;
-        let boc_bytes = base64::decode(&fargs)
-            .map_err(|e| format!("failed to decode cell from base64: {}", e))?;
-        let _args_cell = deserialize_tree_of_cells(&mut boc_bytes.as_slice())
-            .map_err(|e| format!("failed to deserialize cell: {}", e))?;
-        
-        let message = printf(&fmt, |_arg| {
-            "1".to_string()
-        });
-
-		println!("{}", message);
-		Ok((answer_id, json!({})))
-    }
 }
 
 #[async_trait::async_trait]
@@ -210,48 +179,7 @@ impl DebotInterface for Terminal {
             "inputTons" => self.input_tokens(args),
             "inputBoolean" => self.input_boolean(args),
             "print" => self.print(args),
-            "printf" => self.printf(args),
             _ => Err(format!("function \"{}\" is not implemented", func)),
         }
-    }
-}
-
-fn printf<F>(fmt: &str, formatter: F) -> String 
-where
-    F: Fn(&str) -> String,
-{
-    let mut message = String::new();
-    let mut cursor = fmt;
-    while let Some(i) = cursor.find("{") {
-        let left = cursor.get(..i).unwrap();
-        let right = cursor.get(i+1..).unwrap();
-        message += left;
-        //println!("right: {}", right);
-        if left.ends_with("\\") {
-            message += "{";
-            cursor = right;
-            continue;
-        }
-        if let Some(i) = right.find("}") {
-            let arg = right.get(..i).unwrap();
-            let right = right.get(i+1..).unwrap();
-            message += &formatter(arg);
-            cursor = right;
-        }
-    }
-    message += cursor;
-    message
-} 
-
-#[cfg(test)]
-mod tests {
-    use super::printf;
-    #[test]
-    fn test_printf() {
-        let result = printf("Hello, \\{string {}! My \\age\\ is {uint32} and {}", |arg| {
-            println!("arg: {}", arg);
-            "TYPE".to_owned()
-        });
-        println!("{}", result);
     }
 }
