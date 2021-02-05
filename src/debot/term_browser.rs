@@ -69,7 +69,7 @@ impl TerminalBrowser {
         debot: &mut DEngine,
         interfaces: &SupportedInterfaces,
     ) -> Result<(), String> {
-        
+
         let parsed = parse_message(
             client.clone(),
             ParamsOfParse { boc: msg.clone() },
@@ -80,7 +80,7 @@ impl TerminalBrowser {
             .ok_or(format!("parsed message has no dst address"))?;
         let wc_and_addr: Vec<_> = iface_addr.split(':').collect();
         let interface_id = wc_and_addr[1].to_string();
-        
+
         if let Some(result) = interfaces.try_execute(&msg, &interface_id).await {
             let (func_id, return_args) = result?;
             debug!("response: {} ({})", func_id, return_args);
@@ -94,7 +94,7 @@ impl TerminalBrowser {
 
         Ok(())
     }
-    
+
 }
 
 struct Callbacks {
@@ -228,7 +228,7 @@ where
     input_str.trim().to_owned()
 }
 
-pub(crate) fn terminal_input<F>(prompt: &str, mut validator: F) -> String 
+pub(crate) fn terminal_input<F>(prompt: &str, mut validator: F) -> String
 where
     F: FnMut(&String) -> Result<(), String>
 {
@@ -274,7 +274,7 @@ pub async fn run_debot_browser(
 ) -> Result<(), String> {
     println!("Connecting to {}", config.url);
     let ton = create_client(&config)?;
-    let interfaces = SupportedInterfaces::new(ton.clone());
+    let interfaces = SupportedInterfaces::new(ton.clone(), &config);
 
     let browser = Arc::new(RwLock::new(TerminalBrowser::new(ton.clone())));
 

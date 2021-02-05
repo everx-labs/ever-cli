@@ -3,6 +3,7 @@ use super::echo::Echo;
 use super::stdout::Stdout;
 use super::terminal::Terminal;
 use super::menu::Menu;
+use crate::config::Config;
 use crate::helpers::TonClient;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -25,10 +26,10 @@ impl DebotInterfaceExecutor for SupportedInterfaces {
 }
 
 impl SupportedInterfaces {
-    pub fn new(client: TonClient) -> Self {
+    pub fn new(client: TonClient, conf: &Config) -> Self {
         let mut interfaces = HashMap::new();
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(AddressInput::new());
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(AddressInput::new(conf.clone()));
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Stdout::new());

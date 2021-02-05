@@ -4,6 +4,7 @@ use serde_json::Value;
 use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use super::dinterface::decode_answer_id;
+use crate::config::Config;
 
 const ID: &'static str = "d7ed1bd8e6230871116f4522e58df0a93c5520c56f4ade23ef3d8919a984653b";
 
@@ -36,15 +37,17 @@ pub const ABI: &str = r#"
 }
 "#;
 
-pub struct AddressInput {}
+pub struct AddressInput {
+    conf: Config
+}
 impl AddressInput {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(conf: Config) -> Self {
+        Self {conf}
     }
     fn select(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let value = terminal_input("", |val| {
-            let _ = load_ton_address(val).map_err(|e| format!("Invalid address: {}", e))?;
+            let _ = load_ton_address(val, &self.conf).map_err(|e| format!("Invalid address: {}", e))?;
             Ok(())
         });
         Ok((answer_id, json!({ "value": value })))
