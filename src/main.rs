@@ -40,6 +40,7 @@ use debot::{create_debot_command, debot_command};
 use decode::{create_decode_command, decode_command};
 use deploy::deploy_contract;
 use depool::{create_depool_command, depool_command};
+use helpers::load_ton_address;
 use genaddr::generate_address;
 use getconfig::query_global_config;
 use multisig::{create_multisig_command, multisig_command};
@@ -508,13 +509,14 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
 
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
-    
+    let address = load_ton_address(address.unwrap(), &config)?;
+
     match call {
         CallType::Call | CallType::Run => {
             let local = if let CallType::Call = call { false } else { true };
             call_contract(
                 config,
-                address.unwrap(),
+                address.as_str(),
                 abi,
                 method.unwrap(),
                 &params.unwrap(),
@@ -532,7 +534,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
 
             generate_message(
                 config,
-                address.unwrap(),
+                address.as_str(),
                 abi,
                 method.unwrap(),
                 &params.unwrap(),
@@ -569,9 +571,11 @@ async fn callex_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
         .or(config.keys_path.clone());
     
     print_args!(matches, address, method, params, abi, keys);
+    let address = load_ton_address(address.unwrap().as_str(), &config)?;
+    
     call_contract(
         config,
-        &address.unwrap(),
+        address.as_str(),
         loaded_abi,
         method.unwrap(),
         &params.unwrap(),
@@ -588,7 +592,8 @@ async fn runget_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
         json!(values.collect::<Vec<_>>()).to_string()
     });
     print_args!(matches, address, method, params);
-    run_get_method(config, address.unwrap(), method.unwrap(), params).await
+    let address = load_ton_address(address.unwrap(), &config)?;
+    run_get_method(config, address.as_str(), method.unwrap(), params).await
 }
 
 async fn deploy_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -676,7 +681,8 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
 async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     print_args!(matches, address);
-    get_account(config, address.unwrap()).await
+    let address = load_ton_address(address.unwrap(), &config)?;
+    get_account(config, address.as_str()).await
 }
 
 async fn proposal_create_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -688,6 +694,7 @@ async fn proposal_create_command(matches: &ArgMatches<'_>, config: Config) -> Re
     let offline = matches.is_present("OFFLINE");
     print_args!(matches, address, comment, keys, lifetime);
 
+    let address = load_ton_address(address.unwrap(), &config)?;
     let lifetime = lifetime.map(|val| {
         u32::from_str_radix(val, 10)
             .map_err(|e| format!("failed to parse lifetime: {}", e))
@@ -697,7 +704,7 @@ async fn proposal_create_command(matches: &ArgMatches<'_>, config: Config) -> Re
 
     create_proposal(
         config,
-        address.unwrap(),
+        address.as_str(),
         keys,
         dest.unwrap(),
         comment.unwrap(),
@@ -714,6 +721,7 @@ async fn proposal_vote_command(matches: &ArgMatches<'_>, config: Config) -> Resu
     let offline = matches.is_present("OFFLINE");
     print_args!(matches, address, id, keys, lifetime);
 
+    let address = load_ton_address(address.unwrap(), &config)?;
     let lifetime = lifetime.map(|val| {
         u32::from_str_radix(val, 10)
             .map_err(|e| format!("failed to parse lifetime: {}", e))
@@ -721,14 +729,16 @@ async fn proposal_vote_command(matches: &ArgMatches<'_>, config: Config) -> Resu
     .transpose()?
     .unwrap_or(config.timeout);
 
-    vote(config, address.unwrap(), keys, id.unwrap(), lifetime, offline).await
+    vote(config, address.as_str(), keys, id.unwrap(), lifetime, offline).await
 }
 
 async fn proposal_decode_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let id = matches.value_of("ID");
     print_args!(matches, address, id);
-    decode_proposal(config, address.unwrap(), id.unwrap()).await
+
+    let address = load_ton_address(address.unwrap(), &config)?;
+    decode_proposal(config, address.as_str(), id.unwrap()).await
 }
 
 async fn getconfig_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {

@@ -187,7 +187,7 @@ fn parse_wallet_data(m: &ArgMatches, conf: &Config) -> Result<(String, String), 
         .map(|s| s.to_string())
         .or(conf.wallet.clone())
         .ok_or("multisig wallet address is not defined.".to_string())?;
-    load_ton_address(&wallet)
+    let wallet = load_ton_address(&wallet, conf)
         .map_err(|e| format!("invalid multisig address: {}", e))?;
     let keys = m.value_of("SIGN")
         .map(|s| s.to_string())
@@ -208,7 +208,7 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
         .map(|s| s.to_string())
         .or(conf.addr.clone())
         .ok_or("depool address is not defined. Supply it in config file or in command line.".to_string())?;
-    load_ton_address(&depool)
+    let depool = load_ton_address(&depool, &conf)
         .map_err(|e| format!("invalid depool address: {}", e))?;
 
     if let Some(m) = m.subcommand_matches("donor") {
@@ -216,7 +216,7 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
         if let Some(matches) = matches {
             let is_vesting = m.subcommand_matches("vesting").is_some();
             let (wallet, keys) = parse_wallet_data(&matches, &conf)?;
-            return set_donor_command(matches, conf, &depool, &wallet, &keys, is_vesting).await;
+            return set_donor_command(matches, conf, depool.as_str(), &wallet, &keys, is_vesting).await;
         }
     }
 
@@ -229,13 +229,13 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
         if let Some(m) = m.subcommand_matches("vesting") {
             return exotic_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
-                true
+                true,
             ).await;
         }
         if let Some(m) = m.subcommand_matches("lock") {
             return exotic_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
-                false
+                false,
             ).await;
         }
         if let Some(m) = m.subcommand_matches("remove") {
@@ -336,7 +336,7 @@ fn print_event(ton: TonClient, event: &serde_json::Value) {
 
 async fn get_events(conf: Config, depool: &str, since: u32) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
-    let _addr = load_ton_address(depool)?;
+    let _addr = load_ton_address(depool, &conf)?;
 
     let events = ton_client::net::query_collection(
         ton.clone(),
@@ -358,7 +358,7 @@ async fn get_events(conf: Config, depool: &str, since: u32) -> Result<(), String
 
 async fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
-    let _addr = load_ton_address(depool)?;
+    let _addr = load_ton_address(depool, &conf)?;
     println!("Waiting for a new event...");
     let event = ton_client::net::wait_for_collection(
         ton.clone(),
@@ -534,13 +534,13 @@ async fn add_exotic_stake(
     tp: u32,
     is_vesting: bool,
 ) -> Result<(), String> {
-    load_ton_address(beneficiary)?;
+    let beneficiary = load_ton_address(beneficiary, &cmd.conf)?;
     let stake = u64::from_str_radix(&convert::convert_token(cmd.stake)?, 10)
         .map_err(|e| format!(r#"failed to parse stake value: {}"#, e))?;
     let body = if is_vesting {
-        encode_add_vesting_stake(stake, beneficiary, tp, wp).await?
+        encode_add_vesting_stake(stake, beneficiary.as_str(), tp, wp).await?
     } else {
-        encode_add_lock_stake(stake, beneficiary, tp, wp).await?
+        encode_add_lock_stake(stake, beneficiary.as_str(), tp, wp).await?
     };
     let fee = u64::from_str_radix(&convert::convert_token(&cmd.depool_fee)?, 10)
         .map_err(|e| format!(r#"failed to parse depool fee value: {}"#, e))?;
@@ -569,11 +569,11 @@ async fn withdraw_stake(
 }
 
 async fn transfer_stake(cmd: CommandData<'_>, dest: &str) -> Result<(), String> {
-    load_ton_address(dest)?;
+    let dest = load_ton_address(dest, &cmd.conf)?;
     let stake = u64::from_str_radix(
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
-    let body = encode_transfer_stake(dest, stake).await?;
+    let body = encode_transfer_stake(dest.as_str(), stake).await?;
     send_with_body(cmd.conf, &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body).await
 }
 

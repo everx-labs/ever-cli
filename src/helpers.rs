@@ -55,8 +55,11 @@ pub fn read_keys(filename: &str) -> Result<KeyPair, String> {
     Ok(keys)
 }
 
-pub fn load_ton_address(addr: &str) -> Result<String, String> {
+pub fn load_ton_address(addr: &str, conf: &Config) -> Result<String, String> {
     // TODO: checks
+    if addr.find(':').is_none() {
+        return Ok(format!("{}:{}", conf.wc, addr))
+    }
     Ok(addr.to_string())
 }
 

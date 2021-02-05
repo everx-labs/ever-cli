@@ -14,6 +14,7 @@ use crate::config::Config;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use simplelog::*;
 use term_browser::run_debot_browser;
+use crate::helpers::load_ton_address;
 
 pub mod term_browser;
 mod term_signing_box;
@@ -70,5 +71,6 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 
 async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
-    return run_debot_browser(addr.unwrap(), config).await;
+    let addr = load_ton_address(addr.unwrap(), &config)?;
+    return run_debot_browser(addr.as_str(), config).await;
 }
