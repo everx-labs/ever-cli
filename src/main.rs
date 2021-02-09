@@ -96,7 +96,7 @@ async fn main_internal() -> Result <(), String> {
     let callex_sub_command = SubCommand::with_name("callex")
         .about("Sends external message to contract with encoded function call (alternative syntax).")
         .setting(AppSettings::AllowMissingPositional)
-        .setting(AppSettings::AllowLeadingHyphen)  
+        .setting(AppSettings::AllowLeadingHyphen)
         .setting(AppSettings::TrailingVarArg)
         .setting(AppSettings::DontCollapseArgsInUsage)
         .arg(Arg::with_name("METHOD")
@@ -113,7 +113,7 @@ async fn main_internal() -> Result <(), String> {
 
     let runget_sub_command = SubCommand::with_name("runget")
         .about("Runs contract get-method.")
-        .setting(AppSettings::AllowLeadingHyphen)  
+        .setting(AppSettings::AllowLeadingHyphen)
         .setting(AppSettings::TrailingVarArg)
         .setting(AppSettings::DontCollapseArgsInUsage)
         .arg(Arg::with_name("ADDRESS")
@@ -147,7 +147,7 @@ async fn main_internal() -> Result <(), String> {
             (@subcommand tokens =>
                 (about: "Converts tokens to nanotokens.")
                 (@arg AMOUNT: +required +takes_value "Token amount value")
-            )    
+            )
         )
         (@subcommand genphrase =>
             (about: "Generates seed phrase.")
@@ -375,9 +375,9 @@ async fn main_internal() -> Result <(), String> {
     if let Some(m) = matches.subcommand_matches("send") {
         return send_command(m, conf).await;
     }
-    if let Some(m) = matches.subcommand_matches("deploy") {        
+    if let Some(m) = matches.subcommand_matches("deploy") {
         return deploy_command(m, conf).await;
-    } 
+    }
     if let Some(m) = matches.subcommand_matches("config") {
         return config_command(m, conf, config_file);
     }
@@ -423,7 +423,7 @@ async fn main_internal() -> Result <(), String> {
         return sendfile_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("decode") {
-        return decode_command(m, conf);
+        return decode_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("debot") {
         return debot_command(m, conf).await;
@@ -473,7 +473,7 @@ async fn send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
             .or(config.abi_path.clone())
             .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
     );
-    
+
     print_args!(matches, message, abi);
 
     let abi = std::fs::read_to_string(abi.unwrap())
@@ -509,7 +509,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
 
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
-    
+
 
     let client = create_client_local()?;
     let body = ton_client::abi::encode_message_body(
@@ -544,7 +544,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
             .or(config.abi_path.clone())
             .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
     );
-    
+
     let keys = match call {
         CallType::Call | CallType::Msg => {
             matches.value_of("SIGN")
@@ -621,10 +621,10 @@ async fn callex_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
     let keys = matches.value_of("SIGN")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
-    
+
     print_args!(matches, address, method, params, abi, keys);
     let address = load_ton_address(address.unwrap().as_str(), &config)?;
-    
+
     call_contract(
         config,
         address.as_str(),

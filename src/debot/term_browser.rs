@@ -63,7 +63,7 @@ impl TerminalBrowser {
         }
     }
 
-    async fn handle_interface_calls(
+    async fn handle_interface_call(
         client: TonClient,
         msg: String,
         debot: &mut DEngine,
@@ -73,7 +73,9 @@ impl TerminalBrowser {
         let parsed = parse_message(
             client.clone(),
             ParamsOfParse { boc: msg.clone() },
-        ).map_err(|e| format!("{}", e))?;
+        )
+        .await
+        .map_err(|e| format!("{}", e))?;
 
         let iface_addr = parsed.parsed["dst"]
             .as_str()
@@ -285,7 +287,7 @@ pub async fn run_debot_browser(
     loop {
         let mut next_msg = browser.write().unwrap().msg_queue.pop_front();
         while let Some(msg) = next_msg {
-            TerminalBrowser::handle_interface_calls(
+            TerminalBrowser::handle_interface_call(
                 ton.clone(),
                 msg,
                 &mut debot,

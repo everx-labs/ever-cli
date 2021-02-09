@@ -104,6 +104,7 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             max_reconnect_timeout: 1000,
             ..Default::default()
         },
+        boc: Default::default(),
     };
     let cli =
         ClientContext::new(cli_conf).map_err(|e| format!("failed to create tonclient: {}", e))?;
@@ -140,7 +141,7 @@ pub async fn query(
     .map(|r| r.result)
 }
 
-pub fn decode_msg_body(
+pub async fn decode_msg_body(
     ton: TonClient,
     abi: &str,
     body: &str,
@@ -155,6 +156,7 @@ pub fn decode_msg_body(
             is_internal,
         },
     )
+    .await
     .map_err(|e| format!("failed to decode body: {}", e))
 }
 

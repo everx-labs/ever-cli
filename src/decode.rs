@@ -21,13 +21,13 @@ use std::fmt::Write;
 fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
     matches.value_of("ABI")
         .map(|s| s.to_string())
-        .or(config.abi_path.clone())        
+        .or(config.abi_path.clone())
 }
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("decode")
         .about("Decode commands.")
-        .setting(AppSettings::AllowLeadingHyphen)  
+        .setting(AppSettings::AllowLeadingHyphen)
         .setting(AppSettings::TrailingVarArg)
         .setting(AppSettings::DontCollapseArgsInUsage)
         .subcommand(SubCommand::with_name("body")
@@ -48,17 +48,17 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                     .help("Path to ABI file.")))
 }
 
-pub fn decode_command(m: &ArgMatches, config: Config) -> Result<(), String> {
+pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     if let Some(m) = m.subcommand_matches("body") {
-        return decode_body_command(m, config);
+        return decode_body_command(m, config).await;
     }
     if let Some(m) = m.subcommand_matches("msg") {
-        return decode_message_command(m, config);
+        return decode_message_command(m, config).await;
     }
     Err("unknown command".to_owned())
 }
 
-fn decode_body_command(m: &ArgMatches, config: Config) -> Result<(), String> {
+async fn decode_body_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let body = m.value_of("BODY");
     let abi = Some(
         match_abi_path(m, &config)
@@ -67,11 +67,11 @@ fn decode_body_command(m: &ArgMatches, config: Config) -> Result<(), String> {
     if !config.is_json {
         print_args!(m, body, abi);
     }
-    println!("{}", decode_body(body.unwrap(), &abi.unwrap(), config.is_json)?);
+    println!("{}", decode_body(body.unwrap(), &abi.unwrap(), config.is_json).await?);
     Ok(())
 }
 
-fn decode_message_command(m: &ArgMatches, config: Config) -> Result<(), String> {
+async fn decode_message_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let msg = m.value_of("MSG");
     let abi = Some(
         match_abi_path(m, &config)
@@ -84,11 +84,11 @@ fn decode_message_command(m: &ArgMatches, config: Config) -> Result<(), String> 
         .transpose()
         .map_err(|e| format!(" failed to read msg boc file: {}", e))?
         .unwrap();
-    println!("{}", decode_message(msg, abi, config.is_json)?);
+    println!("{}", decode_message(msg, abi, config.is_json).await?);
     Ok(())
 }
 
-fn print_decoded_body(body_vec: Vec<u8>, abi: &str, is_json: bool) -> Result<String, String> {
+async fn print_decoded_body(body_vec: Vec<u8>, abi: &str, is_json: bool) -> Result<String, String> {
     let ton = create_client_local()?;
     let mut empty_boc = vec![];
     serialize_tree_of_cells(&Cell::default(), &mut empty_boc).unwrap();
@@ -97,9 +97,12 @@ fn print_decoded_body(body_vec: Vec<u8>, abi: &str, is_json: bool) -> Result<Str
     }
 
     let body_base64 = base64::encode(&body_vec);
-    let mut res = decode_msg_body(ton.clone(), abi, &body_base64, false)
-        .or_else(|_| decode_msg_body(ton.clone(), abi, &body_base64, true))?;
-
+    let mut res = {
+        match decode_msg_body(ton.clone(), abi, &body_base64, false).await {
+            Ok(res) => res,
+            Err(_) => decode_msg_body(ton.clone(), abi, &body_base64, true).await?,
+        }
+    };
     let output = res.value.take().unwrap();
     Ok(if is_json {
         format!(" \"BodyCall\": {{\n  \"{}\": {}\n }}", res.name, output)
@@ -108,7 +111,7 @@ fn print_decoded_body(body_vec: Vec<u8>, abi: &str, is_json: bool) -> Result<Str
     })
 }
 
-fn decode_body(body: &str, abi: &str, is_json: bool) -> Result<String, String> {
+async fn decode_body(body: &str, abi: &str, is_json: bool) -> Result<String, String> {
     let abi = std::fs::read_to_string(abi)
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
@@ -118,19 +121,19 @@ fn decode_body(body: &str, abi: &str, is_json: bool) -> Result<String, String> {
     let mut result = String::new();
     let s = &mut result;
     if is_json { writeln!(s, "{{").unwrap(); }
-    writeln!(s, "{}", print_decoded_body(body_vec, &abi, is_json)?).unwrap();
+    writeln!(s, "{}", print_decoded_body(body_vec, &abi, is_json).await?).unwrap();
     if is_json { writeln!(s, "}}").unwrap(); }
     Ok(result)
 }
 
-fn decode_message(msg_boc: Vec<u8>, abi: Option<String>, is_json: bool) -> Result<String, String> {
+async fn decode_message(msg_boc: Vec<u8>, abi: Option<String>, is_json: bool) -> Result<String, String> {
     let abi = abi.map(|f| std::fs::read_to_string(f))
         .transpose()
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
-    
+
     let tvm_msg = ton_sdk::Contract::deserialize_message(&msg_boc[..])
         .map_err(|e| format!("failed to deserialize message boc: {}", e))?;
-    
+
     let mut printer = msg_printer::MsgPrinter::new(&tvm_msg, is_json);
     let mut result = String::new();
     let s = &mut result;
@@ -141,8 +144,8 @@ fn decode_message(msg_boc: Vec<u8>, abi: Option<String>, is_json: bool) -> Resul
         let mut body_vec = Vec::new();
         serialize_tree_of_cells(&tvm_msg.body().unwrap().into_cell(), &mut body_vec)
             .map_err(|e| format!("failed to serialize body: {}", e))?;
-        
-        writeln!(s, "{}", print_decoded_body(body_vec, &abi, is_json)?).unwrap();
+
+        writeln!(s, "{}", print_decoded_body(body_vec, &abi, is_json).await?).unwrap();
     }
     if is_json { writeln!(s, "}}").unwrap(); }
     Ok(result)
@@ -154,7 +157,7 @@ mod msg_printer {
     use ton_types::cells_serialization::serialize_tree_of_cells;
     use ton_types::Cell;
     use std::fmt::Write as FmtWrite;
-    
+
     pub struct MsgPrinter<'a> {
         start: &'static str,
         off: &'static str,
@@ -192,7 +195,7 @@ mod msg_printer {
             }
             result
         }
-        
+
         fn print_msg_type(&self) -> String {
             match self.msg.header() {
                 CommonMsgInfo::IntMsgInfo(_) => "internal",
@@ -200,12 +203,12 @@ mod msg_printer {
                 CommonMsgInfo::ExtOutMsgInfo(_) => "external outbound",
             }.to_owned() + " message"
         }
-        
-        
+
+
         fn json<T: std::fmt::Display>(&self, s: &mut String, name: &str, value: &T) {
             write!(s, "{}\"{}\": {}{}{}\n", self.off, name, self.start, value, self.end).unwrap();
         }
-        
+
         fn print_msg_header(&mut self) -> String {
             let mut result = String::new();
             let s = &mut result;
@@ -242,7 +245,7 @@ mod msg_printer {
             };
             result
         }
-        
+
         fn state_init_printer(&self, s: &mut String) {
             match self.msg.state_init().as_ref() {
                 Some(x) => {
@@ -260,7 +263,7 @@ mod msg_printer {
             };
         }
     }
-    
+
     pub fn tree_of_cells_into_base64(root_cell: Option<&Cell>) -> String {
         match root_cell {
             Some(cell) => {
@@ -271,11 +274,11 @@ mod msg_printer {
             None => "".to_string()
         }
     }
-    
+
     fn print_grams(grams: &Grams) -> String {
         grams.0.to_string()
     }
-    
+
     fn print_cc(cc: &CurrencyCollection) -> String {
         let mut result = print_grams(&cc.grams);
         if !cc.other.is_empty() {
@@ -295,17 +298,17 @@ mod msg_printer {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_decode_msg_json() {
+    #[tokio::test]
+    async fn test_decode_msg_json() {
         let msg_boc = std::fs::read("tests/samples/wallet.boc").unwrap();
-        let out = decode_message(msg_boc, Some("tests/samples/wallet.abi.json".to_owned()), true).unwrap();
+        let out = decode_message(msg_boc, Some("tests/samples/wallet.abi.json".to_owned()), true).await.unwrap();
         let _ : serde_json::Value = serde_json::from_str(&out).unwrap();
     }
 
-    #[test]
-    fn test_decode_body_json() {
+    #[tokio::test]
+    async fn test_decode_body_json() {
         let body = "te6ccgEBAQEARAAAgwAAALqUCTqWL8OX7JivfJrAAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMQAAAAAAAAAAAAAAAEeGjADA==";
-        let out = decode_body(body, "tests/samples/wallet.abi.json", true).unwrap();
+        let out = decode_body(body, "tests/samples/wallet.abi.json", true).await.unwrap();
         let _ : serde_json::Value = serde_json::from_str(&out).unwrap();
     }
 }
