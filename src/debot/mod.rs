@@ -17,6 +17,8 @@ use term_browser::run_debot_browser;
 use crate::helpers::load_ton_address;
 
 pub mod term_browser;
+mod interfaces;
+pub use interfaces::dinterface::SupportedInterfaces;
 mod term_signing_box;
 
 pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {

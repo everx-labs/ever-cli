@@ -15,13 +15,17 @@ use crate::config::Config;
 use crate::helpers::{create_client, load_ton_address, TonClient};
 use std::io::{self, BufRead, Write};
 use std::sync::{Arc, RwLock};
+use ton_client::boc::{ParamsOfParse, parse_message};
 use ton_client::crypto::SigningBoxHandle;
-use ton_client::debot::{BrowserCallbacks, DAction, DEngine, STATE_EXIT};
+use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngine, STATE_EXIT};
+use std::collections::VecDeque;
+use super::{SupportedInterfaces};
 
 struct TerminalBrowser {
     state_id: u8,
     active_actions: Vec<DAction>,
     client: TonClient,
+    msg_queue: VecDeque<String>,
 }
 
 impl TerminalBrowser {
@@ -29,7 +33,8 @@ impl TerminalBrowser {
         Self {
             state_id: 0,
             active_actions: vec![],
-            client,
+            client: client.clone(),
+            msg_queue: Default::default(),
         }
     }
 
@@ -57,6 +62,41 @@ impl TerminalBrowser {
             return act.map(|a| a.clone());
         }
     }
+
+    async fn handle_interface_call(
+        client: TonClient,
+        msg: String,
+        debot: &mut DEngine,
+        interfaces: &SupportedInterfaces,
+    ) -> Result<(), String> {
+
+        let parsed = parse_message(
+            client.clone(),
+            ParamsOfParse { boc: msg.clone() },
+        )
+        .await
+        .map_err(|e| format!("{}", e))?;
+
+        let iface_addr = parsed.parsed["dst"]
+            .as_str()
+            .ok_or(format!("parsed message has no dst address"))?;
+        let wc_and_addr: Vec<_> = iface_addr.split(':').collect();
+        let interface_id = wc_and_addr[1].to_string();
+
+        if let Some(result) = interfaces.try_execute(&msg, &interface_id).await {
+            let (func_id, return_args) = result?;
+            debug!("response: {} ({})", func_id, return_args);
+            let result = debot.send(
+                iface_addr.to_owned(), func_id, return_args.to_string()
+            ).await;
+            if let Err(e) = result {
+                println!("debot call failed: {}", e);
+            }
+        }
+
+        Ok(())
+    }
+
 }
 
 struct Callbacks {
@@ -82,7 +122,6 @@ impl BrowserCallbacks for Callbacks {
         debug!("switched to ctx {}", ctx_id);
         browser.state_id = ctx_id;
         if ctx_id == STATE_EXIT {
-            println!("Debot shutdown");
             return;
         }
 
@@ -159,8 +198,9 @@ impl BrowserCallbacks for Callbacks {
         Ok(())
     }
 
-    async fn send(&self, _message: String) {
-        unimplemented!()
+    async fn send(&self, message: String) {
+        let mut browser = self.browser.write().unwrap();
+        browser.msg_queue.push_back(message);
     }
 }
 
@@ -190,7 +230,21 @@ where
     input_str.trim().to_owned()
 }
 
-fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
+pub(crate) fn terminal_input<F>(prompt: &str, mut validator: F) -> String
+where
+    F: FnMut(&String) -> Result<(), String>
+{
+    let stdio = io::stdin();
+    let mut reader = stdio.lock();
+    let mut writer = io::stdout();
+    let mut value = input(prompt, &mut reader, &mut writer);
+    while let Err(e) = validator(&value) {
+        println!("{}. Try again.", e);
+        value = input(prompt, &mut reader, &mut writer);
+    }
+    value
+}
+pub fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
     let mut a_str = String::new();
     let mut argc = 0;
     let mut argv = vec![];
@@ -222,6 +276,8 @@ pub async fn run_debot_browser(
 ) -> Result<(), String> {
     println!("Connecting to {}", config.url);
     let ton = create_client(&config)?;
+    let interfaces = SupportedInterfaces::new(ton.clone(), &config);
+
     let browser = Arc::new(RwLock::new(TerminalBrowser::new(ton.clone())));
 
     let callbacks = Arc::new(Callbacks::new(Arc::clone(&browser)));
@@ -229,12 +285,23 @@ pub async fn run_debot_browser(
     debot.start().await?;
 
     loop {
+        let mut next_msg = browser.write().unwrap().msg_queue.pop_front();
+        while let Some(msg) = next_msg {
+            TerminalBrowser::handle_interface_call(
+                ton.clone(),
+                msg,
+                &mut debot,
+                &interfaces,
+            ).await?;
+            next_msg = browser.write().unwrap().msg_queue.pop_front();
+        }
         let action = browser.read().unwrap().select_action();
         match action {
             Some(act) => debot.execute_action(&act).await?,
             None => break,
         }
     }
+    println!("Debot Browser shutdown");
     Ok(())
 }
 

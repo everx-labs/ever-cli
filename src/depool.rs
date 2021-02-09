@@ -300,16 +300,16 @@ async fn events_command(m: &ArgMatches<'_>, conf: Config, depool: &str) -> Resul
 }
 
 fn events_filter(addr: &str, since: u32) -> serde_json::Value {
-    json!({ 
+    json!({
         "src": { "eq": addr },
         "msg_type": {"eq": 2 },
         "created_at": {"ge": since }
     })
 }
 
-fn print_event(ton: TonClient, event: &serde_json::Value) {
+async fn print_event(ton: TonClient, event: &serde_json::Value) {
     println!("event {}", event["id"].as_str().unwrap());
-    
+
     let body = event["body"].as_str().unwrap();
     let result = ton_client::abi::decode_message_body(
         ton.clone(),
@@ -318,7 +318,7 @@ fn print_event(ton: TonClient, event: &serde_json::Value) {
             body: body.to_owned(),
             is_internal: false,
         },
-    );
+    ).await;
     let (name, args) = if result.is_err() {
         ("unknown".to_owned(), "{}".to_owned())
     } else {
@@ -326,7 +326,7 @@ fn print_event(ton: TonClient, event: &serde_json::Value) {
         (result.name, serde_json::to_string(&result.value).unwrap())
     };
 
-    println!("{} {} ({})\n{}\n", 
+    println!("{} {} ({})\n{}\n",
         name,
         event["created_at"].as_u64().unwrap(),
         event["created_at_string"].as_str().unwrap(),
@@ -350,7 +350,7 @@ async fn get_events(conf: Config, depool: &str, since: u32) -> Result<(), String
     ).await.map_err(|e| format!("failed to query depool events: {}", e))?;
     println!("{} events found", events.result.len());
     for event in &events.result {
-        print_event(ton.clone(), event);
+        print_event(ton.clone(), event).await;
     }
     println!("Done");
     Ok(())
@@ -368,10 +368,10 @@ async fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
             result: "id body created_at created_at_string".to_owned(),
             timeout: Some(conf.timeout),
         },
-        
+
     ).await.map_err(|e| println!("failed to query event: {}", e.to_string()));
     if event.is_ok() {
-        print_event(ton.clone(), &event.unwrap().result);
+        print_event(ton.clone(), &event.unwrap().result).await;
     }
     Ok(())
 }
@@ -383,7 +383,7 @@ async fn ordinary_stake_command(
     m: &ArgMatches<'_>,
     cmd: CommandData<'_>,
 ) -> Result<(), String> {
-    let (depool, wallet, stake, keys) = 
+    let (depool, wallet, stake, keys) =
         (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
     print_args!(m, depool, wallet, stake, keys);
     add_ordinary_stake(cmd).await
@@ -393,7 +393,7 @@ async fn replenish_command(
     m: &ArgMatches<'_>,
     cmd: CommandData<'_>,
 ) -> Result<(), String> {
-    let (depool, wallet, stake, keys) = 
+    let (depool, wallet, stake, keys) =
         (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
     print_args!(m, depool, wallet, stake, keys);
     replenish_stake(cmd).await
@@ -417,7 +417,7 @@ async fn transfer_stake_command(
 ) -> Result<(), String> {
     let dest = Some(m.value_of("DEST")
         .ok_or("destination address is not defined.".to_string())?);
-    let (depool, wallet, stake, keys) = 
+    let (depool, wallet, stake, keys) =
         (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
     print_args!(m, depool, wallet, stake, keys, dest);
     transfer_stake(cmd, dest.unwrap()).await
@@ -452,10 +452,10 @@ async fn exotic_stake_command(
     let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
     print_args!(m, depool, wallet, stake, keys, beneficiary, withdrawal_period, total_period);
     let period_checker = |v| {
-        if v > 0 && v <= 36500 { 
-            Ok(v) 
-        } else { 
-            Err(format!("period cannot be more than 36500 days")) 
+        if v > 0 && v <= 36500 {
+            Ok(v)
+        } else {
+            Err(format!("period cannot be more than 36500 days"))
         }
     };
     let wperiod = u32::from_str_radix(withdrawal_period.unwrap(), 10)

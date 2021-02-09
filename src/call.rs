@@ -57,13 +57,13 @@ async fn prepare_message(
     let params = serde_json::from_str(&params)
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
 
-        
+
     let call_set = Some(CallSet {
         function_name: method.into(),
         input: Some(params),
         header: header.clone(),
     });
-    
+
     let msg = encode_message(
         ton,
         ParamsOfEncodeMessage {
@@ -71,8 +71,8 @@ async fn prepare_message(
             address: Some(addr.to_owned()),
             deploy_set: None,
             call_set,
-            signer: if keys.is_some() { 
-                Signer::Keys { keys: keys.unwrap() } 
+            signer: if keys.is_some() {
+                Signer::Keys { keys: keys.unwrap() }
             } else {
                 Signer::None
             },
@@ -81,7 +81,7 @@ async fn prepare_message(
     ).await
     .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
-    Ok(EncodedMessage { 
+    Ok(EncodedMessage {
         message: msg.message,
         message_id: msg.message_id,
         expire: header.and_then(|h| h.expire),
@@ -121,7 +121,7 @@ fn pack_message(msg: &EncodedMessage, method: &str, is_raw: bool) -> Vec<u8> {
 fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String> {
     let bytes = hex::decode(str_msg)
         .map_err(|e| format!("couldn't unpack message: {}", e))?;
-    
+
     let str_msg = std::str::from_utf8(&bytes)
         .map_err(|e| format!("message is corrupted: {}", e))?;
 
@@ -141,21 +141,23 @@ fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String> {
     let address = json_msg["msg"]["address"].as_str()
         .ok_or(r#"couldn't find "address" key in message"#)?
         .to_owned();
-    
+
     let msg = EncodedMessage {
         message_id, message, expire, address
     };
     Ok((msg, method))
 }
 
-fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) -> Result<(String, String), String> {
+async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) -> Result<(String, String), String> {
     let result = decode_message(
         ton,
         ParamsOfDecodeMessage {
             abi,
             message: msg.message.clone(),
         },
-    ).map_err(|e| format!("couldn't decode message: {}", e))?;
+    )
+    .await
+    .map_err(|e| format!("couldn't decode message: {}", e))?;
 
     Ok((
         result.name,
@@ -178,7 +180,7 @@ fn parse_integer_param(value: &str) -> Result<String, String> {
 fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<String, String> {
     let abi_obj = Contract::load(abi.as_bytes()).map_err(|e| format!("failed to parse ABI: {}", e))?;
     let functions = abi_obj.functions();
-        
+
     let func_obj = functions.get(method).unwrap();
     let inputs = func_obj.input_params();
 
@@ -257,6 +259,8 @@ async fn send_message_and_wait(
                 account: acc_boc,
                 execution_options: None,
                 abi: Some(abi.clone()),
+                return_updated_account: Some(true),
+                boc_cache: None,
             },
         ).await
         .map_err(|e| format!("run failed: {:#}", e))?;
@@ -264,7 +268,7 @@ async fn send_message_and_wait(
     } else {
         println!("Processing... ");
         let callback = |_| {
-            async move {} 
+            async move {}
         };
 
         let result = send_message(
@@ -397,7 +401,7 @@ pub async fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) 
     let (msg, _) = unpack_message(&str_msg)?;
     print_encoded_message(&msg);
 
-    let params = decode_call_parameters(ton.clone(), &msg, abi.clone())?;
+    let params = decode_call_parameters(ton.clone(), &msg, abi.clone()).await?;
 
     println!("Calling method {} with parameters:", params.0);
     println!("{}", params.1);
@@ -445,7 +449,7 @@ pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Opti
     ).await
     .map_err(|e| format!("run failed: {}", e.to_string()))?
     .output;
-    
+
     println!("Succeded.");
     println!("Result: {}", result);
     Ok(())

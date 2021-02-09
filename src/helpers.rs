@@ -56,11 +56,15 @@ pub fn read_keys(filename: &str) -> Result<KeyPair, String> {
 }
 
 pub fn load_ton_address(addr: &str, conf: &Config) -> Result<String, String> {
-    // TODO: checks
-    if addr.find(':').is_none() {
-        return Ok(format!("{}:{}", conf.wc, addr))
-    }
-    Ok(addr.to_string())
+    use std::str::FromStr;
+    let addr = if addr.find(':').is_none() {
+        format!("{}:{}", conf.wc, addr)
+    } else {
+        addr.to_owned()
+    };
+    let _ = ton_block::MsgAddressInt::from_str(&addr)
+        .map_err(|e| format!("{}", e))?;
+    Ok(addr)
 }
 
 pub fn now() -> u32 {
@@ -97,9 +101,10 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             message_processing_timeout: 30000,
             wait_for_timeout: 30000,
             out_of_sync_threshold: (conf.timeout / 2),
-            reconnect_timeout: 1000,
+            max_reconnect_timeout: 1000,
             ..Default::default()
         },
+        boc: Default::default(),
     };
     let cli =
         ClientContext::new(cli_conf).map_err(|e| format!("failed to create tonclient: {}", e))?;
@@ -136,7 +141,7 @@ pub async fn query(
     .map(|r| r.result)
 }
 
-pub fn decode_msg_body(
+pub async fn decode_msg_body(
     ton: TonClient,
     abi: &str,
     body: &str,
@@ -151,6 +156,7 @@ pub fn decode_msg_body(
             is_internal,
         },
     )
+    .await
     .map_err(|e| format!("failed to decode body: {}", e))
 }
 

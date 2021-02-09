@@ -37,7 +37,7 @@ fn default_false() -> bool {
     false
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
     #[serde(default = "default_url")]
     pub url: String,
@@ -91,7 +91,7 @@ pub fn clear_config(
     wc: bool,
     retries: bool,
     timeout: bool,
-    depool_fee: bool, 
+    depool_fee: bool,
 ) -> Result<(), String> {
     if url {
         conf.url = default_url();
@@ -153,7 +153,7 @@ pub fn set_config(
     wc: Option<&str>,
     retries: Option<&str>,
     timeout: Option<&str>,
-    depool_fee: Option<&str>, 
+    depool_fee: Option<&str>,
 ) -> Result<(), String> {
         if let Some(s) = url {
             conf.url = s.to_string();

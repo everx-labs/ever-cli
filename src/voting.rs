@@ -26,7 +26,7 @@ pub async fn create_proposal(
 ) -> Result<(), String> {
 
 	let payload = encode_transfer_body(text).await?;
-	
+
 	let params = json!({
 		"dest": dest,
 		"value": 1000000,
@@ -134,14 +134,16 @@ pub async fn decode_proposal(
 				TRANSFER_WITH_COMMENT,
 				body,
 				true,
-			).map_err(|e| format!("failed to decode proposal payload: {}", e))?;
-				
+			)
+            .await
+            .map_err(|e| format!("failed to decode proposal payload: {}", e))?;
+
 			let comment = String::from_utf8(
 				hex::decode(
 					result.value.unwrap()["comment"].as_str().unwrap()
 				).map_err(|e| format!("failed to parse comment from transaction payload: {}", e))?
 			).map_err(|e| format!("failed to convert comment to string: {}", e))?;
-	
+
 			println!("Comment: {}", comment);
 			return Ok(());
 		}
