@@ -23,7 +23,10 @@ use ton_client::error::ClientError;
 use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection};
 use ton_client::{ClientConfig, ClientContext};
 
+
+const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
 const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
+
 pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
 
@@ -114,9 +117,18 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
 pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
     println!("Connecting to {}", conf.url);
 
-    log::set_max_level(MAX_LEVEL);
+    let level = if std::env::var("RUST_LOG")
+        .unwrap_or_default()
+        .eq_ignore_ascii_case("debug")
+    {
+        TEST_MAX_LEVEL
+    } else {
+        MAX_LEVEL
+    };
+    log::set_max_level(level);
     log::set_boxed_logger(Box::new(SimpleLogger))
         .map_err(|e| format!("failed to init logger: {}", e))?;
+
     create_client(conf)
 }
 
