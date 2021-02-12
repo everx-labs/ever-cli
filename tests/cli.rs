@@ -3,6 +3,8 @@ use predicates::prelude::*;
 use std::process::Command;
 use lazy_static::*;
 use std::env;
+use std::time::Duration;
+use std::thread::sleep;
 
 const BIN_NAME: &str = "tonos-cli";
 
@@ -298,6 +300,8 @@ fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("te6ccgEBAQEADgAAGAqsGP0AAAAAAAD//w=="));
 
+    sleep(Duration::new(2, 0));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
         .arg("--abi")
@@ -320,6 +324,8 @@ fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
         .arg(r#"{"dest":"0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6","value":1000000000,"bounce":true,"flags":1,"payload":"te6ccgEBAQEADgAAGAqsGP0AAAAAAAD//w=="}"#);
     cmd.assert()
         .success();
+
+    sleep(Duration::new(2, 0));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -362,6 +368,8 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
 
+    sleep(Duration::new(2, 0));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
         .arg("--abi")
@@ -381,6 +389,8 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
+    
+    sleep(Duration::new(2, 0));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -434,6 +444,8 @@ fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
 
+    sleep(Duration::new(2, 0));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
         .arg("--abi")
@@ -462,6 +474,8 @@ fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    sleep(Duration::new(2, 0));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -503,6 +517,8 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
 
+    sleep(Duration::new(2, 0));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
         .arg("--abi")
@@ -536,6 +552,8 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
 
+    sleep(Duration::new(2, 0));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
         .arg("--abi")
@@ -565,6 +583,8 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
 
+    sleep(Duration::new(2, 0));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
         .arg("--abi")
@@ -589,6 +609,8 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    sleep(Duration::new(2, 0));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -623,6 +645,8 @@ fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
 
+    sleep(Duration::new(2, 0));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
         .arg("--abi")
@@ -647,6 +671,8 @@ fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    sleep(Duration::new(2, 0));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -682,6 +708,8 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
 
+    sleep(Duration::new(2, 0));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
         .arg("--abi")
@@ -704,6 +732,8 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    sleep(Duration::new(2, 0));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
