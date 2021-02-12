@@ -101,7 +101,11 @@ impl Terminal {
         let mut value = String::new();
         if multiline {
             println!("{}", &prompt);
-            println!("(Ctrl+D to exit)");
+            if cfg!(windows) {
+                println!("(Ctrl+D to exit)");
+            } else {
+                println!("(Ctrl+Z to exit)");
+            }
             std::io::stdin().read_to_string(&mut value)
                 .map_err(|e| format!("input error: {}", e))?;
             println!();
