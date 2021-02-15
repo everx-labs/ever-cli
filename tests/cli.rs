@@ -175,8 +175,9 @@ fn test_getkeypair() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
     let giver_abi_name = "tests/samples/giver.abi.json";
-    let precalculated_addr = "0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e";
-    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+    let wallet_tvc = "tests/samples/wallet.tvc";
+    let wallet_abi = "tests/samples/wallet.abi.json";
+    let key_path = "tests/deploy_test.key";
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
@@ -186,27 +187,55 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
         .success();
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genphrase")
+        .output()
+        .expect("Failed to generate a seed phrase.");
+    let mut seed = String::from_utf8_lossy(&out.stdout).to_string();
+    seed.replace_range(..seed.find('"').unwrap_or(0), "");
+    seed.retain(|c| c != '\n' && c != '"');
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("getkeypair")
+        .arg(key_path)
+        .arg(seed)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg("--setkey")
+        .arg(key_path)
+        .arg(wallet_tvc)
+        .arg(wallet_abi)
+        .output()
+        .expect("Failed to generate address.");
+
+    let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
+    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
+    addr.replace_range(addr.find("testnet").unwrap_or(addr.len())-1.., "");
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("call")
         .arg("--abi")
         .arg(giver_abi_name)
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
         .arg("sendGrams")
         // use precalculated wallet address
-        .arg(r#"{"dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e","amount":1000000000}"#);
+        .arg(format!(r#"{{"dest":"{}","amount":1000000000}}"#, addr));
     cmd.assert()
         .success();
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("deploy")
-        .arg("tests/samples/wallet.tvc")
+        .arg(wallet_tvc)
         .arg("{}")
         .arg("--abi")
-        .arg("tests/samples/wallet.abi.json")
+        .arg(wallet_abi)
         .arg("--sign")
-        .arg(seed_phrase);
+        .arg(key_path);
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(precalculated_addr))
+        .stdout(predicate::str::contains(addr))
         .stdout(predicate::str::contains("Transaction succeeded."));
 
     Ok(())
@@ -218,11 +247,9 @@ fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
     let giver_addr = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
     let depool_abi = "tests/samples/fakeDepool.abi.json";
     let depool_tvc = "tests/samples/fakeDepool.tvc";
-    let depool_addr = "0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6";
     let msig_abi = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.abi.json";
     let msig_tvc = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.tvc";
-    let msig_addr = "0:507fc74745d5a259b9939dfbdfd97cd186d13e8a7160206f3054746c1f0518cd";
-    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+    let key_path = "tests/deploy_test.key";
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
@@ -232,13 +259,53 @@ fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
         .success();
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genphrase")
+        .output()
+        .expect("Failed to generate a seed phrase.");
+    let mut seed = String::from_utf8_lossy(&out.stdout).to_string();
+    seed.replace_range(..seed.find('"').unwrap_or(0), "");
+    seed.retain(|c| c != '\n' && c != '"');
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("getkeypair")
+        .arg(key_path)
+        .arg(seed)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg("--setkey")
+        .arg(key_path)
+        .arg(msig_tvc)
+        .arg(msig_abi)
+        .output()
+        .expect("Failed to generate address.");
+
+    let mut msig_addr = String::from_utf8_lossy(&out.stdout).to_string();
+    msig_addr.replace_range(..msig_addr.find("0:").unwrap_or(0), "");
+    msig_addr.replace_range(msig_addr.find("testnet").unwrap_or(msig_addr.len())-1.., "");
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg("--setkey")
+        .arg(key_path)
+        .arg(depool_tvc)
+        .arg(depool_abi)
+        .output()
+        .expect("Failed to generate address.");
+
+    let mut depool_addr = String::from_utf8_lossy(&out.stdout).to_string();
+    depool_addr.replace_range(..depool_addr.find("0:").unwrap_or(0), "");
+    depool_addr.replace_range(depool_addr.find("testnet").unwrap_or(depool_addr.len())-1.., "");    
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("call")
         .arg("--abi")
         .arg(giver_abi_name)
         .arg(giver_addr)
         .arg("sendGrams")
-        // use precalculated depool address
-        .arg(r#"{"dest":"0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6","amount":10000000000}"#);
+        .arg(format!(r#"{{"dest":"{}","amount":10000000000}}"#, depool_addr));
     cmd.assert()
         .success();
 
@@ -249,10 +316,10 @@ fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--abi")
         .arg(depool_abi)
         .arg("--sign")
-        .arg(seed_phrase);
+        .arg(key_path);
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(depool_addr))
+        .stdout(predicate::str::contains(&depool_addr))
         .stdout(predicate::str::contains("Transaction succeeded."));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -261,8 +328,7 @@ fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
         .arg(giver_abi_name)
         .arg(giver_addr)
         .arg("sendGrams")
-        // use precalculated msig address
-        .arg(r#"{"dest":"0:507fc74745d5a259b9939dfbdfd97cd186d13e8a7160206f3054746c1f0518cd","amount":30000000000}"#);
+        .arg(format!(r#"{{"dest":"{}","amount":30000000000}}"#, msig_addr));
     cmd.assert()
         .success();
 
@@ -273,22 +339,45 @@ fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--abi")
         .arg(msig_abi)
         .arg("--sign")
-        .arg(seed_phrase);
+        .arg(key_path);
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(msig_addr))
+        .stdout(predicate::str::contains(&msig_addr))
         .stdout(predicate::str::contains("Transaction succeeded."));
 
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--addr")
+        .arg(&depool_addr)
+        .arg("--wallet")
+        .arg(&msig_addr)
+        .assert()
+        .success();
+    
     Ok(())
 }
 
 #[test]
 fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let depool_addr = "0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6";
     let msig_abi = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.abi.json";
-    let msig_addr = "0:507fc74745d5a259b9939dfbdfd97cd186d13e8a7160206f3054746c1f0518cd";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("config")
+        .arg("--list")
+        .output()
+        .expect("Failed to get config.");
+
+    let out = String::from_utf8_lossy(&out.stdout).to_string();
+
+    let mut depool_addr = out.clone();
+    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
+    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
+
+    let mut msig_addr = out;
+    msig_addr.replace_range(..msig_addr.find("wallet").unwrap_or(0) + 10, "");
+    msig_addr.replace_range(msig_addr.find('"').unwrap_or(msig_addr.len()).., "");    
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("body")
@@ -306,7 +395,7 @@ fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
@@ -319,9 +408,9 @@ fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
         .arg(msig_abi)
         .arg("--sign")
         .arg(seed_phrase)
-        .arg(msig_addr)
+        .arg(&msig_addr)
         .arg("sendTransaction")
-        .arg(r#"{"dest":"0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6","value":1000000000,"bounce":true,"flags":1,"payload":"te6ccgEBAQEADgAAGAqsGP0AAAAAAAD//w=="}"#);
+        .arg(format!(r#"{{"dest":"{}","value":1000000000,"bounce":true,"flags":1,"payload":"te6ccgEBAQEADgAAGAqsGP0AAAAAAAD//w=="}}"#, &depool_addr));
     cmd.assert()
         .success();
 
@@ -331,7 +420,7 @@ fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
@@ -344,18 +433,19 @@ fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let depool_addr = "0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6";
-    let msig_addr = "0:507fc74745d5a259b9939dfbdfd97cd186d13e8a7160206f3054746c1f0518cd";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--wallet")
-        .arg(msig_addr)
-        .arg("--addr")
-        .arg(depool_addr)
-        .assert()
-        .success();
+    let out = cmd.arg("config")
+        .arg("--list")
+        .output()
+        .expect("Failed to get config.");
+
+    let out = String::from_utf8_lossy(&out.stdout).to_string();
+
+    let mut depool_addr = out;
+    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
+    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -374,7 +464,7 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
@@ -396,7 +486,7 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
@@ -424,9 +514,20 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let depool_addr = "0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
 
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("config")
+        .arg("--list")
+        .output()
+        .expect("Failed to get config.");
+
+    let out = String::from_utf8_lossy(&out.stdout).to_string();
+
+    let mut depool_addr = out;
+    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
+    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
+    
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--depool_fee")
@@ -450,7 +551,7 @@ fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
@@ -481,7 +582,7 @@ fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
@@ -496,8 +597,23 @@ fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
 fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
     let giver_addr = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
     let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let depool_addr = "0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("config")
+        .arg("--list")
+        .output()
+        .expect("Failed to get config.");
+
+    let out = String::from_utf8_lossy(&out.stdout).to_string();
+
+    let mut depool_addr = out.clone();
+    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
+    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
+
+    let mut msig_addr = out;
+    msig_addr.replace_range(..msig_addr.find("wallet").unwrap_or(0) + 10, "");
+    msig_addr.replace_range(msig_addr.find('"').unwrap_or(msig_addr.len()).., "");    
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -523,14 +639,14 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"sender": "0:507fc74745d5a259b9939dfbdfd97cd186d13e8a7160206f3054746c1f0518cd"#))
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
         .stdout(predicate::str::contains(r#"stake": "2000000000"#))
-        .stdout(predicate::str::contains(r#"receiver": "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94"#))
+        .stdout(predicate::str::contains(format!(r#"receiver": "{}"#, giver_addr)))
         .stdout(predicate::str::contains(r#"withdrawal": "86400"#))
         .stdout(predicate::str::contains(r#"total": "86400"#));
 
@@ -558,12 +674,12 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"sender": "0:507fc74745d5a259b9939dfbdfd97cd186d13e8a7160206f3054746c1f0518cd"#))
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
         .stdout(predicate::str::contains(r#"stake": "4000000000"#))
         .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012345"#))
         .stdout(predicate::str::contains(r#"withdrawal": "172800"#))
@@ -589,14 +705,14 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"sender": "0:507fc74745d5a259b9939dfbdfd97cd186d13e8a7160206f3054746c1f0518cd"#))
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
         .stdout(predicate::str::contains(r#"stake": "2000000000"#))
-        .stdout(predicate::str::contains(r#"receiver": "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94"#));
+        .stdout(predicate::str::contains(format!(r#"receiver": "{}"#, giver_addr)));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -616,12 +732,12 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"sender": "0:507fc74745d5a259b9939dfbdfd97cd186d13e8a7160206f3054746c1f0518cd"#))
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
         .stdout(predicate::str::contains(r#"stake": "1000000000"#));
 
     Ok(())
@@ -630,8 +746,23 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let depool_addr = "0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("config")
+        .arg("--list")
+        .output()
+        .expect("Failed to get config.");
+
+    let out = String::from_utf8_lossy(&out.stdout).to_string();
+
+    let mut depool_addr = out.clone();
+    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
+    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
+
+    let mut msig_addr = out;
+    msig_addr.replace_range(..msig_addr.find("wallet").unwrap_or(0) + 10, "");
+    msig_addr.replace_range(msig_addr.find('"').unwrap_or(msig_addr.len()).., "");    
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -651,12 +782,12 @@ fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"sender": "0:507fc74745d5a259b9939dfbdfd97cd186d13e8a7160206f3054746c1f0518cd"#))
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
         .stdout(predicate::str::contains(r#"stake": "3000000000"#))
         .stdout(predicate::str::contains(r#"value": "800000000"#));
 
@@ -678,12 +809,12 @@ fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"sender": "0:507fc74745d5a259b9939dfbdfd97cd186d13e8a7160206f3054746c1f0518cd"#))
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
         .stdout(predicate::str::contains(r#"stake": "4000000000"#))
         .stdout(predicate::str::contains(r#"value": "800000000"#));
 
@@ -693,8 +824,19 @@ fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let depool_addr = "0:cf72b41b704b7173467ffcd2c7bbc2a30d251996e3e3d848a74f9f72c8bc65e6";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("config")
+        .arg("--list")
+        .output()
+        .expect("Failed to get config.");
+
+    let out = String::from_utf8_lossy(&out.stdout).to_string();
+
+    let mut depool_addr = out;
+    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
+    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -714,7 +856,7 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
@@ -739,7 +881,7 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("run")
         .arg("--abi")
         .arg(depool_abi)
-        .arg(depool_addr)
+        .arg(&depool_addr)
         .arg("getData")
         .arg("{}");
     cmd.assert()
