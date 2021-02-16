@@ -30,6 +30,7 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("DEBUG").long("--debug").short("-d"))
         .subcommand(
             SubCommand::with_name("fetch")
+                .setting(AppSettings::AllowLeadingHyphen)
                 .arg(
                     Arg::with_name("ADDRESS")
                         .required(true)
