@@ -5,12 +5,27 @@ use lazy_static::*;
 use std::env;
 use std::time::Duration;
 use std::thread::sleep;
+use serde_json::{Value, Map};
 
 const BIN_NAME: &str = "tonos-cli";
 
 lazy_static! {
     static ref NETWORK: String = env::var("TON_NETWORK_ADDRESS")
         .unwrap_or("http://127.0.0.1".to_string());
+}
+
+fn get_config() -> Result<Map<String, Value>, Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("config")
+        .arg("--list")
+        .output()
+        .expect("Failed to get config.");
+
+    let mut out = String::from_utf8_lossy(&out.stdout).to_string();
+    out.replace_range(..out.find('\n').unwrap_or(0), "");
+    let parsed: Value = serde_json::from_str(&out)?;
+    let obj: Map<String, Value> = parsed.as_object().unwrap().clone();
+    Ok(obj)
 }
 
 #[test]
@@ -363,22 +378,10 @@ fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
     let msig_abi = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.abi.json";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
     
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("config")
-        .arg("--list")
-        .output()
-        .expect("Failed to get config.");
-
-    let out = String::from_utf8_lossy(&out.stdout).to_string();
-
-    let mut depool_addr = out.clone();
-    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
-    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
-
-    let mut msig_addr = out;
-    msig_addr.replace_range(..msig_addr.find("wallet").unwrap_or(0) + 10, "");
-    msig_addr.replace_range(msig_addr.find('"').unwrap_or(msig_addr.len()).., "");    
-
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+    let msig_addr = config["wallet"].as_str().unwrap();
+    
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("body")
         .arg("--abi")
@@ -435,18 +438,9 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("config")
-        .arg("--list")
-        .output()
-        .expect("Failed to get config.");
-
-    let out = String::from_utf8_lossy(&out.stdout).to_string();
-
-    let mut depool_addr = out;
-    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
-    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
-
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+    
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
         .arg("replenish")
@@ -516,17 +510,8 @@ fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("config")
-        .arg("--list")
-        .output()
-        .expect("Failed to get config.");
-
-    let out = String::from_utf8_lossy(&out.stdout).to_string();
-
-    let mut depool_addr = out;
-    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
-    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
     
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
@@ -599,22 +584,10 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
     
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("config")
-        .arg("--list")
-        .output()
-        .expect("Failed to get config.");
-
-    let out = String::from_utf8_lossy(&out.stdout).to_string();
-
-    let mut depool_addr = out.clone();
-    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
-    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
-
-    let mut msig_addr = out;
-    msig_addr.replace_range(..msig_addr.find("wallet").unwrap_or(0) + 10, "");
-    msig_addr.replace_range(msig_addr.find('"').unwrap_or(msig_addr.len()).., "");    
-
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+    let msig_addr = config["wallet"].as_str().unwrap();
+    
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
         .arg("stake")
@@ -748,22 +721,10 @@ fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
     
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("config")
-        .arg("--list")
-        .output()
-        .expect("Failed to get config.");
-
-    let out = String::from_utf8_lossy(&out.stdout).to_string();
-
-    let mut depool_addr = out.clone();
-    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
-    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
-
-    let mut msig_addr = out;
-    msig_addr.replace_range(..msig_addr.find("wallet").unwrap_or(0) + 10, "");
-    msig_addr.replace_range(msig_addr.find('"').unwrap_or(msig_addr.len()).., "");    
-
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+    let msig_addr = config["wallet"].as_str().unwrap();
+    
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
         .arg("stake")
@@ -826,18 +787,9 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
     
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("config")
-        .arg("--list")
-        .output()
-        .expect("Failed to get config.");
-
-    let out = String::from_utf8_lossy(&out.stdout).to_string();
-
-    let mut depool_addr = out;
-    depool_addr.replace_range(..depool_addr.find("addr").unwrap_or(0) + 8, "");
-    depool_addr.replace_range(depool_addr.find('"').unwrap_or(depool_addr.len()).., "");    
-
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+    
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
         .arg("donor")
@@ -1060,7 +1012,7 @@ fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
     env::set_var("RUST_LOG", "debug");
-    
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--url")
