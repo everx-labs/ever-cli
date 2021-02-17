@@ -66,7 +66,7 @@ pub fn load_ton_address(addr: &str, conf: &Config) -> Result<String, String> {
         addr.to_owned()
     };
     let _ = ton_block::MsgAddressInt::from_str(&addr)
-        .map_err(|e| format!("{}", e))?;
+        .map_err(|e| format!("Address is specified in the wrong format. Error description: {}", e))?;
     Ok(addr)
 }
 
