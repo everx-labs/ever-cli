@@ -35,6 +35,9 @@ ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git' }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
 ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git" }
 
+[patch.'https://github.com/tonlabs/TON-SDK.git']
+ton_client = {path = "../TON-SDK/ton_client" }
+
 [dev-dependencies]
 assert_cmd = "0.11"
 predicates = "1"
