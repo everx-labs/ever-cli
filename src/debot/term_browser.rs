@@ -12,7 +12,7 @@
 */
 use super::term_signing_box::TerminalSigningBox;
 use crate::config::Config;
-use crate::helpers::{create_client, load_ton_address, TonClient};
+use crate::helpers::{create_client, load_ton_address, load_abi, TonClient};
 use std::io::{self, BufRead, Write};
 use std::sync::{Arc, RwLock};
 use ton_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, encode_internal_message};
@@ -24,34 +24,69 @@ use super::{SupportedInterfaces};
 
 struct DebotEntry {
     abi: Abi,
-    eng: DEngine,
+    dengine: DEngine,
     callbacks: Arc<Callbacks>,
 }
 
 struct TerminalBrowser {
+    client: TonClient,
     msg_queue: VecDeque<String>,
     bots: HashMap<String, DebotEntry>,
-
+    interfaces: SupportedInterfaces,
+    conf: Config,
 }
 
 impl TerminalBrowser {
-    pub fn new() -> Self {
+    fn new(client: TonClient, conf: &Config) -> Self {
         Self {
+            client: client.clone(),
             msg_queue: Default::default(),
             bots: HashMap::new(),
+            interfaces: SupportedInterfaces::new(client.clone(), conf),
+            conf: conf.clone(),
         }
     }
 
-    async fn handle_interface_call(
-        client: TonClient,
+    async fn fetch_debot(&mut self, addr: &str, start: bool) -> Result<(), String> {
+        let debot_addr = load_ton_address(addr, &self.conf)?;
+        let callbacks = Arc::new(Callbacks::new(self.client.clone(), self.conf.clone()));
+        let callbacks_ref = Arc::clone(&callbacks);
+        let mut dengine = DEngine::new_with_client(
+            debot_addr.clone(),
+            None,
+            self.client.clone(),
+            callbacks
+        );
+        let abi_json = if start {
+            dengine.start().await?
+        } else {
+            dengine.fetch().await?
+        };
+        let abi = load_abi(&abi_json)?;
+        {
+            let msgs = &mut callbacks_ref.state.write().unwrap().msg_queue;
+            self.msg_queue.append(msgs);
+        }
+
+        self.bots.insert(
+            debot_addr,
+            DebotEntry {
+                abi,
+                dengine,
+                callbacks: callbacks_ref,
+            }
+        );
+        Ok(())
+    }
+
+    async fn call_interface(
+        &mut self,
         msg: String,
         interface_id: &String,
-        debot: &mut DEngine,
-        interfaces: &SupportedInterfaces,
-        debot_abi: Abi,
-        debot_addr: String,
+        debot_addr: &str,
     ) -> Result<(), String> {
-        if let Some(result) = interfaces.try_execute(&msg, interface_id).await {
+        let debot = self.bots.get_mut(debot_addr).unwrap();
+        if let Some(result) = self.interfaces.try_execute(&msg, interface_id).await {
             let (func_id, return_args) = result?;
             debug!("response: {} ({})", func_id, return_args);
             let call_set = match func_id {
@@ -59,10 +94,10 @@ impl TerminalBrowser {
                 _ => CallSet::some_with_function_and_input(&format!("0x{:x}", func_id), return_args),
             };
             let response_msg = encode_internal_message(
-                client.clone(),
+                self.client.clone(),
                 ParamsOfEncodeInternalMessage {
-                    abi: debot_abi,
-                    address: Some(debot_addr),
+                    abi: debot.abi.clone(),
+                    address: Some(debot_addr.to_owned()),
                     deploy_set: None,
                     call_set,
                     value: "1000000000000000".to_owned(),
@@ -73,12 +108,25 @@ impl TerminalBrowser {
             .await
             .map_err(|e| format!("{}", e))?
             .message;
-            let result = debot.send(response_msg).await;
+            let result = debot.dengine.send(response_msg).await;
+            let new_msgs = &mut debot.callbacks.state.write().unwrap().msg_queue;
+            self.msg_queue.append(new_msgs);
             if let Err(e) = result {
                 println!("Debot error: {}", e);
             }
         }
 
+        Ok(())
+    }
+
+    async fn call_debot(&mut self, addr: &str, msg: String) -> Result<(), String> {
+        if self.bots.get_mut(addr).is_none() {
+            self.fetch_debot(addr, false).await?;
+        }
+        let debot = self.bots.get_mut(addr).unwrap();
+        debot.dengine.send(msg).await.map_err(|e| format!("Debot failed: {}", e))?;
+        let new_msgs = &mut debot.callbacks.state.write().unwrap().msg_queue;
+        self.msg_queue.append(new_msgs);
         Ok(())
     }
 
@@ -259,35 +307,14 @@ pub fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
     Ok((n, argc, argv))
 }
 
-
-
 pub async fn run_debot_browser(
     addr: &str,
     config: Config,
 ) -> Result<(), String> {
     println!("Connecting to {}", config.url);
     let ton = create_client(&config)?;
-    let interfaces = SupportedInterfaces::new(ton.clone(), &config);
-
-    let mut browser = TerminalBrowser::new();
-    let debot_addr = load_ton_address(addr, &config)?;
-    let callbacks = Arc::new(Callbacks::new(ton.clone(), config.clone()));
-    let callbacks_ref = Arc::clone(&callbacks);
-    let mut debot = DEngine::new_with_client(debot_addr.clone(), None, ton.clone(), callbacks);
-    let abi_json = debot.start().await?;
-    let debot_abi = Abi::Contract(serde_json::from_str(&abi_json).unwrap());
-
-    {
-        let msgs = &mut callbacks_ref.state.write().unwrap().msg_queue;
-        browser.msg_queue.append(msgs);
-    }
-
-    browser.bots.insert(debot_addr.clone(), DebotEntry {
-        abi: debot_abi,
-        eng: debot,
-        callbacks: callbacks_ref,
-    });
-
+    let mut browser = TerminalBrowser::new(ton.clone(), &config);
+    browser.fetch_debot(addr, true).await?;
     loop {
         let mut next_msg = browser.msg_queue.pop_front();
         while let Some(msg) = next_msg {
@@ -298,44 +325,33 @@ pub async fn run_debot_browser(
             .await
             .map_err(|e| format!("{}", e))?
             .parsed;
+
             let msg_dest = parsed["dst"]
             .as_str()
             .ok_or(format!("parsed message has no dst address"))?;
+
             let msg_src = parsed["src"]
             .as_str()
             .ok_or(format!("parsed message has no dst address"))?;
+
             let wc_and_addr: Vec<_> = msg_dest.split(':').collect();
             let id = wc_and_addr[1].to_string();
-            let wc = i8::from_str_radix(wc_and_addr[0], 10).unwrap();
+            let wc = i8::from_str_radix(wc_and_addr[0], 10).map_err(|e| format!("{}", e))?;
 
             if wc == DEBOT_WC {
-                let debot = browser.bots.get_mut(msg_src).unwrap();
-                TerminalBrowser::handle_interface_call(
-                    ton.clone(),
-                    msg,
-                    &id,
-                    &mut debot.eng,
-                    &interfaces,
-                    debot.abi.clone(),
-                    msg_src.to_owned(),
-                ).await?;
-                let new_msgs = &mut debot.callbacks.state.write().unwrap().msg_queue;
-                browser.msg_queue.append(new_msgs);
+                browser.call_interface(msg, &id, msg_src).await?;
             } else {
-                let debot = browser.bots.get_mut(msg_dest).unwrap();
-                debot.eng.send(msg).await.unwrap();
-                let new_msgs = &mut debot.callbacks.state.write().unwrap().msg_queue;
-                browser.msg_queue.append(new_msgs);
+                browser.call_debot(msg_dest, msg).await?;
             }
 
             next_msg = browser.msg_queue.pop_front();
         }
 
-        let action = browser.bots.get(&debot_addr).unwrap().callbacks.select_action();
+        let action = browser.bots.get(addr).unwrap().callbacks.select_action();
         match action {
             Some(act) => {
-                let debot = browser.bots.get_mut(&debot_addr).unwrap();
-                debot.eng.execute_action(&act).await?
+                let debot = browser.bots.get_mut(addr).unwrap();
+                debot.dengine.execute_action(&act).await?
             },
             None => break,
         }
