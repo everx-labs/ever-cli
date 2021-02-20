@@ -9,6 +9,8 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use ton_client::debot::{DebotInterface, DebotInterfaceExecutor};
+use ton_client::encoding::decode_abi_number;
+use num_traits::cast::NumCast;
 
 pub struct SupportedInterfaces {
     client: TonClient,
@@ -81,4 +83,13 @@ pub fn decode_string_arg(args: &Value, name: &str) -> Result<String, String> {
 
 pub fn decode_prompt(args: &Value) -> Result<String, String> {
     decode_string_arg(args, "prompt")
+}
+
+pub fn decode_num_arg<T>(args: &Value, name: &str) -> Result<T, String>
+where
+    T: NumCast,
+{
+    let num_str = decode_arg(args, name)?;
+    decode_abi_number::<T>(&num_str)
+        .map_err(|e| format!("failed to parse integer \"{}\": {}", num_str, e))
 }

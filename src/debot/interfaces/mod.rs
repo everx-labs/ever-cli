@@ -15,5 +15,10 @@ pub mod dinterface;
 pub mod echo;
 pub mod stdout;
 pub mod address_input;
+pub mod amount_input;
 pub mod terminal;
 pub mod menu;
+
+pub use amount_input::AmountInput;
+pub use address_input::AddressInput;
+pub use terminal::Terminal;
