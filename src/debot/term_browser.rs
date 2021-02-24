@@ -72,7 +72,10 @@ impl TerminalBrowser {
 
         let parsed = parse_message(
             client.clone(),
-            ParamsOfParse { boc: msg.clone() },
+            ParamsOfParse { 
+                boc: msg.clone(),
+                ..Default::default()
+            },
         )
         .await
         .map_err(|e| format!("{}", e))?;

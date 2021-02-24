@@ -46,7 +46,7 @@ use getconfig::query_global_config;
 use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
-use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet, Signer};
+use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
@@ -518,8 +518,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
             abi: load_abi(&abi)?,
             call_set: CallSet::some_with_function_and_input(&method.unwrap(), params).unwrap(),
             is_internal: true,
-            signer: Signer::None,
-            processing_try_index: None,
+            ..Default::default()
         },
     ).await
     .map_err(|e| format!("failed to encode body: {}", e))

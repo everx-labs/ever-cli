@@ -146,7 +146,7 @@ pub async fn query(
             filter: Some(filter),
             result: result.to_owned(),
             order,
-            limit: None,
+            ..Default::default()
         },
     )
     .await
@@ -166,6 +166,7 @@ pub async fn decode_msg_body(
             abi,
             body: body.to_owned(),
             is_internal,
+            ..Default::default()
         },
     )
     .await
@@ -203,13 +204,11 @@ pub async fn calc_acc_address(
         ton.clone(),
         ParamsOfEncodeMessage {
             abi,
-            address: None,
             deploy_set: Some(dset),
-            call_set: None,
             signer: Signer::External {
                 public_key: pubkey,
             },
-            processing_try_index: None,
+            ..Default::default()
         },
     )
     .await

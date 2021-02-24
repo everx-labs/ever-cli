@@ -15,7 +15,7 @@ use crate::config::Config;
 use crate::convert;
 use crate::helpers::{create_client_local, load_abi, load_ton_address};
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
-use ton_client::abi::{encode_message_body, ParamsOfEncodeMessageBody, CallSet, Signer};
+use ton_client::abi::{encode_message_body, ParamsOfEncodeMessageBody, CallSet};
 
 pub const MSIG_ABI: &str = r#"{
 	"ABI version": 2,
@@ -220,8 +220,7 @@ pub async fn encode_transfer_body(text: &str) -> Result<String, String> {
 				json!({ "comment": text	}),
 			).unwrap(),
 			is_internal: true,
-			signer: Signer::None,
-			processing_try_index: None,
+			..Default::default()
 		},
 	).await
 	.map_err(|e| format!("failed to encode transfer body: {}", e))
