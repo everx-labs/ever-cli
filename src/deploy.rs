@@ -42,8 +42,7 @@ pub async fn deploy_contract(conf: Config, tvc: &str, abi: &str, params: &str, k
     let dset = DeploySet {
         tvc: tvc_base64,
         workchain_id: Some(wc),
-        initial_data: None,
-        initial_pubkey: None,
+        ..Default::default()
     };
     let params = serde_json::from_str(params)
         .map_err(|e| format!("function arguments is not a json: {}", e))?;

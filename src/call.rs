@@ -364,8 +364,7 @@ pub async fn generate_message(
     let expire_at = lifetime + now;
     let header = FunctionHeader {
         expire: Some(expire_at),
-        time: None,
-        pubkey: None,
+        ..Default::default()
     };
 
     let msg = prepare_message(
