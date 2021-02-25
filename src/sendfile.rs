@@ -30,8 +30,8 @@ pub async fn sendfile(conf: Config, msg_boc: &str) -> Result<(), String> {
     println!("Sending message to account {}", dst);
     let msg = ParamsOfSendMessage {
         message: base64::encode(&boc_vec),
-        abi: None,
         send_events: false,
+        ..Default::default()
     };
     send_message(ton, msg, callback).await
         .map_err(|e| format!("Failed: {}", e))?;

@@ -33,8 +33,8 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
             collection: "accounts".to_owned(),
             filter: Some(json!({ "id": { "eq": addr } })),
             result: ACCOUNT_FIELDS.to_string(),
-            order: None,
             limit: Some(1),
+            ..Default::default()
         },
     ).await.map_err(|e| format!("failed to query account info: {}", e))?;
     let accounts = query_result.result;

@@ -18,7 +18,7 @@ use crate::helpers::{create_client_local, create_client_verbose, load_abi, load_
 use crate::multisig::send_with_body;
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 use serde_json;
-use ton_client::abi::{ParamsOfEncodeMessageBody, ParamsOfDecodeMessageBody, CallSet, Signer};
+use ton_client::abi::{ParamsOfEncodeMessageBody, ParamsOfDecodeMessageBody, CallSet};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, ParamsOfWaitForCollection, SortDirection};
 
 pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
@@ -317,6 +317,7 @@ async fn print_event(ton: TonClient, event: &serde_json::Value) {
             abi: load_abi(DEPOOL_ABI).unwrap(),
             body: body.to_owned(),
             is_internal: false,
+            ..Default::default()
         },
     ).await;
     let (name, args) = if result.is_err() {
@@ -345,7 +346,7 @@ async fn get_events(conf: Config, depool: &str, since: u32) -> Result<(), String
             filter: Some(events_filter(depool, since)),
             result: "id body created_at created_at_string".to_owned(),
             order: Some(vec![OrderBy{ path: "created_at".to_owned(), direction: SortDirection::DESC }]),
-            limit: None,
+            ..Default::default()
         },
     ).await.map_err(|e| format!("failed to query depool events: {}", e))?;
     println!("{} events found", events.result.len());
@@ -367,6 +368,7 @@ async fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
             filter: Some(events_filter(depool, now())),
             result: "id body created_at created_at_string".to_owned(),
             timeout: Some(conf.timeout),
+            ..Default::default()
         },
 
     ).await.map_err(|e| println!("failed to query event: {}", e.to_string()));
@@ -610,8 +612,7 @@ async fn encode_body(func: &str, params: serde_json::Value) -> Result<String, St
             abi: load_abi(DEPOOL_ABI)?,
             call_set: CallSet::some_with_function_and_input(func, params).unwrap(),
             is_internal: true,
-            signer: Signer::None,
-            processing_try_index: None,
+            ..Default::default()
         },
     ).await
     .map_err(|e| format!("failed to encode body: {}", e))

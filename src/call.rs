@@ -69,14 +69,13 @@ async fn prepare_message(
         ParamsOfEncodeMessage {
             abi,
             address: Some(addr.to_owned()),
-            deploy_set: None,
             call_set,
             signer: if keys.is_some() {
                 Signer::Keys { keys: keys.unwrap() }
             } else {
                 Signer::None
             },
-            processing_try_index: None,
+            ..Default::default()
         },
     ).await
     .map_err(|e| format!("failed to create inbound message: {}", e))?;
@@ -154,6 +153,7 @@ async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) 
         ParamsOfDecodeMessage {
             abi,
             message: msg.message.clone(),
+            ..Default::default()
         },
     )
     .await
@@ -257,10 +257,9 @@ async fn send_message_and_wait(
             ParamsOfRunTvm {
                 message: msg,
                 account: acc_boc,
-                execution_options: None,
                 abi: Some(abi.clone()),
                 return_updated_account: Some(true),
-                boc_cache: None,
+                ..Default::default()
             },
         ).await
         .map_err(|e| format!("run failed: {:#}", e))?;
@@ -277,6 +276,7 @@ async fn send_message_and_wait(
                 message: msg.clone(),
                 abi: Some(abi.clone()),
                 send_events: false,
+                ..Default::default()
             },
             callback,
         ).await
@@ -289,6 +289,7 @@ async fn send_message_and_wait(
                 message: msg.clone(),
                 shard_block_id: result.shard_block_id,
                 send_events: true,
+                ..Default::default()
             },
             callback.clone(),
         ).await
@@ -363,8 +364,7 @@ pub async fn generate_message(
     let expire_at = lifetime + now;
     let header = FunctionHeader {
         expire: Some(expire_at),
-        time: None,
-        pubkey: None,
+        ..Default::default()
     };
 
     let msg = prepare_message(
@@ -444,7 +444,7 @@ pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Opti
             account: acc_boc,
             function_name: method.to_owned(),
             input: params,
-            execution_options: None,
+            ..Default::default()
         },
     ).await
     .map_err(|e| format!("run failed: {}", e.to_string()))?
