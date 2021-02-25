@@ -3,10 +3,9 @@
 .type	constructor, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7_with_init_storage$
 }
-IF
 ;; constructor protection
 GETGLOB 6
 THROWIF 51
@@ -15,19 +14,72 @@ SETGLOB 6
 ;; end constructor protection
 ENDS
 ACCEPT
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
+
+.globl	sendAnswer
+.public	sendAnswer
+.type	sendAnswer, @function
+; Decode input parameters
+ENDS
+; function sendAnswer
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x39896800000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 11
+STUR 32
+;; comment
+PUSHINT 222
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+; end function sendAnswer
+IFREF {
+	CALL $c7_to_c4$
+}
+TRUE
+SETGLOB 7
+
+.globl	sendAnswer_internal
+.type	sendAnswer_internal, @function
+; function sendAnswer
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x39896800000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 11
+STUR 32
+;; comment
+PUSHINT 222
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+; end function sendAnswer
 
 .globl	addOrdinaryStake
 .public	addOrdinaryStake
 .type	addOrdinaryStake, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ; Decode stake
 LDU 64
@@ -51,13 +103,34 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 11
+STUR 32
+;; comment
+PUSHINT 222
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
 DROP
 ; end function addOrdinaryStake
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -82,10 +155,29 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 11
+STUR 32
+;; comment
+PUSHINT 222
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
 DROP
 ; end function addOrdinaryStake
 
@@ -94,10 +186,9 @@ DROP
 .type	addVestingStake, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ; Decode stake
 LDU 64
@@ -139,7 +230,9 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
@@ -160,19 +253,39 @@ SETGLOB 12
 ; expValue
 ; end expValue
 ;; push identifier withdrawalPeriod
+PUSH S1
 ; colValue
+SETGLOB 13
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier totalPeriod
+DUP
 ; colValue
-; end colValue
-SWAP
-SETGLOB 13
 SETGLOB 14
-DROP2
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+BLKDROP 4
 ; end function addVestingStake
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -193,7 +306,9 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
@@ -214,17 +329,35 @@ SETGLOB 12
 ; expValue
 ; end expValue
 ;; push identifier withdrawalPeriod
+PUSH S1
 ; colValue
+SETGLOB 13
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier totalPeriod
+DUP
 ; colValue
-; end colValue
-SWAP
-SETGLOB 13
 SETGLOB 14
-DROP2
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+BLKDROP 4
 ; end function addVestingStake
 
 .globl	addLockStake
@@ -232,10 +365,9 @@ DROP2
 .type	addLockStake, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ; Decode stake
 LDU 64
@@ -277,7 +409,9 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
@@ -298,19 +432,39 @@ SETGLOB 12
 ; expValue
 ; end expValue
 ;; push identifier withdrawalPeriod
+PUSH S1
 ; colValue
+SETGLOB 13
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier totalPeriod
+DUP
 ; colValue
-; end colValue
-SWAP
-SETGLOB 13
 SETGLOB 14
-DROP2
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+BLKDROP 4
 ; end function addLockStake
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -331,7 +485,9 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
@@ -352,17 +508,35 @@ SETGLOB 12
 ; expValue
 ; end expValue
 ;; push identifier withdrawalPeriod
+PUSH S1
 ; colValue
+SETGLOB 13
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier totalPeriod
+DUP
 ; colValue
-; end colValue
-SWAP
-SETGLOB 13
 SETGLOB 14
-DROP2
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+BLKDROP 4
 ; end function addLockStake
 
 .globl	withdrawFromPoolingRound
@@ -370,10 +544,9 @@ DROP2
 .type	withdrawFromPoolingRound, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ; Decode withdrawValue
 LDU 64
@@ -390,18 +563,41 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier withdrawValue
+DUP
 ; colValue
-; end colValue
 SETGLOB 10
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+DROP
 ; end function withdrawFromPoolingRound
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -419,16 +615,37 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier withdrawValue
+DUP
 ; colValue
-; end colValue
 SETGLOB 10
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+DROP
 ; end function withdrawFromPoolingRound
 
 .globl	withdrawPart
@@ -436,10 +653,9 @@ SETGLOB 10
 .type	withdrawPart, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ; Decode withdrawValue
 LDU 64
@@ -456,18 +672,41 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier withdrawValue
+DUP
 ; colValue
-; end colValue
 SETGLOB 10
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+DROP
 ; end function withdrawPart
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -485,16 +724,37 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier withdrawValue
+DUP
 ; colValue
-; end colValue
 SETGLOB 10
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+DROP
 ; end function withdrawPart
 
 .globl	withdrawAll
@@ -502,10 +762,9 @@ SETGLOB 10
 .type	withdrawAll, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ENDS
 ; function withdrawAll
@@ -519,7 +778,9 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
@@ -529,8 +790,27 @@ FALSE
 ; colValue
 SETGLOB 15
 ; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
 ; end function withdrawAll
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -547,7 +827,9 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
@@ -557,6 +839,23 @@ FALSE
 ; colValue
 SETGLOB 15
 ; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
 ; end function withdrawAll
 
 .globl	cancelWithdrawal
@@ -564,10 +863,9 @@ SETGLOB 15
 .type	cancelWithdrawal, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ENDS
 ; function cancelWithdrawal
@@ -581,7 +879,9 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
@@ -591,8 +891,27 @@ TRUE
 ; colValue
 SETGLOB 15
 ; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
 ; end function cancelWithdrawal
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -609,7 +928,9 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
@@ -619,6 +940,23 @@ TRUE
 ; colValue
 SETGLOB 15
 ; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
 ; end function cancelWithdrawal
 
 .globl	transferStake
@@ -626,10 +964,9 @@ SETGLOB 15
 .type	transferStake, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ; Decode dest
 LDMSGADDR
@@ -649,24 +986,48 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier amount
+DUP
 ; colValue
+SETGLOB 10
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier dest
+PUSH S1
 ; colValue
-; end colValue
-SETGLOB 10
 SETGLOB 12
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+DROP2
 ; end function transferStake
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -685,22 +1046,44 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier amount
+DUP
 ; colValue
+SETGLOB 10
 ; end colValue
 ; expValue
 ; end expValue
 ;; push identifier dest
+PUSH S1
 ; colValue
-; end colValue
-SETGLOB 10
 SETGLOB 12
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+DROP2
 ; end function transferStake
 
 .globl	ticktock
@@ -708,10 +1091,9 @@ SETGLOB 12
 .type	ticktock, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ENDS
 ; function ticktock
@@ -725,10 +1107,23 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
+;; transfer()
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x17b000000000000000000000000001_
+STSLICER
+ENDC
+PUSHINT 1
+SENDRAWMSG
 ;; emit StakeSigningRequested
 PUSHSLICE xc000000000000000000000000045163712
 NEWC
@@ -743,7 +1138,9 @@ ENDC
 PUSHINT 1
 SENDRAWMSG
 ; end function ticktock
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -760,10 +1157,23 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
+;; transfer()
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x17b000000000000000000000000001_
+STSLICER
+ENDC
+PUSHINT 1
+SENDRAWMSG
 ;; emit StakeSigningRequested
 PUSHSLICE xc000000000000000000000000045163712
 NEWC
@@ -784,10 +1194,9 @@ SENDRAWMSG
 .type	receiveFunds, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ENDS
 ; function receiveFunds
@@ -801,12 +1210,16 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
 ; end function receiveFunds
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -823,7 +1236,9 @@ SETGLOB 11
 ; expValue
 ; end expValue
 ;; get member value
-CALL $message_balance_macro$
+CALLREF {
+	CALL $message_balance_macro$
+}
 ; colValue
 SETGLOB 16
 ; end colValue
@@ -834,10 +1249,18 @@ SETGLOB 16
 .type	getData, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
+PUSH S1
+PUSHCONT {
+	LDU 32
+	GETGLOB 4
+	ROT
+	SETINDEXQ 5
+	SETGLOB 4
+}
+IFNOT
 ; Decode input parameters
 ENDS
 ; function getData
@@ -906,13 +1329,58 @@ PUSHCONT {
 	PUSHINT 1
 	SENDRAWMSG
 }
-IF
+PUSHCONT {
+	GETGLOB 4
+	DUP
+	INDEX 3
+	PUSH S1
+	INDEX 2
+	GETGLOB 9
+	BLKSWAP 1, 3
+	INDEX 1
+	NEWC
+	PUSHINT 2
+	STZEROES
+	STI 1
+	PUSHINT 3
+	STZEROES
+	STSLICE
+	SWAP
+	STGRAMS
+	STDICT
+	PUSHINT 105
+	STZEROES
+	STSLICECONST 1
+	NEWC
+	GETGLOB 4
+	INDEX 5
+	STUR 32
+	PUSH S8
+	STUR 64
+	PUSH S7
+	STSLICER
+	PUSH S6
+	STSLICER
+	PUSH S5
+	STUR 32
+	PUSH S4
+	STUR 32
+	PUSH S3
+	STIR 1
+	PUSH S2
+	STUR 128
+	STBREFR
+	ENDC
+	GETGLOB 4
+	INDEX 4
+	SENDRAWMSG
+}
+IFELSE
 BLKDROP 7
 ; end function getData
-PUSHCONT {
+IFREF {
 	CALL $c7_to_c4$
 }
-IF
 TRUE
 SETGLOB 7
 
@@ -954,10 +1422,9 @@ BLKDROP2 7, 7
 .type	setVestingDonor, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ; Decode donor
 LDMSGADDR
@@ -967,11 +1434,32 @@ ENDS
 ; expValue
 ; end expValue
 ;; push identifier donor
+DUP
 ; colValue
-; end colValue
 SETGLOB 12
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+DROP
 ; end function setVestingDonor
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -982,9 +1470,28 @@ SETGLOB 7
 ; expValue
 ; end expValue
 ;; push identifier donor
+DUP
 ; colValue
-; end colValue
 SETGLOB 12
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+DROP
 ; end function setVestingDonor
 
 .globl	setLockDonor
@@ -992,10 +1499,9 @@ SETGLOB 12
 .type	setLockDonor, @function
 GETGLOB 1
 ISNULL
-PUSHCONT {
+IFREF {
 	CALL $c4_to_c7$
 }
-IF
 ; Decode input parameters
 ; Decode donor
 LDMSGADDR
@@ -1005,11 +1511,32 @@ ENDS
 ; expValue
 ; end expValue
 ;; push identifier donor
+DUP
 ; colValue
-; end colValue
 SETGLOB 12
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+DROP
 ; end function setLockDonor
-CALL $c7_to_c4$
+CALLREF {
+	CALL $c7_to_c4$
+}
 TRUE
 SETGLOB 7
 
@@ -1020,13 +1547,31 @@ SETGLOB 7
 ; expValue
 ; end expValue
 ;; push identifier donor
+DUP
 ; colValue
-; end colValue
 SETGLOB 12
+; end colValue
+;; Remote call IFakeDePoolClient.receiveAnswer
+;; get member sender
+GETGLOB 9
+NEWC
+STSLICECONST x62_
+STSLICE
+PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
+STSLICER
+;; errcode
+PUSHINT 0
+STUR 32
+;; comment
+PUSHINT 0
+STUR 64
+ENDC
+PUSHINT 1
+SENDRAWMSG
+DROP
 ; end function setLockDonor
 
-.globl	c7_to_c4
-.type	c7_to_c4, @function
+.macro c7_to_c4
 GETGLOB 2
 NEWC
 STU 256
@@ -1055,8 +1600,7 @@ STI 1
 ENDC
 POP C4
 
-.globl	c4_to_c7
-.type	c4_to_c7, @function
+.macro c4_to_c7
 PUSHROOT
 CTOS        ; c4
 LDU 256      ; pubkey c4
@@ -1170,6 +1714,16 @@ LDMSGADDR   ; bounced src tail
 DROP
 SETGLOB 9
 MODPOW2 1
+GETGLOB 4
+TRUE
+SETINDEXQ 1
+PUSHINT 10000000
+SETINDEXQ 2
+NULL
+SETINDEXQ 3
+PUSHINT 1
+SETINDEXQ 4
+SETGLOB 4
 IFRET
 PUSH S1    ; body
 SEMPTY     ; isEmpty

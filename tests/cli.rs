@@ -257,593 +257,6 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
-    let giver_abi_name = "tests/samples/giver.abi.json";
-    let giver_addr = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
-    let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let depool_tvc = "tests/samples/fakeDepool.tvc";
-    let msig_abi = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.abi.json";
-    let msig_tvc = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.tvc";
-    let key_path = "tests/deploy_test.key";
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg(&*NETWORK)
-        .assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("genphrase")
-        .output()
-        .expect("Failed to generate a seed phrase.");
-    let mut seed = String::from_utf8_lossy(&out.stdout).to_string();
-    seed.replace_range(..seed.find('"').unwrap_or(0), "");
-    seed.retain(|c| c != '\n' && c != '"');
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("getkeypair")
-        .arg(key_path)
-        .arg(seed)
-        .assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("genaddr")
-        .arg("--setkey")
-        .arg(key_path)
-        .arg(msig_tvc)
-        .arg(msig_abi)
-        .output()
-        .expect("Failed to generate address.");
-
-    let mut msig_addr = String::from_utf8_lossy(&out.stdout).to_string();
-    msig_addr.replace_range(..msig_addr.find("0:").unwrap_or(0), "");
-    msig_addr.replace_range(msig_addr.find("testnet").unwrap_or(msig_addr.len())-1.., "");
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("genaddr")
-        .arg("--setkey")
-        .arg(key_path)
-        .arg(depool_tvc)
-        .arg(depool_abi)
-        .output()
-        .expect("Failed to generate address.");
-
-    let mut depool_addr = String::from_utf8_lossy(&out.stdout).to_string();
-    depool_addr.replace_range(..depool_addr.find("0:").unwrap_or(0), "");
-    depool_addr.replace_range(depool_addr.find("testnet").unwrap_or(depool_addr.len())-1.., "");    
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("call")
-        .arg("--abi")
-        .arg(giver_abi_name)
-        .arg(giver_addr)
-        .arg("sendGrams")
-        .arg(format!(r#"{{"dest":"{}","amount":10000000000}}"#, depool_addr));
-    cmd.assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("deploy")
-        .arg(depool_tvc)
-        .arg("{}")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg("--sign")
-        .arg(key_path);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(&depool_addr))
-        .stdout(predicate::str::contains("Transaction succeeded."));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("call")
-        .arg("--abi")
-        .arg(giver_abi_name)
-        .arg(giver_addr)
-        .arg("sendGrams")
-        .arg(format!(r#"{{"dest":"{}","amount":30000000000}}"#, msig_addr));
-    cmd.assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("deploy")
-        .arg(msig_tvc)
-        .arg(r#"{"owners":["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"],"reqConfirms":1}"#)
-        .arg("--abi")
-        .arg(msig_abi)
-        .arg("--sign")
-        .arg(key_path);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(&msig_addr))
-        .stdout(predicate::str::contains("Transaction succeeded."));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--addr")
-        .arg(&depool_addr)
-        .arg("--wallet")
-        .arg(&msig_addr)
-        .assert()
-        .success();
-    
-    Ok(())
-}
-
-#[test]
-fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
-    let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let msig_abi = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.abi.json";
-    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
-    
-    let config = get_config().unwrap();
-    let depool_addr = config["addr"].as_str().unwrap();
-    let msig_addr = config["wallet"].as_str().unwrap();
-    
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("body")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg("addOrdinaryStake")
-        .arg(r#"{"stake":65535}"#);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("te6ccgEBAQEADgAAGAqsGP0AAAAAAAD//w=="));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"stake": "4000000000"#));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("call")
-        .arg("--abi")
-        .arg(msig_abi)
-        .arg("--sign")
-        .arg(seed_phrase)
-        .arg(&msig_addr)
-        .arg("sendTransaction")
-        .arg(format!(r#"{{"dest":"{}","value":1000000000,"bounce":true,"flags":1,"payload":"te6ccgEBAQEADgAAGAqsGP0AAAAAAAD//w=="}}"#, &depool_addr));
-    cmd.assert()
-        .success();
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"stake": "65535"#));
-
-    Ok(())
-}
-
-#[test]
-fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
-    let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
-
-    let config = get_config().unwrap();
-    let depool_addr = config["addr"].as_str().unwrap();
-    
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("replenish")
-        .arg("--value")
-        .arg("2")
-        .arg("--sign")
-        .arg(seed_phrase);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"value": "2000000000"#));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("ticktock")
-        .arg("--sign")
-        .arg(seed_phrase);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-    
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"value": "1000000000"#));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("events");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"StakeSigningRequested"#))
-        .stdout(predicate::str::contains(r#"{"electionId":"1","proxy":"0:0000000000000000000000000000000000000000000000000000000000000002"}"#));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("events")
-        .arg("-w");
-    cmd.assert()
-        .success();
-
-    Ok(())
-}
-
-#[test]
-fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
-    let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
-
-    let config = get_config().unwrap();
-    let depool_addr = config["addr"].as_str().unwrap();
-    
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--depool_fee")
-        .arg("0.7")
-        .assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("withdraw")
-        .arg("off")
-        .arg("--sign")
-        .arg(seed_phrase);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"reinvest": true"#))
-        .stdout(predicate::str::contains(r#"value": "700000000"#));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--depool_fee")
-        .arg("0.8")
-        .assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("withdraw")
-        .arg("on")
-        .arg("--sign")
-        .arg(seed_phrase);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"reinvest": false"#))
-        .stdout(predicate::str::contains(r#"value": "800000000"#));
-
-    Ok(())
-}
-
-#[test]
-fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
-    let giver_addr = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
-    let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
-    
-    let config = get_config().unwrap();
-    let depool_addr = config["addr"].as_str().unwrap();
-    let msig_addr = config["wallet"].as_str().unwrap();
-    
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("stake")
-        .arg("lock")
-        .arg("--sign")
-        .arg(seed_phrase)
-        .arg("--beneficiary")
-        .arg(giver_addr)
-        .arg("--total")
-        .arg("1")
-        .arg("--withdrawal")
-        .arg("1")
-        .arg("--value")
-        .arg("2");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
-        .stdout(predicate::str::contains(r#"stake": "2000000000"#))
-        .stdout(predicate::str::contains(format!(r#"receiver": "{}"#, giver_addr)))
-        .stdout(predicate::str::contains(r#"withdrawal": "86400"#))
-        .stdout(predicate::str::contains(r#"total": "86400"#));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("stake")
-        .arg("vesting")
-        .arg("--sign")
-        .arg(seed_phrase)
-        .arg("--beneficiary")
-        .arg("0:0123456789012345012345678901234501234567890123450123456789012345")
-        .arg("--total")
-        .arg("2")
-        .arg("--withdrawal")
-        .arg("2")
-        .arg("--value")
-        .arg("4");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
-        .stdout(predicate::str::contains(r#"stake": "4000000000"#))
-        .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012345"#))
-        .stdout(predicate::str::contains(r#"withdrawal": "172800"#))
-        .stdout(predicate::str::contains(r#"total": "172800"#));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("stake")
-        .arg("transfer")
-        .arg("--sign")
-        .arg(seed_phrase)
-        .arg("--dest")
-        .arg(giver_addr)
-        .arg("--value")
-        .arg("2");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
-        .stdout(predicate::str::contains(r#"stake": "2000000000"#))
-        .stdout(predicate::str::contains(format!(r#"receiver": "{}"#, giver_addr)));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("stake")
-        .arg("ordinary")
-        .arg("--sign")
-        .arg(seed_phrase)
-        .arg("--value")
-        .arg("1");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
-        .stdout(predicate::str::contains(r#"stake": "1000000000"#));
-
-    Ok(())
-}
-
-#[test]
-fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
-    let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
-    
-    let config = get_config().unwrap();
-    let depool_addr = config["addr"].as_str().unwrap();
-    let msig_addr = config["wallet"].as_str().unwrap();
-    
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("stake")
-        .arg("remove")
-        .arg("--sign")
-        .arg(seed_phrase)
-        .arg("--value")
-        .arg("3");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
-        .stdout(predicate::str::contains(r#"stake": "3000000000"#))
-        .stdout(predicate::str::contains(r#"value": "800000000"#));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("stake")
-        .arg("withdrawPart")
-        .arg("--sign")
-        .arg(seed_phrase)
-        .arg("--value")
-        .arg("4");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
-        .stdout(predicate::str::contains(r#"stake": "4000000000"#))
-        .stdout(predicate::str::contains(r#"value": "800000000"#));
-
-    Ok(())
-}
-
-#[test]
-fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
-    let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
-    
-    let config = get_config().unwrap();
-    let depool_addr = config["addr"].as_str().unwrap();
-    
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("donor")
-        .arg("lock")
-        .arg("--sign")
-        .arg(seed_phrase)
-        .arg("--donor")
-        .arg("0:0123456789012345012345678901234501234567890123450123456789012345");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012345"#));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("donor")
-        .arg("vesting")
-        .arg("--sign")
-        .arg(seed_phrase)
-        .arg("--donor")
-        .arg("0:0123456789012345012345678901234501234567890123450123456789012346");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"transId": "0"#));
-
-    sleep(Duration::new(2, 0));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run")
-        .arg("--abi")
-        .arg(depool_abi)
-        .arg(&depool_addr)
-        .arg("getData")
-        .arg("{}");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012346"#));
-
-    Ok(())
-}
-
-#[test]
 fn test_callex() -> Result<(), Box<dyn std::error::Error>> {
     let giver_abi_name = "tests/samples/giver.abi.json";
 
@@ -1213,6 +626,593 @@ fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std:
     cmd.assert()
         .failure()
         .stdout(predicate::str::contains("failed to decode body"));
+
+    Ok(())
+}
+
+#[test]
+fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
+    let giver_abi_name = "tests/samples/giver.abi.json";
+    let giver_addr = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
+    let depool_tvc = "tests/samples/fakeDepool.tvc";
+    let msig_abi = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.abi.json";
+    let msig_tvc = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.tvc";
+    let key_path = "tests/deploy_test.key";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg(&*NETWORK)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genphrase")
+        .output()
+        .expect("Failed to generate a seed phrase.");
+    let mut seed = String::from_utf8_lossy(&out.stdout).to_string();
+    seed.replace_range(..seed.find('"').unwrap_or(0), "");
+    seed.retain(|c| c != '\n' && c != '"');
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("getkeypair")
+        .arg(key_path)
+        .arg(seed)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg("--setkey")
+        .arg(key_path)
+        .arg(msig_tvc)
+        .arg(msig_abi)
+        .output()
+        .expect("Failed to generate address.");
+
+    let mut msig_addr = String::from_utf8_lossy(&out.stdout).to_string();
+    msig_addr.replace_range(..msig_addr.find("0:").unwrap_or(0), "");
+    msig_addr.replace_range(msig_addr.find("testnet").unwrap_or(msig_addr.len())-1.., "");
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg("--setkey")
+        .arg(key_path)
+        .arg(depool_tvc)
+        .arg(depool_abi)
+        .output()
+        .expect("Failed to generate address.");
+
+    let mut depool_addr = String::from_utf8_lossy(&out.stdout).to_string();
+    depool_addr.replace_range(..depool_addr.find("0:").unwrap_or(0), "");
+    depool_addr.replace_range(depool_addr.find("testnet").unwrap_or(depool_addr.len())-1.., "");    
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("--abi")
+        .arg(giver_abi_name)
+        .arg(giver_addr)
+        .arg("sendGrams")
+        .arg(format!(r#"{{"dest":"{}","amount":10000000000}}"#, depool_addr));
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("deploy")
+        .arg(depool_tvc)
+        .arg("{}")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg("--sign")
+        .arg(key_path);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(&depool_addr))
+        .stdout(predicate::str::contains("Transaction succeeded."));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("--abi")
+        .arg(giver_abi_name)
+        .arg(giver_addr)
+        .arg("sendGrams")
+        .arg(format!(r#"{{"dest":"{}","amount":30000000000}}"#, msig_addr));
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("deploy")
+        .arg(msig_tvc)
+        .arg(r#"{"owners":["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"],"reqConfirms":1}"#)
+        .arg("--abi")
+        .arg(msig_abi)
+        .arg("--sign")
+        .arg(key_path);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(&msig_addr))
+        .stdout(predicate::str::contains("Transaction succeeded."));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--addr")
+        .arg(&depool_addr)
+        .arg("--wallet")
+        .arg(&msig_addr)
+        .assert()
+        .success();
+    
+    Ok(())
+}
+
+#[test]
+fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
+    let msig_abi = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.abi.json";
+    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+    
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+    let msig_addr = config["wallet"].as_str().unwrap();
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("body")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg("addOrdinaryStake")
+        .arg(r#"{"stake":65535}"#);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("te6ccgEBAQEADgAAGAqsGP0AAAAAAAD//w=="));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"stake": "4000000000"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("--abi")
+        .arg(msig_abi)
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg(&msig_addr)
+        .arg("sendTransaction")
+        .arg(format!(r#"{{"dest":"{}","value":1000000000,"bounce":true,"flags":1,"payload":"te6ccgEBAQEADgAAGAqsGP0AAAAAAAD//w=="}}"#, &depool_addr));
+    cmd.assert()
+        .success();
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"stake": "65535"#));
+
+    Ok(())
+}
+
+#[test]
+fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
+    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("replenish")
+        .arg("--value")
+        .arg("2")
+        .arg("--sign")
+        .arg(seed_phrase);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Done"#));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"value": "2000000000"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("ticktock")
+        .arg("--sign")
+        .arg(seed_phrase);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Done"#));
+    
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"value": "1000000000"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("events");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"StakeSigningRequested"#))
+        .stdout(predicate::str::contains(r#"{"electionId":"1","proxy":"0:0000000000000000000000000000000000000000000000000000000000000002"}"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("events")
+        .arg("-w");
+    cmd.assert()
+        .success();
+
+    Ok(())
+}
+
+#[test]
+fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
+    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--depool_fee")
+        .arg("0.7")
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("withdraw")
+        .arg("off")
+        .arg("--sign")
+        .arg(seed_phrase);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"reinvest": true"#))
+        .stdout(predicate::str::contains(r#"value": "700000000"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--depool_fee")
+        .arg("0.8")
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("withdraw")
+        .arg("on")
+        .arg("--sign")
+        .arg(seed_phrase);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"reinvest": false"#))
+        .stdout(predicate::str::contains(r#"value": "800000000"#));
+
+    Ok(())
+}
+
+#[test]
+fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
+    let giver_addr = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
+    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+    
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+    let msig_addr = config["wallet"].as_str().unwrap();
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("lock")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--beneficiary")
+        .arg(giver_addr)
+        .arg("--total")
+        .arg("1")
+        .arg("--withdrawal")
+        .arg("1")
+        .arg("--value")
+        .arg("2");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
+        .stdout(predicate::str::contains(r#"stake": "2000000000"#))
+        .stdout(predicate::str::contains(format!(r#"receiver": "{}"#, giver_addr)))
+        .stdout(predicate::str::contains(r#"withdrawal": "86400"#))
+        .stdout(predicate::str::contains(r#"total": "86400"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("vesting")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--beneficiary")
+        .arg("0:0123456789012345012345678901234501234567890123450123456789012345")
+        .arg("--total")
+        .arg("2")
+        .arg("--withdrawal")
+        .arg("2")
+        .arg("--value")
+        .arg("4");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
+        .stdout(predicate::str::contains(r#"stake": "4000000000"#))
+        .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012345"#))
+        .stdout(predicate::str::contains(r#"withdrawal": "172800"#))
+        .stdout(predicate::str::contains(r#"total": "172800"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("transfer")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--dest")
+        .arg(giver_addr)
+        .arg("--value")
+        .arg("2");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
+        .stdout(predicate::str::contains(r#"stake": "2000000000"#))
+        .stdout(predicate::str::contains(format!(r#"receiver": "{}"#, giver_addr)));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("ordinary")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--value")
+        .arg("1");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Answer status: TOTAL_PERIOD_MORE_18YEARS"#));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
+        .stdout(predicate::str::contains(r#"stake": "1000000000"#));
+
+    Ok(())
+}
+
+#[test]
+fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
+    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+    
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+    let msig_addr = config["wallet"].as_str().unwrap();
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("remove")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--value")
+        .arg("3");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
+        .stdout(predicate::str::contains(r#"stake": "3000000000"#))
+        .stdout(predicate::str::contains(r#"value": "800000000"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("withdrawPart")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--value")
+        .arg("4");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(format!(r#"sender": "{}"#, &msig_addr)))
+        .stdout(predicate::str::contains(r#"stake": "4000000000"#))
+        .stdout(predicate::str::contains(r#"value": "800000000"#));
+
+    Ok(())
+}
+
+#[test]
+fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
+    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+    
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("donor")
+        .arg("lock")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--donor")
+        .arg("0:0123456789012345012345678901234501234567890123450123456789012345");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012345"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("donor")
+        .arg("vesting")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--donor")
+        .arg("0:0123456789012345012345678901234501234567890123450123456789012346");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+
+    sleep(Duration::new(2, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012346"#));
 
     Ok(())
 }
