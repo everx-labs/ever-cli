@@ -804,6 +804,19 @@ fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"stake": "65535"#));
 
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("--no-answer")
+        .arg("stake")
+        .arg("ordinary")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--value")
+        .arg("1");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
     Ok(())
 }
 

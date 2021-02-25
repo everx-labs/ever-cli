@@ -252,6 +252,7 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
                 abi: load_abi(abi).unwrap(),
                 body: body.to_owned(),
                 is_internal: is_internal,
+                ..Default::default()
             },
         ).await;
         let (name, args) = if result.is_err() {

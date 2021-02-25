@@ -337,7 +337,7 @@ async fn answer_command(m: &ArgMatches<'_>, conf: Config, depool: &str) -> Resul
             filter: Some(answer_filter(depool, &wallet, since)),
             result: "id value body created_at created_at_string".to_owned(),
             order: Some(vec![OrderBy{ path: "created_at".to_owned(), direction: SortDirection::DESC }]),
-            limit: None,
+            ..Default::default()
         },
     ).await.map_err(|e| format!("failed to query depool messages: {}", e))?;
     println!("{} answers found", messages.result.len());
@@ -578,24 +578,12 @@ async fn add_ordinary_stake(cmd: CommandData<'_>) -> Result<(), String> {
     let fee = u64::from_str_radix(&convert::convert_token(&cmd.depool_fee)?, 10)
         .map_err(|e| format!(r#"failed to parse depool fee value: {}"#, e))?;
     let value = (fee + stake) as f64 * 1.0 / 1e9;
-
-    if cmd.conf.no_wait_for_answer {
-        send_with_body(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &format!("{}", value), &cmd.keys, &body).await
-    } else {
-        call_contract_and_get_answer(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &format!("{}", value),
-            &cmd.keys, &body, true).await
-    }
-
+    call_contract(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &format!("{}", value), &cmd.keys, &body, true).await
 }
 
 async fn replenish_stake(cmd: CommandData<'_>) -> Result<(), String> {
     let body = encode_replenish_stake().await?;
-    if cmd.conf.no_wait_for_answer {
-        send_with_body(cmd.conf.clone(), &cmd.wallet, &cmd.depool, cmd.stake, &cmd.keys, &body).await
-    } else {
-        call_contract_and_get_answer(cmd.conf.clone(), &cmd.wallet, &cmd.depool, cmd.stake,
-            &cmd.keys, &body, false).await
-    }
+    call_contract(cmd.conf.clone(), &cmd.wallet, &cmd.depool, cmd.stake, &cmd.keys, &body, false).await
 }
 
 async fn call_ticktock(
@@ -605,11 +593,7 @@ async fn call_ticktock(
     keys: &str,
 ) -> Result<(), String> {
     let body = encode_ticktock().await?;
-    if conf.no_wait_for_answer {
-        send_with_body(conf.clone(), wallet, depool, "1", keys, &body).await
-    } else {
-        call_contract_and_get_answer(conf.clone(), wallet, depool, "1", keys, &body, false).await
-    }
+    call_contract(conf.clone(), wallet, depool, "1", keys, &body, false).await
 }
 
 async fn add_exotic_stake(
@@ -630,13 +614,7 @@ async fn add_exotic_stake(
     let fee = u64::from_str_radix(&convert::convert_token(&cmd.depool_fee)?, 10)
         .map_err(|e| format!(r#"failed to parse depool fee value: {}"#, e))?;
     let value = (fee + stake) as f64 * 1.0 / 1e9;
-    
-    if cmd.conf.no_wait_for_answer {
-        send_with_body(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &format!("{}", value), &cmd.keys, &body).await
-    } else {
-        call_contract_and_get_answer(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &format!("{}", value),
-            &cmd.keys, &body, true).await
-    }
+    call_contract(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &format!("{}", value), &cmd.keys, &body, true).await
 }
 
 async fn remove_stake(
@@ -646,12 +624,7 @@ async fn remove_stake(
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
     let body = encode_remove_stake(stake).await?;
-    if cmd.conf.no_wait_for_answer {
-        send_with_body(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body).await
-    } else {
-        call_contract_and_get_answer(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee,
-            &cmd.keys, &body, true).await
-    }
+    call_contract(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body, true).await
 }
 
 async fn withdraw_stake(
@@ -661,12 +634,7 @@ async fn withdraw_stake(
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
     let body = encode_withdraw_stake(stake).await?;
-    if cmd.conf.no_wait_for_answer {
-        send_with_body(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body).await
-    } else {
-        call_contract_and_get_answer(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee,
-            &cmd.keys, &body, true).await
-    }
+    call_contract(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body, true).await
 }
 
 async fn transfer_stake(cmd: CommandData<'_>, dest: &str) -> Result<(), String> {
@@ -675,12 +643,7 @@ async fn transfer_stake(cmd: CommandData<'_>, dest: &str) -> Result<(), String> 
         &convert::convert_token(cmd.stake)?, 10,
     ).unwrap();
     let body = encode_transfer_stake(dest.as_str(), stake).await?;
-    if cmd.conf.no_wait_for_answer {
-        send_with_body(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body).await
-    } else {
-        call_contract_and_get_answer(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee,
-            &cmd.keys, &body, true).await
-    }
+    call_contract(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body, true).await
 }
 
 async fn set_withdraw(
@@ -692,12 +655,7 @@ async fn set_withdraw(
 ) -> Result<(), String> {
     let body = encode_set_withdraw(enable).await?;
     let value = conf.depool_fee.to_string();
-    if conf.no_wait_for_answer {
-        send_with_body(conf.clone(), &wallet, &depool, &format!("{}", value), &keys, &body).await
-    } else {
-        call_contract_and_get_answer(conf.clone(), &wallet, &depool, &format!("{}", value),
-            &keys, &body, true).await
-    }
+    call_contract(conf.clone(), &wallet, &depool, &format!("{}", value), &keys, &body, true).await
 }
 
 async fn set_donor(
@@ -710,12 +668,7 @@ async fn set_donor(
 ) -> Result<(), String> {
     let body = encode_set_donor(is_vesting, donor).await?;
     let value = conf.depool_fee.to_string();
-    if conf.no_wait_for_answer {
-        send_with_body(conf.clone(), &wallet, &depool, &format!("{}", value), &keys, &body).await
-    } else {
-        call_contract_and_get_answer(conf.clone(), &wallet, &depool, &format!("{}", value),
-            &keys, &body, true).await
-    }
+    call_contract(conf.clone(), &wallet, &depool, &format!("{}", value), &keys, &body, true).await
 }
 
 async fn encode_body(func: &str, params: serde_json::Value) -> Result<String, String> {
@@ -814,8 +767,24 @@ async fn encode_transfer_stake(dest: &str, amount: u64) -> Result<String, String
     })).await
 }
 
+async fn call_contract(
+    conf: Config,
+    wallet: &str,
+    depool: &str,
+    value: &str,
+	keys: &str,
+    body: &str,
+    answer_is_expected: bool
+) -> Result<(), String> {
+    if conf.no_wait_for_answer {
+        send_with_body(conf.clone(), wallet, depool, value, keys, body).await
+    } else {
+        call_contract_and_get_answer(conf.clone(), wallet, depool, value,
+            keys, body, answer_is_expected).await
+    }
+}
 
-pub async fn call_contract_and_get_answer(
+async fn call_contract_and_get_answer(
     conf: Config,
     src_addr: &str,
     dest_addr: &str,
@@ -859,6 +828,7 @@ pub async fn call_contract_and_get_answer(
             message: msg.message.clone(),
             abi: Some(abi.clone()),
             send_events: false,
+            ..Default::default()
         },
         callback,
     ).await
@@ -871,6 +841,7 @@ pub async fn call_contract_and_get_answer(
             message: msg.message.clone(),
             shard_block_id: result.shard_block_id,
             send_events: true,
+            ..Default::default()
         },
         callback.clone(),
     ).await
@@ -885,6 +856,7 @@ pub async fn call_contract_and_get_answer(
             filter: Some(answer_filter(src_addr, dest_addr, start)),
             result: "id body created_at created_at_string".to_owned(),
             timeout: Some(conf.timeout),
+            ..Default::default()
         },
     ).await.map_err(|e| println!("failed to query message: {}", e.to_string()));
 
@@ -925,6 +897,7 @@ pub async fn call_contract_and_get_answer(
                 filter: Some(answer_filter(dest_addr, src_addr, start)),
                 result: "id body created_at created_at_string value".to_owned(),
                 timeout: Some(conf.timeout),
+                ..Default::default()
             },
         ).await.map_err(|e| println!("failed to query answer: {}", e.to_string()));
         if message.is_ok() {
