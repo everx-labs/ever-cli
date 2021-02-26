@@ -22,16 +22,22 @@ use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngi
 use std::collections::{HashMap, VecDeque};
 use super::{SupportedInterfaces};
 
+/// Stores Debot info needed for DBrowser.
 struct DebotEntry {
     abi: Abi,
     dengine: DEngine,
     callbacks: Arc<Callbacks>,
 }
 
+/// Top level object. Created only once.
 struct TerminalBrowser {
     client: TonClient,
+    /// common message queue for both inteface calls and invoke calls (from different debots).
     msg_queue: VecDeque<String>,
+    /// Map of instantiated Debots. [addr] -> entry.
+    /// New debots are created by invoke requests.
     bots: HashMap<String, DebotEntry>,
+    /// Set of intrefaces implemented by current DBrowser.
     interfaces: SupportedInterfaces,
     conf: Config,
 }
@@ -85,7 +91,8 @@ impl TerminalBrowser {
         interface_id: &String,
         debot_addr: &str,
     ) -> Result<(), String> {
-        let debot = self.bots.get_mut(debot_addr).unwrap();
+        let debot = self.bots.get_mut(debot_addr)
+            .ok_or_else(|| "Internal browser error: debot not found".to_owned())?;
         if let Some(result) = self.interfaces.try_execute(&msg, interface_id).await {
             let (func_id, return_args) = result?;
             debug!("response: {} ({})", func_id, return_args);
@@ -123,7 +130,8 @@ impl TerminalBrowser {
         if self.bots.get_mut(addr).is_none() {
             self.fetch_debot(addr, false).await?;
         }
-        let debot = self.bots.get_mut(addr).unwrap();
+        let debot = self.bots.get_mut(addr)
+            .ok_or_else(|| "Internal error: debot not found")?;
         debot.dengine.send(msg).await.map_err(|e| format!("Debot failed: {}", e))?;
         let new_msgs = &mut debot.callbacks.state.write().unwrap().msg_queue;
         self.msg_queue.append(new_msgs);
@@ -347,10 +355,14 @@ pub async fn run_debot_browser(
             next_msg = browser.msg_queue.pop_front();
         }
 
-        let action = browser.bots.get(addr).unwrap().callbacks.select_action();
+        let action = browser.bots.get(addr)
+            .ok_or_else(|| "Internal error: debot not found".to_owned())?
+            .callbacks
+            .select_action();
         match action {
             Some(act) => {
-                let debot = browser.bots.get_mut(addr).unwrap();
+                let debot = browser.bots.get_mut(addr)
+                    .ok_or_else(|| "Internal error: debot not found".to_owned())?;
                 debot.dengine.execute_action(&act).await?
             },
             None => break,
