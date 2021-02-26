@@ -36,13 +36,22 @@ pub async fn generate_address(
 
     let abi = load_abi(&abi_str)?;
 
-    let (phrase, keys) = if keys_file.is_some() && !new_keys {
-        (None, read_keys(keys_file.unwrap())?)
+    let phrase = if new_keys || (!new_keys && keys_file.is_none()) {
+        gen_seed_phrase()?
+    } else if keys_file.is_some() && 
+        keys_file.unwrap().find(' ').is_some() && !new_keys {
+            keys_file.unwrap().to_owned()
     } else {
-        let seed_phr = gen_seed_phrase()?;
-        let pair = generate_keypair_from_mnemonic(&seed_phr)?;
-        (Some(seed_phr), pair)
+        "".to_owned()
     };
+
+    println!("phrase: {} ; {}", phrase, new_keys);
+    let keys = if phrase.len() != 0 {
+        generate_keypair_from_mnemonic(&phrase)?
+    } else {
+        read_keys(keys_file.unwrap())?
+    };
+    
     
     let wc = wc_str.map(|wc| i32::from_str_radix(wc, 10))
         .transpose()
@@ -58,8 +67,8 @@ pub async fn generate_address(
     ).await?;
     
     println!();
-    if let Some(phr) = phrase {
-        println!(r#"Seed phrase: "{}""#, phr);
+    if phrase.len() != 0 {
+        println!(r#"Seed phrase: "{}""#, phrase);
         println!();
     }
     println!("Raw address: {}", addr);
