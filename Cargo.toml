@@ -20,6 +20,7 @@ crc16 = "0.4.0"
 chrono = "0.4"
 ed25519-dalek = "1.0.0-pre.3"
 hex = "0.3.2"
+num-bigint = "0.2.2"
 num-traits = "0.2"
 qr2term = "0.2.0"
 serde = { version = "1.0", features = ["derive"] }

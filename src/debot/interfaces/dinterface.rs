@@ -1,16 +1,15 @@
-use super::address_input::AddressInput;
+use super::{Menu, AddressInput, AmountInput, ConfirmInput, NumberInput, Terminal};
 use super::echo::Echo;
 use super::stdout::Stdout;
-use super::terminal::Terminal;
-use super::menu::Menu;
 use crate::config::Config;
 use crate::helpers::TonClient;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use ton_client::debot::{DebotInterface, DebotInterfaceExecutor};
-use ton_client::encoding::decode_abi_number;
+use ton_client::encoding::{decode_abi_number, decode_abi_bigint};
 use num_traits::cast::NumCast;
+use num_bigint::BigInt;
 
 pub struct SupportedInterfaces {
     client: TonClient,
@@ -32,6 +31,15 @@ impl SupportedInterfaces {
         let mut interfaces = HashMap::new();
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(AddressInput::new(conf.clone()));
+        interfaces.insert(iface.get_id(), iface);
+
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(AmountInput::new());
+        interfaces.insert(iface.get_id(), iface);
+
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(NumberInput::new());
+        interfaces.insert(iface.get_id(), iface);
+
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(ConfirmInput::new());
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Stdout::new());
@@ -92,4 +100,10 @@ where
     let num_str = decode_arg(args, name)?;
     decode_abi_number::<T>(&num_str)
         .map_err(|e| format!("failed to parse integer \"{}\": {}", num_str, e))
+}
+
+pub fn decode_int256(args: &Value, name: &str) -> Result<BigInt, String> {
+    let num_str = decode_arg(args, name)?;
+    decode_abi_bigint(&num_str)
+        .map_err(|e| format!("failed to decode integer \"{}\": {}", num_str, e))
 }

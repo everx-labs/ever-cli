@@ -3,7 +3,6 @@ use serde_json::Value;
 use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use super::dinterface::{decode_answer_id, decode_num_arg, decode_prompt};
-use crate::config::Config;
 use ton_client::encoding::decode_abi_number;
 use crate::convert;
 
@@ -35,22 +34,36 @@ pub const ABI: &str = r#"
 }
 "#;
 
-pub struct AmountInput {
-    conf: Config
-}
+pub struct AmountInput {}
+
 impl AmountInput {
-    pub fn new(conf: Config) -> Self {
-        Self {conf}
+    pub fn new() -> Self {
+        Self {}
     }
     fn get(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let prompt = decode_prompt(args)?;
-        let decimals = decode_num_arg::<u128>(args, "decimals")?;
+        let decimals = decode_num_arg::<usize>(args, "decimals")?;
+        if decimals > 255 {
+            return Err(format!("too many decimals ({})", decimals));
+        }
         let min = decode_num_arg::<u128>(args, "min")?;
         let max = decode_num_arg::<u128>(args, "max")?;
         let mut value = String::new();
+
+        let prompt = format!(
+            "{}\n(>= {} and <= {})",
+            prompt,
+            format_amount(min, decimals),
+            format_amount(max, decimals)
+        );
         let _ = terminal_input(&prompt, |val| {
-            value = convert::convert_token(val.as_str())?;
+            value = convert::convert_amount(val.as_str(), decimals)?;
+            let number = decode_abi_number::<u128>(&value)
+                .map_err(|e| format!("input is not a valid amount: {}", e))?;
+            if number < min || number > max {
+                return Err(format!("amount is out of range"));
+            }
             Ok(())
         });
         Ok((answer_id, json!({ "value": value })))
@@ -73,4 +86,11 @@ impl DebotInterface for AmountInput {
             _ => Err(format!("function \"{}\" is not implemented", func)),
         }
     }
+}
+
+fn format_amount(amount: u128, decimals: usize) ->  String {
+    print!("{}", amount);
+    let integer = amount / 10u128.pow(decimals as u32);
+    let float = amount - integer * 10u128.pow(decimals as u32);
+    format!("{}.{:0>width$}", integer, float, width = decimals)
 }

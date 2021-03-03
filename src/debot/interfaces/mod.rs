@@ -16,9 +16,14 @@ pub mod echo;
 pub mod stdout;
 pub mod address_input;
 pub mod amount_input;
+pub mod confirm_input;
+pub mod number_input;
 pub mod terminal;
 pub mod menu;
 
 pub use amount_input::AmountInput;
 pub use address_input::AddressInput;
+pub use confirm_input::ConfirmInput;
+pub use number_input::NumberInput;
 pub use terminal::Terminal;
+pub use menu::Menu;
