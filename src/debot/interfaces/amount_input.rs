@@ -89,7 +89,6 @@ impl DebotInterface for AmountInput {
 }
 
 fn format_amount(amount: u128, decimals: usize) ->  String {
-    print!("{}", amount);
     let integer = amount / 10u128.pow(decimals as u32);
     let float = amount - integer * 10u128.pow(decimals as u32);
     format!("{}.{:0>width$}", integer, float, width = decimals)
