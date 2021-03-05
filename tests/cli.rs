@@ -1034,8 +1034,8 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 // TODO: dont use devnet
-//#[test]
-fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
+// #[test]
+/*fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--url")
         .arg("https://net.ton.dev")
@@ -1059,7 +1059,7 @@ fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success();
     Ok(())
-}
+}*/
 
 
 #[test]
