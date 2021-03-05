@@ -215,7 +215,7 @@ where
     let mut input_str = "".to_owned();
     let mut argc = 0;
     while argc == 0 {
-        print!("{} > ", prefix);
+        println!("{}", prefix);
         if let Err(e) = writer.flush() {
             println!("failed to flush: {}", e);
             return input_str;

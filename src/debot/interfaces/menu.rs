@@ -56,11 +56,11 @@ fn str_hex_to_utf8(s: &str) -> Option<String> {
     String::from_utf8(hex::decode(s).ok()?).ok()
 }
 
-fn from_hex_to_utf8_str<'de, S, D>(des: D) -> Result<S, D::Error> 
-where 
+fn from_hex_to_utf8_str<'de, S, D>(des: D) -> Result<S, D::Error>
+where
     S: FromStr,
     S::Err: Display,
-    D: Deserializer<'de> 
+    D: Deserializer<'de>
 {
     let s: String = Deserialize::deserialize(des)?;
     let s = str_hex_to_utf8(&s)
@@ -68,8 +68,8 @@ where
     S::from_str(&s).map_err(de::Error::custom)
 }
 
-fn from_abi_num<'de, D>(des: D) -> Result<u32, D::Error> 
-where 
+fn from_abi_num<'de, D>(des: D) -> Result<u32, D::Error>
+where
     D: Deserializer<'de>
 {
     let s: String = Deserialize::deserialize(des)?;
@@ -78,21 +78,26 @@ where
 
 pub struct Menu {}
 impl Menu {
-	
+
 	pub fn new() -> Self {
 		Self{}
 	}
-	
+
     fn select(&self, args: &Value) -> InterfaceResult {
 		let menu_items: Vec<MenuItem> = serde_json::from_value(args["items"].clone()).unwrap();
         let title = decode_string_arg(args, "title")?;
         let description = decode_string_arg(args, "description")?;
-        println!("{}\n{}", title, description);
+        if title.len() > 0 {
+            println!("{}", title);
+        }
+        if description.len() > 0 {
+            println!("{}", description);
+        }
         for (i, menu) in menu_items.iter().enumerate() {
             println!("{}) {}", i + 1, menu.title);
             if menu.description != "" {
                 println!("   {}", menu.description);
-            }            
+            }
         }
         loop {
             let res = action_input(menu_items.len());
@@ -109,7 +114,7 @@ impl Menu {
 
             return Ok(( menu.unwrap().handler_id, json!({ "index": n - 1 }) ));
         }
-		
+
     }
 }
 
