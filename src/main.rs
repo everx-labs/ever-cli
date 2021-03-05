@@ -174,7 +174,7 @@ async fn main_internal() -> Result <(), String> {
             (@arg ABI: +required +takes_value "Json file with contract ABI.")
             (@arg WC: --wc +takes_value "Workchain id used to generate user-friendly addresses (default 0).")
             (@arg GENKEY: --genkey +takes_value conflicts_with[SETKEY] "Generates new keypair for the contract and saves it to the file.")
-            (@arg SETKEY: --setkey +takes_value conflicts_with[GENKEY] "Loads existing keypair from the file.")
+            (@arg SETKEY: --setkey +takes_value conflicts_with[GENKEY] "Loads existing keypair from the file or use seed phrase.")
             (@arg DATA: --data +takes_value "Supplies initial data to insert into contract.")
             (@arg SAVE: --save "Rewrite tvc file with supplied kepair and initial data.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
