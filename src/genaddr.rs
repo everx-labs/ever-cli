@@ -38,26 +38,25 @@ pub async fn generate_address(
 
     let phrase = if new_keys || (!new_keys && keys_file.is_none()) {
         gen_seed_phrase()?
-    } else if keys_file.is_some() && 
+    } else if keys_file.is_some() &&
         keys_file.unwrap().find(' ').is_some() && !new_keys {
             keys_file.unwrap().to_owned()
     } else {
         "".to_owned()
     };
 
-    println!("phrase: {} ; {}", phrase, new_keys);
     let keys = if phrase.len() != 0 {
         generate_keypair_from_mnemonic(&phrase)?
     } else {
         read_keys(keys_file.unwrap())?
     };
-    
-    
+
+
     let wc = wc_str.map(|wc| i32::from_str_radix(wc, 10))
         .transpose()
         .map_err(|e| format!("failed to parse workchain id: {}", e))?
         .unwrap_or(conf.wc);
-        
+
     let addr = calc_acc_address(
         &contract,
         wc,
@@ -65,26 +64,25 @@ pub async fn generate_address(
         initial_data.clone(),
         abi.clone()
     ).await?;
-    
+
     println!();
     if phrase.len() != 0 {
         println!(r#"Seed phrase: "{}""#, phrase);
-        println!();
     }
     println!("Raw address: {}", addr);
-        
+
     if update_tvc {
         let initial_data = initial_data.map(|s| s.to_string());
         let key_bytes = hex::decode(&keys.public).unwrap();
         update_contract_state(tvc, &key_bytes, initial_data, &abi_str)?;
     }
-    
+
     if new_keys && keys_file.is_some() {
         let keys_json = serde_json::to_string_pretty(&keys).unwrap();
         std::fs::write(keys_file.unwrap(), &keys_json).unwrap();
     }
-    
-    
+
+
     println!("testnet:");
     println!("Non-bounceable address (for init): {}", calc_userfriendly_address(&addr, false, true)?);
     println!("Bounceable address (for later access): {}", calc_userfriendly_address(&addr, true, true)?);
