@@ -556,7 +556,9 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
     };
 
     let params = Some(load_params(params.unwrap())?);
-    print_args!(matches, address, method, params, abi, keys, lifetime, output);
+    if !config.is_json {
+        print_args!(matches, address, method, params, abi, keys, lifetime, output);
+    }
 
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
@@ -731,7 +733,9 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
 
 async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
-    print_args!(matches, address);
+    if !config.is_json {
+        print_args!(matches, address);
+    }
     let address = load_ton_address(address.unwrap(), &config)?;
     get_account(config, address.as_str()).await
 }

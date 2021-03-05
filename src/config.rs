@@ -193,6 +193,8 @@ pub fn set_config(
             .map_err(|_| "failed to serialize config object".to_string())?;
 
         std::fs::write(path, conf_str).map_err(|e| format!("failed to write config file: {}", e))?;
-        println!("Succeeded.");
+        if !conf.is_json {
+            println!("Succeeded.");
+        }
         Ok(())
     }
