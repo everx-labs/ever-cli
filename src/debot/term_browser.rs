@@ -105,12 +105,9 @@ impl TerminalBrowser {
                 ParamsOfEncodeInternalMessage {
                     abi: Some(debot.abi.clone()),
                     address: Some(debot_addr.to_owned()),
-                    src_address: None,
-                    deploy_set: None,
                     call_set,
                     value: "1000000000000000".to_owned(),
-                    bounce: None,
-                    enable_ihr: None,
+                    ..Default::default()
                 }
             )
             .await
