@@ -14,6 +14,17 @@ const ABI: &str = r#"
 	"ABI version": 2,
 	"header": ["time"],
 	"functions": [
+        {
+			"name": "input",
+			"inputs": [
+				{"name":"answerId","type":"uint32"},
+				{"name":"prompt","type":"bytes"},
+				{"name":"multiline","type":"bool"}
+			],
+			"outputs": [
+				{"name":"value","type":"bytes"}
+			]
+		},
 		{
 			"name": "inputStr",
 			"inputs": [
@@ -178,6 +189,7 @@ impl DebotInterface for Terminal {
 
     async fn call(&self, func: &str, args: &Value) -> InterfaceResult {
         match func {
+            "input" => self.input_str(args),
             "inputStr" => self.input_str(args),
             "inputInt" => self.input_int(args),
             "inputUint" => self.input_uint(args),
