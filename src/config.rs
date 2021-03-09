@@ -56,7 +56,7 @@ pub struct Config {
     #[serde(default = "default_depool_fee")]
     pub depool_fee: f32,
     #[serde(default = "default_false")]
-    pub no_wait_for_answer: bool
+    pub no_answer: bool
 
 }
 
@@ -73,7 +73,7 @@ impl Config {
             timeout: default_timeout(),
             is_json: default_false(),
             depool_fee: default_depool_fee(),
-            no_wait_for_answer: default_false(),
+            no_answer: default_false(),
         }
     }
 
@@ -136,7 +136,7 @@ pub fn clear_config(
             timeout: default_timeout(),
             is_json: default_false(),
             depool_fee: default_depool_fee(),
-            no_wait_for_answer: default_false(),
+            no_answer: default_false(),
         };
     }
     let conf_str = serde_json::to_string(&conf)

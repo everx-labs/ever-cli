@@ -241,9 +241,9 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
         .ok_or("depool address is not defined. Supply it in config file or in command line.".to_string())?;
     let depool = load_ton_address(&depool, &conf)
         .map_err(|e| format!("invalid depool address: {}", e))?;
-    let waif_for_answer = m.is_present("NO_ANSWER");
+    let no_answer = m.is_present("NO_ANSWER");
     let mut conf = conf.clone();
-    conf.no_wait_for_answer = waif_for_answer;
+    conf.no_answer = no_answer;
     if let Some(m) = m.subcommand_matches("donor") {
         let matches = m.subcommand_matches("vesting").or(m.subcommand_matches("lock"));
         if let Some(matches) = matches {
@@ -772,15 +772,22 @@ async fn call_contract(
     wallet: &str,
     depool: &str,
     value: &str,
-	keys: &str,
+    keys: &str,
     body: &str,
     answer_is_expected: bool
 ) -> Result<(), String> {
-    if conf.no_wait_for_answer {
+    if conf.no_answer {
         send_with_body(conf.clone(), wallet, depool, value, keys, body).await
     } else {
-        call_contract_and_get_answer(conf.clone(), wallet, depool, value,
-            keys, body, answer_is_expected).await
+        call_contract_and_get_answer(
+            conf.clone(),
+            wallet,
+            depool,
+            value,
+            keys,
+            body,
+            answer_is_expected
+        ).await
     }
 }
 
@@ -813,6 +820,7 @@ async fn call_contract_and_get_answer(
         &params,
         None,
         Some(keys.to_owned()),
+        false
     ).await?;
 
     print_encoded_message(&msg);
@@ -861,11 +869,12 @@ async fn call_contract_and_get_answer(
     ).await.map_err(|e| println!("failed to query message: {}", e.to_string()));
 
     if message.is_err() {
-        println!("\nMessage from the multisig wasn't successfully sent. Check the contract balance to be great enough to cover transfer value with possible fees.");
+        println!("\nRequest failed. Check the contract balance to be great enough to cover transfer value with possible fees.");
         return Ok(());
     }
+    println!("\nRequest was successfully sent to depool.");
     if answer_is_expected {
-        println!("\nMessage was successfully sent, waiting for an answer...");
+        println!("\nWaiting for depool answer...");
 
         let mut statuses: HashMap<u32, &str> = HashMap::new();
         statuses.insert(0, "SUCCESS");
@@ -919,8 +928,6 @@ async fn call_contract_and_get_answer(
         } else {
             println!("\nThere were no answer messages during the timeout period.\n");    
         }
-    } else {
-        println!("\nMessage was successfully sent.");
     }
     println!("Done");
     Ok(())
