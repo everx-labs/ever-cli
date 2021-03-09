@@ -18,8 +18,8 @@ const ABI: &str = r#"
 			"name": "input",
 			"inputs": [
 				{"name":"answerId","type":"uint32"},
-                {"name":"prompt","type":"bytes"},
-                {"name":"multiline","type":"bool"}
+				{"name":"prompt","type":"bytes"},
+				{"name":"multiline","type":"bool"}
 			],
 			"outputs": [
 				{"name":"value","type":"bytes"}
