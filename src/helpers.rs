@@ -115,7 +115,9 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
 }
 
 pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
-    println!("Connecting to {}", conf.url);
+    if !conf.is_json {
+        println!("Connecting to {}", conf.url);
+    }
 
     let level = if std::env::var("RUST_LOG")
         .unwrap_or_default()

@@ -12,103 +12,174 @@
 */
 use super::term_signing_box::TerminalSigningBox;
 use crate::config::Config;
-use crate::helpers::{create_client, load_ton_address, TonClient};
+use crate::helpers::{create_client, load_ton_address, load_abi, TonClient};
 use std::io::{self, BufRead, Write};
 use std::sync::{Arc, RwLock};
+use ton_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, encode_internal_message};
 use ton_client::boc::{ParamsOfParse, parse_message};
 use ton_client::crypto::SigningBoxHandle;
-use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngine, STATE_EXIT};
-use std::collections::VecDeque;
+use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngine, STATE_EXIT, DEBOT_WC};
+use std::collections::{HashMap, VecDeque};
 use super::{SupportedInterfaces};
 
+/// Stores Debot info needed for DBrowser.
+struct DebotEntry {
+    abi: Abi,
+    dengine: DEngine,
+    callbacks: Arc<Callbacks>,
+}
+
+/// Top level object. Created only once.
 struct TerminalBrowser {
-    state_id: u8,
-    active_actions: Vec<DAction>,
     client: TonClient,
+    /// common message queue for both inteface calls and invoke calls (from different debots).
     msg_queue: VecDeque<String>,
+    /// Map of instantiated Debots. [addr] -> entry.
+    /// New debots are created by invoke requests.
+    bots: HashMap<String, DebotEntry>,
+    /// Set of intrefaces implemented by current DBrowser.
+    interfaces: SupportedInterfaces,
+    conf: Config,
 }
 
 impl TerminalBrowser {
-    pub fn new(client: TonClient) -> Self {
+    fn new(client: TonClient, conf: &Config) -> Self {
         Self {
-            state_id: 0,
-            active_actions: vec![],
             client: client.clone(),
             msg_queue: Default::default(),
+            bots: HashMap::new(),
+            interfaces: SupportedInterfaces::new(client.clone(), conf),
+            conf: conf.clone(),
         }
     }
 
-    pub fn select_action(&self) -> Option<DAction> {
-        if self.state_id == STATE_EXIT {
-            return None;
-        }
-        if self.active_actions.len() == 0 {
-            debug!("no more actions, exit loop");
-            return None;
+    async fn fetch_debot(&mut self, addr: &str, start: bool) -> Result<(), String> {
+        let debot_addr = load_ton_address(addr, &self.conf)?;
+        let callbacks = Arc::new(Callbacks::new(self.client.clone(), self.conf.clone()));
+        let callbacks_ref = Arc::clone(&callbacks);
+        let mut dengine = DEngine::new_with_client(
+            debot_addr.clone(),
+            None,
+            self.client.clone(),
+            callbacks
+        );
+        let abi_json = if start {
+            dengine.start().await?
+        } else {
+            dengine.fetch().await?
+        };
+        let abi = load_abi(&abi_json)?;
+        {
+            let msgs = &mut callbacks_ref.state.write().unwrap().msg_queue;
+            self.msg_queue.append(msgs);
         }
 
-        loop {
-            let res = action_input(self.active_actions.len());
-            if res.is_err() {
-                println!("{}", res.unwrap_err());
-                continue;
+        self.bots.insert(
+            debot_addr,
+            DebotEntry {
+                abi,
+                dengine,
+                callbacks: callbacks_ref,
             }
-            let (n, _, _) = res.unwrap();
-            let act = self.active_actions.get(n - 1);
-            if act.is_none() {
-                println!("Invalid action. Try again.");
-                continue;
-            }
-            return act.map(|a| a.clone());
-        }
+        );
+        Ok(())
     }
 
-    async fn handle_interface_call(
-        client: TonClient,
+    async fn call_interface(
+        &mut self,
         msg: String,
-        debot: &mut DEngine,
-        interfaces: &SupportedInterfaces,
+        interface_id: &String,
+        debot_addr: &str,
     ) -> Result<(), String> {
-
-        let parsed = parse_message(
-            client.clone(),
-            ParamsOfParse { 
-                boc: msg.clone(),
-                ..Default::default()
-            },
-        )
-        .await
-        .map_err(|e| format!("{}", e))?;
-
-        let iface_addr = parsed.parsed["dst"]
-            .as_str()
-            .ok_or(format!("parsed message has no dst address"))?;
-        let wc_and_addr: Vec<_> = iface_addr.split(':').collect();
-        let interface_id = wc_and_addr[1].to_string();
-
-        if let Some(result) = interfaces.try_execute(&msg, &interface_id).await {
+        let debot = self.bots.get_mut(debot_addr)
+            .ok_or_else(|| "Internal browser error: debot not found".to_owned())?;
+        if let Some(result) = self.interfaces.try_execute(&msg, interface_id).await {
             let (func_id, return_args) = result?;
             debug!("response: {} ({})", func_id, return_args);
-            let result = debot.send(
-                iface_addr.to_owned(), func_id, return_args.to_string()
-            ).await;
+            let call_set = match func_id {
+                0 => None,
+                _ => CallSet::some_with_function_and_input(&format!("0x{:x}", func_id), return_args),
+            };
+            let response_msg = encode_internal_message(
+                self.client.clone(),
+                ParamsOfEncodeInternalMessage {
+                    abi: Some(debot.abi.clone()),
+                    address: Some(debot_addr.to_owned()),
+                    call_set,
+                    value: "1000000000000000".to_owned(),
+                    ..Default::default()
+                }
+            )
+            .await
+            .map_err(|e| format!("{}", e))?
+            .message;
+            let result = debot.dengine.send(response_msg).await;
+            let new_msgs = &mut debot.callbacks.state.write().unwrap().msg_queue;
+            self.msg_queue.append(new_msgs);
             if let Err(e) = result {
-                println!("debot call failed: {}", e);
+                println!("Debot error: {}", e);
             }
         }
 
         Ok(())
     }
 
+    async fn call_debot(&mut self, addr: &str, msg: String) -> Result<(), String> {
+        if self.bots.get_mut(addr).is_none() {
+            self.fetch_debot(addr, false).await?;
+        }
+        let debot = self.bots.get_mut(addr)
+            .ok_or_else(|| "Internal error: debot not found")?;
+        debot.dengine.send(msg).await.map_err(|e| format!("Debot failed: {}", e))?;
+        let new_msgs = &mut debot.callbacks.state.write().unwrap().msg_queue;
+        self.msg_queue.append(new_msgs);
+        Ok(())
+    }
+
+}
+
+#[derive(Default)]
+struct ActiveState {
+    state_id: u8,
+    active_actions: Vec<DAction>,
+    msg_queue: VecDeque<String>,
 }
 
 struct Callbacks {
-    browser: Arc<RwLock<TerminalBrowser>>,
+    config: Config,
+    client: TonClient,
+    state: Arc<RwLock<ActiveState>>,
 }
 
 impl Callbacks {
-    pub fn new(browser: Arc<RwLock<TerminalBrowser>>) -> Self {
-        Self { browser }
+    pub fn new(client: TonClient, config: Config) -> Self {
+        Self { client, config, state: Arc::new(RwLock::new(ActiveState::default())) }
+    }
+
+    pub fn select_action(&self) -> Option<DAction> {
+        let state = self.state.read().unwrap();
+        if state.state_id == STATE_EXIT {
+            return None;
+        }
+        if state.active_actions.len() == 0 {
+            debug!("no more actions, exit loop");
+            return None;
+        }
+
+        loop {
+            let res = action_input(state.active_actions.len());
+            if res.is_err() {
+                println!("{}", res.unwrap_err());
+                continue;
+            }
+            let (n, _, _) = res.unwrap();
+            let act = state.active_actions.get(n - 1);
+            if act.is_none() {
+                println!("Invalid action. Try again.");
+                continue;
+            }
+            return act.map(|a| a.clone());
+        }
     }
 }
 
@@ -121,14 +192,14 @@ impl BrowserCallbacks for Callbacks {
 
     /// Debot is switched to another context.
     async fn switch(&self, ctx_id: u8) {
-        let mut browser = self.browser.write().unwrap();
         debug!("switched to ctx {}", ctx_id);
-        browser.state_id = ctx_id;
+        let mut state = self.state.write().unwrap();
+        state.state_id = ctx_id;
         if ctx_id == STATE_EXIT {
             return;
         }
 
-        browser.active_actions = vec![];
+        state.active_actions = vec![];
     }
 
     async fn switch_completed(&self) {
@@ -136,9 +207,9 @@ impl BrowserCallbacks for Callbacks {
 
     /// Debot asks browser to show user an action from the context
     async fn show_action(&self, act: DAction) {
-        let mut browser = self.browser.write().unwrap();
-        println!("{}) {}", browser.active_actions.len() + 1, act.desc);
-        browser.active_actions.push(act);
+        let mut state = self.state.write().unwrap();
+        println!("{}) {}", state.active_actions.len() + 1, act.desc);
+        state.active_actions.push(act);
     }
 
     // Debot engine asks user to enter argument for an action.
@@ -152,7 +223,7 @@ impl BrowserCallbacks for Callbacks {
     /// Debot engine requests keys to sign something
     async fn get_signing_box(&self) -> Result<SigningBoxHandle, String> {
         let terminal_box = TerminalSigningBox::new()?;
-        let client = self.browser.read().unwrap().client.clone();
+        let client = self.client.clone();
         let handle = ton_client::crypto::get_signing_box(
             client,
             terminal_box.keys,
@@ -167,43 +238,12 @@ impl BrowserCallbacks for Callbacks {
     async fn invoke_debot(&self, debot: String, action: DAction) -> Result<(), String> {
         debug!("fetching debot {} action {}", &debot, action.name);
         println!("Invoking debot {}", &debot);
-        let ton_cl = self.browser.read().unwrap().client.clone();
-        let browser = Arc::new(
-            RwLock::new(
-                TerminalBrowser::new(ton_cl.clone())
-            )
-        );
-        let callbacks = Arc::new(Callbacks::new(Arc::clone(&browser)));
-        let mut debot_eng = DEngine::new_with_client(
-            debot.clone(),
-            None,
-            ton_cl.clone(),
-            callbacks,
-        );
-        debot_eng.fetch().await?;
-        if let Err(e) = debot_eng.execute_action(&action).await {
-            println!("Error. {}", e);
-            return Ok(());
-        }
-
-        loop {
-            let action = browser.read().unwrap().select_action();
-            match action {
-                Some(act) => {
-                    if let Err(e) = debot_eng.execute_action(&act).await {
-                        println!("Error. {}", e);
-                        break;
-                    }
-                },
-                None => break,
-            }
-        }
-        Ok(())
+        run_debot_browser(&debot, self.config.clone()).await
     }
 
     async fn send(&self, message: String) {
-        let mut browser = self.browser.write().unwrap();
-        browser.msg_queue.push_back(message);
+        let mut state = self.state.write().unwrap();
+        state.msg_queue.push_back(message);
     }
 }
 
@@ -215,7 +255,7 @@ where
     let mut input_str = "".to_owned();
     let mut argc = 0;
     while argc == 0 {
-        print!("{} > ", prefix);
+        println!("{}", prefix);
         if let Err(e) = writer.flush() {
             println!("failed to flush: {}", e);
             return input_str;
@@ -279,28 +319,50 @@ pub async fn run_debot_browser(
 ) -> Result<(), String> {
     println!("Connecting to {}", config.url);
     let ton = create_client(&config)?;
-    let interfaces = SupportedInterfaces::new(ton.clone(), &config);
-
-    let browser = Arc::new(RwLock::new(TerminalBrowser::new(ton.clone())));
-
-    let callbacks = Arc::new(Callbacks::new(Arc::clone(&browser)));
-    let mut debot = DEngine::new_with_client(load_ton_address(addr, &config)?, None, ton.clone(), callbacks);
-    debot.start().await?;
-
+    let mut browser = TerminalBrowser::new(ton.clone(), &config);
+    browser.fetch_debot(addr, true).await?;
     loop {
-        let mut next_msg = browser.write().unwrap().msg_queue.pop_front();
+        let mut next_msg = browser.msg_queue.pop_front();
         while let Some(msg) = next_msg {
-            TerminalBrowser::handle_interface_call(
+            let parsed = parse_message(
                 ton.clone(),
-                msg,
-                &mut debot,
-                &interfaces,
-            ).await?;
-            next_msg = browser.write().unwrap().msg_queue.pop_front();
+                ParamsOfParse { boc: msg.clone() },
+            )
+            .await
+            .map_err(|e| format!("{}", e))?
+            .parsed;
+
+            let msg_dest = parsed["dst"]
+            .as_str()
+            .ok_or(format!("parsed message has no dst address"))?;
+
+            let msg_src = parsed["src"]
+            .as_str()
+            .ok_or(format!("parsed message has no dst address"))?;
+
+            let wc_and_addr: Vec<_> = msg_dest.split(':').collect();
+            let id = wc_and_addr[1].to_string();
+            let wc = i8::from_str_radix(wc_and_addr[0], 10).map_err(|e| format!("{}", e))?;
+
+            if wc == DEBOT_WC {
+                browser.call_interface(msg, &id, msg_src).await?;
+            } else {
+                browser.call_debot(msg_dest, msg).await?;
+            }
+
+            next_msg = browser.msg_queue.pop_front();
         }
-        let action = browser.read().unwrap().select_action();
+
+        let action = browser.bots.get(addr)
+            .ok_or_else(|| "Internal error: debot not found".to_owned())?
+            .callbacks
+            .select_action();
         match action {
-            Some(act) => debot.execute_action(&act).await?,
+            Some(act) => {
+                let debot = browser.bots.get_mut(addr)
+                    .ok_or_else(|| "Internal error: debot not found".to_owned())?;
+                debot.dengine.execute_action(&act).await?
+            },
             None => break,
         }
     }

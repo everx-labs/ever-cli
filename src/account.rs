@@ -26,7 +26,9 @@ const ACCOUNT_FIELDS: &str = r#"
 pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
-    println!("Processing...");
+    if !conf.is_json {
+        println!("Processing...");
+    }
     let query_result = query_collection(
         ton.clone(),
         ParamsOfQueryCollection {
@@ -38,29 +40,56 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
         },
     ).await.map_err(|e| format!("failed to query account info: {}", e))?;
     let accounts = query_result.result;
-    println!("Succeeded.");
+    if !conf.is_json {
+        println!("Succeeded.");
+    }
 
-    if accounts.len() == 1 {
-        let acc = &accounts[0];
-        let acc_type = acc["acc_type_name"].as_str().unwrap();
-        if acc_type != "NonExist" {
-            println!("acc_type:      {}", acc_type);
-            let balance_str = &acc["balance"].as_str().unwrap();
-            println!("balance:       {}", u64::from_str_radix(balance_str, 10).unwrap());
-            println!("last_paid:     {}", acc["last_paid"].as_u64().unwrap());
-            println!("last_trans_lt: {}", acc["last_trans_lt"].as_str().unwrap());
-            let data_str = acc["data"].as_str();
-            if data_str.is_some() {
-                let data_vec = base64::decode(data_str.unwrap()).unwrap();
-                println!("data(boc): {}", hex::encode(&data_vec));
+    if conf.is_json {
+        println!("{{");
+        if accounts.len() == 1 {
+            let acc = &accounts[0];
+            let acc_type = acc["acc_type_name"].as_str().unwrap();
+            if acc_type != "NonExist" {
+                println!("  \"acc_type\": \"{}\",", acc_type);
+                let balance_str = &acc["balance"].as_str().unwrap();
+                println!("  \"balance\": \"{}\",", u64::from_str_radix(balance_str, 10).unwrap());
+                println!("  \"last_paid\": \"{}\",", acc["last_paid"].as_u64().unwrap());
+                println!("  \"last_trans_lt\": \"{}\",", acc["last_trans_lt"].as_str().unwrap());
+                let data_str = acc["data"].as_str();
+                if data_str.is_some() {
+                    let data_vec = base64::decode(data_str.unwrap()).unwrap();
+                    println!("  \"data(boc)\": \"{}\"", hex::encode(&data_vec));
+                } else {
+                    println!("  \"data(boc)\": \"null\"");
+                }
             } else {
-                println!("data(boc): null");
+                println!("  \"acc_type\": \"{}\"", acc_type);
+            }
+        }
+        println!("}}");
+    } else {
+        if accounts.len() == 1 {
+            let acc = &accounts[0];
+            let acc_type = acc["acc_type_name"].as_str().unwrap();
+            if acc_type != "NonExist" {
+                println!("acc_type:      {}", acc_type);
+                let balance_str = &acc["balance"].as_str().unwrap();
+                println!("balance:       {}", u64::from_str_radix(balance_str, 10).unwrap());
+                println!("last_paid:     {}", acc["last_paid"].as_u64().unwrap());
+                println!("last_trans_lt: {}", acc["last_trans_lt"].as_str().unwrap());
+                let data_str = acc["data"].as_str();
+                if data_str.is_some() {
+                    let data_vec = base64::decode(data_str.unwrap()).unwrap();
+                    println!("data(boc): {}", hex::encode(&data_vec));
+                } else {
+                    println!("data(boc): null");
+                }
+            } else {
+                println!("Account does not exist.");    
             }
         } else {
-            println!("Account does not exist.");    
+            println!("Account not found.");
         }
-    } else {
-        println!("Account not found.");
     }
     Ok(())
 }

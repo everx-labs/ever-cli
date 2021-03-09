@@ -50,8 +50,11 @@ pub async fn prepare_message(
     params: &str,
     header: Option<FunctionHeader>,
     keys: Option<String>,
+    is_json: bool,
 ) -> Result<EncodedMessage, String> {
-    println!("Generating external inbound message...");
+    if !is_json {
+        println!("Generating external inbound message...");
+    }
 
     let keys = keys.map(|k| load_keypair(&k)).transpose()?;
     let params = serde_json::from_str(&params)
@@ -247,9 +250,12 @@ async fn send_message_and_wait(
     abi: Abi,
     msg: String,
     local: bool,
+    is_json: bool,
 ) -> Result<serde_json::Value, String> {
     if local {
-        println!("Running get-method...");
+        if !is_json {
+            println!("Running get-method...");
+        }
         let acc_boc = query_account_boc(ton.clone(), addr).await?;
 
         let result = run_tvm(
@@ -265,7 +271,9 @@ async fn send_message_and_wait(
         .map_err(|e| format!("run failed: {:#}", e))?;
         Ok(result.decoded.and_then(|d| d.output).unwrap_or(json!({})))
     } else {
-        println!("Processing... ");
+        if !is_json {
+            println!("Processing... ");
+        }
         let callback = |_| {
             async move {}
         };
@@ -318,11 +326,14 @@ pub async fn call_contract_with_result(
         params,
         None,
         keys,
+        conf.is_json,
     ).await?;
 
-    print_encoded_message(&msg);
+    if !conf.is_json {
+        print_encoded_message(&msg);
+    }
 
-    send_message_and_wait(ton.clone(), addr, abi, msg.message, local).await
+    send_message_and_wait(ton.clone(), addr, abi, msg.message, local, conf.is_json).await
 }
 
 pub async fn call_contract(
@@ -334,10 +345,16 @@ pub async fn call_contract(
     keys: Option<String>,
     local: bool
 ) -> Result<(), String> {
-    let result = call_contract_with_result(conf, addr, abi, method, params, keys, local).await?;
-    println!("Succeeded.");
+    let result = call_contract_with_result(conf.clone(), addr, abi, method, params, keys, local).await?;
+    if !conf.is_json {
+        println!("Succeeded.");
+    }
     if !result.is_null() {
-        println!("Result: {}", serde_json::to_string_pretty(&result).unwrap());
+        if !conf.is_json {
+            println!("Result: {}", serde_json::to_string_pretty(&result).unwrap());
+        } else {
+            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+        }
     }
     Ok(())
 }
@@ -375,6 +392,7 @@ pub async fn generate_message(
         params,
         Some(header),
         keys,
+        false,
     ).await?;
     print_encoded_message(&msg);
 
@@ -407,7 +425,7 @@ pub async fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) 
     println!("{}", params.1);
     println!("Processing... ");
 
-    let result = send_message_and_wait(ton, &msg.address, abi, msg.message, false).await?;
+    let result = send_message_and_wait(ton, &msg.address, abi, msg.message, false, false).await?;
 
     println!("Succeded.");
     if !result.is_null() {

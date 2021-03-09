@@ -174,7 +174,7 @@ async fn main_internal() -> Result <(), String> {
             (@arg ABI: +required +takes_value "Json file with contract ABI.")
             (@arg WC: --wc +takes_value "Workchain id used to generate user-friendly addresses (default 0).")
             (@arg GENKEY: --genkey +takes_value conflicts_with[SETKEY] "Generates new keypair for the contract and saves it to the file.")
-            (@arg SETKEY: --setkey +takes_value conflicts_with[GENKEY] "Loads existing keypair from the file.")
+            (@arg SETKEY: --setkey +takes_value conflicts_with[GENKEY] "Loads existing keypair from the file or use seed phrase.")
             (@arg DATA: --data +takes_value "Supplies initial data to insert into contract.")
             (@arg SAVE: --save "Rewrite tvc file with supplied kepair and initial data.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
@@ -556,7 +556,9 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
     };
 
     let params = Some(load_params(params.unwrap())?);
-    print_args!(matches, address, method, params, abi, keys, lifetime, output);
+    if !config.is_json {
+        print_args!(matches, address, method, params, abi, keys, lifetime, output);
+    }
 
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
@@ -731,7 +733,9 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
 
 async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
-    print_args!(matches, address);
+    if !config.is_json {
+        print_args!(matches, address);
+    }
     let address = load_ton_address(address.unwrap(), &config)?;
     get_account(config, address.as_str()).await
 }
