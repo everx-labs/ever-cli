@@ -24,12 +24,12 @@ pub fn convert_amount(amount: &str, decimals: usize) -> Result<String, String> {
         result += parts[0];
         if parts.len() == 2 {
             let fraction = format!("{:0<width$}", parts[1], width = decimals);
-            if fraction.len() != 9 {
+            if fraction.len() != decimals {
                 return Err("invalid fractional part".to_string());
             }
             result += &fraction;
         } else {
-            result += "000000000";
+            result += &"0".repeat(decimals);
         }
         u64::from_str_radix(&result, 10)
             .map_err(|e| format!("failed to parse amount: {}", e))?;

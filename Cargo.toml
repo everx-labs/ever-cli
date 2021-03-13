@@ -10,7 +10,7 @@ readme = "README.md"
 license = "Apache-2.0"
 keywords = ["TON", "SDK", "smart contract", "tonlabs", "solidity"]
 edition = "2018"
-version = "0.9.0"
+version = "0.9.1"
 
 [dependencies]
 async-trait = "0.1.42"
@@ -32,10 +32,13 @@ log = {version = "0.4.11", features = ["std"] }
 tokio = { version = "0.2", features = ["full"], default-features = false }
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
-ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git' }
-ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git' }
+ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', branch = "1.11.0-rc" }
+ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', branch = "1.11.0-rc" }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
 ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git" }
+
+#[patch.'https://github.com/tonlabs/TON-SDK.git']
+#ton_client = { path = "../../TON-SDK/ton_client" }
 
 [dev-dependencies]
 assert_cmd = "0.11"
