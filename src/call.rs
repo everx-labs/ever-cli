@@ -227,20 +227,20 @@ fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Res
 async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, String> {
     let accounts = query(
         ton,
-        "accounts",
-        json!({ "id": { "eq": addr } }),
-        "boc",
-        None,
-    ).await
+            "accounts",
+            json!({ "id": { "eq": addr } }),
+            "boc",
+            None,
+        ).await
     .map_err(|e| format!("failed to query account: {}", e))?;
 
-    if accounts.len() == 0 {
-        return Err(format!("account not found"));
-    }
-    let boc = accounts[0]["boc"].as_str();
-    if boc.is_none() {
-        return Err(format!("account doesn't contain data"));
-    }
+            if accounts.len() == 0 {
+                return Err(format!("account not found"));
+            }
+            let boc = accounts[0]["boc"].as_str();
+            if boc.is_none() {
+                return Err(format!("account doesn't contain data"));
+            }
     Ok(boc.unwrap().to_owned())
 }
 
@@ -250,10 +250,10 @@ async fn send_message_and_wait(
     abi: Abi,
     msg: String,
     local: bool,
-    is_json: bool,
+    conf: Config,
 ) -> Result<serde_json::Value, String> {
     if local {
-        if !is_json {
+        if !conf.is_json {
             println!("Running get-method...");
         }
         let acc_boc = query_account_boc(ton.clone(), addr).await?;
@@ -271,38 +271,47 @@ async fn send_message_and_wait(
         .map_err(|e| format!("run failed: {:#}", e))?;
         Ok(result.decoded.and_then(|d| d.output).unwrap_or(json!({})))
     } else {
-        if !is_json {
+        if !conf.is_json {
             println!("Processing... ");
         }
         let callback = |_| {
             async move {}
         };
 
-        let result = send_message(
-            ton.clone(),
-            ParamsOfSendMessage {
-                message: msg.clone(),
-                abi: Some(abi.clone()),
-                send_events: false,
-                ..Default::default()
-            },
-            callback,
-        ).await
-        .map_err(|e| format!("Failed: {:#}", e))?;
+        let mut attempts = conf.retries + 1; // + 1 (first try)
+        while attempts != 0 {
+            attempts -= 1;
+            let result = send_message(
+                ton.clone(),
+                ParamsOfSendMessage {
+                    message: msg.clone(),
+                    abi: Some(abi.clone()),
+                    send_events: false,
+                    ..Default::default()
+                },
+                callback,
+            ).await
+            .map_err(|e| format!("Failed: {:#}", e))?;
 
-        let result = wait_for_transaction(
-            ton.clone(),
-            ParamsOfWaitForTransaction {
-                abi: Some(abi.clone()),
-                message: msg.clone(),
-                shard_block_id: result.shard_block_id,
-                send_events: true,
-                ..Default::default()
-            },
-            callback.clone(),
-        ).await
-        .map_err(|e| format!("Failed: {:#}", e))?;
-        Ok(result.decoded.and_then(|d| d.output).unwrap_or(json!({})))
+            let result = wait_for_transaction(
+                ton.clone(),
+                ParamsOfWaitForTransaction {
+                    abi: Some(abi.clone()),
+                    message: msg.clone(),
+                    shard_block_id: result.shard_block_id,
+                    send_events: true,
+                    ..Default::default()
+                },
+                callback.clone(),
+            ).await
+            .map_err(|e| format!("Failed: {:#}", e));
+
+            if result.is_ok() {
+                return Ok(result.unwrap().decoded.and_then(|d| d.output).unwrap_or(json!({})));
+            }
+            println!("Transaction didn't reach the network. Performing next attempt...");
+        }
+        Err("All attempts has failed.".to_owned())
     }
 }
 
@@ -318,13 +327,20 @@ pub async fn call_contract_with_result(
     let ton = create_client_verbose(&conf)?;
     let abi = load_abi(&abi)?;
 
+    let now = now();
+    let expire_at = conf.lifetime + now;
+    let header = FunctionHeader {
+        expire: Some(expire_at),
+        ..Default::default()
+    };
+
     let msg = prepare_message(
         ton.clone(),
         addr,
         abi.clone(),
         method,
         params,
-        None,
+        Some(header),
         keys,
         conf.is_json,
     ).await?;
@@ -333,7 +349,7 @@ pub async fn call_contract_with_result(
         print_encoded_message(&msg);
     }
 
-    send_message_and_wait(ton.clone(), addr, abi, msg.message, local, conf.is_json).await
+    send_message_and_wait(ton.clone(), addr, abi, msg.message, local, conf).await
 }
 
 pub async fn call_contract(
@@ -425,7 +441,7 @@ pub async fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) 
     println!("{}", params.1);
     println!("Processing... ");
 
-    let result = send_message_and_wait(ton, &msg.address, abi, msg.message, false, false).await?;
+    let result = send_message_and_wait(ton, &msg.address, abi, msg.message, false, conf).await?;
 
     println!("Succeded.");
     if !result.is_null() {
