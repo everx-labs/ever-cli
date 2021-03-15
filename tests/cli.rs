@@ -1269,3 +1269,59 @@ fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std:
 
     Ok(())
 }
+
+#[test]
+fn test_gen_deploy_message() -> Result<(), Box<dyn std::error::Error>> {
+    let output = "test_gen_deploy_message_raw.out";
+    let wallet_tvc = "tests/samples/wallet.tvc";
+    let wallet_abi = "tests/samples/wallet.abi.json";
+    let key_path = "tests/deploy_test.key";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genphrase")
+        .output()
+        .expect("Failed to generate a seed phrase.");
+    let mut seed = String::from_utf8_lossy(&out.stdout).to_string();
+    seed.replace_range(..seed.find('"').unwrap_or(0), "");
+    seed.retain(|c| c != '\n' && c != '"');
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("getkeypair")
+        .arg(key_path)
+        .arg(seed)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg("--setkey")
+        .arg(key_path)
+        .arg(wallet_tvc)
+        .arg(wallet_abi)
+        .output()
+        .expect("Failed to generate address.");
+
+    let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
+    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
+    addr.replace_range(addr.find("testnet").unwrap_or(addr.len())-1.., "");
+
+    let _ = std::fs::remove_file(output);
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("deploy_message")
+        .arg(wallet_tvc)
+        .arg("{}")
+        .arg("--abi")
+        .arg(wallet_abi)
+        .arg("--sign")
+        .arg(key_path)
+        .arg("--output")
+        .arg(output)
+        .arg("--raw");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(addr))
+        .stdout(predicate::str::contains("Succeeded"));
+
+    let _ = std::fs::remove_file(output);
+    Ok(())
+}
