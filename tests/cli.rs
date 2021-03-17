@@ -258,8 +258,8 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_genaddr_seed() -> Result<(), Box<dyn std::error::Error>> {
-    let msig_abi = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.abi.json";
-    let msig_tvc = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.tvc";
+    let msig_abi = "tests/samples/SafeMultisigWallet.abi.json";
+    let msig_tvc = "tests/samples/SafeMultisigWallet.tvc";
     let key_path = "tests/deploy_test.key";
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -688,8 +688,8 @@ fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
     let giver_addr = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
     let depool_abi = "tests/samples/fakeDepool.abi.json";
     let depool_tvc = "tests/samples/fakeDepool.tvc";
-    let msig_abi = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.abi.json";
-    let msig_tvc = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.tvc";
+    let msig_abi = "tests/samples/SafeMultisigWallet.abi.json";
+    let msig_tvc = "tests/samples/SafeMultisigWallet.tvc";
     let key_path = "tests/deploy_test.key";
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -801,7 +801,7 @@ fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
-    let msig_abi = "ton-labs-contracts/solidity/safemultisig/SafeMultisigWallet.abi.json";
+    let msig_abi = "tests/samples/SafeMultisigWallet.abi.json";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
 
     let config = get_config().unwrap();
