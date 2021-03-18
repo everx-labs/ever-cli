@@ -217,3 +217,55 @@ pub async fn calc_acc_address(
     .map_err(|e| format!("cannot generate address: {}", e))?;
     Ok(result.address)
 }
+
+pub fn answer_filter(depool: &str, wallet: &str, since: u32) -> serde_json::Value {
+    json!({
+        "src": { "eq": depool },
+        "dst": { "eq": wallet },
+        "created_at": {"ge": since }
+    })
+}
+
+pub fn events_filter(addr: &str, since: u32) -> serde_json::Value {
+    json!({
+        "src": { "eq": addr },
+        "msg_type": {"eq": 2 },
+        "created_at": {"ge": since }
+    })
+}
+
+pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &str, is_internal: bool) -> (String, String) {
+    println!("Id: {}", message["id"].as_str().unwrap_or("Undefined"));
+    let value = message["value"].as_str().unwrap_or("0x0");
+    let value = u64::from_str_radix(value.trim_start_matches("0x"), 16).unwrap();
+    let value: f64 = value as f64 / 1e9;
+    println!("Value: {:.9}", value);
+    println!("Created at: {} ({})",
+        message["created_at"].as_u64().unwrap_or(0),
+        message["created_at_string"].as_str().unwrap_or("Undefined")
+    );
+    
+    let body = message["body"].as_str();
+    if body.is_some() {
+        let body = body.unwrap();
+        let result = ton_client::abi::decode_message_body(
+            ton.clone(),
+            ParamsOfDecodeMessageBody {
+                abi: load_abi(abi).unwrap(),
+                body: body.to_owned(),
+                is_internal: is_internal,
+                ..Default::default()
+            },
+        ).await;
+        let (name, args) = if result.is_err() {
+            ("unknown".to_owned(), "{}".to_owned())
+        } else {
+            let result = result.unwrap();
+            (result.name, serde_json::to_string(&result.value).unwrap())
+        };
+        println!("Decoded body:\n{} {}\n", name, args);
+        return (name, args);
+    }
+    println!();
+    return ("".to_owned(), "".to_owned());
+}

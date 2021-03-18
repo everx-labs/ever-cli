@@ -35,14 +35,14 @@ use ton_client::processing::{
 };
 use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet};
 
-struct EncodedMessage {
+pub struct EncodedMessage {
     message_id: String,
-    message: String,
+    pub message: String,
     expire: Option<u32>,
     address: String,
 }
 
-async fn prepare_message(
+pub async fn prepare_message(
     ton: TonClient,
     addr: &str,
     abi: Abi,
@@ -91,7 +91,7 @@ async fn prepare_message(
     })
 }
 
-fn print_encoded_message(msg: &EncodedMessage) {
+pub fn print_encoded_message(msg: &EncodedMessage) {
     println!();
     println!("MessageId: {}", msg.message_id);
     print!("Expire at: ");
