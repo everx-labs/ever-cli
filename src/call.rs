@@ -42,7 +42,7 @@ pub struct EncodedMessage {
     pub address: String,
 }
 
-async fn prepare_message(
+pub async fn prepare_message(
     ton: TonClient,
     addr: &str,
     abi: Abi,
@@ -91,7 +91,7 @@ async fn prepare_message(
     })
 }
 
-fn print_encoded_message(msg: &EncodedMessage) {
+pub fn print_encoded_message(msg: &EncodedMessage) {
     println!();
     println!("MessageId: {}", msg.message_id);
     print!("Expire at: ");
