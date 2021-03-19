@@ -36,10 +36,10 @@ use ton_client::processing::{
 use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet};
 
 pub struct EncodedMessage {
-    message_id: String,
+    pub message_id: String,
     pub message: String,
-    expire: Option<u32>,
-    address: String,
+    pub expire: Option<u32>,
+    pub address: String,
 }
 
 pub async fn prepare_message(
@@ -359,6 +359,30 @@ pub async fn call_contract(
     Ok(())
 }
 
+pub fn display_generated_message(
+    msg: &EncodedMessage,
+    method: &str,
+    is_raw: bool,
+    output: Option<&str>,
+) -> Result<(), String> {
+    print_encoded_message(msg);
+
+    let msg_bytes = pack_message(msg, method, is_raw);
+    if output.is_some() {
+        let out_file = output.unwrap();
+        std::fs::write(out_file, msg_bytes)
+            .map_err(|e| format!("cannot write message to file: {}", e))?;
+        println!("Message saved to file {}", out_file);
+    } else {
+        let msg_hex = hex::encode(&msg_bytes);
+        println!("Message: {}", msg_hex);
+        println!();
+        qr2term::print_qr(msg_hex).unwrap();
+        println!();
+    }
+    Ok(())
+}
+
 pub async fn generate_message(
     _conf: Config,
     addr: &str,
@@ -394,21 +418,9 @@ pub async fn generate_message(
         keys,
         false,
     ).await?;
-    print_encoded_message(&msg);
 
-    let msg_bytes = pack_message(&msg, method, is_raw);
-    if output.is_some() {
-        let out_file = output.unwrap();
-        std::fs::write(out_file, msg_bytes)
-            .map_err(|e| format!("cannot write message to file: {}", e))?;
-        println!("Message saved to file {}", out_file);
-    } else {
-        let msg_hex = hex::encode(&msg_bytes);
-        println!("Message: {}", msg_hex);
-        println!();
-        qr2term::print_qr(msg_hex).unwrap();
-        println!();
-    }
+    display_generated_message(&msg, method, is_raw, output)?;
+
     Ok(())
 }
 
