@@ -278,40 +278,31 @@ async fn send_message_and_wait(
             async move {}
         };
 
-        let mut attempts = conf.retries + 1; // + 1 (first try)
-        while attempts != 0 {
-            attempts -= 1;
-            let result = send_message(
-                ton.clone(),
-                ParamsOfSendMessage {
-                    message: msg.clone(),
-                    abi: Some(abi.clone()),
-                    send_events: false,
-                    ..Default::default()
-                },
-                callback,
-            ).await
-            .map_err(|e| format!("Failed: {:#}", e))?;
+        let result = send_message(
+            ton.clone(),
+            ParamsOfSendMessage {
+                message: msg.clone(),
+                abi: Some(abi.clone()),
+                send_events: false,
+                ..Default::default()
+            },
+            callback,
+        ).await
+        .map_err(|e| format!("Failed: {:#}", e))?;
 
-            let result = wait_for_transaction(
-                ton.clone(),
-                ParamsOfWaitForTransaction {
-                    abi: Some(abi.clone()),
-                    message: msg.clone(),
-                    shard_block_id: result.shard_block_id,
-                    send_events: true,
-                    ..Default::default()
-                },
-                callback.clone(),
-            ).await
-            .map_err(|e| format!("Failed: {:#}", e));
-
-            if result.is_ok() {
-                return Ok(result.unwrap().decoded.and_then(|d| d.output).unwrap_or(json!({})));
-            }
-            println!("Transaction didn't reach the network. Performing next attempt...");
-        }
-        Err("All attempts has failed.".to_owned())
+        let result = wait_for_transaction(
+            ton.clone(),
+            ParamsOfWaitForTransaction {
+                abi: Some(abi.clone()),
+                message: msg.clone(),
+                shard_block_id: result.shard_block_id,
+                send_events: true,
+                ..Default::default()
+            },
+            callback.clone(),
+        ).await
+        .map_err(|e| format!("Failed: {:#}", e))?;
+        Ok(result.decoded.and_then(|d| d.output).unwrap_or(json!({})))
     }
 }
 
@@ -327,29 +318,42 @@ pub async fn call_contract_with_result(
     let ton = create_client_verbose(&conf)?;
     let abi = load_abi(&abi)?;
 
-    let now = now();
-    let expire_at = conf.lifetime + now;
-    let header = FunctionHeader {
-        expire: Some(expire_at),
-        ..Default::default()
-    };
+    let mut attempts = conf.retries + 1; // + 1 (first try)
+    while attempts != 0 {
+        attempts -= 1;
+        let now = now();
+        let expire_at = conf.lifetime + now;
+        let header = FunctionHeader {
+            expire: Some(expire_at),
+            ..Default::default()
+        };
 
-    let msg = prepare_message(
-        ton.clone(),
-        addr,
-        abi.clone(),
-        method,
-        params,
-        Some(header),
-        keys,
-        conf.is_json,
-    ).await?;
+        let msg = prepare_message(
+            ton.clone(),
+            addr,
+            abi.clone(),
+            method,
+            params,
+            Some(header),
+            keys.clone(),
+            conf.is_json,
+        ).await?;
 
-    if !conf.is_json {
-        print_encoded_message(&msg);
+        if !conf.is_json {
+            print_encoded_message(&msg);
+        }
+
+        let result = send_message_and_wait(ton.clone(), addr, abi.clone(), msg.message, local, conf.clone()).await;
+        
+        if result.is_ok() {
+            return result;
+        }
+        println!("{}", result.err().unwrap());
+        if attempts != 0 {
+            println!("\nPerforming next attempt.\n");
+        }
     }
-
-    send_message_and_wait(ton.clone(), addr, abi, msg.message, local, conf).await
+    Err("All attempts has failed".to_owned())
 }
 
 pub async fn call_contract(

@@ -109,7 +109,7 @@ pub async fn prepare_deploy_message(
         workchain_id: Some(wc),
         ..Default::default()
     };
-    let params: serde_json::Value = serde_json::from_str(params)
+    let params = serde_json::from_str(params)
         .map_err(|e| format!("function arguments is not a json: {}", e))?;
 
     Ok((ParamsOfEncodeMessage {

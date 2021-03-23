@@ -22,7 +22,7 @@ fn default_wc() -> i32 {
 }
 
 fn default_retries() -> u8 {
-    2
+    5
 }
 
 fn default_depool_fee() -> f32 {
