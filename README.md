@@ -5,6 +5,11 @@
 ## Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) >= 1.48.x installed
+- OpenSSL 
+    ```bash
+    sudo apt-get install libssl-dev (openssl-devel on Fedora)
+    sudo apt-get install pkg-config
+    ```
 
 ## How to build
 
