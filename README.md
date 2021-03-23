@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- [Rust](https://www.rust-lang.org/tools/install) >= 1.48.x installed
+- [Rust](https://www.rust-lang.org/tools/install) latest
 - OpenSSL 
     ```bash
     sudo apt-get install libssl-dev (openssl-devel on Fedora)
