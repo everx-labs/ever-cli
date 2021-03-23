@@ -61,6 +61,8 @@ pub struct Config {
     pub depool_fee: f32,
     #[serde(default = "default_lifetime")]
     pub lifetime: u32,
+    #[serde(default = "default_false")]
+    pub no_answer: bool
 }
 
 impl Config {
@@ -77,6 +79,7 @@ impl Config {
             is_json: default_false(),
             depool_fee: default_depool_fee(),
             lifetime: default_lifetime(),
+            no_answer: default_false(),
         }
     }
 
@@ -144,6 +147,7 @@ pub fn clear_config(
             is_json: default_false(),
             depool_fee: default_depool_fee(),
             lifetime: default_lifetime(),
+            no_answer: default_false(),
         };
     }
     let conf_str = serde_json::to_string(&conf)

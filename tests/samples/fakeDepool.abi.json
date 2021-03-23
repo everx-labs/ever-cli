@@ -3,6 +3,13 @@
 	"header": ["time", "expire"],
 	"functions": [
 		{
+			"name": "sendAnswer",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
 			"name": "addOrdinaryStake",
 			"inputs": [
 				{"name":"stake","type":"uint64"}

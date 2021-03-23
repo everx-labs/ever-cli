@@ -38,7 +38,7 @@ use config::{Config, set_config, clear_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use debot::{create_debot_command, debot_command};
 use decode::{create_decode_command, decode_command};
-use deploy::deploy_contract;
+use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
 use helpers::{load_ton_address, load_abi, create_client_local};
 use genaddr::generate_address;
@@ -56,6 +56,11 @@ enum CallType {
     Run,
     Call,
     Msg,
+}
+
+enum DeployType {
+    Full,
+    MsgOnly,
 }
 
 #[macro_export]
@@ -191,6 +196,21 @@ async fn main_internal() -> Result <(), String> {
             (@arg SIGN: --sign +takes_value "Keypair used to sign 'constructor message'.")
             (@arg WC: --wc +takes_value "Workchain id of the smart contract (default 0).")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+        )
+        (@subcommand deploy_message =>
+            (@setting AllowNegativeNumbers)
+            (@setting AllowLeadingHyphen)
+            (about: "Generates a signed message to deploy smart contract to blockchain.")
+            (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
+            (author: "TONLabs")
+            (@arg TVC: +required +takes_value "Compiled smart contract (tvc file)")
+            (@arg PARAMS: +required +takes_value "Constructor arguments. Can be passed via a filename.")
+            (@arg ABI: --abi +takes_value "Json file with contract ABI.")
+            (@arg SIGN: --sign +takes_value "Keypair used to sign 'constructor message'.")
+            (@arg WC: --wc +takes_value "Workchain id of the smart contract (default 0).")
+            (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            (@arg OUTPUT: -o --output +takes_value "Path to file where to store message.")
+            (@arg RAW: --raw "Creates raw message boc.")
         )
         (subcommand: callex_sub_command)
         (@subcommand call =>
@@ -378,7 +398,10 @@ async fn main_internal() -> Result <(), String> {
         return send_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("deploy") {
-        return deploy_command(m, conf).await;
+        return deploy_command(m, conf, DeployType::Full).await;
+    }
+    if let Some(m) = matches.subcommand_matches("deploy_message") {
+        return deploy_command(m, conf, DeployType::MsgOnly).await;
     }
     if let Some(m) = matches.subcommand_matches("config") {
         return config_command(m, conf, config_file);
@@ -651,10 +674,12 @@ async fn runget_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
     run_get_method(config, address.as_str(), method.unwrap(), params).await
 }
 
-async fn deploy_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: DeployType) -> Result<(), String> {
     let tvc = matches.value_of("TVC");
     let params = matches.value_of("PARAMS");
     let wc = matches.value_of("WC");
+    let raw = matches.is_present("RAW");
+    let output = matches.value_of("OUTPUT");
     let abi = Some(
         matches.value_of("ABI")
             .map(|s| s.to_string())
@@ -674,7 +699,11 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
         .transpose()
         .map_err(|e| format!("failed to parse workchain id: {}", e))?
         .unwrap_or(config.wc);
-    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc).await
+    
+    match deploy_type {
+        DeployType::Full => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc).await,
+        DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc, raw, output).await
+    }
 }
 
 fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> Result<(), String> {

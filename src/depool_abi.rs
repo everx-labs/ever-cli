@@ -11,6 +11,58 @@
  * limitations under the License.
  */
 
+pub const PARTICIPANT_ABI: &str = r#"
+{
+	"ABI version": 2,
+	"header": ["time", "expire"],
+	"functions": [
+		{
+			"name": "onRoundComplete",
+			"inputs": [
+				{"name":"roundId","type":"uint64"},
+				{"name":"reward","type":"uint64"},
+				{"name":"ordinaryStake","type":"uint64"},
+				{"name":"vestingStake","type":"uint64"},
+				{"name":"lockStake","type":"uint64"},
+				{"name":"reinvest","type":"bool"},
+				{"name":"reason","type":"uint8"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "receiveAnswer",
+			"inputs": [
+				{"name":"errcode","type":"uint32"},
+				{"name":"comment","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "onTransfer",
+			"inputs": [
+				{"name":"source","type":"address"},
+				{"name":"amount","type":"uint128"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "constructor",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		}
+	],
+	"data": [
+	],
+	"events": [
+	]
+}
+"#;
+
 pub const DEPOOL_ABI: &str = r#"
 {
 	"ABI version": 2,
