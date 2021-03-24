@@ -348,7 +348,13 @@ pub async fn call_contract_with_result(
         if result.is_ok() {
             return result;
         }
-        println!("{}", result.err().unwrap());
+        let err = result.err().unwrap();
+        println!("{}", err);
+
+        if err.find("Local contract call emulation was successful").is_none() {
+            break;
+        }
+
         if attempts != 0 {
             println!("\nPerforming next attempt.\n");
         }
