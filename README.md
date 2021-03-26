@@ -210,6 +210,7 @@ For all commands:
 `--addr` - address of depool.
 `--wallet` - address of multisig wallet.
 `--sign` - path to keyfile or seed phrase of multisig wallet.
+`--no-answer` - Do not wait for depool answer when calling a depool function. (Use for multisig with more than one custodian)  
 
 All commands allow to omit `--addr`, `--wallet` and `--sign` options only if this values are defined in config file:
 
