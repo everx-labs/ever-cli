@@ -384,7 +384,7 @@ pub async fn call_contract_with_result(
             println!("\nRetry #{}.\n", total_attempts - attempts);
         }
     }
-    Err("All attempts has failed".to_owned())
+    Err("All attempts have failed".to_owned())
 }
 
 pub async fn call_contract(
