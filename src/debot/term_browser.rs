@@ -255,25 +255,27 @@ impl BrowserCallbacks for Callbacks {
         println!("--------------------");
         match activity {
             DebotActivity::Transaction{msg: _, dst, out, fee, setcode, signkey} => {
-                println!("DeBot is going to create an onchain transaction for account: {}.", dst);
-                println!("Transaction fees: {} tokens.", convert_u64_to_tokens(fee));
+                println!("DeBot is going to create an onchain transaction.");
+                println!("Details:");
+                println!("  account: {}.", dst);
+                println!("  Transaction fees: {} tokens.", convert_u64_to_tokens(fee));
                 if out.len() > 0 {
-                    println!("Outgoing transfers from account:");
+                    println!("  Outgoing transfers from account:");
                     for spending in out {
                         println!(
-                            "Recipient: {}, amount: {} tokens.",
+                            "  - recipient: {}, amount: {} tokens.",
                             spending.dst,
                             convert_u64_to_tokens(spending.amount),
                         );
                     }
                 } else {
-                    println!("No outgoing transfers from account");
+                    println!("  No outgoing transfers from account");
                 }
-                println!("Message signer public key: {}", signkey);
+                println!("  Message signer public key: {}", signkey);
                 if setcode {
-                    println!("Warning: the transaction will change the account smart contract code");
+                    println!("  Warning: the transaction will change the account smart contract code");
                 }
-                let _ = terminal_input("Allow transaction (y/n)?", |val| {
+                let _ = terminal_input("Confirm the transaction (y/n)?", |val| {
                     approved = match val.as_str() {
                         "y" => true,
                         "n" => false,
