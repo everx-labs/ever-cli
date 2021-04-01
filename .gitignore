@@ -9,3 +9,4 @@ target
 /tests/samples/wallet.keys.json
 /tests/samples/tmp.json
 tests/deploy_test.key
+.idea/*
