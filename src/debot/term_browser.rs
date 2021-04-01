@@ -12,13 +12,15 @@
 */
 use super::term_signing_box::TerminalSigningBox;
 use crate::config::Config;
+use crate::convert::convert_u64_to_tokens;
 use crate::helpers::{create_client, load_ton_address, load_abi, TonClient};
 use std::io::{self, BufRead, Write};
 use std::sync::{Arc, RwLock};
 use ton_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, encode_internal_message};
 use ton_client::boc::{ParamsOfParse, parse_message};
 use ton_client::crypto::SigningBoxHandle;
-use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngine, STATE_EXIT, DEBOT_WC};
+use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngine, DebotActivity, STATE_EXIT, DEBOT_WC};
+use ton_client::error::ClientResult;
 use std::collections::{HashMap, VecDeque};
 use super::{SupportedInterfaces};
 
@@ -63,11 +65,11 @@ impl TerminalBrowser {
             self.client.clone(),
             callbacks
         );
-        let abi_json = if start {
-            dengine.start().await?
-        } else {
-            dengine.fetch().await?
-        };
+        let info = dengine.init().await?;
+        let abi_json = info.dabi.ok_or(format!("DeBot ABI is not defined"))?;
+        if start {
+            dengine.start().await?;
+        }
         let abi = load_abi(&abi_json)?;
         {
             let msgs = &mut callbacks_ref.state.write().unwrap().msg_queue;
@@ -244,6 +246,44 @@ impl BrowserCallbacks for Callbacks {
     async fn send(&self, message: String) {
         let mut state = self.state.write().unwrap();
         state.msg_queue.push_back(message);
+    }
+
+    async fn approve(&self, activity: DebotActivity) -> ClientResult<bool> {
+        let mut approved = false;
+        println!("--------------------");
+        println!("[Permission Request]");
+        println!("--------------------");
+        match activity {
+            DebotActivity::Transaction{msg: _, dst, out, fee, setcode, signkey} => {
+                println!("DeBot is going to create an onchain transaction for account: {}.", dst);
+                println!("Transaction fees: {} tokens.", convert_u64_to_tokens(fee));
+                if out.len() > 0 {
+                    println!("Outgoing transfers from account:");
+                    for spending in out {
+                        println!(
+                            "Recipient: {}, amount: {} tokens.",
+                            spending.dst,
+                            convert_u64_to_tokens(spending.amount),
+                        );
+                    }
+                } else {
+                    println!("No outgoing transfers from account");
+                }
+                println!("Message signer public key: {}", signkey);
+                if setcode {
+                    println!("Warning: the transaction will change the account smart contract code");
+                }
+                let _ = terminal_input("Allow transaction (y/n)?", |val| {
+                    approved = match val.as_str() {
+                        "y" => true,
+                        "n" => false,
+                        _ => Err(format!("invalid enter"))?,
+                    };
+                    Ok(())
+                });
+            },
+        }
+        Ok(approved)
     }
 }
 
