@@ -39,6 +39,12 @@ pub fn convert_amount(amount: &str, decimals: usize) -> Result<String, String> {
     Err("Invalid amout value".to_string())
 }
 
+pub fn convert_u64_to_tokens(value: u64) -> String {
+    let integer = value / 1_000_000_000;
+    let float = value - integer * 1_000_000_000;
+    format!("{}.{:>09}", integer, float)
+}
+
 pub fn nodeid_from_pubkey(key: &[u8]) -> Result<String, String> {
     if key.len() != 32 {
         return Err("Public key must be 32 byte long".to_owned());
