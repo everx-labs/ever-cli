@@ -361,7 +361,7 @@ pub async fn call_contract_with_result(
             // but if it was simulated locally and local exit code is zero,
             // we ignore previous exit code because it means we have to make a retry.
             if !err.data["exit_code"].is_null() {
-                if err.data["exit_code"].as_u64().unwrap() == 0 {
+                if err.data["exit_code"].as_i64().unwrap() == 0 {
                     code = 0;
                 }
             }
