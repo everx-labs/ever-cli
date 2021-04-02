@@ -35,3 +35,8 @@ This fixes affects all debots invoking other debots (e.g. depool debot, mludi de
 
 ### New feature
 - Added config parameter `--lifetime` which sets lifetime for `call` messages.
+
+## v0.10.1
+
+### Fixes
+- Fixed a bug in retries with negative error code
