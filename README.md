@@ -63,7 +63,7 @@ By default, tonos-cli connects to `https://net.ton.dev` network.
 
 Examples: 
 * `tonos-cli genaddr --genkey wallet_keys.json wallet.tvc wallet.abi.json`  
-  `wallet_keys.json` file will be created with new keypair and this keypair will be used for
+  `wallet_keys.json` file will be created (or replaced) with a new keypair and this keypair will be used for
   address generation. Address will be generated with workchain `0`.
 
 * `tonos-cli genaddr --setkey existing_keys.json --wc -1 wallet.tvc wallet.abi.json`  
