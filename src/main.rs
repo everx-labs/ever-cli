@@ -281,6 +281,7 @@ async fn main_internal() -> Result <(), String> {
             (@arg TIMEOUT: --timeout +takes_value "Contract call timeout in ms.")
             (@arg LIST: --list conflicts_with[URL ABI KEYS ADDR RETRIES TIMEOUT WC] "Prints all config parameters.")
             (@arg DEPOOL_FEE: --depool_fee +takes_value "Value added to message sent to depool to cover it's fees (change will be returned).")
+            (@arg LIFETIME: --lifetime +takes_value "Period of time in seconds while message is valid.")
             (@subcommand clear =>
                 (@setting AllowLeadingHyphen)
                 (about: "Resets certain default values for options in the config file. Resets all values if used without options.")
@@ -293,6 +294,7 @@ async fn main_internal() -> Result <(), String> {
                 (@arg RETRIES: --retries "Number of attempts to call smart contract function if previous attempt was unsuccessful.")
                 (@arg TIMEOUT: --timeout "Contract call timeout in ms.")
                 (@arg DEPOOL_FEE: --depool_fee "Value added to message sent to depool to cover it's fees (change will be returned).")
+                (@arg LIFETIME: --lifetime "Period of time in seconds while message is valid.")
             )
         )
         (@subcommand account =>
@@ -717,7 +719,8 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let retries = clear_matches.is_present("RETRIES");
             let timeout = clear_matches.is_present("TIMEOUT");
             let depool_fee = clear_matches.is_present("DEPOOL_FEE");
-            result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee);
+            let lifetime = clear_matches.is_present("LIFETIME");
+            result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime);
         } else {
             let url = matches.value_of("URL");
             let address = matches.value_of("ADDR");
@@ -728,7 +731,8 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let retries = matches.value_of("RETRIES");
             let timeout = matches.value_of("TIMEOUT");
             let depool_fee = matches.value_of("DEPOOL_FEE");
-            result = set_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee);
+            let lifetime = matches.value_of("LIFETIME");
+            result = set_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {

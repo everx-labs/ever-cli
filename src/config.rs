@@ -37,6 +37,10 @@ fn default_false() -> bool {
     false
 }
 
+fn default_lifetime() -> u32 {
+    60
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
     #[serde(default = "default_url")]
@@ -55,9 +59,10 @@ pub struct Config {
     pub is_json: bool,
     #[serde(default = "default_depool_fee")]
     pub depool_fee: f32,
+    #[serde(default = "default_lifetime")]
+    pub lifetime: u32,
     #[serde(default = "default_false")]
     pub no_answer: bool
-
 }
 
 impl Config {
@@ -73,6 +78,7 @@ impl Config {
             timeout: default_timeout(),
             is_json: default_false(),
             depool_fee: default_depool_fee(),
+            lifetime: default_lifetime(),
             no_answer: default_false(),
         }
     }
@@ -96,6 +102,7 @@ pub fn clear_config(
     retries: bool,
     timeout: bool,
     depool_fee: bool,
+    lifetime: bool,
 ) -> Result<(), String> {
     if url {
         conf.url = default_url();
@@ -115,6 +122,9 @@ pub fn clear_config(
     if retries {
         conf.retries = default_retries();
     }
+    if lifetime {
+        conf.lifetime = default_lifetime();
+    }
     if timeout {
         conf.timeout = default_timeout();
     }
@@ -124,7 +134,7 @@ pub fn clear_config(
     if depool_fee {
         conf.depool_fee = default_depool_fee();
     }
-    if (url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee) == false {
+    if (url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime) == false {
         conf = Config {
             url: default_url(),
             wc: default_wc(),
@@ -136,6 +146,7 @@ pub fn clear_config(
             timeout: default_timeout(),
             is_json: default_false(),
             depool_fee: default_depool_fee(),
+            lifetime: default_lifetime(),
             no_answer: default_false(),
         };
     }
@@ -159,6 +170,7 @@ pub fn set_config(
     retries: Option<&str>,
     timeout: Option<&str>,
     depool_fee: Option<&str>,
+    lifetime:  Option<&str>,
 ) -> Result<(), String> {
         if let Some(s) = url {
             conf.url = s.to_string();
@@ -178,6 +190,10 @@ pub fn set_config(
         if let Some(retries) = retries {
             conf.retries = u8::from_str_radix(retries, 10)
                 .map_err(|e| format!(r#"failed to parse "retries": {}"#, e))?;
+        }
+        if let Some(lifetime) = lifetime {
+            conf.lifetime = u32::from_str_radix(lifetime, 10)
+                .map_err(|e| format!(r#"failed to parse "lifetime": {}"#, e))?;
         }
         if let Some(timeout) = timeout {
             conf.timeout = u32::from_str_radix(timeout, 10)
