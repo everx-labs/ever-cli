@@ -19,7 +19,8 @@ use std::sync::{Arc, RwLock};
 use ton_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, encode_internal_message};
 use ton_client::boc::{ParamsOfParse, parse_message};
 use ton_client::crypto::SigningBoxHandle;
-use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngine, DebotActivity, STATE_EXIT, DEBOT_WC};
+use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngine,
+    DebotActivity, DebotInfo, STATE_EXIT, DEBOT_WC};
 use ton_client::error::ClientResult;
 use std::collections::{HashMap, VecDeque};
 use super::{SupportedInterfaces};
@@ -65,12 +66,25 @@ impl TerminalBrowser {
             self.client.clone(),
             callbacks
         );
-        let info = dengine.init().await?;
-        let abi_json = info.dabi.ok_or(format!("DeBot ABI is not defined"))?;
+        let info: DebotInfo = dengine.init().await?.into();
+        let abi_ref = info.dabi.as_ref();
+        let abi = load_abi(&abi_ref.ok_or(format!("DeBot ABI is not defined"))?)?;
+        Self::print_info(info);
+        let mut run_debot = true;
+        let _ = terminal_input("Run the DeBot (y/n)?", |val| {
+            run_debot = match val.as_str() {
+                "y" => true,
+                "n" => false,
+                _ => Err(format!("invalid enter"))?,
+            };
+            Ok(())
+        });
+        if !run_debot {
+            return Err(format!("DeBot rejected"));
+        }
         if start {
             dengine.start().await?;
         }
-        let abi = load_abi(&abi_json)?;
         {
             let msgs = &mut callbacks_ref.state.write().unwrap().msg_queue;
             self.msg_queue.append(msgs);
@@ -136,6 +150,17 @@ impl TerminalBrowser {
         let new_msgs = &mut debot.callbacks.state.write().unwrap().msg_queue;
         self.msg_queue.append(new_msgs);
         Ok(())
+    }
+
+    fn print_info(info: DebotInfo) {
+        println!("DeBot Info:");
+        println!("Name   : {}", info.name.unwrap_or_else(|| format!("None")));
+        println!("Version: {}", info.version.unwrap_or_else(|| format!("None")));
+        println!("Author : {}", info.author.unwrap_or_else(|| format!("None")));
+        println!("Publisher: {}", info.publisher.unwrap_or_else(|| format!("None")));
+        println!("Support: {}", info.support.unwrap_or_else(|| format!("None")));
+        println!("Description: {}", info.key.unwrap_or_else(|| format!("None")));
+        println!("{}", info.hello.unwrap_or_else(|| format!("None")));
     }
 
 }
@@ -255,7 +280,7 @@ impl BrowserCallbacks for Callbacks {
         println!("--------------------");
         match activity {
             DebotActivity::Transaction{msg: _, dst, out, fee, setcode, signkey} => {
-                println!("DeBot is going to create an onchain transaction.");
+                println!("DeBot is going to create an onchain transaction.\n");
                 println!("Details:");
                 println!("  account: {}.", dst);
                 println!("  Transaction fees: {} tokens.", convert_u64_to_tokens(fee));
@@ -263,7 +288,7 @@ impl BrowserCallbacks for Callbacks {
                     println!("  Outgoing transfers from account:");
                     for spending in out {
                         println!(
-                            "  - recipient: {}, amount: {} tokens.",
+                            "    recipient: {}, amount: {} tokens.",
                             spending.dst,
                             convert_u64_to_tokens(spending.amount),
                         );
