@@ -264,25 +264,25 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, it 
 
 #### Ordinary stake
 
-    tonos-cli depool [--addr <depool_address>] stake ordinary [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] [--no-answer] stake ordinary [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>]
 
 
 #### Vesting stake
 
-    tonos-cli depool [--addr <depool_address>] stake vesting [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] [--no-answer] stake vesting [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>]
 
 
 #### Lock stake
 
-    tonos-cli depool [--addr <depool_address>] stake lock [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] [--no-answer] stake lock [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>]
 
 ### Remove stakes
 
-    tonos-cli depool [--addr <depool_address>] stake remove [--wallet <msig_address>] --value <number> [--from-round <number>] [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] [--no-answer] stake remove [--wallet <msig_address>] --value <number> [--from-round <number>] [--sign <key_file or seed_phrase>]
 
 ### Transfer stakes
 
-    tonos-cli depool [--addr <depool_address>] stake transfer [--wallet <msig_address>] --value <number> --dest <address> [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] [--no-answer] stake transfer [--wallet <msig_address>] --value <number> --dest <address> [--sign <key_file or seed_phrase>]
 
 ### Enable/disable withdraw
 
