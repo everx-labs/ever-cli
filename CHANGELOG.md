@@ -40,3 +40,9 @@ This fixes affects all debots invoking other debots (e.g. depool debot, mludi de
 
 ### Fixes
 - Fixed a bug in retries with negative error code
+
+## v0.11.1
+
+### Improvements
+- Added ability to specify depool command `--no-answer` flag in the config and in the
+  end of command.

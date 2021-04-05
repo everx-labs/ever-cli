@@ -886,6 +886,16 @@ fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"stake": "65535"#));
 
+    Ok(())
+}
+
+#[test]
+fn test_depool_no_answer() -> Result<(), Box<dyn std::error::Error>> {
+    let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
+
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
         .arg("--no-answer")
@@ -895,6 +905,159 @@ fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
         .arg(seed_phrase)
         .arg("--value")
         .arg("1");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("donor")
+        .arg("lock")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--donor")
+        .arg("0:0123456789012345012345678901234501234567890123450123456789012345")
+        .arg("--no-answer");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("donor")
+        .arg("vesting")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--donor")
+        .arg("0:0123456789012345012345678901234501234567890123450123456789012345")
+        .arg("--no-answer");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("withdraw")
+        .arg("off")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--no-answer");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("withdraw")
+        .arg("on")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--no-answer");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("ordinary")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--value")
+        .arg("1")
+        .arg("--no-answer");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("ordinary")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--value")
+        .arg("1")
+        .arg("--no-answer");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("lock")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--beneficiary")
+        .arg(depool_addr)
+        .arg("--total")
+        .arg("1")
+        .arg("--withdrawal")
+        .arg("1")
+        .arg("--value")
+        .arg("2")
+        .arg("--no-answer");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("vesting")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--beneficiary")
+        .arg(depool_addr)
+        .arg("--total")
+        .arg("1")
+        .arg("--withdrawal")
+        .arg("1")
+        .arg("--value")
+        .arg("2")
+        .arg("--no-answer");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("transfer")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--dest")
+        .arg(depool_addr)
+        .arg("--value")
+        .arg("2")
+        .arg("--no-answer");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("remove")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--value")
+        .arg("3")
+        .arg("--no-answer");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"transId": "0"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("depool")
+        .arg("stake")
+        .arg("withdrawPart")
+        .arg("--sign")
+        .arg(seed_phrase)
+        .arg("--value")
+        .arg("4")
+        .arg("--no-answer");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#"transId": "0"#));

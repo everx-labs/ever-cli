@@ -103,6 +103,7 @@ pub fn clear_config(
     timeout: bool,
     depool_fee: bool,
     lifetime: bool,
+    no_answer: bool,
 ) -> Result<(), String> {
     if url {
         conf.url = default_url();
@@ -134,7 +135,11 @@ pub fn clear_config(
     if depool_fee {
         conf.depool_fee = default_depool_fee();
     }
-    if (url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime) == false {
+
+    if no_answer {
+        conf.no_answer = default_false();
+    }
+    if (url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime || no_answer) == false {
         conf = Config {
             url: default_url(),
             wc: default_wc(),
@@ -171,6 +176,7 @@ pub fn set_config(
     timeout: Option<&str>,
     depool_fee: Option<&str>,
     lifetime:  Option<&str>,
+    no_answer:  Option<&str>,
 ) -> Result<(), String> {
         if let Some(s) = url {
             conf.url = s.to_string();
@@ -210,9 +216,13 @@ pub fn set_config(
         if conf.depool_fee < 0.5 {
             return Err("Minimal value for depool fee is 0.5".to_string());
         }
+        if let Some(no_answer) = no_answer {
+            conf.no_answer = no_answer.parse::<bool>()
+                .map_err(|e| format!(r#"failed to parse "no_answer": {}"#, e))?;
+        }
+
         let conf_str = serde_json::to_string(&conf)
             .map_err(|_| "failed to serialize config object".to_string())?;
-
         std::fs::write(path, conf_str).map_err(|e| format!("failed to write config file: {}", e))?;
         if !conf.is_json {
             println!("Succeeded.");
