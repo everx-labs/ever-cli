@@ -88,7 +88,7 @@ contract FakeDePool {
     function ticktock() public {
         m_sender = msg.sender;
         m_value = msg.value;
-        msg.sender.transfer({value: 123});
+        msg.sender.transfer({value: 123, flag: 1});
 
         emit StakeSigningRequested(1, address(2));
     }
@@ -113,4 +113,15 @@ contract FakeDePool {
         IFakeDePoolClient(msg.sender).receiveAnswer{value: 123456789}(0, 0);
     }
 
+    function error(uint code) public pure {
+        revert(code);
+    }
+
+    function outOfGas() public pure {
+        mapping(uint => uint) map;
+        uint k = 0;
+        while (k <= 9999) {
+            map[k] = k;
+        }
+    }
 }

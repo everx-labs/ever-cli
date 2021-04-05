@@ -799,6 +799,36 @@ fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_error() -> Result<(), Box<dyn std::error::Error>> {
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
+
+    let config = get_config().unwrap();
+    let depool_addr = config["addr"].as_str().unwrap();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("--abi")
+        .arg(&depool_abi)
+        .arg(&depool_addr)
+        .arg("error")
+        .arg(r#"{"code":101}"#);
+    cmd.assert()
+        .stdout(predicate::str::contains(r#""exit_code": 101,"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("--abi")
+        .arg(&depool_abi)
+        .arg(&depool_addr)
+        .arg("outOfGas")
+        .arg(r#"{}"#);
+    cmd.assert()
+        .stdout(predicate::str::contains(r#""exit_code": -14,"#));
+
+    Ok(())
+}
+
+#[test]
 fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
     let msig_abi = "tests/samples/SafeMultisigWallet.abi.json";

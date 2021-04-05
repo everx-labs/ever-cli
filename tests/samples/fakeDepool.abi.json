@@ -123,6 +123,21 @@
 			]
 		},
 		{
+			"name": "error",
+			"inputs": [
+				{"name":"code","type":"uint256"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "outOfGas",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
 			"name": "constructor",
 			"inputs": [
 			],
