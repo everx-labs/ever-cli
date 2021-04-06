@@ -37,6 +37,8 @@ fn default_false() -> bool {
     false
 }
 
+fn default_true() -> bool { true }
+
 fn default_lifetime() -> u32 {
     60
 }
@@ -62,7 +64,9 @@ pub struct Config {
     #[serde(default = "default_lifetime")]
     pub lifetime: u32,
     #[serde(default = "default_false")]
-    pub no_answer: bool
+    pub no_answer: bool,
+    #[serde(default = "default_true")]
+    pub use_delimiters: bool,
 }
 
 impl Config {
@@ -80,6 +84,7 @@ impl Config {
             depool_fee: default_depool_fee(),
             lifetime: default_lifetime(),
             no_answer: default_false(),
+            use_delimiters: default_true(),
         }
     }
 
@@ -104,6 +109,7 @@ pub fn clear_config(
     depool_fee: bool,
     lifetime: bool,
     no_answer: bool,
+    use_delimiters: bool,
 ) -> Result<(), String> {
     if url {
         conf.url = default_url();
@@ -135,11 +141,15 @@ pub fn clear_config(
     if depool_fee {
         conf.depool_fee = default_depool_fee();
     }
-
     if no_answer {
         conf.no_answer = default_false();
     }
-    if (url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime || no_answer) == false {
+    if use_delimiters {
+        conf.use_delimiters = default_true();
+    }
+
+    if (url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime
+        || no_answer || use_delimiters) == false {
         conf = Config {
             url: default_url(),
             wc: default_wc(),
@@ -153,6 +163,7 @@ pub fn clear_config(
             depool_fee: default_depool_fee(),
             lifetime: default_lifetime(),
             no_answer: default_false(),
+            use_delimiters: default_true(),
         };
     }
     let conf_str = serde_json::to_string(&conf)
@@ -177,55 +188,60 @@ pub fn set_config(
     depool_fee: Option<&str>,
     lifetime:  Option<&str>,
     no_answer:  Option<&str>,
+    use_delimiters: Option<&str>,
 ) -> Result<(), String> {
-        if let Some(s) = url {
-            conf.url = s.to_string();
-        }
-        if let Some(s) = addr {
-            conf.addr = Some(s.to_string());
-        }
-        if let Some(s) = wallet {
-            conf.wallet = Some(s.to_string());
-        }
-        if let Some(s) = abi {
-            conf.abi_path = Some(s.to_string());
-        }
-        if let Some(s) = keys {
-            conf.keys_path = Some(s.to_string());
-        }
-        if let Some(retries) = retries {
-            conf.retries = u8::from_str_radix(retries, 10)
-                .map_err(|e| format!(r#"failed to parse "retries": {}"#, e))?;
-        }
-        if let Some(lifetime) = lifetime {
-            conf.lifetime = u32::from_str_radix(lifetime, 10)
-                .map_err(|e| format!(r#"failed to parse "lifetime": {}"#, e))?;
-        }
-        if let Some(timeout) = timeout {
-            conf.timeout = u32::from_str_radix(timeout, 10)
-                .map_err(|e| format!(r#"failed to parse "timeout": {}"#, e))?;
-        }
-        if let Some(wc) = wc {
-            conf.wc = i32::from_str_radix(wc, 10)
-                .map_err(|e| format!(r#"failed to parse "workchain id": {}"#, e))?;
-        }
-        if let Some(depool_fee) = depool_fee {
-            conf.depool_fee = depool_fee.parse::<f32>()
-                .map_err(|e| format!(r#"failed to parse "depool_fee": {}"#, e))?;
-        }
-        if conf.depool_fee < 0.5 {
-            return Err("Minimal value for depool fee is 0.5".to_string());
-        }
-        if let Some(no_answer) = no_answer {
-            conf.no_answer = no_answer.parse::<bool>()
-                .map_err(|e| format!(r#"failed to parse "no_answer": {}"#, e))?;
-        }
-
-        let conf_str = serde_json::to_string(&conf)
-            .map_err(|_| "failed to serialize config object".to_string())?;
-        std::fs::write(path, conf_str).map_err(|e| format!("failed to write config file: {}", e))?;
-        if !conf.is_json {
-            println!("Succeeded.");
-        }
-        Ok(())
+    if let Some(s) = url {
+        conf.url = s.to_string();
     }
+    if let Some(s) = addr {
+        conf.addr = Some(s.to_string());
+    }
+    if let Some(s) = wallet {
+        conf.wallet = Some(s.to_string());
+    }
+    if let Some(s) = abi {
+        conf.abi_path = Some(s.to_string());
+    }
+    if let Some(s) = keys {
+        conf.keys_path = Some(s.to_string());
+    }
+    if let Some(retries) = retries {
+        conf.retries = u8::from_str_radix(retries, 10)
+            .map_err(|e| format!(r#"failed to parse "retries": {}"#, e))?;
+    }
+    if let Some(lifetime) = lifetime {
+        conf.lifetime = u32::from_str_radix(lifetime, 10)
+            .map_err(|e| format!(r#"failed to parse "lifetime": {}"#, e))?;
+    }
+    if let Some(timeout) = timeout {
+        conf.timeout = u32::from_str_radix(timeout, 10)
+            .map_err(|e| format!(r#"failed to parse "timeout": {}"#, e))?;
+    }
+    if let Some(wc) = wc {
+        conf.wc = i32::from_str_radix(wc, 10)
+            .map_err(|e| format!(r#"failed to parse "workchain id": {}"#, e))?;
+    }
+    if let Some(depool_fee) = depool_fee {
+        conf.depool_fee = depool_fee.parse::<f32>()
+            .map_err(|e| format!(r#"failed to parse "depool_fee": {}"#, e))?;
+    }
+    if conf.depool_fee < 0.5 {
+        return Err("Minimal value for depool fee is 0.5".to_string());
+    }
+    if let Some(no_answer) = no_answer {
+        conf.no_answer = no_answer.parse::<bool>()
+            .map_err(|e| format!(r#"failed to parse "no_answer": {}"#, e))?;
+    }
+    if let Some(use_delimiters) = use_delimiters {
+        conf.use_delimiters = use_delimiters.parse::<bool>()
+            .map_err(|e| format!(r#"failed to parse "use_delimiters": {}"#, e))?;
+    }
+
+    let conf_str = serde_json::to_string(&conf)
+        .map_err(|_| "failed to serialize config object".to_string())?;
+    std::fs::write(path, conf_str).map_err(|e| format!("failed to write config file: {}", e))?;
+    if !conf.is_json {
+        println!("Succeeded.");
+    }
+    Ok(())
+}

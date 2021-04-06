@@ -74,7 +74,17 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
             if acc_type != "NonExist" {
                 println!("acc_type:      {}", acc_type);
                 let balance_str = &acc["balance"].as_str().unwrap();
-                println!("balance:       {}", u64::from_str_radix(balance_str, 10).unwrap());
+                if conf.use_delimiters {
+                    println!("balance:       {}", balance_str.chars()
+                        .collect::<Vec<char>>()
+                        .rchunks(3)
+                        .map(|c| c.iter().collect::<String>())
+                        .rev()
+                        .collect::<Vec<String>>()
+                        .join(" "));
+                } else {
+                    println!("balance:       {}", u64::from_str_radix(balance_str, 10).unwrap());
+                }
                 println!("last_paid:     {}", acc["last_paid"].as_u64().unwrap());
                 println!("last_trans_lt: {}", acc["last_trans_lt"].as_str().unwrap());
                 let data_str = acc["data"].as_str();
