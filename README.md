@@ -159,6 +159,7 @@ List of possible parameters:
       --depool_fee <DEPOOL_FEE>    Value added to message sent to depool to cover it's fees (change will be returned).
       --keys <KEYS>                File with keypair.
       --lifetime <LIFETIME>        Period of time in seconds while message is valid.
+      --no-answer <NO_ANSWER>      FLag whether to wait for depool answer when calling a depool function.
       --retries <RETRIES>          Number of attempts to call smart contract function if previous attempt was
                                    unsuccessful.
       --timeout <TIMEOUT>          Contract call timeout in ms.
@@ -254,9 +255,9 @@ For all commands:
 `--sign` - path to keyfile or seed phrase of multisig wallet.
 `--no-answer` - Do not wait for depool answer when calling a depool function. (Use for multisig with more than one custodian)  
 
-All commands allow to omit `--addr`, `--wallet` and `--sign` options only if this values are defined in config file:
+All commands allow to omit `--addr`, `--wallet`,  `--no-answer` and `--sign` options only if this values are defined in config file:
 
-    tonos-cli config --addr <address> --wallet <address> --keys <path_to_keys or seed_phrase>
+    tonos-cli config --addr <address> --wallet <address> --keys <path_to_keys or seed_phrase> --no-answer true
 
 ### Deposit stakes
 
@@ -264,29 +265,29 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, it 
 
 #### Ordinary stake
 
-    tonos-cli depool [--addr <depool_address>] [--no-answer] stake ordinary [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] stake ordinary [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--no-answer]
 
 
 #### Vesting stake
 
-    tonos-cli depool [--addr <depool_address>] [--no-answer] stake vesting [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] stake vesting [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>] [--no-answer]
 
 
 #### Lock stake
 
-    tonos-cli depool [--addr <depool_address>] [--no-answer] stake lock [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] stake lock [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>] [--no-answer]
 
 ### Remove stakes
 
-    tonos-cli depool [--addr <depool_address>] [--no-answer] stake remove [--wallet <msig_address>] --value <number> [--from-round <number>] [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] stake remove [--wallet <msig_address>] --value <number> [--from-round <number>] [--sign <key_file or seed_phrase>] [--no-answer]
 
 ### Transfer stakes
 
-    tonos-cli depool [--addr <depool_address>] [--no-answer] stake transfer [--wallet <msig_address>] --value <number> --dest <address> [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] stake transfer [--wallet <msig_address>] --value <number> --dest <address> [--sign <key_file or seed_phrase>] [--no-answer]
 
 ### Enable/disable withdraw
 
-    tonos-cli depool [--addr <depool_address>] withdraw on | off [--wallet <msig_address>] [--sign <key_file or seed_phrase>]
+    tonos-cli depool [--addr <depool_address>] withdraw on | off [--wallet <msig_address>] [--sign <key_file or seed_phrase>] [--no-answer]
 
 ### View depool events
 

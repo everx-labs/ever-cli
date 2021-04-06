@@ -131,6 +131,14 @@ async fn main_internal() -> Result <(), String> {
             .help("Arguments for the contract method.")
             .multiple(true));
 
+    let no_answer_with_value = Arg::with_name("NO_ANSWER")
+        .long("--no-answer")
+        .takes_value(true)
+        .help("FLag whether to wait for depool answer when calling a depool function.");
+    let no_answer = Arg::with_name("NO_ANSWER")
+        .long("--no-answer")
+        .help("FLag whether to wait for depool answer when calling a depool function.");
+
     let matches = clap_app! (tonos_cli =>
         (version: &*format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
         env!("CARGO_PKG_VERSION"),
@@ -282,6 +290,7 @@ async fn main_internal() -> Result <(), String> {
             (@arg LIST: --list conflicts_with[URL ABI KEYS ADDR RETRIES TIMEOUT WC] "Prints all config parameters.")
             (@arg DEPOOL_FEE: --depool_fee +takes_value "Value added to message sent to depool to cover it's fees (change will be returned).")
             (@arg LIFETIME: --lifetime +takes_value "Period of time in seconds while message is valid.")
+            (arg: no_answer_with_value)
             (@subcommand clear =>
                 (@setting AllowLeadingHyphen)
                 (about: "Resets certain default values for options in the config file. Resets all values if used without options.")
@@ -295,6 +304,7 @@ async fn main_internal() -> Result <(), String> {
                 (@arg TIMEOUT: --timeout "Contract call timeout in ms.")
                 (@arg DEPOOL_FEE: --depool_fee "Value added to message sent to depool to cover it's fees (change will be returned).")
                 (@arg LIFETIME: --lifetime "Period of time in seconds while message is valid.")
+                (arg: no_answer)
             )
         )
         (@subcommand account =>
@@ -720,7 +730,8 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let timeout = clear_matches.is_present("TIMEOUT");
             let depool_fee = clear_matches.is_present("DEPOOL_FEE");
             let lifetime = clear_matches.is_present("LIFETIME");
-            result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime);
+            let no_answer = clear_matches.is_present("NO_ANSWER");
+            result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer);
         } else {
             let url = matches.value_of("URL");
             let address = matches.value_of("ADDR");
@@ -732,7 +743,8 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let timeout = matches.value_of("TIMEOUT");
             let depool_fee = matches.value_of("DEPOOL_FEE");
             let lifetime = matches.value_of("LIFETIME");
-            result = set_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime);
+            let no_answer = matches.value_of("NO_ANSWER");
+            result = set_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {
