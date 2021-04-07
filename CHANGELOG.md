@@ -46,3 +46,8 @@ This fixes affects all debots invoking other debots (e.g. depool debot, mludi de
 ### Improvements
 - Added ability to specify depool command `--no-answer` flag in the config and in the
   end of command.
+  
+## v0.11.2
+
+### Improvements
+- Added ability to print account balance with delimiters using config parameter `use-delimiters` 

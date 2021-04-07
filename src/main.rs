@@ -291,6 +291,7 @@ async fn main_internal() -> Result <(), String> {
             (@arg DEPOOL_FEE: --depool_fee +takes_value "Value added to message sent to depool to cover it's fees (change will be returned).")
             (@arg LIFETIME: --lifetime +takes_value "Period of time in seconds while message is valid.")
             (arg: no_answer_with_value)
+            (@arg USE_DELIMITERS: --delimiters +takes_value "Use delimiters while printing account balance")
             (@subcommand clear =>
                 (@setting AllowLeadingHyphen)
                 (about: "Resets certain default values for options in the config file. Resets all values if used without options.")
@@ -305,6 +306,7 @@ async fn main_internal() -> Result <(), String> {
                 (@arg DEPOOL_FEE: --depool_fee "Value added to message sent to depool to cover it's fees (change will be returned).")
                 (@arg LIFETIME: --lifetime "Period of time in seconds while message is valid.")
                 (arg: no_answer)
+                (@arg USE_DELIMITERS: --delimiters "Use delimiters while printing account balance")
             )
         )
         (@subcommand account =>
@@ -731,7 +733,8 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let depool_fee = clear_matches.is_present("DEPOOL_FEE");
             let lifetime = clear_matches.is_present("LIFETIME");
             let no_answer = clear_matches.is_present("NO_ANSWER");
-            result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer);
+            let use_delimiters = clear_matches.is_present("USE_DELIMITERS");
+            result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, use_delimiters);
         } else {
             let url = matches.value_of("URL");
             let address = matches.value_of("ADDR");
@@ -744,7 +747,8 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let depool_fee = matches.value_of("DEPOOL_FEE");
             let lifetime = matches.value_of("LIFETIME");
             let no_answer = matches.value_of("NO_ANSWER");
-            result = set_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer);
+            let use_delimiters = matches.value_of("USE_DELIMITERS");
+            result = set_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, use_delimiters);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {
