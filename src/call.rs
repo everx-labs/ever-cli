@@ -354,16 +354,28 @@ pub async fn call_contract_with_result(
             print_encoded_message(&msg);
         }
         
-        let mut code: u32 = 0;
+        let mut retry: bool = true;
         let error_handler = |err: ClientError| {
             // obtaining error code
-            code = err.code.clone();
-            // but if it was simulated locally and local exit code is zero,
-            // we ignore previous exit code because it means we have to make a retry.
+            let code = err.code.clone();
+            // but if it was simulated locally and local exit code is not zero,
+            // we ignore previous exit code because it means we shouldn't make a retry.
             if !err.data["exit_code"].is_null() {
-                if err.data["exit_code"].as_i64().unwrap() == 0 {
-                    code = 0;
+                if err.data["exit_code"].as_i64().unwrap() != 0 {
+                    retry = false;
                 }
+            }
+            // There is also another way how SDK can print local run results.
+            let local_error = err.data["local_error"]["data"]["exit_code"].clone();
+            if !local_error.is_null() {
+                if local_error.as_i64().unwrap() != 0 {
+                    retry = false;
+                }
+            }
+            // if error code was 4XX then don't perform a retry.
+            let code = (code / 100) as u32 % 10;
+            if  code == 4 {
+                retry = false;
             }
         };
         let result = send_message_and_wait(ton.clone(), addr, abi.clone(), msg.message, local, conf.clone(), error_handler).await;
@@ -374,9 +386,7 @@ pub async fn call_contract_with_result(
         let err = result.err().unwrap();
         println!("{}", err);
 
-        // if error code was 4XX then break and don't perform a retry.
-        let code = (code / 100) as u32 % 10;
-        if  code == 4 {
+        if !retry {
             break;
         }
 
