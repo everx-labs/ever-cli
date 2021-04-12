@@ -50,4 +50,11 @@ This fixes affects all debots invoking other debots (e.g. depool debot, mludi de
 ## v0.11.2
 
 ### Improvements
-- Added ability to print account balance with delimiters using config parameter `use-delimiters` 
+- Added ability to print account balance with delimiters using config parameter `use-delimiters`
+
+## v0.12.0
+
+### New feature
+- tonos-cli now executes transaction locally for deploy and call commands before executing it 
+  onchain. If local execution fails, onchain execution is not performed. Local run can be
+  cancelled by enabling flag `no_local_run` in the tonos-cli config. 
