@@ -889,7 +889,7 @@ fn test_depool_body() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[test]
+/*#[test]
 fn test_depool_no_answer() -> Result<(), Box<dyn std::error::Error>> {
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
 
@@ -1064,6 +1064,7 @@ fn test_depool_no_answer() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+*/
 
 #[test]
 fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
