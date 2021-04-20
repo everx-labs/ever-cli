@@ -63,9 +63,9 @@ pub struct Config {
     pub depool_fee: f32,
     #[serde(default = "default_lifetime")]
     pub lifetime: u32,
-    #[serde(default = "default_false")]
-    pub no_answer: bool,
     #[serde(default = "default_true")]
+    pub no_answer: bool,
+    #[serde(default = "default_false")]
     pub use_delimiters: bool,
 }
 
@@ -83,8 +83,8 @@ impl Config {
             is_json: default_false(),
             depool_fee: default_depool_fee(),
             lifetime: default_lifetime(),
-            no_answer: default_false(),
-            use_delimiters: default_true(),
+            no_answer: default_true(),
+            use_delimiters: default_false(),
         }
     }
 
@@ -142,29 +142,15 @@ pub fn clear_config(
         conf.depool_fee = default_depool_fee();
     }
     if no_answer {
-        conf.no_answer = default_false();
+        conf.no_answer = default_true();
     }
     if use_delimiters {
-        conf.use_delimiters = default_true();
+        conf.use_delimiters = default_false();
     }
 
     if (url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime
         || no_answer || use_delimiters) == false {
-        conf = Config {
-            url: default_url(),
-            wc: default_wc(),
-            addr: None,
-            wallet: None,
-            abi_path: None,
-            keys_path: None,
-            retries: default_retries(),
-            timeout: default_timeout(),
-            is_json: default_false(),
-            depool_fee: default_depool_fee(),
-            lifetime: default_lifetime(),
-            no_answer: default_false(),
-            use_delimiters: default_true(),
-        };
+        conf = Config::new();
     }
     let conf_str = serde_json::to_string(&conf)
         .map_err(|_| "failed to serialize config object".to_string())?;
