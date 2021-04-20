@@ -81,9 +81,10 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
         .long("--dest")
         .short("-d")
         .help("Address of destination smart contract.");
-    let no_answer = Arg::with_name("NO_ANSWER")
-        .long("--no-answer")
-        .help("Do not wait for depool answer when calling a depool function.");
+    let wait_answer = Arg::with_name("WAIT_ANSWER")
+        .long("--wait-answer")
+        .short("-wa")
+        .help("Wait for depool answer when calling a depool function.");
     SubCommand::with_name("depool")
         .about("DePool commands.")
         .setting(AppSettings::AllowLeadingHyphen)
@@ -92,7 +93,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
             .takes_value(true)
             .long("--addr")
             .help("DePool contract address. if the parameter is omitted, then the value `addr` from the config is used"))
-        .arg(no_answer.clone())
+        .arg(wait_answer.clone())
         .subcommand(SubCommand::with_name("donor")
             .about(r#"Top level command for specifying donor for exotic stakes in depool."#)
             .subcommand(SubCommand::with_name("vesting")
@@ -101,14 +102,14 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(wallet_arg.clone())
                 .arg(keys_arg.clone())
                 .arg(donor_arg.clone())
-                .arg(no_answer.clone()))
+                .arg(wait_answer.clone()))
             .subcommand(SubCommand::with_name("lock")
                 .about("Set the address from which participant can receive a lock stake.")
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
                 .arg(keys_arg.clone())
                 .arg(donor_arg.clone())
-                .arg(no_answer.clone())))
+                .arg(wait_answer.clone())))
         .subcommand(SubCommand::with_name("answers")
             .about("Prints depool answers to the wallet")
             .setting(AppSettings::AllowLeadingHyphen)
@@ -126,14 +127,14 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
                 .arg(keys_arg.clone())
-                .arg(no_answer.clone()))
+                .arg(wait_answer.clone()))
             .subcommand(SubCommand::with_name("vesting")
                 .about("Deposits vesting stake in depool from multisignature wallet.")
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
                 .arg(keys_arg.clone())
-                .arg(no_answer.clone())
+                .arg(wait_answer.clone())
                 .arg(total_period_arg.clone())
                 .arg(withdrawal_period_arg.clone())
                 .arg(beneficiary_arg.clone()))
@@ -143,7 +144,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
                 .arg(keys_arg.clone())
-                .arg(no_answer.clone())
+                .arg(wait_answer.clone())
                 .arg(total_period_arg.clone())
                 .arg(withdrawal_period_arg.clone())
                 .arg(beneficiary_arg.clone()))
@@ -153,7 +154,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
                 .arg(keys_arg.clone())
-                .arg(no_answer.clone())
+                .arg(wait_answer.clone())
                 .arg(dest_arg.clone()))
             .subcommand(SubCommand::with_name("remove")
                 .about("Withdraws ordinary stake from current pooling round of depool to the multisignature wallet.")
@@ -161,20 +162,20 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
                 .arg(keys_arg.clone())
-                .arg(no_answer.clone()))
+                .arg(wait_answer.clone()))
             .subcommand(SubCommand::with_name("withdrawPart")
                 .about("Withdraws part of the stake after round completion.")
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
-                .arg(no_answer.clone())
+                .arg(wait_answer.clone())
                 .arg(keys_arg.clone())))
         .subcommand(SubCommand::with_name("replenish")
             .about("Transfers funds from the multisignature wallet to the depool contract (NOT A STAKE).")
             .setting(AppSettings::AllowLeadingHyphen)
             .arg(wallet_arg.clone())
             .arg(value_arg.clone())
-            .arg(no_answer.clone())
+            .arg(wait_answer.clone())
             .arg(keys_arg.clone()))
         .subcommand(SubCommand::with_name("ticktock")
             .about("Call DePool 'ticktock()' function to update its state. 1 ton is attached to this call (change will be returned).")
@@ -187,12 +188,12 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
             .subcommand(SubCommand::with_name("on")
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
-                .arg(no_answer.clone())
+                .arg(wait_answer.clone())
                 .arg(keys_arg.clone()))
             .subcommand(SubCommand::with_name("off")
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
-                .arg(no_answer.clone())
+                .arg(wait_answer.clone())
                 .arg(keys_arg.clone())))
         .subcommand(SubCommand::with_name("events")
             .about("Prints depool events.")
@@ -255,17 +256,17 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
         .map_err(|e| format!("invalid depool address: {}", e))?;
 
     let mut conf = conf;
-    let mut set_no_answer = |m: &ArgMatches|  {
-        if m.is_present("NO_ANSWER") {
-            conf.no_answer = true;
+    let mut set_wait_answer = |m: &ArgMatches|  {
+        if m.is_present("WAIT_ANSWER") {
+            conf.no_answer = false;
         }
     };
-    set_no_answer(m);
+    set_wait_answer(m);
     if let Some(m) = m.subcommand_matches("donor") {
         let matches = m.subcommand_matches("vesting").or(m.subcommand_matches("lock"));
         if let Some(matches) = matches {
             let is_vesting = m.subcommand_matches("vesting").is_some();
-            set_no_answer(matches);
+            set_wait_answer(matches);
             let (wallet, keys) = parse_wallet_data(&matches, &conf)?;
             return set_donor_command(matches, conf, depool.as_str(), &wallet, &keys, is_vesting).await;
         }
@@ -273,39 +274,39 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
 
     if let Some(m) = m.subcommand_matches("stake") {
         if let Some(m) = m.subcommand_matches("ordinary") {
-            set_no_answer(m);
+            set_wait_answer(m);
             return ordinary_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
             ).await;
         }
         if let Some(m) = m.subcommand_matches("vesting") {
-            set_no_answer(m);
+            set_wait_answer(m);
             return exotic_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
                 true,
             ).await;
         }
         if let Some(m) = m.subcommand_matches("lock") {
-            set_no_answer(m);
+            set_wait_answer(m);
             return exotic_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
                 false,
             ).await;
         }
         if let Some(m) = m.subcommand_matches("remove") {
-            set_no_answer(m);
+            set_wait_answer(m);
             return remove_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
             ).await;
         }
         if let Some(m) = m.subcommand_matches("withdrawPart") {
-            set_no_answer(m);
+            set_wait_answer(m);
             return withdraw_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
             ).await;
         }
         if let Some(m) = m.subcommand_matches("transfer") {
-            set_no_answer(m);
+            set_wait_answer(m);
             return transfer_stake_command(m,
                 CommandData::from_matches_and_conf(m, conf, depool)?,
             ).await;
@@ -314,7 +315,7 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
     if let Some(m) = m.subcommand_matches("withdraw") {
         let matches = m.subcommand_matches("on").or(m.subcommand_matches("off"));
         if let Some(matches) = matches {
-            set_no_answer(matches);
+            set_wait_answer(matches);
             let (wallet, keys) = parse_wallet_data(&matches, &conf)?;
             let enable_withdraw = m.subcommand_matches("on").is_some();
             return set_withdraw_command(matches, conf, &depool, &wallet, &keys, enable_withdraw).await;
@@ -354,7 +355,7 @@ async fn answer_command(m: &ArgMatches<'_>, conf: Config, depool: &str) -> Resul
     let ton = create_client_verbose(&conf)?;
     let wallet = load_ton_address(&wallet, &conf)
         .map_err(|e| format!("invalid depool address: {}", e))?;
-    
+
     let messages = ton_client::net::query_collection(
         ton.clone(),
         ParamsOfQueryCollection {
@@ -828,7 +829,7 @@ async fn call_contract_and_get_answer(
     let ton = create_client_verbose(&conf)?;
     let abi = load_abi(MSIG_ABI)?;
     let start = now();
-    
+
     let params = json!({
         "dest": dest_addr,
         "value": convert::convert_token(value)?,
@@ -879,7 +880,7 @@ async fn call_contract_and_get_answer(
         callback.clone(),
     ).await
     .map_err(|e| format!("Failed: {:#}", e))?;
-    
+
     println!("\nMessage was successfully sent to the multisig, waiting for message to be sent to the depool...");
 
     let message = ton_client::net::wait_for_collection(
@@ -951,7 +952,7 @@ async fn call_contract_and_get_answer(
             }
             println!();
         } else {
-            println!("\nThere were no answer messages during the timeout period.\n");    
+            println!("\nThere were no answer messages during the timeout period.\n");
         }
     }
     println!("Done");
