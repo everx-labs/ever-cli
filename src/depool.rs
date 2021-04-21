@@ -175,7 +175,6 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
             .setting(AppSettings::AllowLeadingHyphen)
             .arg(wallet_arg.clone())
             .arg(value_arg.clone())
-            .arg(wait_answer.clone())
             .arg(keys_arg.clone()))
         .subcommand(SubCommand::with_name("ticktock")
             .about("Call DePool 'ticktock()' function to update its state. 1 ton is attached to this call (change will be returned).")

@@ -1083,7 +1083,7 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
         .arg(seed_phrase);
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"Done"#));
+        .stdout(predicate::str::contains(r#"Succeeded."#));
 
     sleep(Duration::new(2, 0));
 
@@ -1105,8 +1105,8 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
         .arg(seed_phrase);
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"Done"#));
-    
+        .stdout(predicate::str::contains(r#"Succeeded."#));
+
     sleep(Duration::new(2, 0));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -1158,7 +1158,8 @@ fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
         .arg("withdraw")
         .arg("off")
         .arg("--sign")
-        .arg(seed_phrase);
+        .arg(seed_phrase)
+        .arg("--wait-answer");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
@@ -1189,7 +1190,8 @@ fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
         .arg("withdraw")
         .arg("on")
         .arg("--sign")
-        .arg(seed_phrase);
+        .arg(seed_phrase)
+        .arg("-a");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
@@ -1223,6 +1225,7 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
+        .arg("--wait-answer")
         .arg("stake")
         .arg("lock")
         .arg("--sign")
@@ -1235,6 +1238,7 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
         .arg("1")
         .arg("--value")
         .arg("2");
+
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
@@ -1258,6 +1262,7 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
+        .arg("-a")
         .arg("stake")
         .arg("vesting")
         .arg("--sign")
@@ -1303,7 +1308,7 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
         .arg("2");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+        .stdout(predicate::str::contains(r#"Succeeded."#));
 
     sleep(Duration::new(2, 0));
 
@@ -1322,6 +1327,7 @@ fn test_depool_3() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
+        .arg("--wait-answer")
         .arg("stake")
         .arg("ordinary")
         .arg("--sign")
@@ -1368,7 +1374,7 @@ fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
         .arg("3");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+        .stdout(predicate::str::contains(r#"Succeeded."#));
 
     sleep(Duration::new(2, 0));
 
@@ -1395,7 +1401,7 @@ fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
         .arg("4");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"Answer status: SUCCESS"#));
+        .stdout(predicate::str::contains(r#"Succeeded."#));
 
     sleep(Duration::new(2, 0));
 
@@ -1425,6 +1431,7 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
+        .arg("--wait-answer")
         .arg("donor")
         .arg("lock")
         .arg("--sign")
@@ -1452,6 +1459,7 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("depool")
         .arg("donor")
         .arg("vesting")
+        .arg("--wait-answer")
         .arg("--sign")
         .arg(seed_phrase)
         .arg("--donor")
