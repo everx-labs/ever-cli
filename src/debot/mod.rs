@@ -34,7 +34,30 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(
                     Arg::with_name("ADDRESS")
                         .required(true)
-                        .help("Debot address."),
+                        .help("DeBot TON address."),
+                )
+        )
+        .subcommand(
+            SubCommand::with_name("start")
+                .setting(AppSettings::AllowLeadingHyphen)
+                .arg(
+                    Arg::with_name("ADDRESS")
+                        .required(true)
+                        .help("DeBot TON address."),
+                )
+        )
+        .subcommand(
+            SubCommand::with_name("invoke")
+                .setting(AppSettings::AllowLeadingHyphen)
+                .arg(
+                    Arg::with_name("ADDRESS")
+                        .required(true)
+                        .help("Debot TON address.")
+                )
+                .arg(
+                    Arg::with_name("MESSAGE")
+                        .required(true)
+                        .help("Message to DeBot encoded as base64/base64url.")
                 )
         )
 }
@@ -69,11 +92,24 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
     if let Some(m) = m.subcommand_matches("fetch") {
         return fetch_command(m, config).await;
     }
+    if let Some(m) = m.subcommand_matches("start") {
+        return fetch_command(m, config).await;
+    }
+    if let Some(m) = m.subcommand_matches("invoke") {
+        return invoke_command(m, config).await;
+    }
     Err("unknown debot command".to_owned())
 }
 
 async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
     let addr = load_ton_address(addr.unwrap(), &config)?;
-    run_debot_browser(addr.as_str(), config).await
+    run_debot_browser(addr.as_str(), config, true, None).await
+}
+
+async fn invoke_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let addr = m.value_of("ADDRESS");
+    let addr = load_ton_address(addr.unwrap(), &config)?;
+    let message = m.value_of("MESSAGE").unwrap().to_owned();
+    run_debot_browser(addr.as_str(), config, false, Some(message)).await
 }
