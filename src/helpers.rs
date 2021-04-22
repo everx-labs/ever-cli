@@ -102,14 +102,18 @@ lazy_static! {
 
 // TODO: Organize endpoints to list in the external resource
 fn resolve_endpoints(url: &str) -> Option<Vec<String>> {
-    macro_rules! network_regex {
-        ($name:literal) => (Regex::new(&format!(r"^\s*(https?://)?{}\.ton\.dev\s*", $name)).unwrap())
+    macro_rules! network_test {
+        ($name:literal, $url:expr) => (
+            Regex::new(&format!(r"^\s*(https?://)?{}\.ton\.dev\s*", $name))
+                .expect("Regex compilation error")
+                .is_match($url)
+        )
     }
-    if network_regex!("main").is_match(url) {
+    if network_test!("main", url) {
         return Some(MAIN_ENDPOINTS.clone());
     }
 
-    if network_regex!("net").is_match(url) {
+    if network_test!("net", url) {
         return Some(NET_ENDPOINTS.clone());
     }
 
