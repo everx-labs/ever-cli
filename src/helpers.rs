@@ -14,6 +14,8 @@ use crate::config::Config;
 use lazy_static::lazy_static;
 use log;
 use regex::Regex;
+use std::collections::HashMap;
+use std::iter::FromIterator;
 use std::sync::Arc;
 use std::time::SystemTime;
 use ton_client::abi::{
@@ -98,23 +100,27 @@ lazy_static! {
         "net1.ton.dev".to_string(),
         "net5.ton.dev".to_string(),
     ];
+
+    static ref ENDPOINTS_MAP: HashMap<&'static str, &'static Vec<String>> = HashMap::from_iter(
+        std::array::IntoIter::new([
+            ( "main.ton.dev", MAIN_ENDPOINTS.as_ref() ),
+            ( "net.ton.dev", NET_ENDPOINTS.as_ref() ),
+        ])
+    );
 }
 
-// TODO: Organize endpoints to list in the external resource
+// TODO: Organize endpoints to the list in external resource
 fn resolve_endpoints(url: &str) -> Option<Vec<String>> {
-    macro_rules! network_test {
-        ($name:literal, $url:expr) => (
-            Regex::new(&format!(r"^\s*(https?://)?{}\.ton\.dev\s*", $name))
-                .expect("Regex compilation error")
-                .is_match($url)
-        )
-    }
-    if network_test!("main", url) {
-        return Some(MAIN_ENDPOINTS.clone());
-    }
+    let url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.ton\.dev)\s*")
+        .expect("Regex compilation error");
 
-    if network_test!("net", url) {
-        return Some(NET_ENDPOINTS.clone());
+    if let Some(captures) = url_regex.captures(url) {
+        let net = captures.name("net")
+            .expect("Unexpected: capture <net> was not found")
+            .as_str();
+        if let Some(endpoints) = ENDPOINTS_MAP.get(net) {
+            return Some((*endpoints).clone());
+        }
     }
 
     None
