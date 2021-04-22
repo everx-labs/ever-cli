@@ -313,6 +313,15 @@ mod tests {
     #[test]
     fn test_endpoints_resolver() {
         assert_eq!(resolve_endpoints(""), None);
+        assert_eq!(resolve_endpoints("http://os.ton.dev"), None);
+        assert_eq!(resolve_endpoints("https://rustnet.ton.dev"), None);
+        assert_eq!(resolve_endpoints("rustnet.ton.com"), None);
+        assert_eq!(resolve_endpoints("https://example.com"), None);
+        assert_eq!(resolve_endpoints("http://localhost"), None);
+        assert_eq!(resolve_endpoints("https://localhost"), None);
+        assert_eq!(resolve_endpoints("localhost"), None);
+        assert_eq!(resolve_endpoints("http://127.0.0.1"), None);
+        assert_eq!(resolve_endpoints("https://127.0.0.1"), None);
 
         assert_eq!(resolve_endpoints("https://main.ton.dev"), Some(MAIN_ENDPOINTS.clone()));
         assert_eq!(resolve_endpoints("http://main.ton.dev"), Some(MAIN_ENDPOINTS.clone()));
