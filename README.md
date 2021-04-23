@@ -2,7 +2,18 @@
 
 `tonos-cli` is a command line interface utility designed to work with TON blockchain.
 
-## Prerequisites
+## How to install through TONDEV
+You can use [TONDEV](https://github.com/tonlabs/tondev) to install the latest version of tonos-cli:
+
+    tondev tonos-cli install
+
+
+The installer requires [NPM](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) to be installed, so it can install packages globally without using sudo. In case of error, manually set environment variable `PATH=$PATH:$HOME./tondev/solidity`
+
+Refer to [TONDEV documentation](https://github.com/tonlabs/tondev#tonos-cli) for information on updating and managing tonos-cli versions.
+
+
+## Build Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) latest
 - OpenSSL 
