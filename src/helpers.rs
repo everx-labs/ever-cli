@@ -15,7 +15,6 @@ use lazy_static::lazy_static;
 use log;
 use regex::Regex;
 use std::collections::HashMap;
-use std::iter::FromIterator;
 use std::sync::Arc;
 use std::time::SystemTime;
 use ton_client::abi::{
@@ -101,12 +100,10 @@ lazy_static! {
         "net5.ton.dev".to_string(),
     ];
 
-    static ref ENDPOINTS_MAP: HashMap<&'static str, &'static Vec<String>> = HashMap::from_iter(
-        std::array::IntoIter::new([
-            ( "main.ton.dev", MAIN_ENDPOINTS.as_ref() ),
-            ( "net.ton.dev", NET_ENDPOINTS.as_ref() ),
-        ])
-    );
+    static ref ENDPOINTS_MAP: HashMap<&'static str, &'static Vec<String>> = [
+        ("main.ton.dev", MAIN_ENDPOINTS.as_ref()),
+        ("net.ton.dev", NET_ENDPOINTS.as_ref()),
+    ].iter().cloned().collect();
 }
 
 // TODO: Organize endpoints to the list in external resource
