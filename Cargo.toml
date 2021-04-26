@@ -10,25 +10,27 @@ readme = "README.md"
 license = "Apache-2.0"
 keywords = ["TON", "SDK", "smart contract", "tonlabs", "solidity"]
 edition = "2018"
-version = "0.11.4"
+version = "0.11.5"
 
 [dependencies]
 async-trait = "0.1.42"
 base64 = "0.10.1"
+chrono = "0.4"
 clap = "2.32"
 crc16 = "0.4.0"
-chrono = "0.4"
 ed25519-dalek = "1.0.0-pre.3"
 hex = "0.3.2"
+lazy_static = "1.4.0"
+log = {version = "0.4.11", features = ["std"] }
 num-bigint = "0.2.2"
 num-traits = "0.2"
 qr2term = "0.2.0"
+regex = "1.4.5"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 serde_derive = "1.0.91"
+serde_json = "1.0"
 sha2 = "0.8"
 simplelog = "0.8.0"
-log = {version = "0.4.11", features = ["std"] }
 tokio = { version = "0.2", features = ["full"], default-features = false }
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
