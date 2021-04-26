@@ -52,6 +52,11 @@ This fixes affects all debots invoking other debots (e.g. depool debot, mludi de
 ### Improvements
 - Added ability to print account balance with delimiters using config parameter `use-delimiters`
 
+## v0.11.5
+
+### Improvements
+- `tonos-cli` now provides several different endpoints for main.ton.dev and net.ton.dev in order to improve reliability.
+
 ## v0.12.0
 
 ### New feature
