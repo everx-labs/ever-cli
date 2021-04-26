@@ -473,6 +473,16 @@ fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[test]
+fn preliminary_settings() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("clear");
+    cmd.assert()
+        .success();
+
+    Ok(())
+}
 
 #[test]
 fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {

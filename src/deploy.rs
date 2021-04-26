@@ -36,7 +36,7 @@ pub async fn deploy_contract(
     let enc_msg = encode_message(ton.clone(), msg.clone()).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
-    if !conf.no_local_run {
+    if conf.local_run {
         emulate_localy(ton.clone(), addr.as_str(), enc_msg.message).await?;
     }
 

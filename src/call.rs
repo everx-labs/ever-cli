@@ -377,7 +377,7 @@ pub async fn call_contract_with_result(
             print_encoded_message(&msg);
         }
 
-        if !local && !conf.no_local_run {
+        if !local && conf.local_run {
             emulate_localy(ton.clone(), addr, msg.message.clone()).await?;
         }
         let result = send_message_and_wait(ton.clone(), addr, abi.clone(), msg.message, local, conf.clone()).await;

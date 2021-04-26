@@ -68,7 +68,7 @@ pub struct Config {
     #[serde(default = "default_false")]
     pub use_delimiters: bool,
     #[serde(default = "default_false")]
-    pub no_local_run: bool,
+    pub local_run: bool,
 }
 
 impl Config {
@@ -87,7 +87,7 @@ impl Config {
             lifetime: default_lifetime(),
             no_answer: default_true(),
             use_delimiters: default_false(),
-            no_local_run: default_false(),
+            local_run: default_false(),
         }
     }
 
@@ -113,7 +113,7 @@ pub fn clear_config(
     lifetime: bool,
     no_answer: bool,
     use_delimiters: bool,
-    no_local_run: bool,
+    local_run: bool,
 ) -> Result<(), String> {
     if url {
         conf.url = default_url();
@@ -151,12 +151,12 @@ pub fn clear_config(
     if use_delimiters {
         conf.use_delimiters = default_false();
     }
-    if no_local_run {
-        conf.no_local_run = default_false();
+    if local_run {
+        conf.local_run = default_false();
     }
 
     if (url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime
-        || no_answer || use_delimiters || no_local_run) == false {
+        || no_answer || use_delimiters || local_run) == false {
         conf = Config::new();
     }
     let conf_str = serde_json::to_string(&conf)
@@ -182,7 +182,7 @@ pub fn set_config(
     lifetime:  Option<&str>,
     no_answer:  Option<&str>,
     use_delimiters: Option<&str>,
-    no_local_run: Option<&str>,
+    local_run: Option<&str>,
 ) -> Result<(), String> {
     if let Some(s) = url {
         conf.url = s.to_string();
@@ -230,9 +230,9 @@ pub fn set_config(
         conf.use_delimiters = use_delimiters.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "use_delimiters": {}"#, e))?;
     }
-    if let Some(no_local_run) = no_local_run {
-        conf.no_local_run = no_local_run.parse::<bool>()
-            .map_err(|e| format!(r#"failed to parse "no_local_run": {}"#, e))?;
+    if let Some(local_run) = local_run {
+        conf.local_run = local_run.parse::<bool>()
+            .map_err(|e| format!(r#"failed to parse "local_run": {}"#, e))?;
     }
 
     let conf_str = serde_json::to_string(&conf)
