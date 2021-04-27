@@ -508,7 +508,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
-        .arg("0:3333333333333333333333333333333333333333333333333333333333333333");
+        .arg("1:3333333333333333333333333333333333333333333333333333333333333333");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Account not found"));
@@ -537,7 +537,7 @@ fn test_config_wc() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--wc")
-        .arg("0");
+        .arg("1");
     cmd.assert()
         .success();
 
@@ -547,6 +547,13 @@ fn test_config_wc() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Account not found"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--wc")
+        .arg("0");
+    cmd.assert()
+        .success();
     Ok(())
 }
 
