@@ -165,21 +165,22 @@ in the most part of subcommands.
 
 List of possible parameters:
 
-      --abi <ABI>                       File with contract ABI.
-      --addr <ADDR>                     Contract address.
-      --depool_fee <DEPOOL_FEE>         Value added to message sent to depool to cover it's fees (change will be returned).
-      --keys <KEYS>                     File with keypair.
-      --lifetime <LIFETIME>             Period of time in seconds while message is valid.
-      --no-answer <NO_ANSWER>           FLag whether to wait for depool answer when calling a depool function.
-      --no_local_run <NO_LOCAL_RUN>     Disable preliminary local run before deploy and call commands.
-      --retries <RETRIES>               Number of attempts to call smart contract function if previous attempt was
-                                        unsuccessful.
-      --timeout <TIMEOUT>               Contract call timeout in ms.
-      --url <URL>                       Url to connect.
-      --delimiters <USE_DELIMITERS>     Use delimiters while printing account balance
-      --wallet <WALLET>                 Multisig wallet address. Used in commands which send internal messages through
-                                        multisig wallets.
-      --wc <WC>                         Workchain id.
+      --abi <ABI>                      File with contract ABI.
+      --addr <ADDR>                    Contract address.
+      --depool_fee <DEPOOL_FEE>        Value added to message sent to depool to cover it's fees (change will be
+                                       returned).
+      --keys <KEYS>                    File with keypair.
+      --lifetime <LIFETIME>            Period of time in seconds while message is valid.
+      --local_run <LOCAL_RUN>          Enable preliminary local run before deploy and call commands.
+      --no-answer <NO_ANSWER>          FLag whether to wait for depool answer when calling a depool function.
+      --retries <RETRIES>              Number of attempts to call smart contract function if previous attempt was
+                                       unsuccessful.
+      --timeout <TIMEOUT>              Contract call timeout in ms.
+      --url <URL>                      Url to connect.
+      --delimiters <USE_DELIMITERS>    Use delimiters while printing account balance
+      --wallet <WALLET>                Multisig wallet address. Used in commands which send internal messages through
+                                       multisig wallets.
+      --wc <WC>                        Workchain id.
 
 Also user can clear one or all parameters from the config file (it will set the default value for
 them if it is possible.
