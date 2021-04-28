@@ -159,7 +159,7 @@ impl TerminalBrowser {
         println!("Author : {}", info.author.unwrap_or_else(|| format!("None")));
         println!("Publisher: {}", info.publisher.unwrap_or_else(|| format!("None")));
         println!("Support: {}", info.support.unwrap_or_else(|| format!("None")));
-        println!("Description: {}", info.key.unwrap_or_else(|| format!("None")));
+        println!("Description: {}", info.caption.unwrap_or_else(|| format!("None")));
         println!("{}", info.hello.unwrap_or_else(|| format!("None")));
     }
 
