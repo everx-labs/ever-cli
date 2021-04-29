@@ -62,4 +62,6 @@ This fixes affects all debots invoking other debots (e.g. depool debot, mludi de
 ### New feature
 - tonos-cli now can execute the transaction locally for deploy and call commands before executing
   it onchain. If local execution fails, onchain execution is not performed. Local run can be
-  enabled by setting the flag `local_run` in the tonos-cli config. 
+  enabled by setting the flag `local_run` in the tonos-cli config.
+- tonos-cli can calculate fees for call and deploy without executing it onchain and also calculate
+  storage fee for an existing contract.

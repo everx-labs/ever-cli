@@ -14,6 +14,7 @@ use crate::helpers::create_client_verbose;
 use crate::config::Config;
 use serde_json::json;
 use ton_client::net::{ParamsOfQueryCollection, query_collection};
+use ton_client::utils::{calc_storage_fee, ParamsOfCalcStorageFee};
 
 const ACCOUNT_FIELDS: &str = r#"
     acc_type_name
@@ -101,11 +102,58 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
                     println!("data(boc): null");
                 }
             } else {
-                println!("Account does not exist.");    
+                println!("Account does not exist.");
             }
         } else {
             println!("Account not found.");
         }
+    }
+    Ok(())
+}
+
+pub async fn get_storage(conf: Config, addr: &str, period: u32) -> Result<(), String> {
+    let ton = create_client_verbose(&conf)?;
+
+    if !conf.is_json {
+        println!("Processing...");
+    }
+    let query_result = query_collection(
+        ton.clone(),
+        ParamsOfQueryCollection {
+            collection: "accounts".to_owned(),
+            filter: Some(json!({ "id": { "eq": addr } })),
+            result: "boc".to_owned(),
+            limit: Some(1),
+            ..Default::default()
+        },
+    ).await.map_err(|e| format!("failed to query account info: {}", e))?;
+    let accounts = query_result.result;
+    if accounts.len() == 0 {
+        println!("Account doesn't exist.");
+        return Ok(());
+    }
+
+    let boc = accounts[0]["boc"].as_str();
+    if boc.is_none() {
+        println!("Account doesn't contain data.");
+        return Ok(());
+    }
+
+    let res = calc_storage_fee(
+        ton.clone(),
+        ParamsOfCalcStorageFee {
+            account: boc.unwrap().to_owned(),
+            period,
+        }
+    ).await.map_err(|e| format!("failed to calculate storage fee: {}", e))?;
+
+    if !conf.is_json {
+        println!("Storage fee per {} seconds: {} nanotons", period, res.fee);
+    } else {
+        println!("{{");
+        println!("  \"storage_fee\": \"{}\",", res.fee);
+        println!("  \"period\": \"{}\"", period);
+        println!("}}");
     }
     Ok(())
 }
