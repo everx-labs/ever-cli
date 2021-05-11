@@ -387,14 +387,14 @@ pub async fn call_contract_with_result(
             // but if it was simulated locally and local exit code is not zero,
             // we ignore previous exit code because it means we shouldn't make a retry.
             if !err.data["exit_code"].is_null() {
-                if err.data["exit_code"].as_i64().unwrap() != 0 {
+                if err.data["exit_code"].as_i64().unwrap_or(-1) != 0 {
                     retry = false;
                 }
             }
             // There is also another way how SDK can print local run results.
             let local_error = err.data["local_error"]["data"]["exit_code"].clone();
             if !local_error.is_null() {
-                if local_error.as_i64().unwrap() != 0 {
+                if local_error.as_i64().unwrap_or(-1) != 0 {
                     retry = false;
                 }
             }
