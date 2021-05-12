@@ -16,6 +16,8 @@ use serde_json::json;
 use ton_client::net::{ParamsOfQueryCollection, query_collection};
 use ton_client::utils::{calc_storage_fee, ParamsOfCalcStorageFee};
 
+use crate::call::query_account_boc;
+
 const ACCOUNT_FIELDS: &str = r#"
     acc_type_name
     balance(format: DEC)
@@ -114,38 +116,22 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub async fn get_storage(conf: Config, addr: &str, period: u32) -> Result<(), String> {
+pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
     if !conf.is_json {
         println!("Processing...");
     }
-    let query_result = query_collection(
-        ton.clone(),
-        ParamsOfQueryCollection {
-            collection: "accounts".to_owned(),
-            filter: Some(json!({ "id": { "eq": addr } })),
-            result: "boc".to_owned(),
-            limit: Some(1),
-            ..Default::default()
-        },
-    ).await.map_err(|e| format!("failed to query account info: {}", e))?;
-    let accounts = query_result.result;
-    if accounts.len() == 0 {
-        println!("Account doesn't exist.");
-        return Ok(());
-    }
 
-    let boc = accounts[0]["boc"].as_str();
-    if boc.is_none() {
-        println!("Account doesn't contain data.");
-        return Ok(());
-    }
+    let boc = query_account_boc(
+        ton.clone(),
+        addr
+    ).await.map_err(|e| format!("{}", e))?;
 
     let res = calc_storage_fee(
         ton.clone(),
         ParamsOfCalcStorageFee {
-            account: boc.unwrap().to_owned(),
+            account: boc,
             period,
         }
     ).await.map_err(|e| format!("failed to calculate storage fee: {}", e))?;

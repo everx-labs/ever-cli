@@ -31,7 +31,7 @@ mod multisig;
 mod sendfile;
 mod voting;
 
-use account::{get_account, get_storage};
+use account::{get_account, calc_storage};
 use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings};
 use config::{Config, set_config, clear_config};
@@ -51,7 +51,7 @@ use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
 const CONFIG_BASE_NAME: &'static str = "tonos-cli.conf.json";
-const DEF_STORAGE_PERIOD: u32 = 60 * 60 * 24;
+const DEF_STORAGE_PERIOD: u32 = 60 * 60 * 24 * 365;
 
 enum CallType {
     Run,
@@ -862,7 +862,7 @@ async fn storage_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
     })
     .transpose()?
     .unwrap_or(DEF_STORAGE_PERIOD);
-    get_storage(config, address.as_str(), period).await
+    calc_storage(config, address.as_str(), period).await
 }
 
 async fn proposal_create_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {

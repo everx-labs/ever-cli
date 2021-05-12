@@ -267,7 +267,7 @@ fee for an existing contract.
     tonos-cli [--json] fee storage <addr> [--period <time>]
 
 Calculates storage fee for an existing account with address `<addr>` for `<time>` seconds. If `--period`
-is not specified calculates fee for 1 day (86400 seconds).
+is not specified calculates fee for 1 year (31536000 seconds).
 Prints period and fee as a result. Example:
 
 ```json

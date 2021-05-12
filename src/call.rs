@@ -35,12 +35,9 @@ use ton_client::processing::{
 };
 use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet, run_executor, ParamsOfRunExecutor, AccountForExecutor};
 use ton_client::error::ClientError;
-use ton_block::{Account, MsgAddressInt, MsgAddrStd, Serializable};
-use ton_types::{SliceData};
+use ton_block::{Account, Serializable};
 use std::str::FromStr;
 use serde_json::Value;
-
-pub type AccountId = SliceData;
 
 pub struct EncodedMessage {
     pub message_id: String,
@@ -231,7 +228,7 @@ fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Res
     serde_json::to_string(&params_json).map_err(|e| format!("{}", e))
 }
 
-async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, String> {
+pub async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, String> {
     let accounts = query(
         ton,
             "accounts",
@@ -258,20 +255,14 @@ pub async fn emulate_localy(
     is_fee: bool,
 ) -> Result<(), String> {
     let state: String;
-    let addr_parts: Vec<&str> = addr.split(':').collect();
     let state_boc = query_account_boc(ton.clone(), addr).await;
     if state_boc.is_err() {
         if is_fee {
-            let add = MsgAddressInt::AddrStd(MsgAddrStd {
-                anycast: None,
-                workchain_id: addr_parts[0].parse::<i8>()
-                    .map_err(|e| format!("couldn't decode wc from address: {}", e))?,
-                address: AccountId::from_str(addr_parts[1])
-                    .map_err(|e| format!("couldn't decode address value: {}", e))?,
-            });
+            let addr = ton_block::MsgAddressInt::from_str(addr)
+                .map_err(|e| format!("couldn't decode address: {}", e))?;
             state = base64::encode(
                 &ton_types::cells_serialization::serialize_toc(
-                    &Account::with_address(add)
+                    &Account::with_address(addr)
                         .serialize()
                         .map_err(|e| format!("couldn't create dummy account for deploy emulation: {}", e))?
                 ).map_err(|e| format!("failed to serialize account cell: {}", e))?
