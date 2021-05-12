@@ -22,6 +22,7 @@ const ACCOUNT_FIELDS: &str = r#"
     last_paid
     last_trans_lt
     data
+    code_hash
 "#;
 
 pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
@@ -63,6 +64,7 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
                 } else {
                     println!("  \"data(boc)\": \"null\"");
                 }
+                println!("  code_hash: {}", acc["code_hash"].as_str().unwrap_or("null"));
             } else {
                 println!("  \"acc_type\": \"{}\"", acc_type);
             }
@@ -101,6 +103,7 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
                 } else {
                     println!("data(boc): null");
                 }
+                println!("code_hash: {}", acc["code_hash"].as_str().unwrap_or("null"));
             } else {
                 println!("Account does not exist.");
             }
