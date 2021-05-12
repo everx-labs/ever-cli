@@ -56,3 +56,10 @@ This fixes affects all debots invoking other debots (e.g. depool debot, mludi de
 
 ### Improvements
 - `tonos-cli` now provides several different endpoints for main.ton.dev and net.ton.dev in order to improve reliability.
+
+## v0.12.0
+
+### New feature
+- tonos-cli now can execute the transaction locally for deploy and call commands before executing
+  it onchain. If local execution fails, onchain execution is not performed. Local run can be
+  enabled by setting the flag `local_run` in the tonos-cli config. 

@@ -33,7 +33,7 @@ use ton_client::processing::{
     wait_for_transaction,
     send_message,
 };
-use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet};
+use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet, run_executor, ParamsOfRunExecutor, AccountForExecutor};
 use ton_client::error::ClientError;
 
 pub struct EncodedMessage {
@@ -245,6 +245,32 @@ async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, String>
     Ok(boc.unwrap().to_owned())
 }
 
+pub async fn emulate_localy(
+    ton: TonClient,
+    addr: &str,
+    msg: String,
+) -> Result<(), String> {
+    let state_boc = query_account_boc(ton.clone(), addr).await?;
+
+    let res = run_executor(
+        ton.clone(),
+        ParamsOfRunExecutor {
+            message: msg.clone(),
+            account: AccountForExecutor::Account {
+                boc: state_boc,
+                unlimited_balance: None,
+            },
+            ..Default::default()
+        },
+    )
+    .await;
+
+    if res.is_err() {
+        return Err(format!("{:#}", res.err().unwrap()));
+    }
+    Ok(())
+}
+
 async fn send_message_and_wait(
     ton: TonClient,
     addr: &str,
@@ -353,7 +379,7 @@ pub async fn call_contract_with_result(
         if !conf.is_json {
             print_encoded_message(&msg);
         }
-        
+
         let mut retry: bool = true;
         let error_handler = |err: ClientError| {
             // obtaining error code
@@ -361,25 +387,30 @@ pub async fn call_contract_with_result(
             // but if it was simulated locally and local exit code is not zero,
             // we ignore previous exit code because it means we shouldn't make a retry.
             if !err.data["exit_code"].is_null() {
-                if err.data["exit_code"].as_i64().unwrap() != 0 {
+                if err.data["exit_code"].as_i64().unwrap_or(-1) != 0 {
                     retry = false;
                 }
             }
             // There is also another way how SDK can print local run results.
             let local_error = err.data["local_error"]["data"]["exit_code"].clone();
             if !local_error.is_null() {
-                if local_error.as_i64().unwrap() != 0 {
+                if local_error.as_i64().unwrap_or(-1) != 0 {
                     retry = false;
                 }
             }
-            // if error code was 4XX then don't perform a retry.
-            let code = (code / 100) as u32 % 10;
-            if  code == 4 {
+            // if error code was 4XX then don't perform a retry. Also if error was 508,
+            // it means that message could have been delivered after timeout and for not
+            // to cause double call we shouldn't perform a retry.
+            if  (((code / 100) as u32 % 10) == 4) || (code == 508) {
                 retry = false;
             }
         };
+
+        if !local && conf.local_run {
+            emulate_localy(ton.clone(), addr, msg.message.clone()).await?;
+        }
         let result = send_message_and_wait(ton.clone(), addr, abi.clone(), msg.message, local, conf.clone(), error_handler).await;
-        
+
         if result.is_ok() {
             return result;
         }

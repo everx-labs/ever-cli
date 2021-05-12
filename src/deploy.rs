@@ -13,7 +13,7 @@
 use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address};
 use crate::config::Config;
 use crate::crypto::load_keypair;
-use crate::call::{EncodedMessage, display_generated_message};
+use crate::call::{EncodedMessage, display_generated_message, emulate_localy};
 use ton_client::processing::{ParamsOfProcessMessage};
 use ton_client::abi::{
     encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage
@@ -32,6 +32,13 @@ pub async fn deploy_contract(
     println!("Deploying...");
 
     let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file, wc).await?;
+
+    let enc_msg = encode_message(ton.clone(), msg.clone()).await
+        .map_err(|e| format!("failed to create inbound message: {}", e))?;
+
+    if conf.local_run {
+        emulate_localy(ton.clone(), addr.as_str(), enc_msg.message).await?;
+    }
 
     let callback = |_event| { async move { } };
     ton_client::processing::process_message(

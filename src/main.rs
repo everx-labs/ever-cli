@@ -292,6 +292,7 @@ async fn main_internal() -> Result <(), String> {
             (@arg LIFETIME: --lifetime +takes_value "Period of time in seconds while message is valid.")
             (arg: no_answer_with_value)
             (@arg USE_DELIMITERS: --delimiters +takes_value "Use delimiters while printing account balance")
+            (@arg LOCAL_RUN: --local_run +takes_value "Enable preliminary local run before deploy and call commands.")
             (@subcommand clear =>
                 (@setting AllowLeadingHyphen)
                 (about: "Resets certain default values for options in the config file. Resets all values if used without options.")
@@ -307,6 +308,7 @@ async fn main_internal() -> Result <(), String> {
                 (@arg LIFETIME: --lifetime "Period of time in seconds while message is valid.")
                 (arg: no_answer)
                 (@arg USE_DELIMITERS: --delimiters "Use delimiters while printing account balance")
+                (@arg LOCAL_RUN: --local_run "Enable preliminary local run before deploy and call commands.")
             )
         )
         (@subcommand account =>
@@ -734,7 +736,8 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let lifetime = clear_matches.is_present("LIFETIME");
             let no_answer = clear_matches.is_present("NO_ANSWER");
             let use_delimiters = clear_matches.is_present("USE_DELIMITERS");
-            result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, use_delimiters);
+            let local_run = clear_matches.is_present("LOCAL_RUN");
+            result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, use_delimiters, local_run);
         } else {
             let url = matches.value_of("URL");
             let address = matches.value_of("ADDR");
@@ -748,7 +751,8 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let lifetime = matches.value_of("LIFETIME");
             let no_answer = matches.value_of("NO_ANSWER");
             let use_delimiters = matches.value_of("USE_DELIMITERS");
-            result = set_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, use_delimiters);
+            let local_run = matches.value_of("LOCAL_RUN");
+            result = set_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, use_delimiters, local_run);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {
