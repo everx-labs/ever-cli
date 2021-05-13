@@ -265,7 +265,7 @@ impl BrowserCallbacks for Callbacks {
     async fn invoke_debot(&self, debot: String, action: DAction) -> Result<(), String> {
         debug!("fetching debot {} action {}", &debot, action.name);
         println!("Invoking debot {}", &debot);
-        run_debot_browser(&debot, self.config.clone()).await
+        run_debot_browser(&debot, self.config.clone(), false, None).await
     }
 
     async fn send(&self, message: String) {
@@ -380,14 +380,23 @@ pub fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
     Ok((n, argc, argv))
 }
 
+/// Launches Terminal DeBot Browser with one DeBot.
+///
+/// Fetches DeBot by address from blockchain and if `start` is true, starts it in interactive mode.
+/// If `init_message` has a value then Browser sends it to DeBot before starting it.
 pub async fn run_debot_browser(
     addr: &str,
     config: Config,
+    start: bool,
+    init_message: Option<String>,
 ) -> Result<(), String> {
     println!("Connecting to {}", config.url);
     let ton = create_client(&config)?;
     let mut browser = TerminalBrowser::new(ton.clone(), &config);
-    browser.fetch_debot(addr, true).await?;
+    browser.fetch_debot(addr, start).await?;
+    if let Some(msg) = init_message {
+        browser.call_debot(addr, msg).await?;
+    }
     loop {
         let mut next_msg = browser.msg_queue.pop_front();
         while let Some(msg) = next_msg {
