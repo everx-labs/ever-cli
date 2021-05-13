@@ -25,19 +25,25 @@ pub async fn deploy_contract(
     abi: &str,
     params: &str,
     keys_file: &str,
-    wc: i32
+    wc: i32,
+    is_fee: bool,
 ) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
-    println!("Deploying...");
+    if !is_fee && !conf.is_json {
+        println!("Deploying...");
+    }
 
     let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file, wc).await?;
 
     let enc_msg = encode_message(ton.clone(), msg.clone()).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
-    if conf.local_run {
-        emulate_localy(ton.clone(), addr.as_str(), enc_msg.message).await?;
+    if conf.local_run || is_fee {
+        emulate_localy(ton.clone(), addr.as_str(), enc_msg.message, is_fee).await?;
+        if is_fee {
+            return Ok(());
+        }
     }
 
     let callback = |_event| { async move { } };
@@ -52,8 +58,10 @@ pub async fn deploy_contract(
     ).await
     .map_err(|e| format!("deploy failed: {:#}", e))?;
 
-    println!("Transaction succeeded.");
-    println!("Contract deployed at address: {}", addr);
+    if !conf.is_json {
+        println!("Transaction succeeded.");
+        println!("Contract deployed at address: {}", addr);
+    }
     Ok(())
 }
 

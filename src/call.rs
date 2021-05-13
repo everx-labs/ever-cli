@@ -35,6 +35,9 @@ use ton_client::processing::{
 };
 use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet, run_executor, ParamsOfRunExecutor, AccountForExecutor};
 use ton_client::error::ClientError;
+use ton_block::{Account, Serializable};
+use std::str::FromStr;
+use serde_json::Value;
 
 pub struct EncodedMessage {
     pub message_id: String,
@@ -225,7 +228,7 @@ fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Res
     serde_json::to_string(&params_json).map_err(|e| format!("{}", e))
 }
 
-async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, String> {
+pub async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, String> {
     let accounts = query(
         ton,
             "accounts",
@@ -235,13 +238,13 @@ async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, String>
         ).await
     .map_err(|e| format!("failed to query account: {}", e))?;
 
-            if accounts.len() == 0 {
-                return Err(format!("account not found"));
-            }
-            let boc = accounts[0]["boc"].as_str();
-            if boc.is_none() {
-                return Err(format!("account doesn't contain data"));
-            }
+    if accounts.len() == 0 {
+        return Err(format!("account not found"));
+    }
+    let boc = accounts[0]["boc"].as_str();
+    if boc.is_none() {
+        return Err(format!("account doesn't contain data"));
+    }
     Ok(boc.unwrap().to_owned())
 }
 
@@ -249,16 +252,38 @@ pub async fn emulate_localy(
     ton: TonClient,
     addr: &str,
     msg: String,
+    is_fee: bool,
 ) -> Result<(), String> {
-    let state_boc = query_account_boc(ton.clone(), addr).await?;
-
+    let state: String;
+    let state_boc = query_account_boc(ton.clone(), addr).await;
+    if state_boc.is_err() {
+        if is_fee {
+            let addr = ton_block::MsgAddressInt::from_str(addr)
+                .map_err(|e| format!("couldn't decode address: {}", e))?;
+            state = base64::encode(
+                &ton_types::cells_serialization::serialize_toc(
+                    &Account::with_address(addr)
+                        .serialize()
+                        .map_err(|e| format!("couldn't create dummy account for deploy emulation: {}", e))?
+                ).map_err(|e| format!("failed to serialize account cell: {}", e))?
+            );
+        } else {
+            return Err(state_boc.err().unwrap());
+        }
+    } else {
+        state = state_boc.unwrap();
+    }
     let res = run_executor(
         ton.clone(),
         ParamsOfRunExecutor {
             message: msg.clone(),
             account: AccountForExecutor::Account {
-                boc: state_boc,
-                unlimited_balance: None,
+                boc: state,
+                unlimited_balance: if is_fee {
+                    Some(true)
+                } else {
+                    None
+                },
             },
             ..Default::default()
         },
@@ -267,6 +292,19 @@ pub async fn emulate_localy(
 
     if res.is_err() {
         return Err(format!("{:#}", res.err().unwrap()));
+    }
+    if is_fee {
+        let fees = res.unwrap().fees;
+        println!("{{");
+        println!("  \"in_msg_fwd_fee\": \"{}\",", fees.in_msg_fwd_fee);
+        println!("  \"storage_fee\": \"{}\",", fees.storage_fee);
+        println!("  \"gas_fee\": \"{}\",", fees.gas_fee);
+        println!("  \"out_msgs_fwd_fee\": \"{}\",", fees.out_msgs_fwd_fee);
+        println!("  \"total_account_fees\": \"{}\",", fees.total_account_fees);
+        println!("  \"total_output\": \"{}\"", fees.total_output);
+        println!("}}");
+    } else {
+        println!("Local run succeeded. Executing onchain.");
     }
     Ok(())
 }
@@ -350,6 +388,7 @@ pub async fn call_contract_with_result(
     params: &str,
     keys: Option<String>,
     local: bool,
+    is_fee: bool,
 ) -> Result<serde_json::Value, String> {
     let ton = create_client_verbose(&conf)?;
     let abi = load_abi(&abi)?;
@@ -406,10 +445,15 @@ pub async fn call_contract_with_result(
             }
         };
 
-        if !local && conf.local_run {
-            emulate_localy(ton.clone(), addr, msg.message.clone()).await?;
+        if (!local && conf.local_run) || is_fee {
+            emulate_localy(ton.clone(), addr, msg.message.clone(), is_fee).await?;
         }
-        let result = send_message_and_wait(ton.clone(), addr, abi.clone(), msg.message, local, conf.clone(), error_handler).await;
+        let result;
+        if !is_fee {
+            result = send_message_and_wait(ton.clone(), addr, abi.clone(), msg.message, local, conf.clone(), error_handler).await;
+        } else {
+            result = Ok(Value::Null);
+        }
 
         if result.is_ok() {
             return result;
@@ -435,9 +479,10 @@ pub async fn call_contract(
     method: &str,
     params: &str,
     keys: Option<String>,
-    local: bool
+    local: bool,
+    is_fee: bool,
 ) -> Result<(), String> {
-    let result = call_contract_with_result(conf.clone(), addr, abi, method, params, keys, local).await?;
+    let result = call_contract_with_result(conf.clone(), addr, abi, method, params, keys, local, is_fee).await?;
     if !conf.is_json {
         println!("Succeeded.");
     }

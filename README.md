@@ -257,6 +257,61 @@ The contract should be in the `Active` state.
 
     tonos-cli call --abi contract.abi.json --sign contract_keys.json <raw_address> methodName {<method_args>}
 
+## Fee commands
+
+Tonos-cli allows to calculate fees for message processing before executing onchain and also calculate storage
+fee for an existing contract.
+
+### Storage fee
+
+    tonos-cli [--json] fee storage <addr> [--period <time>]
+
+Calculates storage fee for an existing account with address `<addr>` for `<time>` seconds. If `--period`
+is not specified calculates fee for 1 year (31536000 seconds).
+Prints period and fee as a result. Example:
+
+```json
+{
+  "storage_fee": "90684668",
+  "period": "86400"
+}
+```
+
+### Deploy fee
+
+    tonos-cli [--json] fee deploy --abi <abipath> --sign <keypath> <tvcpath> <constructor_params> [--wc <wc>]
+
+Executes deploy locally and calculates fees for deploy and constructor call.
+Prints all possible fees as a result. Example:
+
+```json
+{
+  "in_msg_fwd_fee": "5475000",
+  "storage_fee": "993",
+  "gas_fee": "4633000",
+  "out_msgs_fwd_fee": "0",
+  "total_account_fees": "10108993",
+  "total_output": "0"
+}
+```
+
+### Call fee
+
+    tonos-cli fee call --abi <abipath> --sign <keypath> <address> <method> <params>
+
+Executes call locally and calculates fees. Prints all possible fees as a result. Example:
+
+```json
+{
+  "in_msg_fwd_fee": "1997000",
+  "storage_fee": "4409",
+  "gas_fee": "4566000",
+  "out_msgs_fwd_fee": "0",
+  "total_account_fees": "6567409",
+  "total_output": "0"
+}
+```
+
 ## DePool commands
 
 Tonos-cli allows to communicate with depool contract using your multisignature wallet.
@@ -275,7 +330,7 @@ All commands allow to omit `--addr`, `--wallet`,  `--no-answer` and `--sign` opt
 
 ### Deposit stakes
 
-all `--value` parameters must be defined in tons, like this: `--value 10.5`, it means value is 10,5 tons.
+All `--value` parameters must be defined in tons, like this: `--value 10.5`, it means value is 10,5 tons.
 
 #### Ordinary stake
 

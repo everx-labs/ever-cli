@@ -267,6 +267,7 @@ pub async fn send_with_body(
         "submitTransaction",
         &params,
         Some(keys.to_owned()),
-        false
+        false,
+        false,
     ).await
 }

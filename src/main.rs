@@ -31,7 +31,7 @@ mod multisig;
 mod sendfile;
 mod voting;
 
-use account::get_account;
+use account::{get_account, calc_storage};
 use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings};
 use config::{Config, set_config, clear_config};
@@ -51,16 +51,19 @@ use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
 const CONFIG_BASE_NAME: &'static str = "tonos-cli.conf.json";
+const DEF_STORAGE_PERIOD: u32 = 60 * 60 * 24 * 365;
 
 enum CallType {
     Run,
     Call,
     Msg,
+    Fee,
 }
 
 enum DeployType {
     Full,
     MsgOnly,
+    Fee,
 }
 
 #[macro_export]
@@ -319,6 +322,42 @@ async fn main_internal() -> Result <(), String> {
             (@arg ADDRESS: +required +takes_value "Smart contract address.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
         )
+        (@subcommand fee =>
+            (about: "Calculates fees for executing message or account storage fee.")
+            (@subcommand storage =>
+                (@setting AllowLeadingHyphen)
+                (about: "Gets account storage fee for specified period in nanotons.")
+                (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
+                (author: "TONLabs")
+                (@arg ADDRESS: +required +takes_value "Smart contract address.")
+                (@arg PERIOD: -p --period +takes_value "Time period in seconds (default value is 1 day).")
+            )
+            (@subcommand deploy =>
+                (@setting AllowNegativeNumbers)
+                (@setting AllowLeadingHyphen)
+                (about: "Executes deploy locally, calculates fees and prints table of all fees in nanotons.")
+                (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
+                (author: "TONLabs")
+                (@arg TVC: +required +takes_value "Compiled smart contract (tvc file)")
+                (@arg PARAMS: +required +takes_value "Constructor arguments. Can be passed via a filename.")
+                (@arg ABI: --abi +takes_value "Json file with contract ABI.")
+                (@arg SIGN: --sign +takes_value "Keypair used to sign 'constructor message'.")
+                (@arg WC: --wc +takes_value "Workchain id of the smart contract (default 0).")
+                (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            )
+            (@subcommand call =>
+                (@setting AllowLeadingHyphen)
+                (about: "Executes call locally, calculates fees and prints table of all fees in nanotons.")
+                (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
+                (author: "TONLabs")
+                (@arg ADDRESS: +required +takes_value "Contract address.")
+                (@arg METHOD: +required +takes_value "Name of calling contract method.")
+                (@arg PARAMS: +required +takes_value "Arguments for the contract method. Can be passed via a filename.")
+                (@arg ABI: --abi +takes_value "Json file with contract ABI.")
+                (@arg SIGN: --sign +takes_value "Keypair used to sign message.")
+                (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            )
+        )
         (@subcommand proposal =>
             (about: "Submits proposal transaction in multisignature wallet with text comment.")
             (@subcommand create =>
@@ -428,6 +467,17 @@ async fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("account") {
         return account_command(m, conf).await;
+    }
+    if let Some(m) = matches.subcommand_matches("fee") {
+        if let Some(m) = m.subcommand_matches("storage") {
+            return storage_command(m, conf).await;
+        }
+        if let Some(m) = m.subcommand_matches("deploy") {
+            return deploy_command(m, conf, DeployType::Fee).await;
+        }
+        if let Some(m) = m.subcommand_matches("call") {
+            return call_command(m, conf, CallType::Fee).await;
+        }
     }
     if let Some(m) = matches.subcommand_matches("genphrase") {
         return genphrase_command(m, conf);
@@ -584,7 +634,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
     );
 
     let keys = match call {
-        CallType::Call | CallType::Msg => {
+        CallType::Call | CallType::Msg | CallType::Fee => {
             matches.value_of("SIGN")
                 .map(|s| s.to_string())
                 .or(config.keys_path.clone())
@@ -604,8 +654,9 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
     let address = load_ton_address(address.unwrap(), &config)?;
 
     match call {
-        CallType::Call | CallType::Run => {
-            let local = if let CallType::Call = call { false } else { true };
+        CallType::Call | CallType::Run | CallType::Fee => {
+            let local = if let CallType::Run = call { true } else { false };
+            let is_fee = if let CallType::Fee = call { true } else { false };
             call_contract(
                 config,
                 address.as_str(),
@@ -613,7 +664,8 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
                 method.unwrap(),
                 &params.unwrap(),
                 keys,
-                local
+                local,
+                is_fee,
             ).await
         },
         CallType::Msg => {
@@ -673,6 +725,7 @@ async fn callex_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
         &params.unwrap(),
         keys,
         false,
+        false,
     ).await
 }
 
@@ -707,7 +760,9 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: D
             .ok_or("keypair file not defined. Supply it in config file or command line.".to_string())?
     );
     let params = Some(load_params(params.unwrap())?);
-    print_args!(matches, tvc, params, abi, keys, wc);
+    if !config.is_json {
+        print_args!(matches, tvc, params, abi, keys, wc);
+    }
 
     let wc = wc.map(|v| i32::from_str_radix(v, 10))
         .transpose()
@@ -715,8 +770,9 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: D
         .unwrap_or(config.wc);
     
     match deploy_type {
-        DeployType::Full => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc).await,
-        DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc, raw, output).await
+        DeployType::Full => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc, false).await,
+        DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc, raw, output).await,
+        DeployType::Fee => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc, true).await,
     }
 }
 
@@ -791,6 +847,22 @@ async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
     }
     let address = load_ton_address(address.unwrap(), &config)?;
     get_account(config, address.as_str()).await
+}
+
+async fn storage_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let address = matches.value_of("ADDRESS");
+    let period = matches.value_of("PERIOD");
+    if !config.is_json {
+        print_args!(matches, address, period);
+    }
+    let address = load_ton_address(address.unwrap(), &config)?;
+    let period = period.map(|val| {
+        u32::from_str_radix(val, 10)
+            .map_err(|e| format!("failed to parse period: {}", e))
+    })
+    .transpose()?
+    .unwrap_or(DEF_STORAGE_PERIOD);
+    calc_storage(config, address.as_str(), period).await
 }
 
 async fn proposal_create_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {

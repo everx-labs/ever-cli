@@ -14,6 +14,9 @@ use crate::helpers::create_client_verbose;
 use crate::config::Config;
 use serde_json::json;
 use ton_client::net::{ParamsOfQueryCollection, query_collection};
+use ton_client::utils::{calc_storage_fee, ParamsOfCalcStorageFee};
+
+use crate::call::query_account_boc;
 
 const ACCOUNT_FIELDS: &str = r#"
     acc_type_name
@@ -104,11 +107,42 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
                 }
                 println!("code_hash: {}", acc["code_hash"].as_str().unwrap_or("null"));
             } else {
-                println!("Account does not exist.");    
+                println!("Account does not exist.");
             }
         } else {
             println!("Account not found.");
         }
+    }
+    Ok(())
+}
+
+pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), String> {
+    let ton = create_client_verbose(&conf)?;
+
+    if !conf.is_json {
+        println!("Processing...");
+    }
+
+    let boc = query_account_boc(
+        ton.clone(),
+        addr
+    ).await.map_err(|e| format!("{}", e))?;
+
+    let res = calc_storage_fee(
+        ton.clone(),
+        ParamsOfCalcStorageFee {
+            account: boc,
+            period,
+        }
+    ).await.map_err(|e| format!("failed to calculate storage fee: {}", e))?;
+
+    if !conf.is_json {
+        println!("Storage fee per {} seconds: {} nanotons", period, res.fee);
+    } else {
+        println!("{{");
+        println!("  \"storage_fee\": \"{}\",", res.fee);
+        println!("  \"period\": \"{}\"", period);
+        println!("}}");
     }
     Ok(())
 }
