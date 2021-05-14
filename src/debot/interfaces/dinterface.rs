@@ -1,4 +1,4 @@
-use super::{Menu, AddressInput, AmountInput, ConfirmInput, NumberInput, Terminal};
+use super::{Menu, AddressInput, AmountInput, ConfirmInput, NumberInput, SigningBoxInput, Terminal};
 use super::echo::Echo;
 use super::stdout::Stdout;
 use crate::config::Config;
@@ -54,6 +54,9 @@ impl SupportedInterfaces {
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Menu::new());
         interfaces.insert(iface.get_id(), iface);
 
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(SigningBoxInput::new(client.clone()));
+        interfaces.insert(iface.get_id(), iface);
+
         Self { client, interfaces }
     }
 }
@@ -106,4 +109,19 @@ pub fn decode_int256(args: &Value, name: &str) -> Result<BigInt, String> {
     let num_str = decode_arg(args, name)?;
     decode_abi_bigint(&num_str)
         .map_err(|e| format!("failed to decode integer \"{}\": {}", num_str, e))
+}
+
+pub fn decode_array<F, T>(args: &Value, name: &str, validator: F) -> Result<Vec<T>, String> 
+    where F: Fn(&Value) -> Option<T>
+{
+    let array = args[name]
+        .as_array()
+        .ok_or(format!("\"{}\" is invalid: must be array", name))?;
+    let mut strings = vec![];
+    for elem in array {
+        strings.push(
+            validator(&elem).ok_or(format!("invalid array element type"))?
+        );
+    }
+    Ok(strings)
 }
