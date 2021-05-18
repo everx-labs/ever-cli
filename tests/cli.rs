@@ -1,6 +1,5 @@
-use assert_cmd::prelude::*;
 use predicates::prelude::*;
-use std::process::Command;
+use assert_cmd::Command;
 use lazy_static::*;
 use std::env;
 use std::time::Duration;
@@ -26,6 +25,26 @@ fn get_config() -> Result<Map<String, Value>, Box<dyn std::error::Error>> {
     let parsed: Value = serde_json::from_str(&out)?;
     let obj: Map<String, Value> = parsed.as_object().unwrap().clone();
     Ok(obj)
+}
+
+fn giver(addr: &str) {
+    let giver_abi_name = "tests/samples/giver.abi.json";
+    let mut cmd = Command::cargo_bin(BIN_NAME).unwrap();
+    cmd.arg("call")
+        .arg("--abi")
+        .arg(giver_abi_name)
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("sendGrams")
+        .arg(format!(r#"{{"dest":"{}","amount":1000000000}}"#, addr));
+    cmd.assert()
+        .success();
+}
+
+fn grep_address(output: &[u8]) -> String {
+    let mut addr = String::from_utf8_lossy(output).to_string();
+    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
+    addr.replace_range(addr.find("testnet").unwrap_or(addr.len())-1.., "");
+    addr
 }
 
 #[test]
@@ -82,6 +101,70 @@ fn test_call_giver() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success()
         .stdout(predicate::str::contains("Succeeded"));
+
+    Ok(())
+}
+
+#[test]
+fn test_fee() -> Result<(), Box<dyn std::error::Error>> {
+    let giver_abi_name = "tests/samples/giver.abi.json";
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("fee")
+        .arg("storage")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Storage fee per 31536000 seconds: "));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("fee")
+        .arg("storage")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("--period")
+        .arg("10000")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Storage fee per 10000 seconds: "));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("fee")
+        .arg("call")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("sendGrams")
+        .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1000000000}"#)
+        .arg("--abi")
+        .arg(giver_abi_name)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#"  "in_msg_fwd_fee":"#))
+        .stdout(predicate::str::contains(r#"  "storage_fee":"#))
+        .stdout(predicate::str::contains(r#"  "gas_fee":"#))
+        .stdout(predicate::str::contains(r#"  "out_msgs_fwd_fee":"#))
+        .stdout(predicate::str::contains(r#"  "total_account_fees":"#))
+        .stdout(predicate::str::contains(r#"  "total_output":"#))
+        .stdout(predicate::str::contains(r#"Succeeded."#));
+
+    let wallet_tvc = "tests/samples/wallet.tvc";
+    let wallet_abi = "tests/samples/wallet.abi.json";
+    let key_path = "tests/deploy_test.key";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("fee")
+        .arg("deploy")
+        .arg(wallet_tvc)
+        .arg("{}")
+        .arg("--abi")
+        .arg(wallet_abi)
+        .arg("--sign")
+        .arg(key_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#"  "in_msg_fwd_fee":"#))
+        .stdout(predicate::str::contains(r#"  "storage_fee":"#))
+        .stdout(predicate::str::contains(r#"  "gas_fee":"#))
+        .stdout(predicate::str::contains(r#"  "out_msgs_fwd_fee":"#))
+        .stdout(predicate::str::contains(r#"  "total_account_fees":"#))
+        .stdout(predicate::str::contains(r#"  "total_output":"#));
 
     Ok(())
 }
@@ -1367,5 +1450,68 @@ fn test_gen_deploy_message() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Succeeded"));
 
     let _ = std::fs::remove_file(output);
+    Ok(())
+}
+
+#[test]
+fn test_signing_box_interface() -> Result<(), Box<dyn std::error::Error>> {
+    use std::io::Write;
+    let tvc = "tests/samples/sample1.tvc";
+    let abi = "tests/samples/sample1.abi.json";
+    let key_path = "tests/sample1.keys.json";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg("--genkey")
+        .arg(key_path)
+        .arg(tvc)
+        .arg(abi)
+        .output()
+        .expect("Failed to generate address.");
+    
+    let addr = grep_address(&out.stdout);
+    giver(&addr);
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("deploy")
+        .arg(tvc)
+        .arg("{}")
+        .arg("--abi")
+        .arg(abi)
+        .arg("--sign")
+        .arg(key_path);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(&addr))
+        .stdout(predicate::str::contains("Transaction succeeded."));
+
+    let abi_string = std::fs::read_to_string(abi).unwrap();
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("--abi")
+        .arg(abi)
+        .arg("--sign")
+        .arg(key_path)
+        .arg(&addr)
+        .arg("setABI")
+        .arg(format!(r#"{{"dabi":"{}"}}"#, hex::encode(abi_string)));
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.timeout(std::time::Duration::from_secs(2))
+        .write_stdin(format!("y\n{}", key_path))
+        .arg("debot")
+        .arg("fetch")
+        .arg(&addr);
+    let cmd = cmd
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Enter my signing keys:"))
+        .stdout(predicate::str::contains("Signing Box Handle:"))
+        .stdout(predicate::str::contains("test sign hash passed"));
+    let out = cmd.get_output();
+
+    std::io::stdout().lock().write_all(&out.stdout)?;
     Ok(())
 }
