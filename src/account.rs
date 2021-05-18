@@ -62,11 +62,11 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
                 let data_str = acc["data"].as_str();
                 if data_str.is_some() {
                     let data_vec = base64::decode(data_str.unwrap()).unwrap();
-                    println!("  \"data(boc)\": \"{}\"", hex::encode(&data_vec));
+                    println!("  \"data(boc)\": \"{}\",", hex::encode(&data_vec));
                 } else {
-                    println!("  \"data(boc)\": \"null\"");
+                    println!("  \"data(boc)\": \"null\",");
                 }
-                println!("  code_hash: {}", acc["code_hash"].as_str().unwrap_or("null"));
+                println!("  \"code_hash\": \"{}\"", acc["code_hash"].as_str().unwrap_or("null"));
             } else {
                 println!("  \"acc_type\": \"{}\"", acc_type);
             }
