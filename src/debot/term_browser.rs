@@ -271,7 +271,7 @@ impl BrowserCallbacks for Callbacks {
         println!("[Permission Request]");
         println!("--------------------");
         match activity {
-            DebotActivity::Transaction{msg: _, dst, out, fee, setcode, signkey} => {
+            DebotActivity::Transaction{msg: _, dst, out, fee, setcode, signkey, signing_box_handle: _} => {
                 println!("DeBot is going to create an onchain transaction.\n");
                 println!("Details:");
                 println!("  account: {}.", dst);
