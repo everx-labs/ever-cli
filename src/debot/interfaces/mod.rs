@@ -11,19 +11,21 @@
 * limitations under the License.
 */
 
-pub mod dinterface;
-pub mod echo;
-pub mod stdout;
 pub mod address_input;
 pub mod amount_input;
 pub mod confirm_input;
-pub mod number_input;
-pub mod terminal;
+pub mod dinterface;
+pub mod echo;
 pub mod menu;
+pub mod number_input;
+pub mod signing_box_input;
+pub mod stdout;
+pub mod terminal;
 
-pub use amount_input::AmountInput;
 pub use address_input::AddressInput;
+pub use amount_input::AmountInput;
 pub use confirm_input::ConfirmInput;
-pub use number_input::NumberInput;
-pub use terminal::Terminal;
 pub use menu::Menu;
+pub use number_input::NumberInput;
+pub use signing_box_input::SigningBoxInput;
+pub use terminal::Terminal;

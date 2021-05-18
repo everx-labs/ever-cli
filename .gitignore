@@ -8,5 +8,7 @@ target
 /tests/data.tvc
 /tests/samples/wallet.keys.json
 /tests/samples/tmp.json
+/tests/sample1.keys.json
+
 tests/deploy_test.key
 .idea/*

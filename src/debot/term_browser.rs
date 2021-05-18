@@ -249,16 +249,8 @@ impl BrowserCallbacks for Callbacks {
 
     /// Debot engine requests keys to sign something
     async fn get_signing_box(&self) -> Result<SigningBoxHandle, String> {
-        let terminal_box = TerminalSigningBox::new()?;
-        let client = self.client.clone();
-        let handle = ton_client::crypto::get_signing_box(
-            client,
-            terminal_box.keys,
-        )
-        .await
-        .map(|r| r.handle)
-        .map_err(|e| e.to_string())?;
-        Ok(handle)
+        let mut terminal_box = TerminalSigningBox::new(self.client.clone(), vec![]).await?;
+        Ok(terminal_box.leak())
     }
 
     /// Debot asks to run action of another debot
