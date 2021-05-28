@@ -38,6 +38,7 @@ ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git' }
 ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git' }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
 ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git" }
+ton_executor = { git = "https://github.com/tonlabs/ton-labs-executor.git" }
 
 [dev-dependencies]
 assert_cmd = "1.0.3"
