@@ -414,6 +414,7 @@ async fn main_internal() -> Result <(), String> {
         (@subcommand fetch =>
             (about: "Fetches account's zerostate and transactions.")
             (@arg ADDRESS: +required +takes_value "Account address to fetch zerostate and txns for.")
+            (@arg OUTPUT: +required +takes_value "Output file name")
         )
         (@subcommand replay =>
             (about: "Replays account's transactions starting from zerostate.")

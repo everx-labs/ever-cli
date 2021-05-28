@@ -11,14 +11,14 @@
  * limitations under the License.
  */
 
-use std::{fs::File, io::{self, BufRead, Lines}, process::exit, sync::{Arc, atomic::AtomicU64}};
+use std::{fs::File, io::{self, BufRead, Lines, Write}, process::exit, sync::{Arc, atomic::AtomicU64}};
 use clap::ArgMatches;
 use serde_json::Value;
 
 use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr};
 use ton_client::{
     ClientConfig, ClientContext,
-    net::{NetworkConfig, OrderBy, ParamsOfQueryCollection, SortDirection, query_collection}
+    net::{AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection}
 };
 use ton_executor::{BlockchainConfig, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
 use ton_types::{HashmapE, UInt256};
@@ -32,7 +32,7 @@ fn construct_blockchain_config(config_account: &Account) -> BlockchainConfig {
     BlockchainConfig::with_config(config_params).unwrap()
 }
 
-async fn fetch(server_address: &str, account_address: &str) {
+async fn fetch(server_address: &str, account_address: &str, filename: &str) {
     let context = Arc::new(
         ClientContext::new(ClientConfig {
             network: NetworkConfig {
@@ -43,6 +43,30 @@ async fn fetch(server_address: &str, account_address: &str) {
         })
         .unwrap(),
     );
+
+    let tr_count = aggregate_collection(
+        context.clone(),
+        ParamsOfAggregateCollection {
+            collection: "transactions".to_owned(),
+            filter: Some(serde_json::json!({
+                "account_addr": {
+                    "eq": account_address
+                },
+            })),
+            fields: Some(vec![
+                FieldAggregation {
+                    field: "fn".to_owned(),
+                    aggregation_fn: AggregationFn::COUNT
+                },
+            ]),
+        },
+    )
+    .await
+    .unwrap();
+    let tr_count = u64::from_str_radix(tr_count.values.as_array().unwrap().get(0).unwrap().as_str().unwrap(), 10).unwrap();
+
+    let file = File::create(filename).unwrap();
+    let mut writer = std::io::LineWriter::new(file);
 
     let zerostates = query_collection(
         context.clone(),
@@ -59,13 +83,24 @@ async fn fetch(server_address: &str, account_address: &str) {
 
     let result = &zerostates.result.to_vec();
     let accounts = result[0]["accounts"].as_array().unwrap();
+    let mut zerostate_found = false;
     for account in accounts {
         if account["id"] == account_address {
-            println!("{}", account);
+            let data = format!("{}", account);
+            writer.write_all(data.as_bytes()).unwrap();
+            zerostate_found = true;
             break;
         }
     }
 
+    if !zerostate_found {
+        let data = format!("{{\"id\":\"{}\",\"boc\":\"{}\"}}\n",
+            account_address, base64::encode(&Account::default().serialize().unwrap().write_to_bytes().unwrap()));
+        writer.write_all(data.as_bytes()).unwrap();
+    }
+
+    let mut count = 0u64;
+    let pb =indicatif::ProgressBar::new(tr_count);
     let mut lt = String::from("0x0");
     loop {
         let transactions = query_collection(
@@ -93,11 +128,14 @@ async fn fetch(server_address: &str, account_address: &str) {
         }
 
         for txn in &transactions.result {
-            println!("{}", txn);
+            let data = format!("{}", txn);
+            writer.write_all(data.as_bytes()).unwrap();
         }
 
         let last = transactions.result.last().unwrap();
         lt = last["lt"].as_str().unwrap().to_owned();
+        count += transactions.result.len() as u64;
+        pb.set_position(std::cmp::min(count, tr_count));
     }
 }
 
@@ -240,7 +278,7 @@ fn replay(input_filename: &str, config_filename: &str, txnid: &str) {
 }
 
 pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    fetch(config.url.as_str(), m.value_of("ADDRESS").unwrap()).await;
+    fetch(config.url.as_str(), m.value_of("ADDRESS").unwrap(), m.value_of("OUTPUT").unwrap()).await;
     Ok(())
 }
 
