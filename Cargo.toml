@@ -2,7 +2,7 @@
 name = "tonos-cli"
 description = "command line tool for TON blockchain"
 authors = ["TON DEV SOLUTIONS LTD <support@tonlabs.io>"]
-repository = "https://github.com/tonlabs/tonos-cli"
+repository = "https://github.com/NilFoundation/tonos-cli"
 homepage = "https://ton.dev"
 documentation = "https://docs.ton.dev"
 build = "build.rs"
@@ -34,8 +34,8 @@ simplelog = "0.8.0"
 tokio = { version = "0.2", features = ["full"], default-features = false }
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
-ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git' }
-ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git' }
+ton_client = { git = "https://github.com/nilfoundation/tvmton-sdk.git", branch = "1-vergrth16" }
+ton_sdk = { git = "https://github.com/nilfoundation/tvmton-sdk.git", branch = "1-vergrth16" }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
 ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git" }
 
