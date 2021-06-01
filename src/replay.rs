@@ -86,7 +86,7 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) {
     let mut zerostate_found = false;
     for account in accounts {
         if account["id"] == account_address {
-            let data = format!("{}", account);
+            let data = format!("{}\n", account);
             writer.write_all(data.as_bytes()).unwrap();
             zerostate_found = true;
             break;
@@ -128,7 +128,7 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) {
         }
 
         for txn in &transactions.result {
-            let data = format!("{}", txn);
+            let data = format!("{}\n", txn);
             writer.write_all(data.as_bytes()).unwrap();
         }
 
