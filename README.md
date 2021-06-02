@@ -495,7 +495,7 @@ Example:
 or
 
 - `--sign deploy.keys.json`
-- `--wc <int8>` ID of the workchain the wallet will be deployed to (`1` for masterchain, `0` for basechain). By default this value is set to 0.
+- `--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default this value is set to 0.
 
 `<contract.abi.json>` - contract interface file.
 
@@ -541,7 +541,7 @@ Example:
 or
 
 - `--sign deploy.keys.json`
-- `--wc <int8>` ID of the workchain the wallet will be deployed to (`1` for masterchain, `0` for basechain). By default this value is set to 0.
+- `--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default this value is set to 0.
 
 `<contract.abi.json>` - contract interface file.
 
