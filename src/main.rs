@@ -546,7 +546,7 @@ async fn main_internal() -> Result <(), String> {
         return fetch_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("replay") {
-        return replay_command(m);
+        return replay_command(m).await;
     }
     if let Some(_) = matches.subcommand_matches("version") {
         println!(

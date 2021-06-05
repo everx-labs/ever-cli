@@ -11,19 +11,22 @@
  * limitations under the License.
  */
 
-use std::{fs::File, io::{self, BufRead, Lines, Write}, process::exit, sync::{Arc, atomic::AtomicU64}};
+use std::{collections::HashMap, fs::File, io::{self, BufRead, Lines, Write}, process::exit, sync::{Arc, atomic::AtomicU64}};
 use clap::ArgMatches;
 use serde_json::Value;
 
 use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr};
-use ton_client::{
-    ClientConfig, ClientContext,
-    net::{AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection}
-};
+use ton_client::{ClientConfig, ClientContext, abi::{Abi, CallSet, ParamsOfEncodeMessage, encode_message}, net::{
+        AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection,
+        SortDirection, aggregate_collection, query_collection
+    }, tvm::{ParamsOfRunTvm, run_tvm}};
 use ton_executor::{BlockchainConfig, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
-use ton_types::{HashmapE, UInt256};
+use ton_types::{HashmapE, UInt256, serialize_toc};
 
 use crate::config::Config;
+
+static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
+static ELECTOR_ADDR: &str = "-1:3333333333333333333333333333333333333333333333333333333333333333";
 
 fn construct_blockchain_config(config_account: &Account) -> BlockchainConfig {
     let config_cell = config_account.get_data().unwrap().reference(0).ok();
@@ -193,13 +196,94 @@ fn choose<'a>(st1: &'a mut State, st2: &'a mut State) -> &'a mut State {
     }
 }
 
-fn replay(input_filename: &str, config_filename: &str, txnid: &str) {
+#[derive(Clone)]
+struct ElectorUnfreezeTracker {
+    ctx: Arc<ClientContext>,
+    abi: Abi,
+    message: String,
+    unfreeze_map: HashMap<u32, u32>,
+}
+
+impl Default for ElectorUnfreezeTracker {
+    fn default() -> Self {
+        Self {
+            ctx: Arc::new(ClientContext::new(ClientConfig::default()).unwrap()),
+            abi: Abi::Json(String::new()),
+            message: String::new(),
+            unfreeze_map: HashMap::new()
+        }
+    }
+}
+
+impl ElectorUnfreezeTracker {
+    async fn new() -> Self {
+        let ctx = Arc::new(ClientContext::new(ClientConfig::default()).unwrap());
+        let abi = Abi::Json(std::fs::read_to_string("Elector.abi.json").unwrap());
+        let message = encode_message(ctx.clone(), ParamsOfEncodeMessage {
+            address: Some(ELECTOR_ADDR.into()),
+            abi: abi.clone(),
+            call_set: CallSet::some_with_function("get"),
+            ..Default::default()
+        }).await.unwrap().message;
+        Self { ctx, abi, message, unfreeze_map: HashMap::new() }
+    }
+    async fn track(&mut self, account: &Account) {
+        let account_bytes = serialize_toc(&account.serialize().unwrap()).unwrap();
+        let output = run_tvm(self.ctx.clone(), ParamsOfRunTvm {
+                account: base64::encode(&account_bytes),
+                abi: Some(self.abi.clone()),
+                message: self.message.clone(),
+                ..Default::default()
+            })
+            .await
+            .unwrap().decoded.unwrap().output.unwrap();
+        //println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        let past_elections = output["past_elections"].as_object().unwrap();
+        for (key, value) in past_elections {
+            let elect_at = u32::from_str_radix(&key, 10).unwrap();
+            let unfreeze = value["unfreeze_at"].as_str().unwrap();
+            let t2 = u32::from_str_radix(unfreeze, 10).unwrap();
+            match self.unfreeze_map.insert(elect_at, t2) {
+                Some(t1) => {
+                    if t1 != t2 {
+                        println!("past election {}: unfreeze time has changed from {} to {} (+{})",
+                            elect_at, t1, t2, t2 - t1);
+                    }
+                }
+                None => {}
+            }
+        }
+    }
+}
+
+struct TrivialLogger;
+static LOGGER: TrivialLogger = TrivialLogger;
+
+impl log::Log for TrivialLogger {
+    fn enabled(&self, _: &log::Metadata) -> bool {
+        true
+    }
+    fn log(&self, record: &log::Record) {
+        println!("{}", record.args());
+    }
+    fn flush(&self) {}
+}
+
+async fn replay(input_filename: &str, config_filename: &str, txnid: &str, debug_elector_unfreeze: bool) {
     let mut account_state = State::new(input_filename);
     let mut config_state = State::new(config_filename);
-    assert!(config_state.account_addr == "-1:5555555555555555555555555555555555555555555555555555555555555555");
+    assert!(config_state.account_addr == CONFIG_ADDR);
 
     let mut config = BlockchainConfig::default();
     let mut cur_block_lt = 0u64;
+
+    let mut tracker = if debug_elector_unfreeze {
+        log::set_max_level(log::LevelFilter::Trace);
+        log::set_logger(&LOGGER).unwrap();
+        Box::new(ElectorUnfreezeTracker::new().await)
+    } else {
+        Box::default()
+    };
 
     loop {
         if account_state.tr.is_none() {
@@ -235,6 +319,9 @@ fn replay(input_filename: &str, config_filename: &str, txnid: &str) {
         if tr.id == txnid {
             let account = state.account.serialize().unwrap();
             account.write_to_file(format!("{}-{}.boc", state.account_addr, txnid).as_str());
+
+            let account = config_account.serialize().unwrap();
+            account.write_to_file(format!("config-{}.boc", txnid).as_str());
         }
         let executor: Box<dyn TransactionExecutor> =
             match tr.tr.read_description().unwrap() {
@@ -249,26 +336,36 @@ fn replay(input_filename: &str, config_filename: &str, txnid: &str) {
                 }
             };
 
+        if debug_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
+            tracker.track(&state.account).await;
+        }
+
         let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c).unwrap());
-        let _tr_local = executor.execute_for_account(
+        let tr_local = executor.execute_for_account(
             msg.as_ref(),
             &mut state.account,
             HashmapE::default(),
             tr.tr.now,
             tr.tr.lt,
             Arc::new(AtomicU64::new(tr.tr.lt)),
-            false).unwrap();
-
+            debug_elector_unfreeze).unwrap();
+            
         let account_new_hash_local = state.account.serialize().unwrap().repr_hash();
         let account_new_hash_remote = tr.tr.read_state_update().unwrap().new_hash;
         if account_new_hash_local != account_new_hash_remote {
             println!("FAILURE\nNew hashes mismatch:\nremote {}\nlocal  {}",
                 account_new_hash_remote.to_hex_string(),
                 account_new_hash_local.to_hex_string());
+            println!("{:?}", tr_local.read_description().unwrap());
             exit(2);
         }
 
         println!("SUCCESS");
+
+        if debug_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
+            tracker.track(&state.account).await;
+        }
+
         if &tr.id == txnid {
             println!("DONE");
             break;            
@@ -282,9 +379,9 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
     Ok(())
 }
 
-pub fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
+pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
     replay(m.value_of("INPUT_TXNS").unwrap(),
         m.value_of("CONFIG_TXNS").unwrap(),
-        m.value_of("TXNID").unwrap());
+        m.value_of("TXNID").unwrap(), false).await;
     Ok(())
 }
