@@ -15,11 +15,11 @@ use std::{collections::HashMap, fs::File, io::{self, BufRead, Lines, Write}, pro
 use clap::ArgMatches;
 use serde_json::Value;
 
-use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr};
+use ton_block::{Account, ConfigParamEnum, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr};
 use ton_client::{ClientConfig, ClientContext, abi::{Abi, CallSet, ParamsOfEncodeMessage, encode_message}, net::{
         AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection,
         SortDirection, aggregate_collection, query_collection
-    }, tvm::{ParamsOfRunTvm, run_tvm}};
+    }, tvm::{ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm}};
 use ton_executor::{BlockchainConfig, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
 use ton_types::{HashmapE, UInt256, serialize_toc};
 
@@ -81,18 +81,19 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) {
             order: None,
         },
     )
-    .await
-    .unwrap();
+    .await;
 
-    let result = &zerostates.result.to_vec();
-    let accounts = result[0]["accounts"].as_array().unwrap();
     let mut zerostate_found = false;
-    for account in accounts {
-        if account["id"] == account_address {
-            let data = format!("{}\n", account);
-            writer.write_all(data.as_bytes()).unwrap();
-            zerostate_found = true;
-            break;
+    if let Ok(zerostates) = zerostates {
+        let result = &zerostates.result.to_vec();
+        let accounts = result[0]["accounts"].as_array().unwrap();
+        for account in accounts {
+            if account["id"] == account_address {
+                let data = format!("{}\n", account);
+                writer.write_all(data.as_bytes()).unwrap();
+                zerostate_found = true;
+                break;
+            }
         }
     }
 
@@ -196,6 +197,12 @@ fn choose<'a>(st1: &'a mut State, st2: &'a mut State) -> &'a mut State {
     }
 }
 
+#[async_trait::async_trait]
+trait ReplayTracker {
+    async fn new() -> Self;
+    async fn track(&mut self, account: &Account);
+}
+
 #[derive(Clone)]
 struct ElectorUnfreezeTracker {
     ctx: Arc<ClientContext>,
@@ -215,7 +222,8 @@ impl Default for ElectorUnfreezeTracker {
     }
 }
 
-impl ElectorUnfreezeTracker {
+#[async_trait::async_trait]
+impl ReplayTracker for ElectorUnfreezeTracker {
     async fn new() -> Self {
         let ctx = Arc::new(ClientContext::new(ClientConfig::default()).unwrap());
         let abi = Abi::Json(std::fs::read_to_string("Elector.abi.json").unwrap());
@@ -243,15 +251,104 @@ impl ElectorUnfreezeTracker {
             let elect_at = u32::from_str_radix(&key, 10).unwrap();
             let unfreeze = value["unfreeze_at"].as_str().unwrap();
             let t2 = u32::from_str_radix(unfreeze, 10).unwrap();
+            let vset_hash = value["vset_hash"].as_str().unwrap();
             match self.unfreeze_map.insert(elect_at, t2) {
                 Some(t1) => {
                     if t1 != t2 {
-                        println!("past election {}: unfreeze time has changed from {} to {} (+{})",
-                            elect_at, t1, t2, t2 - t1);
+                        println!("DBG past election {} vset {}: unfreeze time changed from {} to {} (+{})",
+                            elect_at, &vset_hash[2..10], t1, t2, t2 - t1);
                     }
                 }
-                None => {}
+                None => {
+                    println!("DBG past election {} {}: unfreeze time set to {}",
+                        elect_at, &vset_hash[2..10], t2);
+                }
             }
+        }
+    }
+}
+
+#[derive(Clone)]
+struct ElectorOrigUnfreezeTracker {
+    ctx: Arc<ClientContext>,
+    unfreeze_map: HashMap<u32, u32>,
+}
+
+impl Default for ElectorOrigUnfreezeTracker {
+    fn default() -> Self {
+        Self {
+            ctx: Arc::new(ClientContext::new(ClientConfig::default()).unwrap()),
+            unfreeze_map: HashMap::new()
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl ReplayTracker for ElectorOrigUnfreezeTracker {
+    async fn new() -> Self {
+        let ctx = Arc::new(ClientContext::new(ClientConfig::default()).unwrap());
+        Self { ctx, unfreeze_map: HashMap::new() }
+    }
+    async fn track(&mut self, account: &Account) {
+        let account_bytes = serialize_toc(&account.serialize().unwrap()).unwrap();
+        let output = run_get(self.ctx.clone(), ParamsOfRunGet {
+                account: base64::encode(&account_bytes),
+                function_name: "past_elections_list".to_owned(),
+                input: None,
+                ..Default::default()
+            })
+            .await
+            .unwrap().output;
+        let mut list = output.as_array().unwrap().get(0).unwrap();
+        loop {
+            if list.is_null() {
+                break;
+            }
+            let pair = list.as_array().unwrap();
+            let head = pair.get(0).unwrap();
+
+            let fields = head.as_array().unwrap();
+            let key = fields.get(0).unwrap().as_str().unwrap();
+            let elect_at = u32::from_str_radix(&key, 10).unwrap();
+            let unfreeze = fields.get(1).unwrap().as_str().unwrap();
+            let t2 = u32::from_str_radix(unfreeze, 10).unwrap();
+            let vset_hash = fields.get(2).unwrap().as_str().unwrap();
+            match self.unfreeze_map.insert(elect_at, t2) {
+                Some(t1) => {
+                    if t1 != t2 {
+                        println!("DBG past election {} vset {}: unfreeze time changed from {} to {} (+{})",
+                            elect_at, &vset_hash[2..10], t1, t2, t2 - t1);
+                    }
+                }
+                None => {
+                    println!("DBG past election {} {}: unfreeze time set to {}",
+                        elect_at, &vset_hash[2..10], t2);
+                }
+            }
+
+            list = pair.get(1).unwrap();
+        }
+    }
+}
+
+#[derive(Clone)]
+struct ConfigParam34Tracker {
+    cur_hash: UInt256,
+}
+
+#[async_trait::async_trait]
+impl ReplayTracker for ConfigParam34Tracker {
+    async fn new() -> Self {
+        Self { cur_hash: UInt256::default() }
+    }
+    async fn track(&mut self, account: &Account) {
+        let config = construct_blockchain_config(&account);
+        if let Some(ConfigParamEnum::ConfigParam34(cfg34)) = config.raw_config().config(34).unwrap() {
+            let hash = cfg34.write_to_new_cell().unwrap().into_cell().unwrap().repr_hash();
+            if self.cur_hash != UInt256::default() && self.cur_hash != hash {
+                println!("DBG cfg34 hash changed to {}", &hash.to_hex_string()[..8]);
+            }
+            self.cur_hash = hash;
         }
     }
 }
@@ -269,7 +366,8 @@ impl log::Log for TrivialLogger {
     fn flush(&self) {}
 }
 
-async fn replay(input_filename: &str, config_filename: &str, txnid: &str, debug_elector_unfreeze: bool) {
+async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
+    trace_execution: bool, track_elector_unfreeze: bool, track_config_param_34: bool) {
     let mut account_state = State::new(input_filename);
     let mut config_state = State::new(config_filename);
     assert!(config_state.account_addr == CONFIG_ADDR);
@@ -277,12 +375,21 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str, debug_
     let mut config = BlockchainConfig::default();
     let mut cur_block_lt = 0u64;
 
-    let mut tracker = if debug_elector_unfreeze {
+    if trace_execution {
         log::set_max_level(log::LevelFilter::Trace);
         log::set_logger(&LOGGER).unwrap();
-        Box::new(ElectorUnfreezeTracker::new().await)
+    }
+
+    let mut cfg_tracker = if track_config_param_34 {
+        Some(ConfigParam34Tracker::new().await)
     } else {
-        Box::default()
+        None
+    };
+
+    let mut tracker = if track_elector_unfreeze {
+        Some(ElectorUnfreezeTracker::new().await)
+    } else {
+        None
     };
 
     loop {
@@ -300,7 +407,7 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str, debug_
         let state = choose(&mut account_state, &mut config_state);
         let tr = state.tr.as_ref().unwrap();
 
-        print!("lt 0x{:0>16x}, txn for {}, ", tr.tr.lt, state.account_addr);
+        print!("lt {: >26} {: >16x}, txn for {}, ", tr.tr.lt, tr.tr.lt, &state.account_addr[..8]);
 
         if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
             assert!(tr.block_lt > cur_block_lt);
@@ -322,6 +429,13 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str, debug_
 
             let account = config_account.serialize().unwrap();
             account.write_to_file(format!("config-{}.boc", txnid).as_str());
+
+            // config.boc suitable for creating ton-labs-executor tests
+            let mut config_data = ton_types::SliceData::from(config_account.get_data().unwrap());
+            let mut cfg = ton_types::BuilderData::new();
+            cfg.append_raw(&config_data.get_next_bytes(32).unwrap(), 256).unwrap();
+            cfg.append_reference_cell(config_data.reference(0).unwrap());
+            cfg.into_cell().unwrap().write_to_file(format!("config-{}-test.boc", txnid).as_str());
         }
         let executor: Box<dyn TransactionExecutor> =
             match tr.tr.read_description().unwrap() {
@@ -336,8 +450,9 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str, debug_
                 }
             };
 
-        if debug_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
-            tracker.track(&state.account).await;
+        if track_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
+            let account = state.account.clone();
+            tracker.as_mut().map(|t| async move { t.track(&account).await });
         }
 
         let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c).unwrap());
@@ -348,8 +463,8 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str, debug_
             tr.tr.now,
             tr.tr.lt,
             Arc::new(AtomicU64::new(tr.tr.lt)),
-            debug_elector_unfreeze).unwrap();
-            
+            trace_execution).unwrap();
+
         let account_new_hash_local = state.account.serialize().unwrap().repr_hash();
         let account_new_hash_remote = tr.tr.read_state_update().unwrap().new_hash;
         if account_new_hash_local != account_new_hash_remote {
@@ -362,8 +477,14 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str, debug_
 
         println!("SUCCESS");
 
-        if debug_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
-            tracker.track(&state.account).await;
+        if track_config_param_34 && state.account_addr == CONFIG_ADDR {
+            let account = state.account.clone();
+            cfg_tracker.as_mut().map(|t| async move { t.track(&account).await });
+        }
+
+        if track_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
+            let account = state.account.clone();
+            tracker.as_mut().map(|t| async move { t.track(&account).await });
         }
 
         if &tr.id == txnid {
@@ -382,6 +503,7 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
     replay(m.value_of("INPUT_TXNS").unwrap(),
         m.value_of("CONFIG_TXNS").unwrap(),
-        m.value_of("TXNID").unwrap(), false).await;
+        m.value_of("TXNID").unwrap(),
+        false, false, false).await;
     Ok(())
 }
