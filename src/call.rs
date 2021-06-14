@@ -380,7 +380,6 @@ async fn send_message_and_wait(
             error_handler(err.clone());
             return Err(format!("{:#}", err));
         }
-        println!("{:?}", result);
         Ok(result.unwrap().decoded.and_then(|d| d.output).unwrap_or(json!({})))
     }
 }
