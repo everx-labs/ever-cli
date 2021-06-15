@@ -16,10 +16,7 @@ use clap::ArgMatches;
 use serde_json::Value;
 
 use ton_block::{Account, ConfigParamEnum, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr};
-use ton_client::{ClientConfig, ClientContext, abi::{Abi, CallSet, ParamsOfEncodeMessage, encode_message}, net::{
-        AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection,
-        SortDirection, aggregate_collection, query_collection
-    }, tvm::{ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm}};
+use ton_client::{ClientConfig, ClientContext, abi::{Abi, CallSet, ParamsOfEncodeMessage, encode_message}, net::{AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection}, tvm::{ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm}};
 use ton_executor::{BlockchainConfig, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
 use ton_types::{HashmapE, UInt256, serialize_toc};
 
@@ -103,29 +100,35 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) {
         writer.write_all(data.as_bytes()).unwrap();
     }
 
+    let retry_strategy =
+        tokio_retry::strategy::ExponentialBackoff::from_millis(10).take(5);
+
     let mut count = 0u64;
     let pb =indicatif::ProgressBar::new(tr_count);
     let mut lt = String::from("0x0");
     loop {
-        let transactions = query_collection(
-            context.clone(),
-            ParamsOfQueryCollection {
-                collection: "transactions".to_owned(),
-                filter: Some(serde_json::json!({
-                    "account_addr": {
-                        "eq": account_address
-                    },
-                    "lt": { "gt": lt },
-                })),
-                result: "id lt block { start_lt } boc".to_owned(),
-                limit: None,
-                order: Some(vec![
-                    OrderBy { path: "lt".to_owned(), direction: SortDirection::ASC }
-                ]),
-            },
-        )
-        .await
-        .unwrap();
+        let action = || async {
+            let query = query_collection(
+                context.clone(),
+                ParamsOfQueryCollection {
+                    collection: "transactions".to_owned(),
+                    filter: Some(serde_json::json!({
+                        "account_addr": {
+                            "eq": account_address
+                        },
+                        "lt": { "gt": lt },
+                    })),
+                    result: "id lt block { start_lt } boc".to_owned(),
+                    limit: None,
+                    order: Some(vec![
+                        OrderBy { path: "lt".to_owned(), direction: SortDirection::ASC }
+                    ]),
+                },
+            );
+            query.await
+        };
+
+        let transactions = tokio_retry::Retry::spawn(retry_strategy.clone(), action).await.unwrap();
 
         if transactions.result.is_empty() {
             break;
@@ -451,8 +454,7 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             };
 
         if track_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
-            let account = state.account.clone();
-            tracker.as_mut().map(|t| async move { t.track(&account).await });
+            tracker.as_mut().unwrap().track(&state.account).await;
         }
 
         let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c).unwrap());
@@ -478,13 +480,11 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
         println!("SUCCESS");
 
         if track_config_param_34 && state.account_addr == CONFIG_ADDR {
-            let account = state.account.clone();
-            cfg_tracker.as_mut().map(|t| async move { t.track(&account).await });
+            cfg_tracker.as_mut().unwrap().track(&state.account).await;
         }
 
         if track_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
-            let account = state.account.clone();
-            tracker.as_mut().map(|t| async move { t.track(&account).await });
+            tracker.as_mut().unwrap().track(&state.account).await;
         }
 
         if &tr.id == txnid {

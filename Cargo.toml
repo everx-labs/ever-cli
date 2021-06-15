@@ -33,6 +33,7 @@ serde_json = "1.0"
 sha2 = "0.8"
 simplelog = "0.8.0"
 tokio = { version = "0.2", features = ["full"], default-features = false }
+tokio-retry = "0.3"
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
 ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git' }
