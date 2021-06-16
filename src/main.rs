@@ -287,6 +287,7 @@ async fn main_internal() -> Result <(), String> {
             (@arg KEYS: --keys +takes_value "File with keypair.")
             (@arg ADDR: --addr +takes_value "Contract address.")
             (@arg WALLET: --wallet +takes_value "Multisig wallet address. Used in commands which send internal messages through multisig wallets.")
+            (@arg PUBKEY: --pubkey +takes_value "TODO")
             (@arg WC: --wc +takes_value "Workchain id.")
             (@arg RETRIES: --retries +takes_value "Number of attempts to call smart contract function if previous attempt was unsuccessful.")
             (@arg TIMEOUT: --timeout +takes_value "Contract call timeout in ms.")
@@ -798,6 +799,7 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let url = matches.value_of("URL");
             let address = matches.value_of("ADDR");
             let wallet = matches.value_of("WALLET");
+            let pubkey = matches.value_of("PUBKEY");
             let keys = matches.value_of("KEYS");
             let abi = matches.value_of("ABI");
             let wc = matches.value_of("WC");
@@ -808,7 +810,7 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let no_answer = matches.value_of("NO_ANSWER");
             let use_delimiters = matches.value_of("USE_DELIMITERS");
             let local_run = matches.value_of("LOCAL_RUN");
-            result = set_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, use_delimiters, local_run);
+            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, use_delimiters, local_run);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {

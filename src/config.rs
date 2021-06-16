@@ -175,6 +175,7 @@ pub fn set_config(
     url: Option<&str>,
     addr: Option<&str>,
     wallet: Option<&str>,
+    pubkey: Option<&str>,
     abi: Option<&str>,
     keys: Option<&str>,
     wc: Option<&str>,
@@ -194,6 +195,9 @@ pub fn set_config(
     }
     if let Some(s) = wallet {
         conf.wallet = Some(s.to_string());
+    }
+    if let Some(s) = pubkey {
+        conf.pubkey = Some(s.to_string());
     }
     if let Some(s) = abi {
         conf.abi_path = Some(s.to_string());
