@@ -287,7 +287,7 @@ async fn main_internal() -> Result <(), String> {
             (@arg KEYS: --keys +takes_value "File with keypair.")
             (@arg ADDR: --addr +takes_value "Contract address.")
             (@arg WALLET: --wallet +takes_value "Multisig wallet address. Used in commands which send internal messages through multisig wallets.")
-            (@arg PUBKEY: --pubkey +takes_value "TODO")
+            (@arg PUBKEY: --pubkey +takes_value "User public key. Used by DeBot Browser.")
             (@arg WC: --wc +takes_value "Workchain id.")
             (@arg RETRIES: --retries +takes_value "Number of attempts to call smart contract function if previous attempt was unsuccessful.")
             (@arg TIMEOUT: --timeout +takes_value "Contract call timeout in ms.")
