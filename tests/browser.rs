@@ -3,7 +3,7 @@ use predicates::prelude::*;
 // uncomment for debug
 // use std::io::Write;
 mod common;
-use common::{BIN_NAME, giver, grep_address};
+use common::{BIN_NAME, NETWORK, giver, grep_address};
 
 fn get_debot_paths(name: &str) -> (String, String, String) {
     (
@@ -15,13 +15,22 @@ fn get_debot_paths(name: &str) -> (String, String, String) {
 
 fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
     let (tvc, abi, keys) = get_debot_paths(name);
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg(&*NETWORK)
+        .arg("--wc")
+        .arg("0");
+    cmd.assert().success();
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     let out = cmd
         .arg("genaddr")
-        .arg("--genkey")
-        .arg(&keys)
         .arg(&tvc)
         .arg(&abi)
+        .arg("--genkey")
+        .arg(&keys)
         .output()
         .expect("Failed to generate address.");
     let addr = grep_address(&out.stdout);
