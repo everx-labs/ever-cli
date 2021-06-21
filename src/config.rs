@@ -51,6 +51,7 @@ pub struct Config {
     pub wc: i32,
     pub addr: Option<String>,
     pub wallet: Option<String>,
+    pub pubkey: Option<String>,
     pub abi_path: Option<String>,
     pub keys_path: Option<String>,
     #[serde(default = "default_retries")]
@@ -78,6 +79,7 @@ impl Config {
             wc: default_wc(),
             addr: None,
             wallet: None,
+            pubkey: None,
             abi_path: None,
             keys_path: None,
             retries: default_retries(),
@@ -173,6 +175,7 @@ pub fn set_config(
     url: Option<&str>,
     addr: Option<&str>,
     wallet: Option<&str>,
+    pubkey: Option<&str>,
     abi: Option<&str>,
     keys: Option<&str>,
     wc: Option<&str>,
@@ -192,6 +195,9 @@ pub fn set_config(
     }
     if let Some(s) = wallet {
         conf.wallet = Some(s.to_string());
+    }
+    if let Some(s) = pubkey {
+        conf.pubkey = Some(s.to_string());
     }
     if let Some(s) = abi {
         conf.abi_path = Some(s.to_string());

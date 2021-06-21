@@ -2,7 +2,8 @@ use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::process::Command;
 
-const BIN_NAME: &str = "tonos-cli";
+mod common;
+use common::BIN_NAME;
 
 #[test]
 fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {

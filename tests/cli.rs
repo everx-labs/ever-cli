@@ -1,54 +1,13 @@
 use predicates::prelude::*;
 use assert_cmd::Command;
-use lazy_static::*;
 use std::env;
 use std::time::Duration;
 use std::thread::sleep;
-use serde_json::{Value, Map};
-
-const BIN_NAME: &str = "tonos-cli";
-
-lazy_static! {
-    static ref NETWORK: String = env::var("TON_NETWORK_ADDRESS")
-        .unwrap_or("http://127.0.0.1".to_string());
-}
-
-fn get_config() -> Result<Map<String, Value>, Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("config")
-        .arg("--list")
-        .output()
-        .expect("Failed to get config.");
-
-    let mut out = String::from_utf8_lossy(&out.stdout).to_string();
-    out.replace_range(..out.find('\n').unwrap_or(0), "");
-    let parsed: Value = serde_json::from_str(&out)?;
-    let obj: Map<String, Value> = parsed.as_object().unwrap().clone();
-    Ok(obj)
-}
-
-fn giver(addr: &str) {
-    let giver_abi_name = "tests/samples/giver.abi.json";
-    let mut cmd = Command::cargo_bin(BIN_NAME).unwrap();
-    cmd.arg("call")
-        .arg("--abi")
-        .arg(giver_abi_name)
-        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
-        .arg("sendGrams")
-        .arg(format!(r#"{{"dest":"{}","amount":1000000000}}"#, addr));
-    cmd.assert()
-        .success();
-}
-
-fn grep_address(output: &[u8]) -> String {
-    let mut addr = String::from_utf8_lossy(output).to_string();
-    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
-    addr.replace_range(addr.find("testnet").unwrap_or(addr.len())-1.., "");
-    addr
-}
+mod common;
+use common::{BIN_NAME, NETWORK, get_config};
 
 #[test]
-fn test_config() -> Result<(), Box<dyn std::error::Error>> {
+fn test_config_1() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("--url")
@@ -1450,68 +1409,5 @@ fn test_gen_deploy_message() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Succeeded"));
 
     let _ = std::fs::remove_file(output);
-    Ok(())
-}
-
-#[test]
-fn test_signing_box_interface() -> Result<(), Box<dyn std::error::Error>> {
-    use std::io::Write;
-    let tvc = "tests/samples/sample1.tvc";
-    let abi = "tests/samples/sample1.abi.json";
-    let key_path = "tests/sample1.keys.json";
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("genaddr")
-        .arg("--genkey")
-        .arg(key_path)
-        .arg(tvc)
-        .arg(abi)
-        .output()
-        .expect("Failed to generate address.");
-    
-    let addr = grep_address(&out.stdout);
-    giver(&addr);
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("deploy")
-        .arg(tvc)
-        .arg("{}")
-        .arg("--abi")
-        .arg(abi)
-        .arg("--sign")
-        .arg(key_path);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(&addr))
-        .stdout(predicate::str::contains("Transaction succeeded."));
-
-    let abi_string = std::fs::read_to_string(abi).unwrap();
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("call")
-        .arg("--abi")
-        .arg(abi)
-        .arg("--sign")
-        .arg(key_path)
-        .arg(&addr)
-        .arg("setABI")
-        .arg(format!(r#"{{"dabi":"{}"}}"#, hex::encode(abi_string)));
-    cmd.assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.timeout(std::time::Duration::from_secs(2))
-        .write_stdin(format!("y\n{}", key_path))
-        .arg("debot")
-        .arg("fetch")
-        .arg(&addr);
-    let cmd = cmd
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Enter my signing keys:"))
-        .stdout(predicate::str::contains("Signing Box Handle:"))
-        .stdout(predicate::str::contains("test sign hash passed"));
-    let out = cmd.get_output();
-
-    std::io::stdout().lock().write_all(&out.stdout)?;
     Ok(())
 }
