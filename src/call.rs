@@ -335,7 +335,11 @@ async fn send_message_and_wait(
             },
         ).await
         .map_err(|e| format!("run failed: {:#}", e))?;
-        Ok(result.decoded.and_then(|d| d.output).unwrap_or(json!({})))
+        let res = result.decoded.and_then(|d| d.output)
+            .ok_or("Failed to decode the result. Check that abi matches the contract.")?;
+        Ok(res)
+
+
     } else {
         if !conf.is_json {
             println!("Processing... ");
@@ -461,7 +465,7 @@ pub async fn call_contract_with_result(
         let err = result.err().unwrap();
         println!("{}", err);
 
-        if !retry {
+        if !retry || local {
             break;
         }
 
