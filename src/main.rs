@@ -322,6 +322,7 @@ async fn main_internal() -> Result <(), String> {
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Smart contract address.")
             (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            (@arg DUMPTVC: -d --dumptvc +takes_value "Dumps account StateInit to specified tvc file.")
         )
         (@subcommand fee =>
             (about: "Calculates fees for executing message or account storage fee.")
@@ -844,11 +845,12 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
 
 async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
+    let tvcname = matches.value_of("DUMPTVC");
     if !config.is_json {
         print_args!(matches, address);
     }
     let address = load_ton_address(address.unwrap(), &config)?;
-    get_account(config, address.as_str()).await
+    get_account(config, address.as_str(), tvcname).await
 }
 
 async fn storage_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {

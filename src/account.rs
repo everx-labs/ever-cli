@@ -15,6 +15,11 @@ use crate::config::Config;
 use serde_json::json;
 use ton_client::net::{ParamsOfQueryCollection, query_collection};
 use ton_client::utils::{calc_storage_fee, ParamsOfCalcStorageFee};
+use ton_block::{StateInit, Serializable, GetRepresentationHash};
+use ton_types::{Cell};
+use ton_types::cells_serialization::{BagOfCells, deserialize_cells_tree};
+use std::io::Cursor;
+use std::io::Write;
 
 use crate::call::query_account_boc;
 
@@ -24,15 +29,25 @@ const ACCOUNT_FIELDS: &str = r#"
     last_paid
     last_trans_lt
     data
+    code
+    library
+    split_depth
     code_hash
 "#;
 
-pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
+macro_rules! jget {
+    ($obj:ident,$name:expr) => {
+        $obj[stringify!($name)].as_str()
+    }
+}
+
+pub async fn get_account(conf: Config, addr: &str, dumpfile: Option<&str>) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
     if !conf.is_json {
         println!("Processing...");
     }
+
     let query_result = query_collection(
         ton.clone(),
         ParamsOfQueryCollection {
@@ -112,8 +127,51 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
         } else {
             println!("Account not found.");
         }
+
+        if accounts.len() == 1 {
+            let acc = &accounts[0];
+            if let Some(file) = dumpfile {
+                let mut state = StateInit::default();
+                deboc(jget!(acc, code)).map(|x| state.set_code(x));
+                deboc(jget!(acc, data)).map(|x| state.set_data(x));
+                deboc(jget!(acc, library)).map(|x| state.set_library(x));
+                save_to_file(state, Some(file)).unwrap();
+            }
+        }
     }
     Ok(())
+}
+
+fn deboc(boc: Option<&str>) -> Option<Cell> {
+    match boc {
+        Some(boc) => {
+            let boc_bytes = base64::decode(boc).unwrap();
+            let mut cursor = Cursor::new(boc_bytes);
+            Some(deserialize_cells_tree(&mut cursor).unwrap().remove(0))
+        },
+        None => None,
+    }
+}
+
+pub fn save_to_file(state: StateInit, name: Option<&str>) -> std::result::Result<String, String> {
+    let root_cell = state.write_to_new_cell()
+        .map_err(|e| format!("Serialization failed: {}", e))?
+        .into();
+    let mut buffer = vec![];
+    BagOfCells::with_root(&root_cell).write_to(&mut buffer, false)
+        .map_err(|e| format!("BOC failed: {}", e))?;
+
+    let address = state.hash().unwrap();
+    let file_name = if name.is_some() {
+        format!("{}", name.unwrap())
+    } else {
+        format!("{:x}.tvc", address)
+    };
+
+    let mut file = std::fs::File::create(&file_name).unwrap();
+    file.write_all(&buffer).map_err(|e| format!("Write to file failed: {}", e))?;
+    println! ("Saved contract to file {}", &file_name);
+    Ok(file_name)
 }
 
 pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), String> {
