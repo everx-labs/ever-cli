@@ -297,7 +297,7 @@ async fn main_internal() -> Result <(), String> {
             (arg: no_answer_with_value)
             (@arg BALANCE_IN_TONS: --balance_in_tons +takes_value "Print balance for account command in tons. If false balance is printed in nanotons.")
             (@arg LOCAL_RUN: --local_run +takes_value "Enable preliminary local run before deploy and call commands.")
-            (@arg WAIT_FOR_TRANSACTION: --wait_for_transaction +takes_value "Wait for transaction to appear in the network after call command.")
+            (@arg ASYNC_CALL: --async_call +takes_value "Disables wait for transaction to appear in the network after call command.")
             (@subcommand clear =>
                 (@setting AllowLeadingHyphen)
                 (about: "Resets certain default values for options in the config file. Resets all values if used without options.")
@@ -811,8 +811,8 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let no_answer = matches.value_of("NO_ANSWER");
             let balance_in_tons = matches.value_of("BALANCE_IN_TONS");
             let local_run = matches.value_of("LOCAL_RUN");
-            let wait_for_transaction = matches.value_of("WAIT_FOR_TRANSACTION");
-            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, wait_for_transaction);
+            let async_call = matches.value_of("ASYNC_CALL");
+            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, async_call);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {

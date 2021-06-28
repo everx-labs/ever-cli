@@ -70,8 +70,8 @@ pub struct Config {
     pub balance_in_tons: bool,
     #[serde(default = "default_false")]
     pub local_run: bool,
-    #[serde(default = "default_true")]
-    pub wait_for_transaction: bool,
+    #[serde(default = "default_false")]
+    pub async_call: bool,
 }
 
 impl Config {
@@ -92,7 +92,7 @@ impl Config {
             no_answer: default_true(),
             balance_in_tons: default_false(),
             local_run: default_false(),
-            wait_for_transaction: default_true(),
+            async_call: default_false(),
         }
     }
 
@@ -189,7 +189,7 @@ pub fn set_config(
     no_answer:  Option<&str>,
     balance_in_tons: Option<&str>,
     local_run: Option<&str>,
-    wait_for_transaction: Option<&str>,
+    async_call: Option<&str>,
 ) -> Result<(), String> {
     if let Some(s) = url {
         conf.url = s.to_string();
@@ -244,9 +244,9 @@ pub fn set_config(
         conf.local_run = local_run.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "local_run": {}"#, e))?;
     }
-    if let Some(wait_for_transaction) = wait_for_transaction {
-        conf.wait_for_transaction = wait_for_transaction.parse::<bool>()
-            .map_err(|e| format!(r#"failed to parse "wait_for_transaction": {}"#, e))?;
+    if let Some(async_call) = async_call {
+        conf.async_call = async_call.parse::<bool>()
+            .map_err(|e| format!(r#"failed to parse "async_call": {}"#, e))?;
     }
 
     let conf_str = serde_json::to_string(&conf)

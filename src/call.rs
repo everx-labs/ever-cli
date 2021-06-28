@@ -363,7 +363,7 @@ async fn send_message_and_wait(
             error_handler(err.clone());
             return Err(format!("{:#}", err));
         }
-        if conf.wait_for_transaction {
+        if !conf.async_call {
             let result = wait_for_transaction(
                 ton.clone(),
                 ParamsOfWaitForTransaction {
