@@ -67,9 +67,11 @@ pub struct Config {
     #[serde(default = "default_true")]
     pub no_answer: bool,
     #[serde(default = "default_false")]
-    pub use_delimiters: bool,
+    pub balance_in_tons: bool,
     #[serde(default = "default_false")]
     pub local_run: bool,
+    #[serde(default = "default_false")]
+    pub async_call: bool,
 }
 
 impl Config {
@@ -88,8 +90,9 @@ impl Config {
             depool_fee: default_depool_fee(),
             lifetime: default_lifetime(),
             no_answer: default_true(),
-            use_delimiters: default_false(),
+            balance_in_tons: default_false(),
             local_run: default_false(),
+            async_call: default_false(),
         }
     }
 
@@ -114,7 +117,7 @@ pub fn clear_config(
     depool_fee: bool,
     lifetime: bool,
     no_answer: bool,
-    use_delimiters: bool,
+    balance_in_tons: bool,
     local_run: bool,
 ) -> Result<(), String> {
     if url {
@@ -150,15 +153,15 @@ pub fn clear_config(
     if no_answer {
         conf.no_answer = default_true();
     }
-    if use_delimiters {
-        conf.use_delimiters = default_false();
+    if balance_in_tons {
+        conf.balance_in_tons = default_false();
     }
     if local_run {
         conf.local_run = default_false();
     }
 
     if (url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime
-        || no_answer || use_delimiters || local_run) == false {
+        || no_answer || balance_in_tons || local_run) == false {
         conf = Config::new();
     }
     let conf_str = serde_json::to_string(&conf)
@@ -184,8 +187,9 @@ pub fn set_config(
     depool_fee: Option<&str>,
     lifetime:  Option<&str>,
     no_answer:  Option<&str>,
-    use_delimiters: Option<&str>,
+    balance_in_tons: Option<&str>,
     local_run: Option<&str>,
+    async_call: Option<&str>,
 ) -> Result<(), String> {
     if let Some(s) = url {
         conf.url = s.to_string();
@@ -232,13 +236,17 @@ pub fn set_config(
         conf.no_answer = no_answer.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "no_answer": {}"#, e))?;
     }
-    if let Some(use_delimiters) = use_delimiters {
-        conf.use_delimiters = use_delimiters.parse::<bool>()
-            .map_err(|e| format!(r#"failed to parse "use_delimiters": {}"#, e))?;
+    if let Some(balance_in_tons) = balance_in_tons {
+        conf.balance_in_tons = balance_in_tons.parse::<bool>()
+            .map_err(|e| format!(r#"failed to parse "balance_in_tons": {}"#, e))?;
     }
     if let Some(local_run) = local_run {
         conf.local_run = local_run.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "local_run": {}"#, e))?;
+    }
+    if let Some(async_call) = async_call {
+        conf.async_call = async_call.parse::<bool>()
+            .map_err(|e| format!(r#"failed to parse "async_call": {}"#, e))?;
     }
 
     let conf_str = serde_json::to_string(&conf)

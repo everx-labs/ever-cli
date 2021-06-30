@@ -363,24 +363,27 @@ async fn send_message_and_wait(
             error_handler(err.clone());
             return Err(format!("{:#}", err));
         }
-
-        let result = wait_for_transaction(
-            ton.clone(),
-            ParamsOfWaitForTransaction {
-                abi: Some(abi.clone()),
-                message: msg.clone(),
-                shard_block_id: result.unwrap().shard_block_id,
-                send_events: true,
-                ..Default::default()
-            },
-            callback.clone(),
-        ).await;
-        if result.is_err() {
-            let err = result.err().unwrap();
-            error_handler(err.clone());
-            return Err(format!("{:#}", err));
+        if !conf.async_call {
+            let result = wait_for_transaction(
+                ton.clone(),
+                ParamsOfWaitForTransaction {
+                    abi: Some(abi.clone()),
+                    message: msg.clone(),
+                    shard_block_id: result.unwrap().shard_block_id,
+                    send_events: true,
+                    ..Default::default()
+                },
+                callback.clone(),
+            ).await;
+            if result.is_err() {
+                let err = result.err().unwrap();
+                error_handler(err.clone());
+                return Err(format!("{:#}", err));
+            }
+            Ok(result.unwrap().decoded.and_then(|d| d.output).unwrap_or(json!({})))
+        } else {
+            Ok(json!({}))
         }
-        Ok(result.unwrap().decoded.and_then(|d| d.output).unwrap_or(json!({})))
     }
 }
 
