@@ -10,14 +10,14 @@ import "Debot.sol";
 contract ExampleContract is Debot {
 
     function start() public override {
-		SigningBoxInput.get(tvm.functionId(setSigningBoxHandle), "Enter my signing keys:", [tvm.pubkey()]);
-	}
+        SigningBoxInput.get(tvm.functionId(setSigningBoxHandle), "Enter my signing keys:", [tvm.pubkey()]);
+    }
 
-	function setSigningBoxHandle(uint32 handle) public {
+    function setSigningBoxHandle(uint32 handle) public {
         Terminal.print(0, format("Signing Box Handle: {}", handle));
         uint256 hash = sha256("test sign string");
         Sdk.signHash(tvm.functionId(setSignature), handle, hash);
-	}
+    }
 
     function setSignature(bytes signature) public {
         require(signature.length == 64, 200);
