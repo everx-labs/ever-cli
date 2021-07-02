@@ -11,10 +11,7 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use lazy_static::lazy_static;
 use log;
-use regex::Regex;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::SystemTime;
 use ton_client::abi::{
@@ -88,41 +85,6 @@ pub fn create_client_local() -> Result<TonClient, String> {
     Ok(Arc::new(cli))
 }
 
-lazy_static! {
-    static ref MAIN_ENDPOINTS: Vec<String> = vec![
-        "main2.ton.dev".to_string(),
-        "main3.ton.dev".to_string(),
-        "main4.ton.dev".to_string(),
-    ];
-
-    static ref NET_ENDPOINTS: Vec<String> = vec![
-        "net1.ton.dev".to_string(),
-        "net5.ton.dev".to_string(),
-    ];
-
-    static ref ENDPOINTS_MAP: HashMap<&'static str, &'static Vec<String>> = [
-        ("main.ton.dev", MAIN_ENDPOINTS.as_ref()),
-        ("net.ton.dev", NET_ENDPOINTS.as_ref()),
-    ].iter().cloned().collect();
-}
-
-// TODO: Organize endpoints to the list in external resource
-fn resolve_endpoints(url: &str) -> Option<Vec<String>> {
-    let url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.ton\.dev)\s*")
-        .expect("Regex compilation error");
-
-    if let Some(captures) = url_regex.captures(url) {
-        let net = captures.name("net")
-            .expect("Unexpected: capture <net> was not found")
-            .as_str();
-        if let Some(endpoints) = ENDPOINTS_MAP.get(net) {
-            return Some((*endpoints).clone());
-        }
-    }
-
-    None
-}
-
 pub fn create_client(conf: &Config) -> Result<TonClient, String> {
     let cli_conf = ClientConfig {
         abi: AbiConfig {
@@ -137,7 +99,11 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
         },
         network: ton_client::net::NetworkConfig {
             server_address: Some(conf.url.to_owned()),
-            endpoints: resolve_endpoints(&conf.url),
+            endpoints: if conf.endpoints.is_empty() {
+                    None
+                } else {
+                    Some(conf.endpoints.to_owned())
+                },
             network_retries_count: 3,
             message_retries_count: conf.retries as i8,
             message_processing_timeout: 30000,
@@ -307,37 +273,4 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
     }
     println!();
     return ("".to_owned(), "".to_owned());
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{resolve_endpoints, MAIN_ENDPOINTS, NET_ENDPOINTS};
-
-    #[test]
-    fn test_endpoints_resolver() {
-        assert_eq!(resolve_endpoints(""), None);
-        assert_eq!(resolve_endpoints("http://os.ton.dev"), None);
-        assert_eq!(resolve_endpoints("https://rustnet.ton.dev"), None);
-        assert_eq!(resolve_endpoints("rustnet.ton.com"), None);
-        assert_eq!(resolve_endpoints("https://example.com"), None);
-        assert_eq!(resolve_endpoints("http://localhost"), None);
-        assert_eq!(resolve_endpoints("https://localhost"), None);
-        assert_eq!(resolve_endpoints("localhost"), None);
-        assert_eq!(resolve_endpoints("http://127.0.0.1"), None);
-        assert_eq!(resolve_endpoints("https://127.0.0.1"), None);
-
-        assert_eq!(resolve_endpoints("https://main.ton.dev"), Some(MAIN_ENDPOINTS.clone()));
-        assert_eq!(resolve_endpoints("http://main.ton.dev"), Some(MAIN_ENDPOINTS.clone()));
-        assert_eq!(resolve_endpoints("  http://main.ton.dev  "), Some(MAIN_ENDPOINTS.clone()));
-        assert_eq!(resolve_endpoints("  https://main.ton.dev  "), Some(MAIN_ENDPOINTS.clone()));
-        assert_eq!(resolve_endpoints("main.ton.dev"), Some(MAIN_ENDPOINTS.clone()));
-        assert_eq!(resolve_endpoints("main.ton.com"), None);
-
-        assert_eq!(resolve_endpoints("https://net.ton.dev"), Some(NET_ENDPOINTS.clone()));
-        assert_eq!(resolve_endpoints("http://net.ton.dev"), Some(NET_ENDPOINTS.clone()));
-        assert_eq!(resolve_endpoints("  http://net.ton.dev  "), Some(NET_ENDPOINTS.clone()));
-        assert_eq!(resolve_endpoints("  https://net.ton.dev  "), Some(NET_ENDPOINTS.clone()));
-        assert_eq!(resolve_endpoints("net.ton.dev"), Some(NET_ENDPOINTS.clone()));
-        assert_eq!(resolve_endpoints("net.ton.com"), None);
-    }
 }

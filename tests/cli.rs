@@ -42,6 +42,136 @@ fn test_config_1() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("endpoint")
+        .arg("reset");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("main.ton.dev"))
+        .stdout(predicate::str::contains("https://main2.ton.dev"))
+        .stdout(predicate::str::contains("http://127.0.0.1/"))
+        .stdout(predicate::str::contains("net.ton.dev"))
+        .stdout(predicate::str::contains("https://net1.ton.dev"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("clear");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg("main.ton.dev");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""url": "main.ton.dev","#))
+        .stdout(predicate::str::contains(r#""endpoints": [
+    "https://main2.ton.dev",
+    "https://main3.ton.dev",
+    "https://main4.ton.dev"
+  ]"#));
+
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("endpoint")
+        .arg("add")
+        .arg("myownhost")
+        .arg("[1.1.1.1,my.net.com]");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("main.ton.dev"))
+        .stdout(predicate::str::contains("https://main2.ton.dev"))
+        .stdout(predicate::str::contains("http://127.0.0.1/"))
+        .stdout(predicate::str::contains("net.ton.dev"))
+        .stdout(predicate::str::contains("https://net1.ton.dev"))
+        .stdout(predicate::str::contains("myownhost"))
+        .stdout(predicate::str::contains("1.1.1.1"))
+        .stdout(predicate::str::contains("my.net.com"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg("myownhost");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""url": "myownhost","#))
+        .stdout(predicate::str::contains(r#""endpoints": [
+    "1.1.1.1",
+    "my.net.com"
+  ]"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("endpoint")
+        .arg("remove")
+        .arg("main.ton.dev");
+    cmd.assert()
+        .success()
+        .stdout(predicate::function(|s: &str| !s.contains("main.ton.dev")))
+        .stdout(predicate::function(|s: &str| !s.contains("https://main2.ton.dev")))
+        .stdout(predicate::str::contains("http://127.0.0.1/"))
+        .stdout(predicate::str::contains("net.ton.dev"))
+        .stdout(predicate::str::contains("https://net1.ton.dev"))
+        .stdout(predicate::str::contains("myownhost"))
+        .stdout(predicate::str::contains("1.1.1.1"))
+        .stdout(predicate::str::contains("my.net.com"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("endpoint")
+        .arg("print");
+    cmd.assert()
+        .success()
+        .stdout(predicate::function(|s: &str| !s.contains("main.ton.dev")))
+        .stdout(predicate::function(|s: &str| !s.contains("https://main2.ton.dev")))
+        .stdout(predicate::str::contains("http://127.0.0.1/"))
+        .stdout(predicate::str::contains("net.ton.dev"))
+        .stdout(predicate::str::contains("https://net1.ton.dev"))
+        .stdout(predicate::str::contains("myownhost"))
+        .stdout(predicate::str::contains("1.1.1.1"))
+        .stdout(predicate::str::contains("my.net.com"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("endpoint")
+        .arg("reset");
+    cmd.assert()
+        .success()
+        .stdout(predicate::function(|s: &str| !s.contains("myownhost")))
+        .stdout(predicate::function(|s: &str| !s.contains("my.net.com")))
+        .stdout(predicate::str::contains("http://127.0.0.1/"))
+        .stdout(predicate::str::contains("net.ton.dev"))
+        .stdout(predicate::str::contains("https://net1.ton.dev"))
+        .stdout(predicate::str::contains("main.ton.dev"))
+        .stdout(predicate::str::contains("https://main2.ton.dev"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""url": "myownhost","#))
+        .stdout(predicate::str::contains(r#""endpoints": [
+    "1.1.1.1",
+    "my.net.com"
+  ]"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("clear");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded"));
+
+    Ok(())
+}
+
+#[test]
 fn test_call_giver() -> Result<(), Box<dyn std::error::Error>> {
     let giver_abi_name = "tests/samples/giver.abi.json";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
