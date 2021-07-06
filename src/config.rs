@@ -117,14 +117,7 @@ impl Config {
     pub fn from_file(path: &str) -> Option<Self> {
         let conf_str = std::fs::read_to_string(path).ok()?;
         let conf: serde_json::error::Result<FullConfig>  = serde_json::from_str(&conf_str);
-        if conf.is_err() {
-            let conf = serde_json::from_str(&conf_str);
-            if conf.is_err() {
-                return None;
-            }
-            return Some(conf.unwrap());
-        }
-        Some(conf.unwrap().config)
+        conf.map(|c| c.config).or_else(|_| serde_json::from_str(&conf_str)).ok()
     }
 
     pub fn to_file(path: &str, conf: &Config) -> Result<(), String> {
