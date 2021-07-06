@@ -75,7 +75,6 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
     "https://main4.ton.dev"
   ]"#));
 
-
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
         .arg("endpoint")
@@ -104,6 +103,35 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
     "1.1.1.1",
     "my.net.com"
   ]"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("endpoint")
+        .arg("add")
+        .arg("myownhost")
+        .arg("[1.1.1.1,my.net.com,tonlabs.net]");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("main.ton.dev"))
+        .stdout(predicate::str::contains("https://main2.ton.dev"))
+        .stdout(predicate::str::contains("http://127.0.0.1/"))
+        .stdout(predicate::str::contains("net.ton.dev"))
+        .stdout(predicate::str::contains("https://net1.ton.dev"))
+        .stdout(predicate::str::contains("myownhost"))
+        .stdout(predicate::str::contains("1.1.1.1"))
+        .stdout(predicate::str::contains("my.net.com"))
+        .stdout(predicate::str::contains("tonlabs.net"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg("myownhost");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""url": "myownhost","#))
+        .stdout(predicate::str::contains("1.1.1.1"))
+        .stdout(predicate::str::contains("my.net.com"))
+        .stdout(predicate::str::contains("tonlabs.net"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
@@ -156,10 +184,9 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#""url": "myownhost","#))
-        .stdout(predicate::str::contains(r#""endpoints": [
-    "1.1.1.1",
-    "my.net.com"
-  ]"#));
+        .stdout(predicate::str::contains("1.1.1.1"))
+        .stdout(predicate::str::contains("my.net.com"))
+        .stdout(predicate::str::contains("tonlabs.net"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")

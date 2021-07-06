@@ -443,6 +443,8 @@ async fn main_internal() -> Result <(), String> {
 
     if let Some(url) = matches.value_of("NETWORK") {
         conf.url = url.to_string();
+        let empty : Vec<String> = Vec::new();
+        conf.endpoints = FullConfig::get_map(&config_file).get(url).unwrap_or(&empty).clone();
     }
 
     if let Some(m) = matches.subcommand_matches("convert") {
