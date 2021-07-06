@@ -14,8 +14,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::HashSet;
-use std::iter::FromIterator;
 
 const TESTNET: &'static str = "net.ton.dev";
 fn default_url() -> String {
@@ -192,7 +190,7 @@ impl FullConfig {
     }
 
     pub fn to_file(path: &str, fconf: &FullConfig) -> Result<(), String>{
-        let conf_str = serde_json::to_string(fconf)
+        let conf_str = serde_json::to_string_pretty(fconf)
             .map_err(|_| "failed to serialize config object".to_string())?;
         std::fs::write(path, conf_str).map_err(|e| format!("failed to write config file: {}", e))?;
         Ok(())
@@ -210,18 +208,17 @@ impl FullConfig {
 
     pub fn add_endpoint(path: &str, url: &str, endpoints: &str) -> Result<(), String> {
         let mut fconf = FullConfig::from_file(path);
-        let mut endpoints_vector : Vec<String> = endpoints.replace("[", "").replace("]", "").split(",").map(|s| s.to_string()).collect();
-
-        if !fconf.endpoints_map.contains_key(url) {
-            fconf.endpoints_map.insert(url.to_string(), endpoints_vector);
-        } else {
-            let mut old_vector = fconf.endpoints_map[url].clone();
-            old_vector.append(&mut endpoints_vector);
-            let endpoints_set : HashSet<String> = HashSet::from_iter(old_vector.iter().cloned());
-            fconf.endpoints_map.remove(url);
-            let v : Vec<String> = endpoints_set.into_iter().collect();
-            fconf.endpoints_map.insert(url.to_string(), v);
-        }
+        let mut new_endpoints : Vec<String> = endpoints
+            .replace("[", "")
+            .replace("]", "")
+            .split(",")
+            .map(|s| s.to_string())
+            .collect();
+        
+        let old_endpoints = fconf.endpoints_map.entry(url.to_string()).or_insert(vec![]);
+        old_endpoints.append(&mut new_endpoints);
+        old_endpoints.sort();
+        old_endpoints.dedup();
         FullConfig::to_file(path, &fconf)
     }
 

@@ -350,14 +350,14 @@ Map can be changed with `remove` and `add` subcommands:
 
 ```bash
 tonos-cli config endpoint remove <url>
-tonos-cli config endpoint add <url> [<list_of_endpoints>]
+tonos-cli config endpoint add <url> <list_of_endpoints>
 ```
 
 Example:
 
 ```bash
 tonos-cli config endpoint remove main.ton.dev
-tonos-cli config endpoint add main.ton.dev ["https://main2.ton.dev","https://main3.ton.dev","https://main4.ton.dev"]
+tonos-cli config endpoint add main.ton.dev "https://main2.ton.dev","https://main3.ton.dev","https://main4.ton.dev"
 ```
 
 **Note**: If <url> used in add command already exists, endpoints lists will be merged.
