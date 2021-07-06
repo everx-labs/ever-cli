@@ -410,7 +410,7 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
         let state = choose(&mut account_state, &mut config_state);
         let tr = state.tr.as_ref().unwrap();
 
-        print!("lt {: >26} {: >16x}, txn for {}, ", tr.tr.lt, tr.tr.lt, &state.account_addr[..8]);
+        //print!("lt {: >26} {: >16x}, txn for {}, ", tr.tr.lt, tr.tr.lt, &state.account_addr[..8]);
 
         if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
             assert!(tr.block_lt > cur_block_lt);
@@ -467,6 +467,8 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             Arc::new(AtomicU64::new(tr.tr.lt)),
             trace_execution).unwrap();
 
+        state.account.update_storage_stat().unwrap();
+
         let account_new_hash_local = state.account.serialize().unwrap().repr_hash();
         let account_new_hash_remote = tr.tr.read_state_update().unwrap().new_hash;
         if account_new_hash_local != account_new_hash_remote {
@@ -477,7 +479,7 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             exit(2);
         }
 
-        println!("SUCCESS");
+        //println!("SUCCESS");
 
         if track_config_param_34 && state.account_addr == CONFIG_ADDR {
             cfg_tracker.as_mut().unwrap().track(&state.account).await;
