@@ -27,9 +27,10 @@ tonos-cli <subcommand> -h
   - [2.1. Set the network and parameter values](#21-set-the-network-and-parameter-values)
   - [2.2. Check configuration](#22-check-configuration)
   - [2.3. Clear configuration](#23-clear-configuration)
-  - [2.4. Override configuration file location](#24-override-configuration-file-location)
-  - [2.5. Override network settings](#25-override-network-settings)
-  - [2.6. Force json output](#26-force-json-output)
+  - [2.4. Configure endpoints map](#24-configure-endpoints-map)
+  - [2.5. Override configuration file location](#25-override-configuration-file-location)
+  - [2.6. Override network settings](#26-override-network-settings)
+  - [2.7. Force json output](#27-force-json-output)
 - [3. Cryptographic commands](#3-cryptographic-commands)
   - [3.1. Create seed phrase](#31-create-seed-phrase)
   - [3.2. Generate public key](#32-generate-public-key)
@@ -77,7 +78,7 @@ tonos-cli <subcommand> -h
 - [9. Supplementary commands](#9-supplementary-commands)
   - [9.1. Convert tokens to nanotokens](#91-convert-tokens-to-nanotokens)
   - [9.2. Get global config](#92-get-global-config)
-  - [9.3 NodeID](#93-nodeid)
+  - [9.3. NodeID](#93-nodeid)
 
 # 1. Installation
 
@@ -283,6 +284,16 @@ Succeeded.
 }
 ```
 
+Some of the frequently used networks:
+
+`https://net.ton.dev` - developer sandbox for testing. TONOS-CLI connects to it by default.
+
+`https://main.ton.dev` - main Free TON network.
+
+`https://rustnet.ton.dev` - test network running on Rust nodes.
+
+TONOS-CLI uses multiple endpoints for networks. By default TON OS cloud endpoints are used. They can be changed, if needed - see [section 2.4 below](#24-configure-endpoints-map).
+
 Network configuration can be [overridden](#25-override-network-settings) for any single subcommand.
 
 To connect to a [DApp Server](https://github.com/tonlabs/TON-OS-DApp-Server) you are running, it should have domain name and a DNS record. Then its URL may be used to access it with TONOS-CLI:
@@ -291,7 +302,7 @@ To connect to a [DApp Server](https://github.com/tonlabs/TON-OS-DApp-Server) you
 tonos-cli config --url <dapp_server_url>
 ```
 
-> Note: Either run tonos-cli utility only from the directory where tonos-cli.config.json is placed, or use one of the available methods (see section 2.4) to make the utility look for the file elsewhere.
+> Note: Either run tonos-cli utility only from the directory where tonos-cli.config.json is placed, or use one of the available methods (see [section 2.5](#25-override-configuration-file-location)) to make the utility look for the file elsewhere.
 
 ## 2.2. Check configuration
 
@@ -311,8 +322,8 @@ tonos-cli config clear
 
 ## 2.4. Configure endpoints map
 
-tonos-cli config file also stores endpoints map that can be updated by user.
-Each time user changes url, endpoints also change in accordance to endpoints map.
+TONOS-CLI config file also stores an endpoints map that can be updated by the user.
+Each time user [changes the url](#21-set-the-network-and-parameter-values), endpoints also change in accordance to endpoints map.
 To print the map use the following command:
 
 ```bash
@@ -360,7 +371,7 @@ tonos-cli config endpoint remove main.ton.dev
 tonos-cli config endpoint add main.ton.dev "https://main2.ton.dev","https://main3.ton.dev","https://main4.ton.dev"
 ```
 
-**Note**: If <url> used in add command already exists, endpoints lists will be merged.
+> **Note**: If url used in add command already exists, endpoints lists will be merged.
 
 ## 2.5. Override configuration file location
 
