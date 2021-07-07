@@ -230,22 +230,26 @@ All other TONOS-CLI commands will indicate the configuration file currently used
 List of available options:
 
 ```bash
---abi <ABI>                      File with contract ABI.
---addr <ADDR>                    Contract address.
---depool_fee <DEPOOL_FEE>        Value added to message sent to depool to cover it's fees (change will be
-                                         returned).
---keys <KEYS>                    File with keypair.
---lifetime <LIFETIME>            Period of time in seconds while message is valid.
---local_run <LOCAL_RUN>          Enable preliminary local run before deploy and call commands.
---no-answer <NO_ANSWER>          FLag whether to wait for depool answer when calling a depool function.
---retries <RETRIES>              Number of attempts to call smart contract function if previous attempt was
-                                         unsuccessful.
---timeout <TIMEOUT>              Contract call timeout in ms.
---url <URL>                      Url to connect.
---delimiters <USE_DELIMITERS>    Use delimiters while printing account balance
---wallet <WALLET>                Multisig wallet address. Used in commands which send internal messages through
-                                         multisig wallets.
---wc <WC>                        Workchain id.
+--abi <ABI>                            File with contract ABI.
+--addr <ADDR>                          Contract address.
+--async_call <ASYNC_CALL>              Disables wait for transaction to appear in the network after call
+                                       command.
+--balance_in_tons <BALANCE_IN_TONS>    Print balance for account command in tons. If false balance is printed in
+                                       nanotons.
+--depool_fee <DEPOOL_FEE>              Value added to message sent to depool to cover it's fees (change will be
+                                       returned).
+--keys <KEYS>                          File with keypair.
+--lifetime <LIFETIME>                  Period of time in seconds while message is valid.
+--local_run <LOCAL_RUN>                Enable preliminary local run before deploy and call commands.
+--no-answer <NO_ANSWER>                FLag whether to wait for depool answer when calling a depool function.
+--pubkey <PUBKEY>                      User public key. Used by DeBot Browser.
+--retries <RETRIES>                    Number of attempts to call smart contract function if previous attempt
+                                       was unsuccessful.
+--timeout <TIMEOUT>                    Contract call timeout in ms.
+--url <URL>                            Url to connect.
+--wallet <WALLET>                      Multisig wallet address. Used in commands which send internal messages
+                                       through multisig wallets.
+--wc <WC>                              Workchain id.
 ```
 
 Example:
@@ -268,11 +272,18 @@ Succeeded.
   "lifetime": 3600,
   "no_answer": false,
   "use_delimiters": true,
-  "local_run": true
+  "local_run": true,
+  "async_call": false,
+  "endpoints": [
+    "https://main2.ton.dev",
+    "https://main4.ton.dev",
+    "https://main3.ton.dev"
+  ]
+
 }
 ```
 
-Network configuration can be [overridden](#25-override-network-settings)) for any single subcommand.
+Network configuration can be [overridden](#25-override-network-settings) for any single subcommand.
 
 To connect to a [DApp Server](https://github.com/tonlabs/TON-OS-DApp-Server) you are running, it should have domain name and a DNS record. Then its URL may be used to access it with TONOS-CLI:
 
@@ -298,7 +309,60 @@ Use the following command to reset configuration to default values:
 tonos-cli config clear
 ```
 
-## 2.4. Override configuration file location
+## 2.4. Configure endpoints map
+
+tonos-cli config file also stores endpoints map that can be updated by user.
+Each time user changes url, endpoints also change in accordance to endpoints map.
+To print the map use the following command:
+
+```bash
+tonos-cli config endpoint print
+```
+
+User can reset map to the default state:
+
+```bash
+tonos-cli config endpoint reset
+```
+
+Default state of the map:
+
+```bash
+{
+  "net.ton.dev": [
+    "https://net1.ton.dev",
+    "https://net5.ton.dev"
+  ],
+  "main.ton.dev": [
+    "https://main2.ton.dev",
+    "https://main3.ton.dev",
+    "https://main4.ton.dev"
+  ],
+  "http://127.0.0.1/": [
+    "http://0.0.0.0/",
+    "http://127.0.0.1/",
+    "http://localhost/"
+  ]
+}
+```
+
+Map can be changed with `remove` and `add` subcommands:
+
+```bash
+tonos-cli config endpoint remove <url>
+tonos-cli config endpoint add <url> <list_of_endpoints>
+```
+
+Example:
+
+```bash
+tonos-cli config endpoint remove main.ton.dev
+tonos-cli config endpoint add main.ton.dev "https://main2.ton.dev","https://main3.ton.dev","https://main4.ton.dev"
+```
+
+**Note**: If <url> used in add command already exists, endpoints lists will be merged.
+
+## 2.5. Override configuration file location
 
 You can move the `tonos-cli.config.json` configuration file to any other convenient location and/or rename it. There are several ways you can point the utility to the new location of the file:
 
@@ -332,7 +396,7 @@ The `--config` global option has higher priority than the `TONOSCLI_CONFIG` envi
 
 > However, config --list subcommand displays the parameters of the currently used configuration file, wherever it is located.
 
-## 2.5. Override network settings
+## 2.6. Override network settings
 
 You can also separately override [preconfigured network settings](#21-set-the-network-and-parameter-values) for a single subcommand. Use the `--url <network_url>` global option for this purpose:
 
@@ -346,7 +410,7 @@ Example:
 tonos-cli --url https://main.ton.dev account <address>
 ```
 
-## 2.6. Force json output
+## 2.7. Force json output
 
 You can force TONOS-CLi to print output in json format. To do so, add `--json` flag before a subcommand:
 
