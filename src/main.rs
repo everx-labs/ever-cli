@@ -47,6 +47,7 @@ use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
+use crate::config::FullConfig;
 
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
@@ -315,6 +316,24 @@ async fn main_internal() -> Result <(), String> {
                 (@arg BALANCE_IN_TONS: --balance_in_tons "Print balance for account command in tons. If false balance is printed in nanotons.")
                 (@arg LOCAL_RUN: --local_run "Enable preliminary local run before deploy and call commands.")
             )
+            (@subcommand endpoint =>
+                (about: "Commands to work with map of endpoints.")
+                (@subcommand add =>
+                    (about: "Add endpoints list.")
+                    (@arg URL: +required +takes_value "Url of the endpoints list.")
+                    (@arg ENDPOINTS: +required +takes_value "List of endpoints.")
+                )
+                (@subcommand remove =>
+                    (about: "Remove endpoints list.")
+                    (@arg URL: +required +takes_value "Url of the endpoints list.")
+                )
+                (@subcommand reset =>
+                    (about: "Reset the endpoints map.")
+                )
+                (@subcommand print =>
+                    (about: "Print current endpoints map.")
+                )
+            )
         )
         (@subcommand account =>
             (@setting AllowLeadingHyphen)
@@ -424,6 +443,8 @@ async fn main_internal() -> Result <(), String> {
 
     if let Some(url) = matches.value_of("NETWORK") {
         conf.url = url.to_string();
+        let empty : Vec<String> = Vec::new();
+        conf.endpoints = FullConfig::get_map(&config_file).get(url).unwrap_or(&empty).clone();
     }
 
     if let Some(m) = matches.subcommand_matches("convert") {
@@ -796,6 +817,19 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let balance_in_tons = clear_matches.is_present("BALANCE_IN_TONS");
             let local_run = clear_matches.is_present("LOCAL_RUN");
             result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run);
+        } else if let Some(endpoint_matches) = matches.subcommand_matches("endpoint") {
+            if let Some(endpoint_matches) = endpoint_matches.subcommand_matches("add") {
+                let url = endpoint_matches.value_of("URL").unwrap();
+                let endpoints = endpoint_matches.value_of("ENDPOINTS").unwrap();
+                FullConfig::add_endpoint(config_file.as_str(), url, endpoints)?;
+            } else if let Some(endpoint_matches) = endpoint_matches.subcommand_matches("remove") {
+                let url = endpoint_matches.value_of("URL").unwrap();
+                FullConfig::remove_endpoint(config_file.as_str(), url)?;
+            } else if endpoint_matches.subcommand_matches("reset").is_some() {
+                FullConfig::reset_endpoints(config_file.as_str())?;
+            }
+            FullConfig::print_endpoints(config_file.as_str());
+            return Ok(());
         } else {
             let url = matches.value_of("URL");
             let address = matches.value_of("ADDR");
