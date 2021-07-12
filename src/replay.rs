@@ -17,7 +17,7 @@ use serde_json::Value;
 
 use ton_block::{Account, ConfigParamEnum, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr};
 use ton_client::{ClientConfig, ClientContext, abi::{Abi, CallSet, ParamsOfEncodeMessage, encode_message}, net::{AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection}, tvm::{ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm}};
-use ton_executor::{BlockchainConfig, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
+use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
 use ton_types::{HashmapE, UInt256, serialize_toc};
 
 use crate::config::Config;
@@ -25,14 +25,15 @@ use crate::config::Config;
 static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
 static ELECTOR_ADDR: &str = "-1:3333333333333333333333333333333333333333333333333333333333333333";
 
-fn construct_blockchain_config(config_account: &Account) -> BlockchainConfig {
-    let config_cell = config_account.get_data().unwrap().reference(0).ok();
+fn construct_blockchain_config(config_account: &Account) -> Result<BlockchainConfig, String> {
+    let config_cell = config_account.get_data().ok_or(
+        format!("Failed to get account's data"))?.reference(0).ok();
     let config_params = ConfigParams::with_address_and_params(
         UInt256::with_array([0x55; 32]), config_cell);
-    BlockchainConfig::with_config(config_params).unwrap()
+    BlockchainConfig::with_config(config_params).map_err(|e| format!("Failed to construct config: {}", e))
 }
 
-async fn fetch(server_address: &str, account_address: &str, filename: &str) {
+async fn fetch(server_address: &str, account_address: &str, filename: &str) -> Result<(), String> {
     let context = Arc::new(
         ClientContext::new(ClientConfig {
             network: NetworkConfig {
@@ -40,8 +41,7 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) {
                 ..Default::default()
             },
             ..Default::default()
-        })
-        .unwrap(),
+        }).map_err(|e| format!("Failed to create ctx: {}", e))?,
     );
 
     let tr_count = aggregate_collection(
@@ -62,10 +62,15 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) {
         },
     )
     .await
-    .unwrap();
-    let tr_count = u64::from_str_radix(tr_count.values.as_array().unwrap().get(0).unwrap().as_str().unwrap(), 10).unwrap();
+    .map_err(|e| format!("Failed to fetch txns count: {}", e))?;
+    let tr_count = u64::from_str_radix(
+        tr_count.values.as_array().ok_or(format!("Failed to parse value"))?
+        .get(0).ok_or(format!("Failed to parse value"))?
+        .as_str().ok_or(format!("Failed to parse value"))?, 10)
+        .map_err(|e| format!("Failed to parse decimal int: {}", e))?;
 
-    let file = File::create(filename).unwrap();
+    let file = File::create(filename)
+        .map_err(|e| format!("Failed to create file: {}", e))?;
     let mut writer = std::io::LineWriter::new(file);
 
     let zerostates = query_collection(
@@ -83,11 +88,11 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) {
     let mut zerostate_found = false;
     if let Ok(zerostates) = zerostates {
         let result = &zerostates.result.to_vec();
-        let accounts = result[0]["accounts"].as_array().unwrap();
+        let accounts = result[0]["accounts"].as_array().ok_or(format!("Failed to parse value"))?;
         for account in accounts {
             if account["id"] == account_address {
                 let data = format!("{}\n", account);
-                writer.write_all(data.as_bytes()).unwrap();
+                writer.write_all(data.as_bytes()).map_err(|e| format!("Failed to write to file: {}", e))?;
                 zerostate_found = true;
                 break;
             }
@@ -97,7 +102,7 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) {
     if !zerostate_found {
         let data = format!("{{\"id\":\"{}\",\"boc\":\"{}\"}}\n",
             account_address, base64::encode(&Account::default().serialize().unwrap().write_to_bytes().unwrap()));
-        writer.write_all(data.as_bytes()).unwrap();
+        writer.write_all(data.as_bytes()).map_err(|e| format!("Failed to write to file: {}", e))?;
     }
 
     let retry_strategy =
@@ -128,7 +133,8 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) {
             query.await
         };
 
-        let transactions = tokio_retry::Retry::spawn(retry_strategy.clone(), action).await.unwrap();
+        let transactions = tokio_retry::Retry::spawn(retry_strategy.clone(), action).await
+            .map_err(|e| format!("Failed to fetch transactions: {}", e))?;
 
         if transactions.result.is_empty() {
             break;
@@ -136,14 +142,15 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) {
 
         for txn in &transactions.result {
             let data = format!("{}\n", txn);
-            writer.write_all(data.as_bytes()).unwrap();
+            writer.write_all(data.as_bytes()).map_err(|e| format!("Failed to write to file: {}", e))?;
         }
 
-        let last = transactions.result.last().unwrap();
-        lt = last["lt"].as_str().unwrap().to_owned();
+        let last = transactions.result.last().ok_or(format!("Failed to get last txn"))?;
+        lt = last["lt"].as_str().ok_or(format!("Failed to parse value"))?.to_owned();
         count += transactions.result.len() as u64;
         pb.set_position(std::cmp::min(count, tr_count));
     }
+    Ok(())
 }
 
 struct TransactionExt {
@@ -173,20 +180,21 @@ impl State {
         Self { account, account_addr, tr: None, lines }
     }
 
-    pub fn next_transaction(&mut self) {
+    pub fn next_transaction(&mut self) -> Option<()>{
         match self.lines.next() {
             Some(res) => {
-                let value = serde_json::from_str::<Value>(res.unwrap().as_str()).unwrap();
-                let id = String::from(value["id"].as_str().unwrap());
-                let boc = value["boc"].as_str().unwrap();
-                let tr = Transaction::construct_from_base64(boc).unwrap();
-                let block_lt = u64::from_str_radix(&value["block"]["start_lt"].as_str().unwrap()[2..], 16).unwrap();
+                let value = serde_json::from_str::<Value>(res.ok()?.as_str()).ok()?;
+                let id = String::from(value["id"].as_str()?);
+                let boc = value["boc"].as_str()?;
+                let tr = Transaction::construct_from_base64(boc).ok()?;
+                let block_lt = u64::from_str_radix(&value["block"]["start_lt"].as_str()?[2..], 16).ok()?;
                 self.tr = Some(TransactionExt { id, block_lt, tr });
             }
             None => {
                 self.tr = None;
             }
         }
+        Some(())
     }
 }
 
@@ -203,7 +211,7 @@ fn choose<'a>(st1: &'a mut State, st2: &'a mut State) -> &'a mut State {
 #[async_trait::async_trait]
 trait ReplayTracker {
     async fn new() -> Self;
-    async fn track(&mut self, account: &Account);
+    async fn track(&mut self, account: &Account) -> Result<(), String>;
 }
 
 #[derive(Clone)]
@@ -238,23 +246,28 @@ impl ReplayTracker for ElectorUnfreezeTracker {
         }).await.unwrap().message;
         Self { ctx, abi, message, unfreeze_map: HashMap::new() }
     }
-    async fn track(&mut self, account: &Account) {
-        let account_bytes = serialize_toc(&account.serialize().unwrap()).unwrap();
+    async fn track(&mut self, account: &Account) -> Result<(), String> {
+        let account_bytes = serialize_toc(&account.serialize()
+            .map_err(|e| format!("Failed to serialize account: {}", e))?)
+            .map_err(|e| format!("Failed to serialize tree of cells: {}", e))?;
         let output = run_tvm(self.ctx.clone(), ParamsOfRunTvm {
                 account: base64::encode(&account_bytes),
                 abi: Some(self.abi.clone()),
                 message: self.message.clone(),
                 ..Default::default()
             })
-            .await
-            .unwrap().decoded.unwrap().output.unwrap();
+            .await.map_err(|e| format!("Failed to execute run_tvm: {}", e))?
+            .decoded.ok_or("Failed to decode run_tvm result")?
+            .output.ok_or("Empty body")?;
         //println!("{}", serde_json::to_string_pretty(&output).unwrap());
-        let past_elections = output["past_elections"].as_object().unwrap();
+        let past_elections = output["past_elections"].as_object().ok_or(format!("Failed to parse value"))?;
         for (key, value) in past_elections {
-            let elect_at = u32::from_str_radix(&key, 10).unwrap();
-            let unfreeze = value["unfreeze_at"].as_str().unwrap();
-            let t2 = u32::from_str_radix(unfreeze, 10).unwrap();
-            let vset_hash = value["vset_hash"].as_str().unwrap();
+            let elect_at = u32::from_str_radix(&key, 10)
+                .map_err(|e| format!("Failed to parse decimal int: {}", e))?;
+            let unfreeze = value["unfreeze_at"].as_str().ok_or(format!("Failed to parse value"))?;
+            let t2 = u32::from_str_radix(unfreeze, 10)
+                .map_err(|e| format!("Failed to parse decimal int: {}", e))?;
+            let vset_hash = value["vset_hash"].as_str().ok_or(format!("Failed to parse value"))?;
             match self.unfreeze_map.insert(elect_at, t2) {
                 Some(t1) => {
                     if t1 != t2 {
@@ -268,6 +281,7 @@ impl ReplayTracker for ElectorUnfreezeTracker {
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -292,30 +306,32 @@ impl ReplayTracker for ElectorOrigUnfreezeTracker {
         let ctx = Arc::new(ClientContext::new(ClientConfig::default()).unwrap());
         Self { ctx, unfreeze_map: HashMap::new() }
     }
-    async fn track(&mut self, account: &Account) {
-        let account_bytes = serialize_toc(&account.serialize().unwrap()).unwrap();
+    async fn track(&mut self, account: &Account) -> Result<(), String> {
+        let account_bytes = serialize_toc(&account.serialize()
+            .map_err(|e| format!("Failed to serialize account: {}", e))?)
+            .map_err(|e| format!("Failed to serialize tree of cells: {}", e))?;
         let output = run_get(self.ctx.clone(), ParamsOfRunGet {
                 account: base64::encode(&account_bytes),
                 function_name: "past_elections_list".to_owned(),
                 input: None,
                 ..Default::default()
             })
-            .await
-            .unwrap().output;
-        let mut list = output.as_array().unwrap().get(0).unwrap();
+            .await.map_err(|e| format!("Failed to execute run_tvm: {}", e))?.output;
+        let mut list = output.as_array().ok_or(format!("Failed to parse value"))?
+            .get(0).ok_or(format!("Failed to parse value"))?;
         loop {
             if list.is_null() {
                 break;
             }
-            let pair = list.as_array().unwrap();
-            let head = pair.get(0).unwrap();
+            let pair = list.as_array().ok_or(format!("Failed to parse value"))?;
+            let head = pair.get(0).ok_or(format!("Failed to parse value"))?;
 
-            let fields = head.as_array().unwrap();
-            let key = fields.get(0).unwrap().as_str().unwrap();
-            let elect_at = u32::from_str_radix(&key, 10).unwrap();
-            let unfreeze = fields.get(1).unwrap().as_str().unwrap();
-            let t2 = u32::from_str_radix(unfreeze, 10).unwrap();
-            let vset_hash = fields.get(2).unwrap().as_str().unwrap();
+            let fields = head.as_array().ok_or(format!("Failed to parse value"))?;
+            let key = fields.get(0).ok_or(format!("Failed to parse value"))?.as_str().ok_or(format!("Failed to parse value"))?;
+            let elect_at = u32::from_str_radix(&key, 10).map_err(|e| format!("Failed to parse decimal int: {}", e))?;
+            let unfreeze = fields.get(1).ok_or(format!("Failed to parse value"))?.as_str().ok_or(format!("Failed to parse value"))?;
+            let t2 = u32::from_str_radix(unfreeze, 10).map_err(|e| format!("Failed to parse decimal int: {}", e))?;
+            let vset_hash = fields.get(2).ok_or(format!("Failed to parse value"))?.as_str().ok_or(format!("Failed to parse value"))?;
             match self.unfreeze_map.insert(elect_at, t2) {
                 Some(t1) => {
                     if t1 != t2 {
@@ -329,8 +345,9 @@ impl ReplayTracker for ElectorOrigUnfreezeTracker {
                 }
             }
 
-            list = pair.get(1).unwrap();
+            list = pair.get(1).ok_or(format!("Failed to parse value"))?;
         }
+        Ok(())
     }
 }
 
@@ -344,15 +361,18 @@ impl ReplayTracker for ConfigParam34Tracker {
     async fn new() -> Self {
         Self { cur_hash: UInt256::default() }
     }
-    async fn track(&mut self, account: &Account) {
-        let config = construct_blockchain_config(&account);
-        if let Some(ConfigParamEnum::ConfigParam34(cfg34)) = config.raw_config().config(34).unwrap() {
+    async fn track(&mut self, account: &Account) -> Result<(), String> {
+        let config = construct_blockchain_config(&account)?;
+        let param = config.raw_config().config(34).map_err(
+            |e| format!("Failed to get config param 34: {}", e))?;
+        if let Some(ConfigParamEnum::ConfigParam34(cfg34)) = param {
             let hash = cfg34.write_to_new_cell().unwrap().into_cell().unwrap().repr_hash();
             if self.cur_hash != UInt256::default() && self.cur_hash != hash {
                 println!("DBG cfg34 hash changed to {}", &hash.to_hex_string()[..8]);
             }
             self.cur_hash = hash;
         }
+        Ok(())
     }
 }
 
@@ -370,7 +390,7 @@ impl log::Log for TrivialLogger {
 }
 
 async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
-    trace_execution: bool, track_elector_unfreeze: bool, track_config_param_34: bool) {
+    trace_execution: bool, track_elector_unfreeze: bool, track_config_param_34: bool) -> Result<(), String> {
     let mut account_state = State::new(input_filename);
     let mut config_state = State::new(config_filename);
     assert!(config_state.account_addr == CONFIG_ADDR);
@@ -380,7 +400,7 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
 
     if trace_execution {
         log::set_max_level(log::LevelFilter::Trace);
-        log::set_logger(&LOGGER).unwrap();
+        log::set_logger(&LOGGER).map_err(|e| format!("Failed to set logger: {}", e))?;
     }
 
     let mut cfg_tracker = if track_config_param_34 {
@@ -415,10 +435,13 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
         if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
             assert!(tr.block_lt > cur_block_lt);
             cur_block_lt = tr.block_lt;
-            config = construct_blockchain_config(&config_account);
+            config = construct_blockchain_config(&config_account)?;
         }
 
-        let account_old_hash_local = state.account.serialize().unwrap().repr_hash();
+        let mut account_root = state.account.serialize()
+            .map_err(|e| format!("Failed to serialize: {}", e))?;
+
+        let account_old_hash_local = account_root.repr_hash();
         let account_old_hash_remote = tr.tr.read_state_update().unwrap().old_hash;
         if account_old_hash_local != account_old_hash_remote {
             println!("FAILURE\nOld hashes mismatch:\nremote {}\nlocal  {}",
@@ -427,18 +450,23 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             exit(1);
         }
         if tr.id == txnid {
-            let account = state.account.serialize().unwrap();
-            account.write_to_file(format!("{}-{}.boc", state.account_addr, txnid).as_str());
+            account_root.write_to_file(format!("{}-{}.boc", state.account_addr, txnid).as_str());
 
-            let account = config_account.serialize().unwrap();
+            let account = config_account.serialize()
+                .map_err(|e| format!("Failed to serialize config account: {}", e))?;
             account.write_to_file(format!("config-{}.boc", txnid).as_str());
 
             // config.boc suitable for creating ton-labs-executor tests
-            let mut config_data = ton_types::SliceData::from(config_account.get_data().unwrap());
+            let mut config_data = ton_types::SliceData::from(config_account.get_data()
+                .ok_or("Failed to get config data")?);
             let mut cfg = ton_types::BuilderData::new();
-            cfg.append_raw(&config_data.get_next_bytes(32).unwrap(), 256).unwrap();
-            cfg.append_reference_cell(config_data.reference(0).unwrap());
-            cfg.into_cell().unwrap().write_to_file(format!("config-{}-test.boc", txnid).as_str());
+            cfg.append_raw(&config_data.get_next_bytes(32)
+                .map_err(|e| format!("Failed to read config data: {}", e))?, 256)
+                .map_err(|e| format!("Failed to append config data: {}", e))?;
+            cfg.append_reference_cell(config_data.reference(0)
+                .map_err(|e| format!("Failed to get config zero reference: {}", e))?);
+            cfg.into_cell().map_err(|e| format!("Failed to finalize builder: {}", e))?
+                .write_to_file(format!("config-{}-test.boc", txnid).as_str());
         }
         let executor: Box<dyn TransactionExecutor> =
             match tr.tr.read_description().unwrap() {
@@ -454,22 +482,27 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             };
 
         if track_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
-            tracker.as_mut().unwrap().track(&state.account).await;
+            tracker.as_mut().unwrap().track(&state.account).await?;
         }
 
         let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c).unwrap());
-        let tr_local = executor.execute_for_account(
+        let params = ExecuteParams {
+            state_libs: HashmapE::default(),
+            block_unixtime: tr.tr.now,
+            block_lt: tr.tr.lt,
+            last_tr_lt: Arc::new(AtomicU64::new(tr.tr.lt)),
+            seed_block: UInt256::default(),
+            debug: trace_execution,
+        };
+        let tr_local = executor.execute_with_libs_and_params(
             msg.as_ref(),
-            &mut state.account,
-            HashmapE::default(),
-            tr.tr.now,
-            tr.tr.lt,
-            Arc::new(AtomicU64::new(tr.tr.lt)),
-            trace_execution).unwrap();
-
+            &mut account_root,
+            params).map_err(|e| format!("Failed to execute txn: {}", e))?;
+        state.account = Account::construct_from_cell(account_root.clone())
+            .map_err(|e| format!("Failed to construct account: {}", e))?;
         state.account.update_storage_stat().unwrap();
 
-        let account_new_hash_local = state.account.serialize().unwrap().repr_hash();
+        let account_new_hash_local = account_root.repr_hash();
         let account_new_hash_remote = tr.tr.read_state_update().unwrap().new_hash;
         if account_new_hash_local != account_new_hash_remote {
             println!("FAILURE\nNew hashes mismatch:\nremote {}\nlocal  {}",
@@ -482,11 +515,11 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
         //println!("SUCCESS");
 
         if track_config_param_34 && state.account_addr == CONFIG_ADDR {
-            cfg_tracker.as_mut().unwrap().track(&state.account).await;
+            cfg_tracker.as_mut().unwrap().track(&state.account).await?;
         }
 
         if track_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
-            tracker.as_mut().unwrap().track(&state.account).await;
+            tracker.as_mut().unwrap().track(&state.account).await?;
         }
 
         if &tr.id == txnid {
@@ -495,17 +528,20 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
         }
         state.tr = None;
     }
+    Ok(())
 }
 
 pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    fetch(config.url.as_str(), m.value_of("ADDRESS").unwrap(), m.value_of("OUTPUT").unwrap()).await;
+    fetch(config.url.as_str(),
+        m.value_of("ADDRESS").ok_or("Missing account address")?,
+        m.value_of("OUTPUT").ok_or("Missing output filename")?).await?;
     Ok(())
 }
 
 pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
-    replay(m.value_of("INPUT_TXNS").unwrap(),
-        m.value_of("CONFIG_TXNS").unwrap(),
-        m.value_of("TXNID").unwrap(),
-        false, false, false).await;
+    replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
+        m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
+        m.value_of("TXNID").ok_or("Missing final txn id")?,
+        false, false, false).await?;
     Ok(())
 }
