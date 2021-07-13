@@ -379,7 +379,7 @@ tonos-cli config endpoint add main.ton.dev "https://main2.ton.dev","https://main
 
 > **Note**: If url used in add command already exists, endpoints lists will be merged.
 
-If a network that doesn't have mapped endpoints is [specified in the config file](#21-set-the-network-and-parameter-values), its url will be automatically treated as the only endpoint. For example, configuring TONOS-CLI to connect to RustNet with the command `tonos-cli config --url https://rustnet.ton.dev` will result in TONOS-CLI using this url as a single endpoint, without the user having the specify it in the endpoints map additionally.
+If a network that doesn't have mapped endpoints is [specified in the config file](#21-set-the-network-and-parameter-values), its url will be automatically treated as the only endpoint. For example, configuring TONOS-CLI to connect to RustNet with the command `tonos-cli config --url https://rustnet.ton.dev` will result in TONOS-CLI using this url as a single endpoint, without the user having to specify it in the endpoints map additionally.
 
 
 ## 2.5. Override configuration file location
