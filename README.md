@@ -297,7 +297,7 @@ TONOS-CLI supports the use of multiple endpoints for networks: if several endpoi
 `main.ton.dev` and `net.ton.dev` networks already have their current endpoints specified in the default endpoint map.
 See [section 2.4 below](#24-configure-endpoints-map) on how to edit and add endpoints to the endpoint map.
 
-> **Note**: This change was introduced in version 0.16.1 and is fully compatible with scripts written for previous versions, where main.ton.dev and net.ton.dev networks were specified with a single url. TONOS-CLi will simply use the default endpoint map to access these networks.
+> **Note**: This change was introduced in version 0.16.1 and is fully compatible with scripts written for previous versions, where main.ton.dev and net.ton.dev networks were specified with a single url. TONOS-CLI will simply use the default endpoint map to access these networks.
 
 
 Network configuration can be [overridden](#25-override-network-settings) for any single subcommand.
