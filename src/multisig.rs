@@ -162,7 +162,7 @@ pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
         .setting(AppSettings::DontCollapseArgsInUsage)
         .subcommand(SubCommand::with_name("send")
             .setting(AppSettings::AllowLeadingHyphen)
-            .about("Transfer funds from multisignature wallet to recepient.")
+            .about("Transfers funds from the multisignature wallet to the recepient.")
             .arg(Arg::with_name("ADDRESS")
                 .long("--addr")
                 .takes_value(true)
@@ -174,7 +174,7 @@ pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
             .arg(Arg::with_name("VALUE")
                 .long("--value")
                 .takes_value(true)
-                .help("Amount of funds to transfer."))
+                .help("Amount of funds to transfer (in tons)."))
             .arg(Arg::with_name("PURPOSE")
                 .long("--purpose")
                 .takes_value(true)
@@ -182,7 +182,7 @@ pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
             .arg(Arg::with_name("SIGN")
                 .long("--sign")
                 .takes_value(true)
-                .help("Path to keys or seed phrase.")))
+                .help("Seed phrase or path to the file with keypair.")))
 }
 
 pub async fn multisig_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
