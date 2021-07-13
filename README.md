@@ -292,7 +292,13 @@ Some of the frequently used networks:
 
 `https://rustnet.ton.dev` - test network running on Rust nodes.
 
-TONOS-CLI uses multiple endpoints for networks. By default TON OS cloud endpoints are used. They can be changed, if needed - see [section 2.4 below](#24-configure-endpoints-map).
+TONOS-CLI supports the use of multiple endpoints for networks: if several endpoints are [specified in the endpoint map](#24-configure-endpoints-map) for a network, TONOS-CLI will use them all when accessing it. Otherwise the network URL will be treated as the only endpoint.
+
+`main.ton.dev` and `net.ton.dev` networks already have their current endpoints specified in the default endpoint map.
+See [section 2.4 below](#24-configure-endpoints-map) on how to edit and add endpoints to the endpoint map.
+
+> **Note**: This change was introduced in version 0.16.1 and is fully compatible with scripts written for previous versions, where main.ton.dev and net.ton.dev networks were specified with a single url. TONOS-CLI will simply use the default endpoint map to access these networks.
+
 
 Network configuration can be [overridden](#25-override-network-settings) for any single subcommand.
 
@@ -372,6 +378,9 @@ tonos-cli config endpoint add main.ton.dev "https://main2.ton.dev","https://main
 ```
 
 > **Note**: If url used in add command already exists, endpoints lists will be merged.
+
+If a network that doesn't have mapped endpoints is [specified in the config file](#21-set-the-network-and-parameter-values), its url will be automatically treated as the only endpoint. For example, configuring TONOS-CLI to connect to RustNet with the command `tonos-cli config --url https://rustnet.ton.dev` will result in TONOS-CLI using this url as a single endpoint, without the user having to specify it in the endpoints map additionally.
+
 
 ## 2.5. Override configuration file location
 
