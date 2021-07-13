@@ -65,7 +65,7 @@ async fn decode_body_command(m: &ArgMatches<'_>, config: Config) -> Result<(), S
             .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
     );
     if !config.is_json {
-        print_args!(m, body, abi);
+        print_args!(body, abi);
     }
     println!("{}", decode_body(body.unwrap(), &abi.unwrap(), config.is_json).await?);
     Ok(())
@@ -78,7 +78,7 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: Config) -> Result<()
             .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
     );
     if !config.is_json {
-        print_args!(m, msg, abi);
+        print_args!(msg, abi);
     }
     let msg = msg.map(|f| std::fs::read(f))
         .transpose()

@@ -3,6 +3,7 @@ use assert_cmd::Command;
 use std::env;
 use std::time::Duration;
 use std::thread::sleep;
+use std::fs;
 mod common;
 use common::{BIN_NAME, NETWORK, get_config};
 
@@ -306,8 +307,7 @@ fn test_genaddr() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("genaddr")
         .arg("tests/samples/wallet.tvc")
-        .arg("tests/samples/wallet.abi.json")
-        .arg("--verbose");
+        .arg("tests/samples/wallet.abi.json");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Input arguments:"))
@@ -353,8 +353,9 @@ fn test_genaddr_wc() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_genaddr_initdata() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    fs::copy("tests/data.tvc", "tests/data2.tvc")?;
     cmd.arg("genaddr")
-        .arg("tests/data.tvc")
+        .arg("tests/data2.tvc")
         .arg("tests/data.abi.json")
         .arg("--genkey")
         .arg("key1")
@@ -365,7 +366,7 @@ fn test_genaddr_initdata() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("TVC file updated"))
         .stdout(predicate::str::contains("Succeeded"));
-
+    fs::remove_file("tests/data2.tvc")?;
     Ok(())
 }
 
