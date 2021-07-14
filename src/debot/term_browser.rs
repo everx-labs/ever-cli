@@ -402,11 +402,11 @@ pub async fn run_debot_browser(
 
             let msg_dest = parsed["dst"]
             .as_str()
-            .ok_or(format!("parsed message has no dst address"))?;
+            .ok_or(format!("invalid message in queue: no dst address"))?;
 
             let msg_src = parsed["src"]
             .as_str()
-            .ok_or(format!("parsed message has no dst address"))?;
+            .ok_or(format!("invalid message in queue: no src address"))?;
 
             let wc_and_addr: Vec<_> = msg_dest.split(':').collect();
             let id = wc_and_addr[1].to_string();

@@ -6,8 +6,9 @@ use crate::helpers::TonClient;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use ton_client::debot::{DebotInterface, DebotInterfaceExecutor};
+use ton_client::debot::{DebotInterface, DebotInterfaceExecutor, InterfaceResult};
 use ton_client::encoding::{decode_abi_number, decode_abi_bigint};
+use ton_client::abi::Abi;
 use num_traits::cast::NumCast;
 use num_bigint::BigInt;
 
@@ -61,6 +62,28 @@ impl SupportedInterfaces {
         interfaces.insert(iface.get_id(), iface);
 
         Self { client, interfaces }
+    }
+}
+
+#[async_trait::async_trait]
+pub trait BrowserInterface {
+    fn get_id(&self) -> String;
+    fn get_abi(&self) -> Abi;
+    async fn call(&self, func: &str, args: &Value) -> InterfaceResult;
+}
+
+#[async_trait::async_trait]
+impl<T> DebotInterface for T where T: BrowserInterface {
+    fn get_id(&self) -> String {
+        self.get_id()
+    }
+
+    fn get_abi(&self) -> Abi {
+        self.get_abi()
+    }
+
+    async fn call(&self, func: &str, args: &Value) -> InterfaceResult {
+        self.call(func, args).await
     }
 }
 

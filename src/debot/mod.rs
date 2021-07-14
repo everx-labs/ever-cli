@@ -18,6 +18,8 @@ use crate::helpers::load_ton_address;
 
 pub mod term_browser;
 mod interfaces;
+mod manifest;
+use manifest::{ChainProcessor, DebotManifest};
 pub use interfaces::dinterface::SupportedInterfaces;
 mod term_signing_box;
 
@@ -44,6 +46,13 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                     Arg::with_name("ADDRESS")
                         .required(true)
                         .help("DeBot TON address."),
+                )
+                .arg(
+                    Arg::with_name("MANIFEST")
+                        .short("m")
+                        .long("manifest")
+                        .takes_value(true)
+                        .help("Path to DeBot Manifest."),
                 )
         )
         .subcommand(
@@ -103,6 +112,15 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 
 async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
+    let manifest = m.value_of("MANIFEST");
+    if let Some(filename) = manifest {
+        let manifest_raw = std::fs::read_to_string(filename)
+            .map_err(|e| format!("failed to read manifest: {}", e))?;
+        let manifest: DebotManifest = serde_json::from_str(&manifest_raw)
+            .map_err(|e| format!("failed to parse manifest: {}", e))?;
+
+        let processor = ChainProcessor::new(manifest);
+    }
     let addr = load_ton_address(addr.unwrap(), &config)?;
     run_debot_browser(addr.as_str(), config, true, None).await
 }
