@@ -26,6 +26,12 @@ impl ManifestProcessor {
         Self { manifest, chain_iter: chain_vec.into_iter() }
     }
 
+    pub fn print(&self, message: &str) {
+        if self.manifest.interactive {
+            println!("{}", message);
+        }
+    }
+
     pub fn initial_msg(&self) -> Option<String> {
         self.manifest.init_msg.clone()
     }

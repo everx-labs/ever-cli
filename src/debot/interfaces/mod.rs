@@ -20,6 +20,7 @@ pub mod menu;
 pub mod number_input;
 pub mod signing_box_input;
 pub mod stdout;
+pub mod input_interface;
 pub mod terminal;
 pub mod userinfo;
 
@@ -29,5 +30,6 @@ pub use confirm_input::ConfirmInput;
 pub use menu::Menu;
 pub use number_input::NumberInput;
 pub use signing_box_input::SigningBoxInput;
+pub use input_interface::InputInterface;
 pub use terminal::Terminal;
 pub use userinfo::UserInfo;

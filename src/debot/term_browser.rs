@@ -279,7 +279,7 @@ impl BrowserCallbacks for Callbacks {
 
     /// Debot engine requests keys to sign something
     async fn get_signing_box(&self) -> Result<SigningBoxHandle, String> {
-        let mut terminal_box = TerminalSigningBox::new(self.client.clone(), vec![]).await?;
+        let mut terminal_box = TerminalSigningBox::new::<&[u8]>(self.client.clone(), vec![], None).await?;
         Ok(terminal_box.leak())
     }
 
@@ -411,9 +411,16 @@ pub async fn run_debot_browser(
     addr: &str,
     config: Config,
     manifest: DebotManifest,
+    signkey_path: Option<String>,
 ) -> Result<(), String> {
     println!("Connecting to {}", config.url);
     let ton = create_client(&config)?;
+    
+    if let Some(path) = signkey_path {
+        let input = std::io::BufReader::new(path.as_bytes());
+        let mut sbox = TerminalSigningBox::new(ton.clone(), vec![], Some(input)).await?;
+        sbox.leak();
+    }
     let mut browser = TerminalBrowser::new(ton.clone(), addr, &config, manifest).await?;
     loop {
         let mut next_msg = browser.msg_queue.pop_front();

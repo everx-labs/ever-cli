@@ -5,15 +5,17 @@ fn default_init_method() -> String { "start".to_owned() }
 fn default_mandatory() -> bool { false }
 fn default_interactive() -> bool { true }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Deserialize, Clone, PartialEq)]
 pub enum ApproveKind {
     ApproveOnchainCall,
     ApproveNetwork,
     ApproveMessageLimit,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Deserialize, Clone, Default)]
+#[serde(rename_all(deserialize = "camelCase"))]
 pub struct DebotManifest {
+    pub version: u8,
     pub debot_address: String,
     #[serde(default = "default_init_method")]
     pub init_method: String,

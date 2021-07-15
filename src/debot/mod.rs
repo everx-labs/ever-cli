@@ -15,15 +15,15 @@ use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use simplelog::*;
 use term_browser::run_debot_browser;
 use crate::helpers::load_ton_address;
-pub mod term_browser;
 
 mod interfaces;
 mod manifest;
-mod chain_processor;
+mod processor;
 mod term_signing_box;
+pub mod term_browser;
 
+use processor::{ManifestProcessor, ProcessorError};
 use manifest::{ApproveKind, DebotManifest, ChainLink};
-use chain_processor::{ManifestProcessor, ProcessorError};
 pub use interfaces::dinterface::SupportedInterfaces;
 
 pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
@@ -116,6 +116,9 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
     let manifest = m.value_of("MANIFEST");
+    let signkey_path = m.value_of("SIGNKEY")
+        .map(|x| x.to_owned())
+        .or(config.keys_path.clone());
     let manifest = if let Some(filename) = manifest {
         let manifest_raw = std::fs::read_to_string(filename)
             .map_err(|e| format!("failed to read manifest: {}", e))?;
@@ -125,12 +128,12 @@ async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String>
         DebotManifest::default()
     };
     let addr = load_ton_address(addr.unwrap(), &config)?;
-    run_debot_browser(addr.as_str(), config, manifest).await
+    run_debot_browser(addr.as_str(), config, manifest, signkey_path).await
 }
 
 async fn invoke_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
-    let addr = load_ton_address(addr.unwrap(), &config)?;
+    let _addr = load_ton_address(addr.unwrap(), &config)?;
     let message = m.value_of("MESSAGE").unwrap().to_owned();
     let mut manifest = DebotManifest::default();
     manifest.init_msg = Some(message);

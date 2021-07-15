@@ -1,13 +1,16 @@
 use super::dinterface::{decode_answer_id, decode_prompt, decode_array};
+
 use serde_json::Value;
 use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use ton_client::encoding::decode_abi_bigint;
 use crate::helpers::TonClient;
 use crate::debot::term_signing_box::TerminalSigningBox;
+use crate::debot::{ManifestProcessor, ProcessorError};
 use tokio::sync::RwLock;
+use std::sync::Arc;
 
-const ID: &'static str = "c13024e101c95e71afb1f5fa6d72f633d51e721de0320d73dfd6121a54e4d40a";
+pub const ID: &'static str = "c13024e101c95e71afb1f5fa6d72f633d51e721de0320d73dfd6121a54e4d40a";
 
 const ABI: &str = r#"
 {
@@ -36,10 +39,11 @@ const ABI: &str = r#"
 pub struct SigningBoxInput {
     handles: RwLock<Vec<TerminalSigningBox>>,
     client: TonClient,
+    processor: Arc<RwLock<ManifestProcessor>>,
 }
 impl SigningBoxInput {
-    pub fn new(client: TonClient) -> Self {
-        Self { handles: RwLock::new(vec![]), client }
+    pub fn new(client: TonClient, processor: Arc<RwLock<ManifestProcessor>>) -> Self {
+        Self { handles: RwLock::new(vec![]), client, processor }
     }
 
     async fn get(&self, args: &Value) -> InterfaceResult {
@@ -54,10 +58,23 @@ impl SigningBoxInput {
             }
         )?;
         println!("{}", prompt);
-        let signing_box = TerminalSigningBox::new(self.client.clone(), possible_keys).await?;
-        let handle = signing_box.handle();
-        self.handles.write().await.push(signing_box);
-        Ok((answer_id, json!({ "handle": handle.0})))
+        let result = self
+            .processor
+            .write()
+            .await
+            .next_input(&self.get_id(), "get", args);
+        match result {
+            Err(ProcessorError::InterfaceCallNeeded) => {
+                let signing_box = TerminalSigningBox::new::<&[u8]>(self.client.clone(), possible_keys, None).await?;
+                let handle = signing_box.handle();
+                self.handles.write().await.push(signing_box);
+                Ok((answer_id, json!({ "handle": handle.0})))
+            }
+            Err(e) => Err(format!("{:?}", e))?,
+            Ok(params) => {
+                Ok((answer_id, params.unwrap_or(json!({}))))
+            }
+        }
     }
 }
 
