@@ -15,15 +15,16 @@ use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use simplelog::*;
 use term_browser::run_debot_browser;
 use crate::helpers::load_ton_address;
-
 pub mod term_browser;
+
 mod interfaces;
 mod manifest;
 mod chain_processor;
-use manifest::{ApproveKind, DebotManifest, ChainLink};
-use chain_processor::{ChainProcessor, ProcessorError};
-pub use interfaces::dinterface::SupportedInterfaces;
 mod term_signing_box;
+
+use manifest::{ApproveKind, DebotManifest, ChainLink};
+use chain_processor::{ManifestProcessor, ProcessorError};
+pub use interfaces::dinterface::SupportedInterfaces;
 
 pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("debot")
@@ -115,21 +116,24 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
     let manifest = m.value_of("MANIFEST");
-    if let Some(filename) = manifest {
+    let manifest = if let Some(filename) = manifest {
         let manifest_raw = std::fs::read_to_string(filename)
             .map_err(|e| format!("failed to read manifest: {}", e))?;
-        let manifest: DebotManifest = serde_json::from_str(&manifest_raw)
-            .map_err(|e| format!("failed to parse manifest: {}", e))?;
-
-        let processor = ChainProcessor::new(manifest);
-    }
+        serde_json::from_str(&manifest_raw)
+            .map_err(|e| format!("failed to parse manifest: {}", e))?
+    } else {
+        DebotManifest::default()
+    };
     let addr = load_ton_address(addr.unwrap(), &config)?;
-    run_debot_browser(addr.as_str(), config, true, None).await
+    run_debot_browser(addr.as_str(), config, manifest).await
 }
 
 async fn invoke_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
     let addr = load_ton_address(addr.unwrap(), &config)?;
     let message = m.value_of("MESSAGE").unwrap().to_owned();
-    run_debot_browser(addr.as_str(), config, false, Some(message)).await
+    let mut manifest = DebotManifest::default();
+    manifest.init_msg = Some(message);
+    //run_debot_browser(addr.as_str(), config, false, Some(message)).await
+    Ok(())
 }

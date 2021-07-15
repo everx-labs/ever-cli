@@ -23,7 +23,7 @@ use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngi
     DebotActivity, DebotInfo, STATE_EXIT, DEBOT_WC};
 use ton_client::error::ClientResult;
 use std::collections::{HashMap, VecDeque};
-use super::{SupportedInterfaces};
+use super::{SupportedInterfaces, DebotManifest, ManifestProcessor};
 
 /// Stores Debot info needed for DBrowser.
 struct DebotEntry {
@@ -46,14 +46,44 @@ struct TerminalBrowser {
 }
 
 impl TerminalBrowser {
-    fn new(client: TonClient, conf: &Config) -> Self {
-        Self {
+    async fn new(client: TonClient, addr: &str, conf: &Config, manifest: DebotManifest) -> Result<Self, String> {
+        let processor = ManifestProcessor::new(manifest);
+        let start = processor.is_default_start();
+        let call_set = processor.initial_call_set();
+        let mut init_message = processor.initial_msg();
+
+        let mut browser = Self {
             client: client.clone(),
             msg_queue: Default::default(),
             bots: HashMap::new(),
-            interfaces: SupportedInterfaces::new(client.clone(), conf),
+            interfaces: SupportedInterfaces::new(client.clone(), conf, processor),
             conf: conf.clone(),
+        };
+
+        browser.fetch_debot(addr, start).await?;
+        let abi = browser.bots.get(addr).unwrap().abi.clone();
+
+        if !start && init_message.is_none() {
+            init_message = Some(encode_internal_message(
+                browser.client.clone(),
+                ParamsOfEncodeInternalMessage {
+                    abi: Some(abi),
+                    address: Some(addr.to_owned()),
+                    call_set,
+                    value: "1000000000000000".to_owned(),
+                    ..Default::default()
+                }
+            )
+            .await
+            .map_err(|e| format!("{}", e))?
+            .message);
         }
+
+        if let Some(msg) = init_message {
+            browser.call_debot(addr, msg).await?;
+        }
+
+        Ok(browser)
     }
 
     async fn fetch_debot(&mut self, addr: &str, start: bool) -> Result<(), String> {
@@ -254,10 +284,11 @@ impl BrowserCallbacks for Callbacks {
     }
 
     /// Debot asks to run action of another debot
-    async fn invoke_debot(&self, debot: String, action: DAction) -> Result<(), String> {
-        debug!("fetching debot {} action {}", &debot, action.name);
-        println!("Invoking debot {}", &debot);
-        run_debot_browser(&debot, self.config.clone(), false, None).await
+    async fn invoke_debot(&self, _debot: String, _action: DAction) -> Result<(), String> {
+        //debug!("fetching debot {} action {}", &debot, action.name);
+        //println!("Invoking debot {}", &debot);
+        //run_debot_browser(&debot, self.config.clone(), false, None).await
+        Ok(())
     }
 
     async fn send(&self, message: String) {
@@ -379,16 +410,11 @@ pub fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
 pub async fn run_debot_browser(
     addr: &str,
     config: Config,
-    start: bool,
-    init_message: Option<String>,
+    manifest: DebotManifest,
 ) -> Result<(), String> {
     println!("Connecting to {}", config.url);
     let ton = create_client(&config)?;
-    let mut browser = TerminalBrowser::new(ton.clone(), &config);
-    browser.fetch_debot(addr, start).await?;
-    if let Some(msg) = init_message {
-        browser.call_debot(addr, msg).await?;
-    }
+    let mut browser = TerminalBrowser::new(ton.clone(), addr, &config, manifest).await?;
     loop {
         let mut next_msg = browser.msg_queue.pop_front();
         while let Some(msg) = next_msg {

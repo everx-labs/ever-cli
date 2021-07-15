@@ -12,12 +12,13 @@ pub enum ApproveKind {
     ApproveMessageLimit,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct DebotManifest {
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct DebotManifest {
     pub debot_address: String,
     #[serde(default = "default_init_method")]
     pub init_method: String,
-    pub init_args: Option<String>,
+    pub init_args: Option<Value>,
+    pub init_msg: Option<String>,
     pub auto_approve: Option<Vec<ApproveKind>>,
     #[serde(default = "default_interactive")]
     pub interactive: bool,
@@ -25,7 +26,7 @@ pub(crate) struct DebotManifest {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub(crate) enum ChainLink {
+pub enum ChainLink {
     Input {
         interface: String,
         method: String,

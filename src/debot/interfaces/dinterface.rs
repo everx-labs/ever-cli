@@ -1,7 +1,7 @@
 use super::{Menu, AddressInput, AmountInput, ConfirmInput, NumberInput, SigningBoxInput, Terminal, UserInfo};
 use super::echo::Echo;
 use super::stdout::Stdout;
-use crate::debot::{ChainProcessor, ProcessorError};
+use crate::debot::{ManifestProcessor, ProcessorError};
 use crate::config::Config;
 use crate::helpers::TonClient;
 use serde_json::Value;
@@ -29,14 +29,28 @@ impl DebotInterfaceExecutor for SupportedInterfaces {
     }
 }
 
+struct InterfaceWrapper {
+    processor: Arc<RwLock<ManifestProcessor>>,
+}
+impl InterfaceWrapper {
+    fn wrap(
+        &self,
+        iface: Arc<dyn DebotInterface + Send + Sync>,
+    ) -> Arc<dyn DebotInterface + Send + Sync> {
+        Arc::new(BrowserInterface::new(iface, self.processor.clone()))
+    }
+}
+
 impl SupportedInterfaces {
-    pub fn new(client: TonClient, conf: &Config) -> Self {
+    pub fn new(client: TonClient, conf: &Config, proc: ManifestProcessor) -> Self {
         let mut interfaces = HashMap::new();
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(AddressInput::new(conf.clone()));
+        let iw = InterfaceWrapper { processor: Arc::new(RwLock::new(proc)) };
+        
+        let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AddressInput::new(conf.clone())));
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(AmountInput::new());
+        let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AmountInput::new()));
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(NumberInput::new());
@@ -68,8 +82,14 @@ impl SupportedInterfaces {
 }
 
 struct BrowserInterface {
-    processor: RwLock<ChainProcessor<'_>>,
-    inner_interface: Arc<dyn DebotInterface + Send + Sync>>,
+    processor: Arc<RwLock<ManifestProcessor>>,
+    inner_interface: Arc<dyn DebotInterface + Send + Sync>,
+}
+
+impl BrowserInterface {
+    fn new(inner_interface: Arc<dyn DebotInterface + Send + Sync>, processor: Arc<RwLock<ManifestProcessor>>) -> Self {
+        Self { inner_interface, processor}
+    }
 }
 
 #[async_trait::async_trait]
@@ -85,8 +105,8 @@ impl DebotInterface for BrowserInterface {
     async fn call(&self, func: &str, args: &Value) -> InterfaceResult {
         let result = self.processor.write().unwrap().next_input(&self.get_id(), func, args);
         match result {
-            Err(ProcessorError::InterfaceCallNeeded) => self.inner_interface.call(func, args),
-            Err(_) => Err(format!("{:?}", e))?,
+            Err(ProcessorError::InterfaceCallNeeded) => self.inner_interface.call(func, args).await,
+            Err(e) => Err(format!("{:?}", e))?,
             Ok(params) => {
                 let answer_id = decode_answer_id(args)?;
                 Ok( (answer_id, params.unwrap_or(json!({})) ) )

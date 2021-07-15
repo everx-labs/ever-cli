@@ -3,7 +3,7 @@ use crate::helpers::load_ton_address;
 use serde_json::Value;
 use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
-use super::dinterface::{decode_answer_id, decode_prompt, BrowserInterface};
+use super::dinterface::{decode_answer_id, decode_prompt};
 use crate::config::Config;
 
 const ID: &'static str = "d7ed1bd8e6230871116f4522e58df0a93c5520c56f4ade23ef3d8919a984653b";
