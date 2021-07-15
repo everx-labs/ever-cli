@@ -17,6 +17,9 @@ use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::Cell;
 use std::fmt::Write;
+use ton_block::{StateInit, Deserializable};
+use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData, Abi};
+use crate::decode::msg_printer::tree_of_cells_into_base64;
 
 fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
     matches.value_of("ABI")
@@ -31,21 +34,33 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
         .setting(AppSettings::TrailingVarArg)
         .setting(AppSettings::DontCollapseArgsInUsage)
         .subcommand(SubCommand::with_name("body")
+            .about("Decodes body base64 string.")
             .arg(Arg::with_name("BODY")
                 .required(true)
                 .help("Message body encoded as base64."))
             .arg(Arg::with_name("ABI")
                 .long("--abi")
                 .takes_value(true)
-                .help("Path to ABI file.")))
+                .help("Path to the contract ABI file.")))
         .subcommand(SubCommand::with_name("msg")
-           .arg(Arg::with_name("MSG")
+            .about("Decodes message file.")
+            .arg(Arg::with_name("MSG")
                     .required(true)
-                    .help("Path to message boc file."))
+                    .help("Path to the message boc file."))
             .arg(Arg::with_name("ABI")
                     .long("--abi")
                     .takes_value(true)
-                    .help("Path to ABI file.")))
+                    .help("Path to the contract ABI file.")))
+        .subcommand(SubCommand::with_name("tvc")
+            .about("Decodes fields from the contract state tvc file.")
+            .arg(Arg::with_name("TVC")
+                .required(true)
+                .takes_value(true)
+                .help("Path to the tvc file with contract state."))
+            .arg(Arg::with_name("ABI")
+                .long("--abi")
+                .takes_value(true)
+                .help("Path to the contract ABI file.")))
 }
 
 pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -54,6 +69,9 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     }
     if let Some(m) = m.subcommand_matches("msg") {
         return decode_message_command(m, config).await;
+    }
+    if let Some(m) = m.subcommand_matches("tvc") {
+        return decode_tvc_fields(m, config).await;
     }
     Err("unknown command".to_owned())
 }
@@ -85,6 +103,33 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: Config) -> Result<()
         .map_err(|e| format!(" failed to read msg boc file: {}", e))?
         .unwrap();
     println!("{}", decode_message(msg, abi, config.is_json).await?);
+    Ok(())
+}
+
+async fn decode_tvc_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let tvc = m.value_of("TVC");
+    let abi = Some(
+        match_abi_path(m, &config)
+            .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
+    );
+    if !config.is_json {
+        print_args!(tvc, abi);
+    }
+    let abi = std::fs::read_to_string(abi.unwrap())
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+    let state = StateInit::construct_from_file(tvc.unwrap())
+        .map_err(|e| format!("failed to load StateInit from the tvc file: {}", e))?;
+    let b64 = tree_of_cells_into_base64(state.data.as_ref());
+    let ton = create_client_local()?;
+    let res = decode_account_data(
+        ton,
+        ParamsOfDecodeAccountData {
+            abi: Abi::Json(abi),
+            data: b64,
+        }
+    ).await
+    .map_err(|e| format!("failed to decode data: {}", e))?;
+    println!("TVC fields:\n{}", serde_json::to_string_pretty(&res.data).unwrap());
     Ok(())
 }
 

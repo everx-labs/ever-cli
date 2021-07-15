@@ -1569,3 +1569,19 @@ fn test_gen_deploy_message() -> Result<(), Box<dyn std::error::Error>> {
     let _ = std::fs::remove_file(output);
     Ok(())
 }
+
+#[test]
+fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("tvc")
+        .arg("--abi")
+        .arg("tests/test_abi_v2.1.abi.json")
+        .arg("tests/decode_fields.tvc")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#""__pubkey": "0xe8b1d839abe27b2abb9d4a2943a9143a9c7e2ae06799bd24dec1d7a8891ae5dd","#))
+        .stdout(predicate::str::contains(r#" "a": "I like it.","#));
+
+    Ok(())
+}
