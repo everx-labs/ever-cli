@@ -12,7 +12,7 @@
  */
 use crate::{print_args, VERBOSE_MODE};
 use crate::config::Config;
-use crate::helpers::{decode_msg_body, create_client_local};
+use crate::helpers::{decode_msg_body, create_client_local, create_client_verbose, query};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::Cell;
@@ -52,11 +52,21 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                     .takes_value(true)
                     .help("Path to the contract ABI file.")))
         .subcommand(SubCommand::with_name("tvc")
-            .about("Decodes fields from the contract state tvc file.")
+            .about("Decodes data fields from the contract state tvc file.")
             .arg(Arg::with_name("TVC")
                 .required(true)
                 .takes_value(true)
                 .help("Path to the tvc file with contract state."))
+            .arg(Arg::with_name("ABI")
+                .long("--abi")
+                .takes_value(true)
+                .help("Path to the contract ABI file.")))
+        .subcommand(SubCommand::with_name("account")
+            .about("Decodes data fields from the contract.")
+            .arg(Arg::with_name("ADDRESS")
+                .long("--addr")
+                .takes_value(true)
+                .help("Contract address."))
             .arg(Arg::with_name("ABI")
                 .long("--abi")
                 .takes_value(true)
@@ -72,6 +82,9 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     }
     if let Some(m) = m.subcommand_matches("tvc") {
         return decode_tvc_fields(m, config).await;
+    }
+    if let Some(m) = m.subcommand_matches("account") {
+        return decode_account_fields(m, config).await;
     }
     Err("unknown command".to_owned())
 }
@@ -124,12 +137,63 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
     let res = decode_account_data(
         ton,
         ParamsOfDecodeAccountData {
-            abi: Abi::Json(abi),
-            data: b64,
-        }
-    ).await
-    .map_err(|e| format!("failed to decode data: {}", e))?;
+                abi: Abi::Json(abi),
+                data: b64,
+            }
+        )
+        .await
+        .map_err(|e| format!("failed to decode data: {}", e))?;
     println!("TVC fields:\n{}", serde_json::to_string_pretty(&res.data).unwrap());
+    Ok(())
+}
+
+async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let address = Some(
+        m.value_of("ADDRESS")
+            .map(|s| s.to_string())
+            .or(config.addr.clone())
+            .ok_or("ADDRESS is not defined. Supply it in config file or command line.".to_string())?
+    );
+    let abi = Some(
+        match_abi_path(m, &config)
+            .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
+    );
+    if !config.is_json {
+        print_args!(address, abi);
+    }
+    let abi = std::fs::read_to_string(abi.unwrap())
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+
+    let ton = create_client_verbose(&config)?;
+
+    let accounts = query(
+        ton.clone(),
+        "accounts",
+        json!({ "id": { "eq": address } }),
+        "data",
+        None,
+    ).await
+        .map_err(|e| format!("failed to query account data: {}", e))?;
+
+    if accounts.len() == 0 {
+        return Err(format!("account not found"));
+    }
+    let data = accounts[0]["data"].as_str();
+    if data.is_none() {
+        return Err(format!("account doesn't contain data"));
+    }
+
+    let res = decode_account_data(
+        ton,
+        ParamsOfDecodeAccountData {
+                abi: Abi::Json(abi),
+                data: data.unwrap().to_owned(),
+            }
+        )
+        .await
+        .map_err(|e| format!("failed to decode data: {}", e))?;
+    println!("Account fields:\n{}", serde_json::to_string_pretty(&res.data).unwrap());
+
     Ok(())
 }
 
