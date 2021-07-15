@@ -19,7 +19,9 @@ use crate::helpers::load_ton_address;
 pub mod term_browser;
 mod interfaces;
 mod manifest;
-use manifest::{ChainProcessor, DebotManifest};
+mod chain_processor;
+use manifest::{ApproveKind, DebotManifest, ChainLink};
+use chain_processor::{ChainProcessor, ProcessorError};
 pub use interfaces::dinterface::SupportedInterfaces;
 mod term_signing_box;
 

@@ -1,6 +1,7 @@
 use super::{Menu, AddressInput, AmountInput, ConfirmInput, NumberInput, SigningBoxInput, Terminal, UserInfo};
 use super::echo::Echo;
 use super::stdout::Stdout;
+use crate::debot::{ChainProcessor, ProcessorError};
 use crate::config::Config;
 use crate::helpers::TonClient;
 use serde_json::Value;
@@ -11,6 +12,7 @@ use ton_client::encoding::{decode_abi_number, decode_abi_bigint};
 use ton_client::abi::Abi;
 use num_traits::cast::NumCast;
 use num_bigint::BigInt;
+use std::sync::RwLock;
 
 pub struct SupportedInterfaces {
     client: TonClient,
@@ -65,25 +67,32 @@ impl SupportedInterfaces {
     }
 }
 
-#[async_trait::async_trait]
-pub trait BrowserInterface {
-    fn get_id(&self) -> String;
-    fn get_abi(&self) -> Abi;
-    async fn call(&self, func: &str, args: &Value) -> InterfaceResult;
+struct BrowserInterface {
+    processor: RwLock<ChainProcessor<'_>>,
+    inner_interface: Arc<dyn DebotInterface + Send + Sync>>,
 }
 
 #[async_trait::async_trait]
-impl<T> DebotInterface for T where T: BrowserInterface {
+impl DebotInterface for BrowserInterface {
     fn get_id(&self) -> String {
-        self.get_id()
+        self.inner_interface.get_id()
     }
 
     fn get_abi(&self) -> Abi {
-        self.get_abi()
+        self.inner_interface.get_abi()
     }
 
     async fn call(&self, func: &str, args: &Value) -> InterfaceResult {
-        self.call(func, args).await
+        let result = self.processor.write().unwrap().next_input(&self.get_id(), func, args);
+        match result {
+            Err(ProcessorError::InterfaceCallNeeded) => self.inner_interface.call(func, args),
+            Err(_) => Err(format!("{:?}", e))?,
+            Ok(params) => {
+                let answer_id = decode_answer_id(args)?;
+                Ok( (answer_id, params.unwrap_or(json!({})) ) )
+            }
+        }
+        
     }
 }
 

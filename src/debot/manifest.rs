@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;  
+use serde_json::Value;
 
 fn default_init_method() -> String { "start".to_owned() }
 fn default_mandatory() -> bool { false }
+fn default_interactive() -> bool { true }
 
-#[derive(Serialize, Deserialize, Clone)]
-enum ApproveKind {
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub enum ApproveKind {
     ApproveOnchainCall,
     ApproveNetwork,
     ApproveMessageLimit,
@@ -13,12 +14,14 @@ enum ApproveKind {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub(crate) struct DebotManifest {
-    debot_address: String,
+    pub debot_address: String,
     #[serde(default = "default_init_method")]
-    init_method: String,
-    init_args: Option<String>,
-    auto_approve: Option<Vec<ApproveKind>>,
-    chain: Vec<ChainLink>,
+    pub init_method: String,
+    pub init_args: Option<String>,
+    pub auto_approve: Option<Vec<ApproveKind>>,
+    #[serde(default = "default_interactive")]
+    pub interactive: bool,
+    pub chain: Vec<ChainLink>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -38,18 +41,4 @@ pub(crate) enum ChainLink {
     Signature {
         handle: u32
     },
-} 
-
-pub(crate) struct ChainProcessor {
-    manifest: DebotManifest,
-}
-
-impl ChainProcessor {
-    pub fn new(manifest: DebotManifest) -> Self {
-        Self { manifest }
-    }
-
-    pub fn next() {
-
-    }
 }
