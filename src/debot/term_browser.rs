@@ -23,7 +23,7 @@ use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngi
     DebotActivity, DebotInfo, STATE_EXIT, DEBOT_WC};
 use ton_client::error::ClientResult;
 use std::collections::{HashMap, VecDeque};
-use super::{SupportedInterfaces, DebotManifest, ManifestProcessor};
+use super::{SupportedInterfaces, DebotManifest, ManifestProcessor, ChainLink};
 
 /// Stores Debot info needed for DBrowser.
 struct DebotEntry {
@@ -410,7 +410,7 @@ pub fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
 pub async fn run_debot_browser(
     addr: &str,
     config: Config,
-    manifest: DebotManifest,
+    mut manifest: DebotManifest,
     signkey_path: Option<String>,
 ) -> Result<(), String> {
     println!("Connecting to {}", config.url);
@@ -419,7 +419,15 @@ pub async fn run_debot_browser(
     if let Some(path) = signkey_path {
         let input = std::io::BufReader::new(path.as_bytes());
         let mut sbox = TerminalSigningBox::new(ton.clone(), vec![], Some(input)).await?;
-        sbox.leak();
+        let handle = sbox.leak();
+        for cl in manifest.chain.iter_mut() {
+            if let ChainLink::Input{interface, method: _, params, mandatory: _} = cl {
+                if interface == "c13024e101c95e71afb1f5fa6d72f633d51e721de0320d73dfd6121a54e4d40a" {
+                    *params = Some(json!({ "handle": handle.0 }))
+                }
+            }
+        }
+
     }
     let mut browser = TerminalBrowser::new(ton.clone(), addr, &config, manifest).await?;
     loop {

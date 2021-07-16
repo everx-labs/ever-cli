@@ -57,6 +57,13 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                         .takes_value(true)
                         .help("Path to DeBot Manifest."),
                 )
+                .arg(
+                    Arg::with_name("SIGNKEY")
+                        .short("s")
+                        .long("signkey")
+                        .takes_value(true)
+                        .help("Define keypair to auto sign transactions."),
+                )
         )
         .subcommand(
             SubCommand::with_name("invoke")

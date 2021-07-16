@@ -28,6 +28,7 @@ pub struct DebotManifest {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
 pub enum ChainLink {
     Input {
         interface: String,
@@ -41,7 +42,7 @@ pub enum ChainLink {
         iflq: Option<String>,
         ifeq: Option<String>,
     },
-    Signature {
+    SigningBox {
         handle: u32
     },
 }

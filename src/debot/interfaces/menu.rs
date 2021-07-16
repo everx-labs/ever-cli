@@ -43,13 +43,13 @@ const ABI: &str = r#"
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct MenuItem {
+pub struct MenuItem {
     #[serde(deserialize_with = "from_hex_to_utf8_str")]
     title: String,
     #[serde(deserialize_with = "from_hex_to_utf8_str")]
     description: String,
     #[serde(deserialize_with = "from_abi_num")]
-    handler_id: u32,
+    pub handler_id: u32,
 }
 
 fn str_hex_to_utf8(s: &str) -> Option<String> {
