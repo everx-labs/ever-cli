@@ -25,6 +25,7 @@ use ton_client::error::ClientResult;
 use std::collections::{HashMap, VecDeque};
 use super::{ChainLink, DebotManifest, ManifestProcessor, ProcessorError, SupportedInterfaces};
 
+const BROWSER_ID: &'static str = "0000000000000000000000000000000000000000000000000000000000000000";
 /// Stores Debot info needed for DBrowser.
 struct DebotEntry {
     abi: Abi,
@@ -105,7 +106,9 @@ impl TerminalBrowser {
         let info: DebotInfo = dengine.init().await?.into();
         let abi_ref = info.dabi.as_ref();
         let abi = load_abi(&abi_ref.ok_or(format!("DeBot ABI is not defined"))?)?;
-        Self::print_info(info, !autorun);
+        if !autorun {
+            Self::print_info(info);
+        }
         let mut run_debot = autorun;
         if !run_debot {
             let _ = terminal_input("Run the DeBot (y/n)?", |val| {
@@ -190,7 +193,7 @@ impl TerminalBrowser {
         Ok(())
     }
 
-    fn print_info(info: DebotInfo, print_hello: bool) {
+    fn print_info(info: DebotInfo) {
         println!("DeBot Info:");
         println!("Name   : {}", info.name.unwrap_or_else(|| format!("None")));
         println!("Version: {}", info.version.unwrap_or_else(|| format!("None")));
@@ -198,9 +201,7 @@ impl TerminalBrowser {
         println!("Publisher: {}", info.publisher.unwrap_or_else(|| format!("None")));
         println!("Support: {}", info.support.unwrap_or_else(|| format!("None")));
         println!("Description: {}", info.caption.unwrap_or_else(|| format!("None")));
-        if print_hello {
-            println!("{}", info.hello.unwrap_or_else(|| format!("None")));
-        }
+        println!("{}", info.hello.unwrap_or_else(|| format!("None")));
     }
 
 }
@@ -213,7 +214,7 @@ struct ActiveState {
 }
 
 struct Callbacks {
-    config: Config,
+    _config: Config,
     client: TonClient,
     state: Arc<RwLock<ActiveState>>,
     processor: Arc<tokio::sync::RwLock<ManifestProcessor>>,
@@ -223,7 +224,7 @@ impl Callbacks {
     pub fn new(client: TonClient, config: Config, processor: Arc<tokio::sync::RwLock<ManifestProcessor>>) -> Self {
         Self { 
             client, 
-            config, 
+            _config: config, 
             processor,
             state: Arc::new(RwLock::new(ActiveState::default())), 
         }
@@ -453,7 +454,7 @@ pub async fn run_debot_browser(
     mut manifest: DebotManifest,
     signkey_path: Option<String>,
 ) -> Result<(), String> {
-    println!("Connecting to {}", config.url);
+    println!("Network: {}", config.url);
     let ton = create_client(&config)?;
     
     if let Some(path) = signkey_path {
@@ -491,7 +492,11 @@ pub async fn run_debot_browser(
             let wc = i8::from_str_radix(wc_and_addr[0], 10).map_err(|e| format!("{}", e))?;
 
             if wc == DEBOT_WC {
-                browser.call_interface(msg, &id, msg_src).await?;
+                if id == BROWSER_ID {
+
+                } else {
+                    browser.call_interface(msg, &id, msg_src).await?;
+                }
             } else {
                 browser.call_debot(msg_dest, msg).await?;
             }
@@ -512,7 +517,6 @@ pub async fn run_debot_browser(
             None => break,
         }
     }
-    println!("Debot Browser shutdown");
     Ok(())
 }
 
