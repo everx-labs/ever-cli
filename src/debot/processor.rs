@@ -7,7 +7,7 @@ use ton_client::abi::{CallSet};
 #[derive(Debug)]
 pub enum ProcessorError {
     InterfaceCallNeeded,
-    NoMoreInputsInChain,
+    NoMoreChainlinks,
     UnexpectedChainLinkKind,
     UnexpectedInterface,
     UnexpectedMethod,
@@ -64,7 +64,7 @@ impl ManifestProcessor {
             if self.manifest.interactive {
                 ProcessorError::InterfaceCallNeeded
             } else {
-                ProcessorError::NoMoreInputsInChain
+                ProcessorError::NoMoreChainlinks
             }
         )?;
         
@@ -77,6 +77,23 @@ impl ManifestProcessor {
                 } else {
                     Ok(params.clone())
                 }
+            },
+            _ => Err(ProcessorError::UnexpectedChainLinkKind),
+        }
+    }
+
+    pub fn next_signing_box(&mut self) -> Result<u32, ProcessorError> {
+        let chlink = self.chain_iter.next().ok_or(
+            if self.manifest.interactive {
+                ProcessorError::InterfaceCallNeeded
+            } else {
+                ProcessorError::NoMoreChainlinks
+            }
+        )?;
+
+        match chlink {
+            ChainLink::SigningBox {handle} => {
+                Ok(handle)
             },
             _ => Err(ProcessorError::UnexpectedChainLinkKind),
         }

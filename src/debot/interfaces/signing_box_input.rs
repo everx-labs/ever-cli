@@ -62,7 +62,7 @@ impl SigningBoxInput {
             .processor
             .write()
             .await
-            .next_input(&self.get_id(), "get", args);
+            .next_signing_box();
         match result {
             Err(ProcessorError::InterfaceCallNeeded) => {
                 let signing_box = TerminalSigningBox::new::<&[u8]>(self.client.clone(), possible_keys, None).await?;
@@ -71,8 +71,8 @@ impl SigningBoxInput {
                 Ok((answer_id, json!({ "handle": handle.0})))
             }
             Err(e) => Err(format!("{:?}", e))?,
-            Ok(params) => {
-                Ok((answer_id, params.unwrap_or(json!({}))))
+            Ok(handle) => {
+                Ok((answer_id, json!({ "handle": handle}) ))
             }
         }
     }

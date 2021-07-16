@@ -45,12 +45,10 @@ impl InterfaceWrapper {
 }
 
 impl SupportedInterfaces {
-    pub fn new(client: TonClient, conf: &Config, proc: ManifestProcessor) -> Self {
+    pub fn new(client: TonClient, conf: &Config, processor: Arc<RwLock<ManifestProcessor>>) -> Self {
         let mut interfaces = HashMap::new();
 
-        let iw = InterfaceWrapper {
-            processor: Arc::new(RwLock::new(proc)),
-        };
+        let iw = InterfaceWrapper { processor };
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AddressInput::new(conf.clone())));
         interfaces.insert(iface.get_id(), iface);

@@ -23,7 +23,7 @@ use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngi
     DebotActivity, DebotInfo, STATE_EXIT, DEBOT_WC};
 use ton_client::error::ClientResult;
 use std::collections::{HashMap, VecDeque};
-use super::{SupportedInterfaces, DebotManifest, ManifestProcessor, ChainLink};
+use super::{ChainLink, DebotManifest, ManifestProcessor, ProcessorError, SupportedInterfaces};
 
 /// Stores Debot info needed for DBrowser.
 struct DebotEntry {
@@ -43,6 +43,7 @@ struct TerminalBrowser {
     /// Set of intrefaces implemented by current DBrowser.
     interfaces: SupportedInterfaces,
     conf: Config,
+    processor: Arc<tokio::sync::RwLock<ManifestProcessor>>,
 }
 
 impl TerminalBrowser {
@@ -52,12 +53,14 @@ impl TerminalBrowser {
         let call_set = processor.initial_call_set();
         let mut init_message = processor.initial_msg();
 
+        let processor = Arc::new(tokio::sync::RwLock::new(processor));
         let mut browser = Self {
             client: client.clone(),
             msg_queue: Default::default(),
             bots: HashMap::new(),
-            interfaces: SupportedInterfaces::new(client.clone(), conf, processor),
+            interfaces: SupportedInterfaces::new(client.clone(), conf, processor.clone()),
             conf: conf.clone(),
+            processor
         };
 
         browser.fetch_debot(addr, start).await?;
@@ -88,7 +91,7 @@ impl TerminalBrowser {
 
     async fn fetch_debot(&mut self, addr: &str, start: bool) -> Result<(), String> {
         let debot_addr = load_ton_address(addr, &self.conf)?;
-        let callbacks = Arc::new(Callbacks::new(self.client.clone(), self.conf.clone()));
+        let callbacks = Arc::new(Callbacks::new(self.client.clone(), self.conf.clone(), self.processor.clone()));
         let callbacks_ref = Arc::clone(&callbacks);
         let mut dengine = DEngine::new_with_client(
             debot_addr.clone(),
@@ -206,11 +209,12 @@ struct Callbacks {
     config: Config,
     client: TonClient,
     state: Arc<RwLock<ActiveState>>,
+    processor: Arc<tokio::sync::RwLock<ManifestProcessor>>,
 }
 
 impl Callbacks {
-    pub fn new(client: TonClient, config: Config) -> Self {
-        Self { client, config, state: Arc::new(RwLock::new(ActiveState::default())) }
+    pub fn new(client: TonClient, config: Config, processor: Arc<tokio::sync::RwLock<ManifestProcessor>>) -> Self {
+        Self { client, config, state: Arc::new(RwLock::new(ActiveState::default())), processor }
     }
 
     pub fn select_action(&self) -> Option<DAction> {
@@ -279,8 +283,19 @@ impl BrowserCallbacks for Callbacks {
 
     /// Debot engine requests keys to sign something
     async fn get_signing_box(&self) -> Result<SigningBoxHandle, String> {
-        let mut terminal_box = TerminalSigningBox::new::<&[u8]>(self.client.clone(), vec![], None).await?;
-        Ok(terminal_box.leak())
+        let result = self
+            .processor
+            .write().await
+            .next_signing_box();
+        let handle = match result {
+            Err(ProcessorError::InterfaceCallNeeded) => {
+                TerminalSigningBox::new::<&[u8]>(self.client.clone(), vec![], None).await?.leak().0
+            },
+            Err(e) => Err(format!("{:?}", e))?,
+            Ok(handle) => handle,
+        };
+        
+        Ok(SigningBoxHandle(handle))
     }
 
     /// Debot asks to run action of another debot
@@ -419,15 +434,12 @@ pub async fn run_debot_browser(
     if let Some(path) = signkey_path {
         let input = std::io::BufReader::new(path.as_bytes());
         let mut sbox = TerminalSigningBox::new(ton.clone(), vec![], Some(input)).await?;
-        let handle = sbox.leak();
+        let sbox_handle = sbox.leak();
         for cl in manifest.chain.iter_mut() {
-            if let ChainLink::Input{interface, method: _, params, mandatory: _} = cl {
-                if interface == "c13024e101c95e71afb1f5fa6d72f633d51e721de0320d73dfd6121a54e4d40a" {
-                    *params = Some(json!({ "handle": handle.0 }))
-                }
+            if let ChainLink::SigningBox{handle} = cl {
+                *handle = sbox_handle.0;
             }
         }
-
     }
     let mut browser = TerminalBrowser::new(ton.clone(), addr, &config, manifest).await?;
     loop {
