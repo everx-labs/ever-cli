@@ -11,6 +11,7 @@ pub enum ProcessorError {
     UnexpectedChainLinkKind,
     UnexpectedInterface,
     UnexpectedMethod,
+    InteractiveApproveNeeded,
     // TODO: 
     // UnexpectedApproveKind,
 }
@@ -99,23 +100,30 @@ impl ManifestProcessor {
         }
     }
 
-    pub fn next_approve(&mut self, activity: DebotActivity) -> Result<bool, ProcessorError> {
+    pub fn next_approve(&mut self, activity: &DebotActivity) -> Result<bool, ProcessorError> {
         
         let app_kind = match activity {
             DebotActivity::Transaction {..} => ApproveKind::ApproveOnchainCall,
         };
-        let auto_approve = if let Some(ref approve_vec) = self.manifest.auto_approve {
-            approve_vec.iter().find(|x| **x == app_kind).is_some()
-        } else { false };
+        let auto_approve = self.manifest.auto_approve.as_ref().and_then(|vec| {
+            Some(vec.iter().find(|x| **x == app_kind).is_some())
+        });
 
         let chlink = self.chain_iter.next();
-        if chlink.is_none() && auto_approve {
-            return Ok(true);
+        if chlink.is_none() {
+            if auto_approve.is_some() {
+                return Ok(auto_approve.unwrap());
+            } else {
+                if self.manifest.interactive {
+                    return Err(ProcessorError::InteractiveApproveNeeded);
+                } else {
+                    return Ok(false);
+                }
+            }
         }
 
         // TODO: ?
         let chlink = chlink.unwrap();
-
         match chlink {
             ChainLink::OnchainCall { approve, iflq: _, ifeq: _ } => {
                 match activity {
@@ -123,9 +131,8 @@ impl ManifestProcessor {
                         Ok(approve.clone())
                     }
                 }
-                // Err(ProcessorError::UnexpectedApproveKind)
             },
-            _ => Ok(auto_approve),
+            _ => Err(ProcessorError::UnexpectedChainLinkKind)
         }
     }
 }

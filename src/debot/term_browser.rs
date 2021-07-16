@@ -214,7 +214,12 @@ struct Callbacks {
 
 impl Callbacks {
     pub fn new(client: TonClient, config: Config, processor: Arc<tokio::sync::RwLock<ManifestProcessor>>) -> Self {
-        Self { client, config, state: Arc::new(RwLock::new(ActiveState::default())), processor }
+        Self { 
+            client, 
+            config, 
+            processor,
+            state: Arc::new(RwLock::new(ActiveState::default())), 
+        }
     }
 
     pub fn select_action(&self) -> Option<DAction> {
@@ -313,9 +318,11 @@ impl BrowserCallbacks for Callbacks {
 
     async fn approve(&self, activity: DebotActivity) -> ClientResult<bool> {
         let mut approved = false;
+        let result = self.processor.write().await.next_approve(&activity);
         println!("--------------------");
         println!("[Permission Request]");
         println!("--------------------");
+        let prompt;
         match activity {
             DebotActivity::Transaction{msg: _, dst, out, fee, setcode, signkey, signing_box_handle: _} => {
                 println!("DeBot is going to create an onchain transaction.\n");
@@ -338,7 +345,12 @@ impl BrowserCallbacks for Callbacks {
                 if setcode {
                     println!("  Warning: the transaction will change the account smart contract code");
                 }
-                let _ = terminal_input("Confirm the transaction (y/n)?", |val| {
+                prompt = "Confirm the transaction (y/n)?";
+            },
+        }
+        approved = match result {
+            Err(ProcessorError::InteractiveApproveNeeded) => {
+                let _ = terminal_input(prompt, |val| {
                     approved = match val.as_str() {
                         "y" => true,
                         "n" => false,
@@ -346,8 +358,11 @@ impl BrowserCallbacks for Callbacks {
                     };
                     Ok(())
                 });
+                approved
             },
-        }
+            Err(_) => false,
+            Ok(res) => res,
+        };
         Ok(approved)
     }
 }
