@@ -1,4 +1,4 @@
-use super::dinterface::{decode_answer_id, decode_bool_arg, decode_prompt, decode_string_arg};
+use super::dinterface::{decode_answer_id, decode_bool_arg, decode_prompt, decode_string_arg, Printer};
 use crate::debot::term_browser::terminal_input;
 use serde_json::Value;
 use ton_client::abi::Abi;
@@ -100,10 +100,13 @@ const ABI: &str = r#"
 }
 "#;
 
-pub struct Terminal {}
+pub struct Terminal {
+    printer: Printer,
+}
+
 impl Terminal {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(printer: Printer) -> Self {
+        Self {printer}
     }
     fn input_str(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
@@ -169,10 +172,10 @@ impl Terminal {
         Ok((answer_id, json!({ "value": yes_no })))
     }
 
-    pub fn print(&self, args: &Value) -> InterfaceResult {
+    pub async fn print(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let message = decode_string_arg(args, "message")?;
-		println!("{}", message);
+		self.printer.print(&format!("{}", message)).await;
 		Ok((answer_id, json!({})))
     }
 }
@@ -195,7 +198,7 @@ impl DebotInterface for Terminal {
             "inputUint" => self.input_uint(args),
             "inputTons" => self.input_tokens(args),
             "inputBoolean" => self.input_boolean(args),
-            "print" => self.print(args),
+            "print" => self.print(args).await,
             _ => Err(format!("function \"{}\" is not implemented", func)),
         }
     }

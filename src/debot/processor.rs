@@ -27,8 +27,16 @@ impl ManifestProcessor {
         Self { manifest, chain_iter: chain_vec.into_iter() }
     }
 
+    pub fn interactive(&self) -> bool {
+        self.manifest.interactive
+    }
+
+    pub fn default_start(&self) -> bool {
+        self.manifest.init_method == "start"
+    }
+
     pub fn print(&self, message: &str) {
-        if self.manifest.interactive {
+        if self.interactive() {
             println!("{}", message);
         }
     }
@@ -41,7 +49,7 @@ impl ManifestProcessor {
         if self.manifest.init_msg.is_some() {
             return None;
         }
-        if self.is_default_start() {
+        if self.default_start() {
             return None;
         }
         match &self.manifest.init_args {
@@ -49,10 +57,6 @@ impl ManifestProcessor {
             None => CallSet::some_with_function(&self.manifest.init_method),
         }
         
-    }
-
-    pub fn is_default_start(&self) -> bool {
-        self.manifest.init_method == "start"
     }
 
     pub fn next_input(

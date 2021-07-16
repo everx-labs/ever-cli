@@ -48,7 +48,7 @@ impl SupportedInterfaces {
     pub fn new(client: TonClient, conf: &Config, processor: Arc<RwLock<ManifestProcessor>>) -> Self {
         let mut interfaces = HashMap::new();
 
-        let iw = InterfaceWrapper { processor };
+        let iw = InterfaceWrapper { processor: processor.clone() };
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AddressInput::new(conf.clone())));
         interfaces.insert(iface.get_id(), iface);
@@ -68,7 +68,7 @@ impl SupportedInterfaces {
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Echo::new());
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Terminal::new());
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Terminal::new(Printer {processor}));
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(Menu::new()));
@@ -83,6 +83,16 @@ impl SupportedInterfaces {
         interfaces.insert(iface.get_id(), iface);
 
         Self { client, interfaces }
+    }
+}
+
+pub struct Printer {
+    processor: Arc<RwLock<ManifestProcessor>>,
+}
+
+impl Printer {
+    pub async fn print(&self, msg: &str) {
+        self.processor.read().await.print(msg);
     }
 }
 

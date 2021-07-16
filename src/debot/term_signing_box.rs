@@ -68,7 +68,7 @@ where
     R: BufRead,
     W: Write,
 {
-    let enter_str = prompt.unwrap_or("enter seed phrase or path to keypair file");
+    let enter_str = prompt.unwrap_or("enter seed phrase or path to keypair file:");
     let mut pair = Err("no keypair".to_string());
     let mut format_pubkeys = String::new();
     possible_keys

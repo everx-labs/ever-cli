@@ -44,12 +44,14 @@ struct TerminalBrowser {
     interfaces: SupportedInterfaces,
     conf: Config,
     processor: Arc<tokio::sync::RwLock<ManifestProcessor>>,
+    interactive: bool,
 }
 
 impl TerminalBrowser {
     async fn new(client: TonClient, addr: &str, conf: &Config, manifest: DebotManifest) -> Result<Self, String> {
         let processor = ManifestProcessor::new(manifest);
-        let start = processor.is_default_start();
+        let start = processor.default_start();
+        let interactive = processor.interactive();
         let call_set = processor.initial_call_set();
         let mut init_message = processor.initial_msg();
 
@@ -60,10 +62,11 @@ impl TerminalBrowser {
             bots: HashMap::new(),
             interfaces: SupportedInterfaces::new(client.clone(), conf, processor.clone()),
             conf: conf.clone(),
-            processor
+            processor,
+            interactive
         };
 
-        browser.fetch_debot(addr, start).await?;
+        browser.fetch_debot(addr, start, !interactive).await?;
         let abi = browser.bots.get(addr).unwrap().abi.clone();
 
         if !start && init_message.is_none() {
@@ -89,7 +92,7 @@ impl TerminalBrowser {
         Ok(browser)
     }
 
-    async fn fetch_debot(&mut self, addr: &str, start: bool) -> Result<(), String> {
+    async fn fetch_debot(&mut self, addr: &str, call_start: bool, autorun: bool) -> Result<(), String> {
         let debot_addr = load_ton_address(addr, &self.conf)?;
         let callbacks = Arc::new(Callbacks::new(self.client.clone(), self.conf.clone(), self.processor.clone()));
         let callbacks_ref = Arc::clone(&callbacks);
@@ -102,20 +105,22 @@ impl TerminalBrowser {
         let info: DebotInfo = dengine.init().await?.into();
         let abi_ref = info.dabi.as_ref();
         let abi = load_abi(&abi_ref.ok_or(format!("DeBot ABI is not defined"))?)?;
-        Self::print_info(info);
-        let mut run_debot = true;
-        let _ = terminal_input("Run the DeBot (y/n)?", |val| {
-            run_debot = match val.as_str() {
-                "y" => true,
-                "n" => false,
-                _ => Err(format!("invalid enter"))?,
-            };
-            Ok(())
-        });
+        Self::print_info(info, !autorun);
+        let mut run_debot = autorun;
+        if !run_debot {
+            let _ = terminal_input("Run the DeBot (y/n)?", |val| {
+                run_debot = match val.as_str() {
+                    "y" => true,
+                    "n" => false,
+                    _ => Err(format!("invalid enter"))?,
+                };
+                Ok(())
+            });
+        }
         if !run_debot {
             return Err(format!("DeBot rejected"));
         }
-        if start {
+        if call_start {
             dengine.start().await?;
         }
         {
@@ -175,7 +180,7 @@ impl TerminalBrowser {
 
     async fn call_debot(&mut self, addr: &str, msg: String) -> Result<(), String> {
         if self.bots.get_mut(addr).is_none() {
-            self.fetch_debot(addr, false).await?;
+            self.fetch_debot(addr, false, !self.interactive).await?;
         }
         let debot = self.bots.get_mut(addr)
             .ok_or_else(|| "Internal error: debot not found")?;
@@ -185,7 +190,7 @@ impl TerminalBrowser {
         Ok(())
     }
 
-    fn print_info(info: DebotInfo) {
+    fn print_info(info: DebotInfo, print_hello: bool) {
         println!("DeBot Info:");
         println!("Name   : {}", info.name.unwrap_or_else(|| format!("None")));
         println!("Version: {}", info.version.unwrap_or_else(|| format!("None")));
@@ -193,7 +198,9 @@ impl TerminalBrowser {
         println!("Publisher: {}", info.publisher.unwrap_or_else(|| format!("None")));
         println!("Support: {}", info.support.unwrap_or_else(|| format!("None")));
         println!("Description: {}", info.caption.unwrap_or_else(|| format!("None")));
-        println!("{}", info.hello.unwrap_or_else(|| format!("None")));
+        if print_hello {
+            println!("{}", info.hello.unwrap_or_else(|| format!("None")));
+        }
     }
 
 }
@@ -253,7 +260,7 @@ impl Callbacks {
 impl BrowserCallbacks for Callbacks {
     /// Debot asks browser to print message to user
     async fn log(&self, msg: String) {
-        println!("{}", msg);
+        self.processor.read().await.print(&format!("{}", msg));
     }
 
     /// Debot is switched to another context.
@@ -319,35 +326,38 @@ impl BrowserCallbacks for Callbacks {
     async fn approve(&self, activity: DebotActivity) -> ClientResult<bool> {
         let mut approved = false;
         let result = self.processor.write().await.next_approve(&activity);
-        println!("--------------------");
-        println!("[Permission Request]");
-        println!("--------------------");
+        
+        let mut info = String::new();
+        info += "--------------------\n";
+        info += "[Permission Request]\n";
+        info += "--------------------\n";
         let prompt;
         match activity {
             DebotActivity::Transaction{msg: _, dst, out, fee, setcode, signkey, signing_box_handle: _} => {
-                println!("DeBot is going to create an onchain transaction.\n");
-                println!("Details:");
-                println!("  account: {}.", dst);
-                println!("  Transaction fees: {} tokens.", convert_u64_to_tokens(fee));
+                info += "DeBot is going to create an onchain transaction.\n";
+                info += "Details:\n";
+                info += &format!("  account: {}\n", dst);
+                info += &format!("  Transaction fees: {} tokens\n", convert_u64_to_tokens(fee));
                 if out.len() > 0 {
-                    println!("  Outgoing transfers from account:");
+                    info += "  Outgoing transfers from account:\n";
                     for spending in out {
-                        println!(
-                            "    recipient: {}, amount: {} tokens.",
+                        info += &format!(
+                            "    recipient: {}, amount: {} tokens\n",
                             spending.dst,
                             convert_u64_to_tokens(spending.amount),
                         );
                     }
                 } else {
-                    println!("  No outgoing transfers from account");
+                    info += "  No outgoing transfers from account.\n";
                 }
-                println!("  Message signer public key: {}", signkey);
+                info += &format!("  Message signer public key: {}\n", signkey);
                 if setcode {
-                    println!("  Warning: the transaction will change the account smart contract code");
+                    info += "  Warning: the transaction will change the account smart contract code\n";
                 }
                 prompt = "Confirm the transaction (y/n)?";
             },
         }
+        self.processor.read().await.print(&info);
         approved = match result {
             Err(ProcessorError::InteractiveApproveNeeded) => {
                 let _ = terminal_input(prompt, |val| {
