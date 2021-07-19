@@ -1586,5 +1586,20 @@ fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
 
     fs::remove_file(tvc_path)?;
 
+    let boc_path = "tests/account.boc";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("account")
+        .arg("boc")
+        .arg(boc_path)
+        .arg("--dumptvc")
+        .arg(tvc_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Balance: "))
+        .stdout(predicate::str::contains("StateInit"));
+
+    fs::remove_file(tvc_path)?;
     Ok(())
 }

@@ -98,6 +98,10 @@ async fn decode_account_from_boc(m: &ArgMatches<'_>, config: Config) -> Result<(
     let account = Account::construct_from_file(boc.unwrap())
         .map_err(|e| format!(" failed to load account from the boc file: {}", e))?;
 
+    print_account_data(&account, tvc_path)
+}
+
+pub fn print_account_data(account: &Account, tvc_path: Option<&str>) -> Result<(), String> {
     if account.is_none() {
         println!("Account is None");
         return Ok(());
