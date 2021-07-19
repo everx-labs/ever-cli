@@ -1569,3 +1569,22 @@ fn test_gen_deploy_message() -> Result<(), Box<dyn std::error::Error>> {
     let _ = std::fs::remove_file(output);
     Ok(())
 }
+
+#[test]
+fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
+    let tvc_path = "giver.tvc";
+    let giver_addr = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg("--dumptvc")
+        .arg(tvc_path)
+        .arg(giver_addr)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Saved contract to"));
+
+    fs::remove_file(tvc_path)?;
+
+    Ok(())
+}

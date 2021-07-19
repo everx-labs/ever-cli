@@ -31,7 +31,6 @@ const ACCOUNT_FIELDS: &str = r#"
     data
     code
     library
-    split_depth
     code_hash
 "#;
 

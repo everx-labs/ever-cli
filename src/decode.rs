@@ -17,6 +17,7 @@ use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::Cell;
 use std::fmt::Write;
+use ton_block::{Account, Deserializable, Serializable};
 
 fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
     matches.value_of("ABI")
@@ -46,6 +47,16 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                     .long("--abi")
                     .takes_value(true)
                     .help("Path to ABI file.")))
+        .subcommand(SubCommand::with_name("account")
+            .subcommand(SubCommand::with_name("boc")
+                .arg(Arg::with_name("BOC")
+                    .required(true)
+                    .help("Path to the account boc file."))
+                .arg(Arg::with_name("DUMPTVC")
+                    .long("--dumptvc")
+                    .short("-d")
+                    .takes_value(true)
+                    .help("Path to the TVC file where to save the dump."))))
 }
 
 pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -54,6 +65,11 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     }
     if let Some(m) = m.subcommand_matches("msg") {
         return decode_message_command(m, config).await;
+    }
+    if let Some(m) = m.subcommand_matches("account") {
+        if let Some(m) = m.subcommand_matches("boc") {
+            return decode_account_from_boc(m, config).await;
+        }
     }
     Err("unknown command".to_owned())
 }
@@ -68,6 +84,46 @@ async fn decode_body_command(m: &ArgMatches<'_>, config: Config) -> Result<(), S
         print_args!(body, abi);
     }
     println!("{}", decode_body(body.unwrap(), &abi.unwrap(), config.is_json).await?);
+    Ok(())
+}
+
+async fn decode_account_from_boc(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let boc = m.value_of("BOC");
+    let tvc_path = m.value_of("DUMPTVC");
+
+    if !config.is_json {
+        print_args!(boc, tvc_path);
+    }
+
+    let account = Account::construct_from_file(boc.unwrap())
+        .map_err(|e| format!(" failed to load account from the boc file: {}", e))?;
+
+    if account.is_none() {
+        println!("Account is None");
+        return Ok(());
+    }
+
+    let state_init = account.state_init()
+        .ok_or("failed to get state init from the account. It might be frozen.")
+        .map_err(|e| format!("{}", e))?;
+    if tvc_path.is_some() {
+        state_init.write_to_file(tvc_path.unwrap())
+            .map_err(|e| format!("{}", e))?;
+    }
+
+    let si = format!("StateInit\n split_depth: {}\n special: {}\n data: {}\n code: {}\n code_hash: {}\n lib:  {}\n",
+            state_init.split_depth.as_ref().map(|x| format!("{:?}", (x.0 as u8))).unwrap_or("None".to_string()),
+            state_init.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
+            msg_printer::tree_of_cells_into_base64(state_init.data.as_ref()),
+            msg_printer::tree_of_cells_into_base64(state_init.code.as_ref()),
+            state_init.code.clone().unwrap().repr_hash().to_hex_string(),
+            msg_printer::tree_of_cells_into_base64(state_init.library.root()),
+    );
+    let balance = account.balance()
+        .ok_or("failed to get account balance.")
+        .map_err(|e| format!("{}", e))?.grams.clone();
+    println!("Balance: {}\n{}", balance, si);
+
     Ok(())
 }
 
