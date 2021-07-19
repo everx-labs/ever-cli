@@ -95,11 +95,11 @@ pub async fn get_account(conf: Config, addr: &str, dumpfile: Option<&str>) -> Re
                 println!("acc_type:      {}", acc_type);
                 let balance_str = &acc["balance"].as_str().unwrap();
                 let balance_num = u64::from_str_radix(balance_str, 10).unwrap();
-                if conf.use_delimiters {
+                if conf.balance_in_tons {
                     let int_balance = balance_num as f64/ 1e9;
                     let frac_balance = (balance_num as f64 / 1e6 + 0.5) as u64 % 1000;
                     let balance_str = format!("{}", int_balance as u64);
-                    println!("balance:       {}.{}", balance_str.chars()
+                    println!("balance:       {}.{} ton", balance_str.chars()
                         .collect::<Vec<char>>()
                         .rchunks(3)
                         .map(|c| c.iter().collect::<String>())
@@ -109,7 +109,7 @@ pub async fn get_account(conf: Config, addr: &str, dumpfile: Option<&str>) -> Re
                         frac_balance
                     );
                 } else {
-                    println!("balance:       {}", balance_num);
+                    println!("balance:       {} nanoton", balance_num);
                 }
                 println!("last_paid:     {}", acc["last_paid"].as_u64().unwrap());
                 println!("last_trans_lt: {}", acc["last_trans_lt"].as_str().unwrap());

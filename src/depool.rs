@@ -55,7 +55,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .long("--sign")
         .short("-s")
-        .help("Path to keypair file or seed phrase which must be used to sign message to multisig wallet.");
+        .help("Seed phrase or path to file with keypair which must be used to sign message to multisig wallet.");
     let total_period_arg = Arg::with_name("TPERIOD")
         .takes_value(true)
         .long("--total")
@@ -80,7 +80,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .long("--dest")
         .short("-d")
-        .help("Address of destination smart contract.");
+        .help("Address of the destination smart contract.");
     let wait_answer = Arg::with_name("WAIT_ANSWER")
         .long("--wait-answer")
         .short("-a")
@@ -92,7 +92,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("ADDRESS")
             .takes_value(true)
             .long("--addr")
-            .help("DePool contract address. if the parameter is omitted, then the value `addr` from the config is used"))
+            .help("DePool contract address. If parameter is omitted, then value `addr` from the config is used"))
         .arg(wait_answer.clone())
         .subcommand(SubCommand::with_name("donor")
             .about(r#"Top level command for specifying donor for exotic stakes in depool."#)
@@ -122,14 +122,14 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(SubCommand::with_name("stake")
             .about(r#"Top level command for managing stakes in depool. Uses a supplied multisignature wallet to send internal message with stake to depool."#)
             .subcommand(SubCommand::with_name("ordinary")
-                .about("Deposits ordinary stake in depool from multisignature wallet.")
+                .about("Deposits an ordinary stake in the depool from the multisignature wallet.")
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
                 .arg(keys_arg.clone())
                 .arg(wait_answer.clone()))
             .subcommand(SubCommand::with_name("vesting")
-                .about("Deposits vesting stake in depool from multisignature wallet.")
+                .about("Deposits a vesting stake in the depool from the multisignature wallet.")
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
@@ -139,7 +139,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(withdrawal_period_arg.clone())
                 .arg(beneficiary_arg.clone()))
             .subcommand(SubCommand::with_name("lock")
-                .about("Deposits lock stake in depool from multisignature wallet.")
+                .about("Deposits a lock stake in the depool from the multisignature wallet.")
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
@@ -149,7 +149,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(withdrawal_period_arg.clone())
                 .arg(beneficiary_arg.clone()))
             .subcommand(SubCommand::with_name("transfer")
-                .about("Transfers ownership of wallet stake to another contract.")
+                .about("Transfers ownership of the wallet stake to another contract.")
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
@@ -157,7 +157,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(wait_answer.clone())
                 .arg(dest_arg.clone()))
             .subcommand(SubCommand::with_name("remove")
-                .about("Withdraws ordinary stake from current pooling round of depool to the multisignature wallet.")
+                .about("Withdraws an ordinary stake from the current pooling round of the depool to the multisignature wallet.")
                 .setting(AppSettings::AllowLeadingHyphen)
                 .arg(wallet_arg.clone())
                 .arg(value_arg.clone())
@@ -177,12 +177,12 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
             .arg(value_arg.clone())
             .arg(keys_arg.clone()))
         .subcommand(SubCommand::with_name("ticktock")
-            .about("Call DePool 'ticktock()' function to update its state. 1 ton is attached to this call (change will be returned).")
+            .about("Calls depool 'ticktock()' function to update its state. 1 ton is attached to this call (change will be returned).")
             .setting(AppSettings::AllowLeadingHyphen)
             .arg(wallet_arg.clone())
             .arg(keys_arg.clone()))
         .subcommand(SubCommand::with_name("withdraw")
-            .about("Allows to disable auto investment of the stake into next round and withdraw all the stakes after round completion.")
+            .about("Allows to disable auto investment of the stake into the next round and withdraw all the stakes after round completion.")
             .setting(AppSettings::AllowLeadingHyphen)
             .subcommand(SubCommand::with_name("on")
                 .setting(AppSettings::AllowLeadingHyphen)
@@ -274,7 +274,7 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
     if let Some(m) = m.subcommand_matches("stake") {
         if let Some(m) = m.subcommand_matches("ordinary") {
             set_wait_answer(m);
-            return ordinary_stake_command(m,
+            return ordinary_stake_command(
                 CommandData::from_matches_and_conf(m, conf, depool)?,
             ).await;
         }
@@ -294,13 +294,13 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
         }
         if let Some(m) = m.subcommand_matches("remove") {
             set_wait_answer(m);
-            return remove_stake_command(m,
+            return remove_stake_command(
                 CommandData::from_matches_and_conf(m, conf, depool)?,
             ).await;
         }
         if let Some(m) = m.subcommand_matches("withdrawPart") {
             set_wait_answer(m);
-            return withdraw_stake_command(m,
+            return withdraw_stake_command(
                 CommandData::from_matches_and_conf(m, conf, depool)?,
             ).await;
         }
@@ -317,7 +317,7 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
             set_wait_answer(matches);
             let (wallet, keys) = parse_wallet_data(&matches, &conf)?;
             let enable_withdraw = m.subcommand_matches("on").is_some();
-            return set_withdraw_command(matches, conf, &depool, &wallet, &keys, enable_withdraw).await;
+            return set_withdraw_command(conf, &depool, &wallet, &keys, enable_withdraw).await;
         }
     }
     if let Some(m) = m.subcommand_matches("events") {
@@ -327,13 +327,13 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
         return answer_command(m, conf, &depool).await
     }
     if let Some(m) = m.subcommand_matches("replenish") {
-        return replenish_command(m,
+        return replenish_command(
             CommandData::from_matches_and_conf(m, conf, depool)?,
         ).await;
     }
     if let Some(m) = m.subcommand_matches("ticktock") {
         let (wallet, keys) = parse_wallet_data(&m, &conf)?;
-        return ticktock_command(m, conf, &depool, &wallet, &keys).await;
+        return ticktock_command(conf, &depool, &wallet, &keys).await;
     }
     Err("unknown depool command".to_owned())
 }
@@ -386,7 +386,7 @@ async fn events_command(m: &ArgMatches<'_>, conf: Config, depool: &str) -> Resul
     let since = m.value_of("SINCE");
     let wait_for = m.is_present("WAITONE");
     let depool = Some(depool);
-    print_args!(m, depool, since);
+    print_args!(depool, since);
     if !wait_for {
         let since = since.map(|s| {
                 u32::from_str_radix(s, 10)
@@ -475,34 +475,31 @@ async fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
  */
 
 async fn ordinary_stake_command(
-    m: &ArgMatches<'_>,
     cmd: CommandData<'_>,
 ) -> Result<(), String> {
     let (depool, wallet, stake, keys) =
         (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
-    print_args!(m, depool, wallet, stake, keys);
+    print_args!(depool, wallet, stake, keys);
     add_ordinary_stake(cmd).await
 }
 
 async fn replenish_command(
-    m: &ArgMatches<'_>,
     cmd: CommandData<'_>,
 ) -> Result<(), String> {
     let (depool, wallet, stake, keys) =
         (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
-    print_args!(m, depool, wallet, stake, keys);
+    print_args!(depool, wallet, stake, keys);
     replenish_stake(cmd).await
 }
 
 async fn ticktock_command(
-    m: &ArgMatches<'_>,
     conf: Config,
     depool: &str,
     wallet: &str,
     keys: &str,
 ) -> Result<(), String> {
     let (depool, wallet, keys) = (Some(depool), Some(wallet), Some(keys));
-    print_args!(m, depool, wallet, keys);
+    print_args!(depool, wallet, keys);
     call_ticktock(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap()).await
 }
 
@@ -514,7 +511,7 @@ async fn transfer_stake_command(
         .ok_or("destination address is not defined.".to_string())?);
     let (depool, wallet, stake, keys) =
         (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
-    print_args!(m, depool, wallet, stake, keys, dest);
+    print_args!(depool, wallet, stake, keys, dest);
     transfer_stake(cmd, dest.unwrap()).await
 }
 
@@ -529,7 +526,7 @@ async fn set_donor_command(
     let (depool, wallet, keys) = (Some(depool), Some(wallet), Some(keys));
     let donor = Some(m.value_of("DONOR")
         .ok_or("donor is not defined.".to_string())?);
-    print_args!(m, depool, wallet, keys, donor);
+    print_args!(depool, wallet, keys, donor);
     set_donor(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap(), is_vesting, donor.unwrap()).await
 }
 
@@ -545,7 +542,7 @@ async fn exotic_stake_command(
     let beneficiary = Some(m.value_of("BENEFICIARY")
         .ok_or("beneficiary is not defined.".to_string())?);
     let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
-    print_args!(m, depool, wallet, stake, keys, beneficiary, withdrawal_period, total_period);
+    print_args!(depool, wallet, stake, keys, beneficiary, withdrawal_period, total_period);
     let period_checker = |v| {
         if v > 0 && v <= 36500 {
             Ok(v)
@@ -565,25 +562,22 @@ async fn exotic_stake_command(
 }
 
 async fn remove_stake_command(
-    m: &ArgMatches<'_>,
     cmd: CommandData<'_>,
 ) -> Result<(), String> {
     let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
-    print_args!(m, depool, wallet, stake, keys);
+    print_args!(depool, wallet, stake, keys);
    remove_stake(cmd).await
 }
 
 async fn withdraw_stake_command(
-    m: &ArgMatches<'_>,
     cmd: CommandData<'_>,
 ) -> Result<(), String> {
     let (depool, wallet, stake, keys) = (Some(&cmd.depool), Some(&cmd.wallet), Some(cmd.stake), Some(&cmd.keys));
-    print_args!(m, depool, wallet, stake, keys);
+    print_args!(depool, wallet, stake, keys);
    withdraw_stake(cmd).await
 }
 
 async fn set_withdraw_command(
-    m: &ArgMatches<'_>,
     conf: Config,
     depool: &str,
     wallet: &str,
@@ -592,7 +586,7 @@ async fn set_withdraw_command(
 ) -> Result<(), String> {
     let (depool, wallet, keys) = (Some(depool), Some(wallet), Some(keys));
     let withdraw = Some(if enable { "true" } else { "false" });
-    print_args!(m, depool, wallet, keys, withdraw);
+    print_args!(depool, wallet, keys, withdraw);
     set_withdraw(conf, depool.unwrap(), wallet.unwrap(), keys.unwrap(), enable).await
 }
 

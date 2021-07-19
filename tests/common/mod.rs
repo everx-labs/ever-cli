@@ -7,7 +7,7 @@ pub const BIN_NAME: &str = "tonos-cli";
 
 lazy_static! {
     pub static ref NETWORK: String = env::var("TON_NETWORK_ADDRESS")
-        .unwrap_or("http://127.0.0.1".to_string());
+        .unwrap_or("http://127.0.0.1/".to_string());
 }
 
 #[allow(dead_code)]

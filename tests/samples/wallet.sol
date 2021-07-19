@@ -14,10 +14,10 @@ contract Wallet {
      */
 
     modifier checkOwnerAndAccept virtual {
-		require(msg.pubkey() == tvm.pubkey(), 100);
+        require(msg.pubkey() == tvm.pubkey(), 100);
         tvm.accept();
         _;
-	}
+    }
 
     /*
      * Public functions

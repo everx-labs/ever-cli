@@ -47,6 +47,7 @@ use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
+use crate::config::FullConfig;
 
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
@@ -68,8 +69,8 @@ enum DeployType {
 
 #[macro_export]
 macro_rules! print_args {
-    ($m:ident, $( $arg:ident ),* ) => {
-        if ($m.is_present("VERBOSE") || VERBOSE_MODE) {
+    ($( $arg:ident ),* ) => {
+        if (VERBOSE_MODE) {
             println!("Input arguments:");
             $(
                 println!(
@@ -102,25 +103,25 @@ async fn main() -> Result<(), i32> {
 
 async fn main_internal() -> Result <(), String> {
     let callex_sub_command = SubCommand::with_name("callex")
-        .about("Sends external message to contract with encoded function call (alternative syntax).")
+        .about("Sends an external message with encoded function call to the contract (alternative syntax).")
         .setting(AppSettings::AllowMissingPositional)
         .setting(AppSettings::AllowLeadingHyphen)
         .setting(AppSettings::TrailingVarArg)
         .setting(AppSettings::DontCollapseArgsInUsage)
         .arg(Arg::with_name("METHOD")
-            .help("Name of the calling method."))
+            .help("Name of the function being called."))
         .arg(Arg::with_name("ADDRESS")
             .help("Contract address."))
         .arg(Arg::with_name("ABI")
-            .help("Path to contract ABI file."))
+            .help("Path to the contract ABI file."))
         .arg(Arg::with_name("SIGN")
-            .help("Path to keypair file used to sign message."))
+            .help("Seed phrase or path to the file with keypair used to sign the message."))
         .arg(Arg::with_name("PARAMS")
-            .help("Method arguments. Must be a list of --name value ... pairs or a json string with all arguments.")
+            .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
             .multiple(true));
 
     let runget_sub_command = SubCommand::with_name("runget")
-        .about("Runs contract get-method.")
+        .about("Runs get-method of a FIFT contract.")
         .setting(AppSettings::AllowLeadingHyphen)
         .setting(AppSettings::TrailingVarArg)
         .setting(AppSettings::DontCollapseArgsInUsage)
@@ -129,18 +130,18 @@ async fn main_internal() -> Result <(), String> {
             .help("Contract address."))
         .arg(Arg::with_name("METHOD")
             .required(true)
-            .help("Name of the calling method."))
+            .help("Name of the function being called."))
         .arg(Arg::with_name("PARAMS")
-            .help("Arguments for the contract method.")
+            .help("Function arguments.")
             .multiple(true));
 
     let no_answer_with_value = Arg::with_name("NO_ANSWER")
         .long("--no-answer")
         .takes_value(true)
-        .help("FLag whether to wait for depool answer when calling a depool function.");
+        .help("Flag whether to wait for depool answer when calling a depool function.");
     let no_answer = Arg::with_name("NO_ANSWER")
         .long("--no-answer")
-        .help("FLag whether to wait for depool answer when calling a depool function.");
+        .help("Flag whether to wait for depool answer when calling a depool function.");
 
     let matches = clap_app! (tonos_cli =>
         (version: &*format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
@@ -153,7 +154,7 @@ async fn main_internal() -> Result <(), String> {
         (author: "TONLabs")
         (about: "TONLabs console tool for TON")
         (@arg NETWORK: -u --url +takes_value "Network to connect.")
-        (@arg CONFIG: -c --config +takes_value "Path to tonos-cli configuration file.")
+        (@arg CONFIG: -c --config +takes_value "Path to the tonos-cli configuration file.")
         (@arg JSON: -j --json "Cli prints output in json format.")
         (@subcommand version =>
             (about: "Prints build and version info.")
@@ -166,96 +167,89 @@ async fn main_internal() -> Result <(), String> {
             )
         )
         (@subcommand genphrase =>
-            (about: "Generates seed phrase.")
+            (about: "Generates a seed phrase for keypair.")
             (author: "TONLabs")
         )
         (@subcommand genpubkey =>
-            (about: "Generates public key.")
+            (about: "Generates a public key from the seed phrase.")
             (author: "TONLabs")
-            (@arg PHRASE: +required +takes_value "Seed phrase (12 words).")
+            (@arg PHRASE: +required +takes_value "Seed phrase (12 words). Should be specified in quotes.")
         )
         (@subcommand getkeypair =>
-            (about: "Generates keypair from seed phrase and saves it to file.")
+            (about: "Generates a keypair from the seed phrase and saves it to the file.")
             (author: "TONLabs")
-            (@arg KEY_FILE: +required +takes_value "Path to file where to store keypair.")
-            (@arg PHRASE: +required +takes_value "Seed phrase (12 words)")
-            (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            (@arg KEY_FILE: +required +takes_value "Path to the file where to store the keypair.")
+            (@arg PHRASE: +required +takes_value "Seed phrase (12 words). Should be specified in quotes.")
         )
         (@subcommand genaddr =>
             (@setting AllowNegativeNumbers)
             (about: "Calculates smart contract address in different formats. By default, input tvc file isn't modified.")
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
-            (@arg TVC: +required +takes_value "Compiled smart contract (tvc file).")
-            (@arg ABI: +required +takes_value "Json file with contract ABI.")
-            (@arg WC: --wc +takes_value "Workchain id used to generate user-friendly addresses (default 0).")
-            (@arg GENKEY: --genkey +takes_value conflicts_with[SETKEY] "Generates new keypair for the contract and saves it to the file.")
-            (@arg SETKEY: --setkey +takes_value conflicts_with[GENKEY] "Loads existing keypair from the file or use seed phrase.")
-            (@arg DATA: --data +takes_value "Supplies initial data to insert into contract.")
-            (@arg SAVE: --save "Rewrite tvc file with supplied kepair and initial data.")
-            (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            (@arg TVC: +required +takes_value "Path to the compiled smart contract (tvc file).")
+            (@arg ABI: +required +takes_value "Path to the contract ABI file.")
+            (@arg WC: --wc +takes_value "Workchain id used to generate addresses (default value is taken from the config).")
+            (@arg GENKEY: --genkey +takes_value conflicts_with[SETKEY] "Path to the file, where a new generated keypair for the contract will be saved.")
+            (@arg SETKEY: --setkey +takes_value conflicts_with[GENKEY] "Seed phrase or path to the file with keypair.")
+            (@arg DATA: --data +takes_value "Initial data to insert into the contract. Should be specified in json format.")
+            (@arg SAVE: --save "If this flag is specified, modifies the tvc file with the keypair and initial data")
         )
         (@subcommand deploy =>
             (@setting AllowNegativeNumbers)
             (@setting AllowLeadingHyphen)
-            (about: "Deploy smart contract to blockchain.")
+            (about: "Deploys a smart contract to the blockchain.")
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
-            (@arg TVC: +required +takes_value "Compiled smart contract (tvc file)")
-            (@arg PARAMS: +required +takes_value "Constructor arguments. Can be passed via a filename.")
-            (@arg ABI: --abi +takes_value "Json file with contract ABI.")
-            (@arg SIGN: --sign +takes_value "Keypair used to sign 'constructor message'.")
-            (@arg WC: --wc +takes_value "Workchain id of the smart contract (default 0).")
-            (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            (@arg TVC: +required +takes_value "Path to the compiled smart contract (tvc file).")
+            (@arg PARAMS: +required +takes_value "Constructor arguments. Can be specified with a filename, which contains json data.")
+            (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
+            (@arg SIGN: --sign +takes_value "Seed phrase or path to the file with keypair used to sign 'constructor message'.")
+            (@arg WC: --wc +takes_value "Workchain id of the smart contract (default value is taken from the config).")
         )
         (@subcommand deploy_message =>
             (@setting AllowNegativeNumbers)
             (@setting AllowLeadingHyphen)
-            (about: "Generates a signed message to deploy smart contract to blockchain.")
+            (about: "Generates a signed message to deploy a smart contract to the blockchain.")
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
-            (@arg TVC: +required +takes_value "Compiled smart contract (tvc file)")
-            (@arg PARAMS: +required +takes_value "Constructor arguments. Can be passed via a filename.")
-            (@arg ABI: --abi +takes_value "Json file with contract ABI.")
-            (@arg SIGN: --sign +takes_value "Keypair used to sign 'constructor message'.")
-            (@arg WC: --wc +takes_value "Workchain id of the smart contract (default 0).")
-            (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
-            (@arg OUTPUT: -o --output +takes_value "Path to file where to store message.")
+            (@arg TVC: +required +takes_value "Path to the compiled smart contract (tvc file)")
+            (@arg PARAMS: +required +takes_value "Constructor arguments. Can be specified with a filename, which contains json data.")
+            (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
+            (@arg SIGN: --sign +takes_value "Seed phrase or path to the file with keypair used to sign 'constructor message'.")
+            (@arg WC: --wc +takes_value "Workchain id of the smart contract (default value is taken from the config).")
+            (@arg OUTPUT: -o --output +takes_value "Path to the file where to store the message.")
             (@arg RAW: --raw "Creates raw message boc.")
         )
         (subcommand: callex_sub_command)
         (@subcommand call =>
             (@setting AllowLeadingHyphen)
-            (about: "Sends external message to contract with encoded function call.")
+            (about: "Sends an external message with encoded function call to the contract.")
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Contract address.")
-            (@arg METHOD: +required +takes_value "Name of calling contract method.")
-            (@arg PARAMS: +required +takes_value "Arguments for the contract method. Can be passed via a filename.")
-            (@arg ABI: --abi +takes_value "Json file with contract ABI.")
-            (@arg SIGN: --sign +takes_value "Keypair used to sign message.")
-            (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            (@arg METHOD: +required +takes_value "Name of the function being called.")
+            (@arg PARAMS: +required +takes_value "Function arguments. Can be specified with a filename, which contains json data.")
+            (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
+            (@arg SIGN: --sign +takes_value "Seed phrase or path to the file with keypair used to sign the message.")
         )
         (@subcommand send =>
-            (about: "Sends prepared message to contract.")
+            (about: "Sends a prepared message to the contract.")
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
-            (@arg MESSAGE: +required +takes_value "Message to send.")
-            (@arg ABI: --abi +takes_value "Json file with contract ABI.")
-            (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            (@arg MESSAGE: +required +takes_value "Message to send. Message data should be specified in quotes.")
+            (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
         )
         (@subcommand message =>
             (@setting AllowLeadingHyphen)
             (about: "Generates a signed message with encoded function call.")
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Contract address.")
-            (@arg METHOD: +required +takes_value "Name of calling contract method.")
-            (@arg PARAMS: +required +takes_value "Arguments for the contract method. Can be passed via a filename.")
-            (@arg ABI: --abi +takes_value "Json file with contract ABI.")
-            (@arg SIGN: --sign +takes_value "Keypair used to sign message.")
+            (@arg METHOD: +required +takes_value "Name of the function being called.")
+            (@arg PARAMS: +required +takes_value "Function arguments. Can be specified with a filename, which contains json data.")
+            (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
+            (@arg SIGN: --sign +takes_value "Seed phrase or path to the file with keypair used to sign the message.")
             (@arg LIFETIME: --lifetime +takes_value "Period of time in seconds while message is valid.")
-            (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
-            (@arg OUTPUT: -o --output +takes_value "Path to file where to store message.")
+            (@arg OUTPUT: -o --output +takes_value "Path to the file where to store the message.")
             (@arg RAW: --raw "Creates raw message boc.")
         )
         (@subcommand body =>
@@ -263,65 +257,82 @@ async fn main_internal() -> Result <(), String> {
             (about: "Generates a payload for internal function call.")
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
-            (@arg METHOD: +required +takes_value "Name of calling contract method.")
-            (@arg PARAMS: +required +takes_value "Arguments for the contract method. Can be passed via a filename.")
-            (@arg ABI: --abi +takes_value "Json file with contract ABI.")
+            (@arg METHOD: +required +takes_value "Name of the function being called.")
+            (@arg PARAMS: +required +takes_value "Function arguments. Can be specified with a filename, which contains json data.")
+            (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
         )
         (@subcommand run =>
             (@setting AllowLeadingHyphen)
             (about: "Runs contract function locally.")
             (@arg ADDRESS: +required +takes_value "Contract address.")
-            (@arg METHOD: +required +takes_value "Name of calling contract method.")
-            (@arg PARAMS: +required +takes_value "Arguments for the contract method. Can be passed via a filename.")
-            (@arg ABI: --abi +takes_value "Json file with contract ABI.")
-            (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+            (@arg METHOD: +required +takes_value "Name of the function being called.")
+            (@arg PARAMS: +required +takes_value "Function arguments. Can be specified with a filename, which contains json data.")
+            (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
         )
         (subcommand: runget_sub_command)
         (@subcommand config =>
             (@setting AllowLeadingHyphen)
-            (about: "Saves certain default values for options into config file.")
+            (about: "Allows to tune certain default values for options in the config file.")
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg URL: --url +takes_value "Url to connect.")
-            (@arg ABI: --abi +takes_value conflicts_with[DATA] "File with contract ABI.")
-            (@arg KEYS: --keys +takes_value "File with keypair.")
+            (@arg ABI: --abi +takes_value conflicts_with[DATA] "Path to the contract ABI file.")
+            (@arg KEYS: --keys +takes_value "Path to the file with keypair.")
             (@arg ADDR: --addr +takes_value "Contract address.")
             (@arg WALLET: --wallet +takes_value "Multisig wallet address. Used in commands which send internal messages through multisig wallets.")
             (@arg PUBKEY: --pubkey +takes_value "User public key. Used by DeBot Browser.")
             (@arg WC: --wc +takes_value "Workchain id.")
             (@arg RETRIES: --retries +takes_value "Number of attempts to call smart contract function if previous attempt was unsuccessful.")
             (@arg TIMEOUT: --timeout +takes_value "Contract call timeout in ms.")
-            (@arg LIST: --list conflicts_with[URL ABI KEYS ADDR RETRIES TIMEOUT WC] "Prints all config parameters.")
-            (@arg DEPOOL_FEE: --depool_fee +takes_value "Value added to message sent to depool to cover it's fees (change will be returned).")
+            (@arg LIST: --list conflicts_with[NO_ANSWER ASYNC_CALL LOCAL_RUN BALANCE_IN_TONS LIFETIME DEPOOL_FEE PUBKEY URL ABI KEYS ADDR RETRIES TIMEOUT WC WALLET] "Prints all config parameters.")
+            (@arg DEPOOL_FEE: --depool_fee +takes_value "Value added to the message sent to depool to cover it's fees (change will be returned).")
             (@arg LIFETIME: --lifetime +takes_value "Period of time in seconds while message is valid.")
             (arg: no_answer_with_value)
-            (@arg USE_DELIMITERS: --delimiters +takes_value "Use delimiters while printing account balance")
+            (@arg BALANCE_IN_TONS: --balance_in_tons +takes_value "Print balance for account command in tons. If false balance is printed in nanotons.")
             (@arg LOCAL_RUN: --local_run +takes_value "Enable preliminary local run before deploy and call commands.")
+            (@arg ASYNC_CALL: --async_call +takes_value "Disables wait for transaction to appear in the network after call command.")
             (@subcommand clear =>
                 (@setting AllowLeadingHyphen)
                 (about: "Resets certain default values for options in the config file. Resets all values if used without options.")
                 (@arg URL: --url "Url to connect.")
-                (@arg ABI: --abi "File with contract ABI.")
-                (@arg KEYS: --keys "File with keypair.")
+                (@arg ABI: --abi "Path to the contract ABI file.")
+                (@arg KEYS: --keys "Path to the file with keypair.")
                 (@arg ADDR: --addr "Contract address.")
-                (@arg WALLET: --wallet "Multisig wallet address. Used in commands which send internal messages through multisig wallets.")
+                (@arg WALLET: --wallet "Multisig wallet address.")
                 (@arg WC: --wc "Workchain id.")
                 (@arg RETRIES: --retries "Number of attempts to call smart contract function if previous attempt was unsuccessful.")
                 (@arg TIMEOUT: --timeout "Contract call timeout in ms.")
-                (@arg DEPOOL_FEE: --depool_fee "Value added to message sent to depool to cover it's fees (change will be returned).")
+                (@arg DEPOOL_FEE: --depool_fee "Value added to the message sent to depool to cover it's fees (change will be returned).")
                 (@arg LIFETIME: --lifetime "Period of time in seconds while message is valid.")
                 (arg: no_answer)
-                (@arg USE_DELIMITERS: --delimiters "Use delimiters while printing account balance")
+                (@arg BALANCE_IN_TONS: --balance_in_tons "Print balance for account command in tons. If false balance is printed in nanotons.")
                 (@arg LOCAL_RUN: --local_run "Enable preliminary local run before deploy and call commands.")
+            )
+            (@subcommand endpoint =>
+                (about: "Commands to work with the map of endpoints.")
+                (@subcommand add =>
+                    (about: "Add endpoints list.")
+                    (@arg URL: +required +takes_value "Url of the endpoints list.")
+                    (@arg ENDPOINTS: +required +takes_value "List of endpoints.")
+                )
+                (@subcommand remove =>
+                    (about: "Remove endpoints list.")
+                    (@arg URL: +required +takes_value "Url of the endpoints list.")
+                )
+                (@subcommand reset =>
+                    (about: "Reset the endpoints map.")
+                )
+                (@subcommand print =>
+                    (about: "Print current endpoints map.")
+                )
             )
         )
         (@subcommand account =>
             (@setting AllowLeadingHyphen)
-            (about: "Gets account information.")
+            (about: "Obtains and prints account information.")
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Smart contract address.")
-            (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
             (@arg DUMPTVC: -d --dumptvc +takes_value "Dumps account StateInit to specified tvc file.")
         )
         (@subcommand fee =>
@@ -337,15 +348,14 @@ async fn main_internal() -> Result <(), String> {
             (@subcommand deploy =>
                 (@setting AllowNegativeNumbers)
                 (@setting AllowLeadingHyphen)
-                (about: "Executes deploy locally, calculates fees and prints table of all fees in nanotons.")
+                (about: "Executes deploy locally, calculates fees and prints table of fees in nanotons.")
                 (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
                 (author: "TONLabs")
-                (@arg TVC: +required +takes_value "Compiled smart contract (tvc file)")
-                (@arg PARAMS: +required +takes_value "Constructor arguments. Can be passed via a filename.")
-                (@arg ABI: --abi +takes_value "Json file with contract ABI.")
-                (@arg SIGN: --sign +takes_value "Keypair used to sign 'constructor message'.")
-                (@arg WC: --wc +takes_value "Workchain id of the smart contract (default 0).")
-                (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+                (@arg TVC: +required +takes_value "Path to the compiled smart contract (tvc file).")
+                (@arg PARAMS: +required +takes_value "Constructor arguments. Can be specified with a filename, which contains json data.")
+                (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
+                (@arg SIGN: --sign +takes_value "Seed phrase or path to the file with keypair used to sign 'constructor message'.")
+                (@arg WC: --wc +takes_value "Workchain id of the smart contract (default value is taken from the config).")
             )
             (@subcommand call =>
                 (@setting AllowLeadingHyphen)
@@ -353,34 +363,33 @@ async fn main_internal() -> Result <(), String> {
                 (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
                 (author: "TONLabs")
                 (@arg ADDRESS: +required +takes_value "Contract address.")
-                (@arg METHOD: +required +takes_value "Name of calling contract method.")
-                (@arg PARAMS: +required +takes_value "Arguments for the contract method. Can be passed via a filename.")
-                (@arg ABI: --abi +takes_value "Json file with contract ABI.")
-                (@arg SIGN: --sign +takes_value "Keypair used to sign message.")
-                (@arg VERBOSE: -v --verbose "Prints additional information about command execution.")
+                (@arg METHOD: +required +takes_value "Name of the function being called.")
+                (@arg PARAMS: +required +takes_value "Function arguments. Can be specified with a filename, which contains json data.")
+                (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
+                (@arg SIGN: --sign +takes_value "Seed phrase or path to the file with keypair used to sign the message.")
             )
         )
         (@subcommand proposal =>
-            (about: "Submits proposal transaction in multisignature wallet with text comment.")
+            (about: "Submits a proposal transaction in the multisignature wallet with a text comment.")
             (@subcommand create =>
-                (@arg ADDRESS: +required +takes_value "Address of multisignature wallet.")
-                (@arg DEST: +required +takes_value "Address of proposal contract.")
+                (@arg ADDRESS: +required +takes_value "Address of the multisignature wallet.")
+                (@arg DEST: +required +takes_value "Address of the proposal contract.")
                 (@arg COMMENT: +required +takes_value "Proposal description (max symbols 382).")
-                (@arg KEYS: +required +takes_value "Seed phrase or path to keypair file.")
+                (@arg KEYS: +required +takes_value "Seed phrase or path to the keypair file.")
                 (@arg OFFLINE: -f --offline "Prints signed message to terminal instead of sending it.")
                 (@arg LIFETIME: -l --lifetime +takes_value "Period of time in seconds while message is valid.")
             )
             (@subcommand vote =>
-                (about: "Confirms proposal transaction in multisignature wallet.")
-                (@arg ADDRESS: +required +takes_value "Address of multisignature wallet.")
+                (about: "Confirms a proposal transaction in the multisignature wallet.")
+                (@arg ADDRESS: +required +takes_value "Address of the multisignature wallet.")
                 (@arg ID: +required +takes_value "Proposal transaction id.")
-                (@arg KEYS: +required +takes_value "Seed phrase or path to keypair file.")
+                (@arg KEYS: +required +takes_value "Seed phrase or path to the keypair file.")
                 (@arg OFFLINE: -f --offline "Prints signed message to terminal instead of sending it.")
                 (@arg LIFETIME: -l --lifetime +takes_value "Period of time in seconds while message is valid.")
             )
             (@subcommand decode =>
-                (about: "Prints comment string from proposal transaction.")
-                (@arg ADDRESS: +required +takes_value "Address of multisignature wallet.")
+                (about: "Prints a comment string from the proposal transaction.")
+                (@arg ADDRESS: +required +takes_value "Address of the multisignature wallet.")
                 (@arg ID: +required +takes_value "Proposal transaction id.")
             )
         )
@@ -389,17 +398,17 @@ async fn main_internal() -> Result <(), String> {
         (subcommand: create_decode_command())
         (subcommand: create_debot_command())
         (@subcommand getconfig =>
-            (about: "Reads global configuration parameter with defined index.")
+            (about: "Reads the global configuration parameter with defined index.")
             (@arg INDEX: +required +takes_value "Parameter index.")
         )
         (@subcommand nodeid =>
-            (about: "Calculates node ID from validator public key")
+            (about: "Calculates node ID from the validator public key")
             (@arg KEY: --pubkey +takes_value "Validator public key.")
-            (@arg KEY_PAIR: --keypair +takes_value "Validator key pair as 12 words mnemonic or file path.")
+            (@arg KEY_PAIR: --keypair +takes_value "Validator seed phrase or path to the file with keypair.")
         )
         (@subcommand sendfile =>
-            (about: "Sends boc file with external inbound message to account.")
-            (@arg BOC: +required +takes_value "Boc file with message.")
+            (about: "Sends the boc file with an external inbound message to account.")
+            (@arg BOC: +required +takes_value "Message boc file.")
         )
         (@setting SubcommandRequired)
     ).get_matches();
@@ -424,6 +433,8 @@ async fn main_internal() -> Result <(), String> {
 
     if let Some(url) = matches.value_of("NETWORK") {
         conf.url = url.to_string();
+        let empty : Vec<String> = Vec::new();
+        conf.endpoints = FullConfig::get_map(&config_file).get(url).unwrap_or(&empty).clone();
     }
 
     if let Some(m) = matches.subcommand_matches("convert") {
@@ -552,7 +563,7 @@ fn genpubkey_command(matches: &ArgMatches, _config: Config) -> Result<(), String
 fn getkeypair_command(matches: &ArgMatches, _config: Config) -> Result<(), String> {
     let key_file = matches.value_of("KEY_FILE");
     let phrase = matches.value_of("PHRASE");
-    print_args!(matches, key_file, phrase);
+    print_args!(key_file, phrase);
     generate_keypair(key_file.unwrap(), phrase.unwrap())
 }
 
@@ -565,7 +576,7 @@ async fn send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
             .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
     );
 
-    print_args!(matches, message, abi);
+    print_args!(message, abi);
 
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
@@ -593,7 +604,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
             .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
     );
     let params = Some(load_params(params.unwrap())?);
-    print_args!(matches, method, params, abi, output);
+    print_args!(method, params, abi, output);
 
     let params = serde_json::from_str(&params.unwrap())
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
@@ -648,7 +659,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
 
     let params = Some(load_params(params.unwrap())?);
     if !config.is_json {
-        print_args!(matches, address, method, params, abi, keys, lifetime, output);
+        print_args!(address, method, params, abi, keys, lifetime, output);
     }
 
     let abi = std::fs::read_to_string(abi.unwrap())
@@ -694,7 +705,8 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
 }
 
 async fn callex_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    let method = matches.value_of("METHOD");
+    let method_opt = matches.value_of("METHOD");
+    let method = method_opt.ok_or("METHOD is not defined")?;
     let address = Some(
         matches.value_of("ADDRESS")
             .map(|s| s.to_string())
@@ -709,21 +721,22 @@ async fn callex_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
     );
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+    let params = matches.values_of("PARAMS").ok_or("PARAMS is not defined")?;
     let params = Some(parse_params(
-        matches.values_of("PARAMS").unwrap().collect::<Vec<_>>(), &loaded_abi, method.clone().unwrap()
+        params.collect::<Vec<_>>(), &loaded_abi, method_opt.clone().unwrap()
     )?);
     let keys = matches.value_of("SIGN")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
 
-    print_args!(matches, address, method, params, abi, keys);
+    print_args!(address, method_opt, params, abi, keys);
     let address = load_ton_address(address.unwrap().as_str(), &config)?;
 
     call_contract(
         config,
         address.as_str(),
         loaded_abi,
-        method.unwrap(),
+        method,
         &params.unwrap(),
         keys,
         false,
@@ -738,7 +751,7 @@ async fn runget_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
     let params = params.map(|values| {
         json!(values.collect::<Vec<_>>()).to_string()
     });
-    print_args!(matches, address, method, params);
+    print_args!(address, method, params);
     let address = load_ton_address(address.unwrap(), &config)?;
     run_get_method(config, address.as_str(), method.unwrap(), params).await
 }
@@ -763,7 +776,7 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: D
     );
     let params = Some(load_params(params.unwrap())?);
     if !config.is_json {
-        print_args!(matches, tvc, params, abi, keys, wc);
+        print_args!(tvc, params, abi, keys, wc);
     }
 
     let wc = wc.map(|v| i32::from_str_radix(v, 10))
@@ -793,9 +806,22 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let depool_fee = clear_matches.is_present("DEPOOL_FEE");
             let lifetime = clear_matches.is_present("LIFETIME");
             let no_answer = clear_matches.is_present("NO_ANSWER");
-            let use_delimiters = clear_matches.is_present("USE_DELIMITERS");
+            let balance_in_tons = clear_matches.is_present("BALANCE_IN_TONS");
             let local_run = clear_matches.is_present("LOCAL_RUN");
-            result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, use_delimiters, local_run);
+            result = clear_config(config, config_file.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run);
+        } else if let Some(endpoint_matches) = matches.subcommand_matches("endpoint") {
+            if let Some(endpoint_matches) = endpoint_matches.subcommand_matches("add") {
+                let url = endpoint_matches.value_of("URL").unwrap();
+                let endpoints = endpoint_matches.value_of("ENDPOINTS").unwrap();
+                FullConfig::add_endpoint(config_file.as_str(), url, endpoints)?;
+            } else if let Some(endpoint_matches) = endpoint_matches.subcommand_matches("remove") {
+                let url = endpoint_matches.value_of("URL").unwrap();
+                FullConfig::remove_endpoint(config_file.as_str(), url)?;
+            } else if endpoint_matches.subcommand_matches("reset").is_some() {
+                FullConfig::reset_endpoints(config_file.as_str())?;
+            }
+            FullConfig::print_endpoints(config_file.as_str());
+            return Ok(());
         } else {
             let url = matches.value_of("URL");
             let address = matches.value_of("ADDR");
@@ -809,9 +835,10 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let depool_fee = matches.value_of("DEPOOL_FEE");
             let lifetime = matches.value_of("LIFETIME");
             let no_answer = matches.value_of("NO_ANSWER");
-            let use_delimiters = matches.value_of("USE_DELIMITERS");
+            let balance_in_tons = matches.value_of("BALANCE_IN_TONS");
             let local_run = matches.value_of("LOCAL_RUN");
-            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, use_delimiters, local_run);
+            let async_call = matches.value_of("ASYNC_CALL");
+            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, async_call);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {
@@ -839,7 +866,7 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
     let update_tvc = matches.is_present("SAVE");
     let abi = matches.value_of("ABI");
     let is_update_tvc = if update_tvc { Some("true") } else { None };
-    print_args!(matches, tvc, wc, keys, init_data, is_update_tvc);
+    print_args!(tvc, wc, keys, init_data, is_update_tvc);
     generate_address(config, tvc.unwrap(), abi.unwrap(), wc, keys, new_keys, init_data, update_tvc).await
 }
 
@@ -847,7 +874,7 @@ async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
     let address = matches.value_of("ADDRESS");
     let tvcname = matches.value_of("DUMPTVC");
     if !config.is_json {
-        print_args!(matches, address);
+        print_args!(address);
     }
     let address = load_ton_address(address.unwrap(), &config)?;
     get_account(config, address.as_str(), tvcname).await
@@ -857,7 +884,7 @@ async fn storage_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
     let address = matches.value_of("ADDRESS");
     let period = matches.value_of("PERIOD");
     if !config.is_json {
-        print_args!(matches, address, period);
+        print_args!(address, period);
     }
     let address = load_ton_address(address.unwrap(), &config)?;
     let period = period.map(|val| {
@@ -876,7 +903,7 @@ async fn proposal_create_command(matches: &ArgMatches<'_>, config: Config) -> Re
     let comment = matches.value_of("COMMENT");
     let lifetime = matches.value_of("LIFETIME");
     let offline = matches.is_present("OFFLINE");
-    print_args!(matches, address, comment, keys, lifetime);
+    print_args!(address, comment, keys, lifetime);
 
     let address = load_ton_address(address.unwrap(), &config)?;
     let lifetime = lifetime.map(|val| {
@@ -903,7 +930,7 @@ async fn proposal_vote_command(matches: &ArgMatches<'_>, config: Config) -> Resu
     let id = matches.value_of("ID");
     let lifetime = matches.value_of("LIFETIME");
     let offline = matches.is_present("OFFLINE");
-    print_args!(matches, address, id, keys, lifetime);
+    print_args!(address, id, keys, lifetime);
 
     let address = load_ton_address(address.unwrap(), &config)?;
     let lifetime = lifetime.map(|val| {
@@ -919,7 +946,7 @@ async fn proposal_vote_command(matches: &ArgMatches<'_>, config: Config) -> Resu
 async fn proposal_decode_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let id = matches.value_of("ID");
-    print_args!(matches, address, id);
+    print_args!(address, id);
 
     let address = load_ton_address(address.unwrap(), &config)?;
     decode_proposal(config, address.as_str(), id.unwrap()).await
@@ -927,14 +954,14 @@ async fn proposal_decode_command(matches: &ArgMatches<'_>, config: Config) -> Re
 
 async fn getconfig_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let index = matches.value_of("INDEX");
-    print_args!(matches, index);
+    print_args!(index);
     query_global_config(config, index.unwrap()).await
 }
 
 fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
     let key = matches.value_of("KEY");
     let keypair = matches.value_of("KEY_PAIR");
-    print_args!(matches, key, keypair);
+    print_args!(key, keypair);
     let nodeid = if let Some(key) = key {
         let vec = hex::decode(key)
             .map_err(|e| format!("failed to decode public key: {}", e))?;
@@ -951,6 +978,6 @@ fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
 
 async fn sendfile_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), String> {
     let boc = m.value_of("BOC");
-    print_args!(m, boc);
+    print_args!(boc);
     sendfile::sendfile(conf, boc.unwrap()).await
 }
