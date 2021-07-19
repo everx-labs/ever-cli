@@ -101,7 +101,7 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) -> R
 
     if !zerostate_found {
         let data = format!("{{\"id\":\"{}\",\"boc\":\"{}\"}}\n",
-            account_address, base64::encode(&Account::default().serialize().unwrap().write_to_bytes().unwrap()));
+            account_address, base64::encode(&Account::default().write_to_bytes().unwrap()));
         writer.write_all(data.as_bytes()).map_err(|e| format!("Failed to write to file: {}", e))?;
     }
 
