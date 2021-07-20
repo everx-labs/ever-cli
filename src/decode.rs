@@ -17,7 +17,7 @@ use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::Cell;
 use std::fmt::Write;
-use ton_block::{Account, Deserializable, Serializable};
+use ton_block::{Account, Deserializable, Serializable, AccountState};
 
 fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
     matches.value_of("ABI")
@@ -98,35 +98,83 @@ async fn decode_account_from_boc(m: &ArgMatches<'_>, config: Config) -> Result<(
     let account = Account::construct_from_file(boc.unwrap())
         .map_err(|e| format!(" failed to load account from the boc file: {}", e))?;
 
-    print_account_data(&account, tvc_path)
+    print_account_data(&account, tvc_path, config)
 }
 
-pub fn print_account_data(account: &Account, tvc_path: Option<&str>) -> Result<(), String> {
+pub fn print_account_data(account: &Account, tvc_path: Option<&str>, config: Config) -> Result<(), String> {
     if account.is_none() {
-        println!("Account is None");
+        println!("\nAccount is None");
         return Ok(());
     }
+    let mut state_init = None;
 
-    let state_init = account.state_init()
-        .ok_or("failed to get state init from the account. It might be frozen.")
-        .map_err(|e| format!("{}", e))?;
-    if tvc_path.is_some() {
-        state_init.write_to_file(tvc_path.unwrap())
-            .map_err(|e| format!("{}", e))?;
+    let address = match account.get_addr() {
+        Some(address) => format!("{}", address),
+        _ => "Undefined".to_owned(),
+    };
+
+    let state = match account.state() {
+        Some(AccountState::AccountActive(state)) => {
+            state_init = Some(state);
+            "Active".to_owned()
+        },
+        Some(AccountState::AccountFrozen(_hash)) =>
+            "Frozen".to_owned(),
+        Some(AccountState::AccountUninit) =>
+            "Uninit".to_owned(),
+        _ => "Undefined".to_owned(),
+    };
+
+    let balance = match account.balance() {
+        Some(balance) => format!("{}", balance.grams.clone()),
+        _ => "Undefined".to_owned(),
+    };
+
+    let (trans_lt, paid) = match account.stuff() {
+        Some(stuff) =>
+            (format!("{}", stuff.storage().last_trans_lt()),
+            format!("{}", stuff.storage_stat().last_paid())),
+        _ => ("Undefined".to_owned(), "Undefined".to_owned()),
+    };
+
+    let si = match state_init {
+        Some(state_init) =>
+            format!("{{\n  \"split_depth\": \"{}\",\n  \"special\": \"{}\",\n  \"data\": \"{}\",\
+\n  \"code\": \"{}\",\n  \"code_hash\": \"{}\",\n  \"lib\": \"{}\"",
+                    state_init.split_depth.as_ref().map(|x| format!("{:?}", (x.0 as u8))).unwrap_or("None".to_string()),
+                    state_init.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
+                    msg_printer::tree_of_cells_into_base64(state_init.data.as_ref()),
+                    msg_printer::tree_of_cells_into_base64(state_init.code.as_ref()),
+                    state_init.code.clone().unwrap().repr_hash().to_hex_string(),
+                    msg_printer::tree_of_cells_into_base64(state_init.library.root()),
+            ),
+        _ => "Undefined".to_owned()
+    };
+
+    if config.is_json {
+        println!("{{");
+        println!("  \"Address\": \"{}\",", address);
+        println!("  \"State\": \"{}\",", state);
+        println!("  \"Balance\": \"{}\",", balance);
+        println!("  \"last_trans_lt\": \"{}\",", trans_lt);
+        println!("  \"last_paid\": \"{}\",", paid);
+        println!("  \"StatInit\": {},", si.replace("  ", "    "));
+        println!("  }}");
+        println!("}}");
+    } else {
+        println!("\nAddress: {}", address);
+        println!("State: {}", state);
+        println!("Balance: {}", balance);
+        println!("last_trans_lt: {}", trans_lt);
+        println!("last_paid: {}", paid);
+        println!("StateInit: {}", si);
+        println!("}}");
     }
 
-    let si = format!("StateInit\n split_depth: {}\n special: {}\n data: {}\n code: {}\n code_hash: {}\n lib:  {}\n",
-            state_init.split_depth.as_ref().map(|x| format!("{:?}", (x.0 as u8))).unwrap_or("None".to_string()),
-            state_init.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
-            msg_printer::tree_of_cells_into_base64(state_init.data.as_ref()),
-            msg_printer::tree_of_cells_into_base64(state_init.code.as_ref()),
-            state_init.code.clone().unwrap().repr_hash().to_hex_string(),
-            msg_printer::tree_of_cells_into_base64(state_init.library.root()),
-    );
-    let balance = account.balance()
-        .ok_or("failed to get account balance.")
-        .map_err(|e| format!("{}", e))?.grams.clone();
-    println!("Balance: {}\n{}", balance, si);
+    if tvc_path.is_some() && state_init.is_some() {
+        state_init.unwrap().write_to_file(tvc_path.unwrap())
+            .map_err(|e| format!("{}", e))?;
+    }
 
     Ok(())
 }
