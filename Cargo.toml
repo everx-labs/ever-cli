@@ -34,8 +34,7 @@ simplelog = "0.8.0"
 tokio = { version = "0.2", features = ["full"], default-features = false }
 
 ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
-#ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git' }
-ton_client = { path = "../TON-SDK/ton_client" }
+ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git' }
 ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git' }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
 ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git" }
