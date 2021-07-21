@@ -1574,9 +1574,11 @@ fn test_gen_deploy_message() -> Result<(), Box<dyn std::error::Error>> {
 fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("decode")
-        .arg("tvc")
+        .arg("account")
+        .arg("data")
         .arg("--abi")
         .arg("tests/test_abi_v2.1.abi.json")
+        .arg("--tvc")
         .arg("tests/decode_fields.tvc")
         .assert()
         .success()
@@ -1614,8 +1616,8 @@ fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
         .arg(tvc_path)
         .assert()
         .success()
-        .stdout(predicate::str::contains("Balance: "))
-        .stdout(predicate::str::contains("StateInit"));
+        .stdout(predicate::str::contains("balance: "))
+        .stdout(predicate::str::contains("state_init"));
 
     fs::remove_file(tvc_path)?;
     Ok(())

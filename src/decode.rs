@@ -12,12 +12,12 @@
  */
 use crate::{print_args, VERBOSE_MODE};
 use crate::config::Config;
-use crate::helpers::{decode_msg_body, create_client_local, create_client_verbose, query};
+use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::Cell;
 use std::fmt::Write;
-use ton_block::{Account, Deserializable, Serializable, AccountState};
+use ton_block::{Account, Deserializable, Serializable, AccountState, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData, Abi};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
 
@@ -51,29 +51,29 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                     .long("--abi")
                     .takes_value(true)
                     .help("Path to the contract ABI file.")))
-        .subcommand(SubCommand::with_name("tvc")
-            .about("Decodes data fields from the contract state tvc file.")
-            .arg(Arg::with_name("TVC")
-                .required(true)
-                .takes_value(true)
-                .help("Path to the tvc file with contract state."))
-            .arg(Arg::with_name("ABI")
-                .long("--abi")
-                .takes_value(true)
-                .help("Path to the contract ABI file.")))
         .subcommand(SubCommand::with_name("account")
-            .about("Decodes data fields from the contract.")
-            .arg(Arg::with_name("ADDRESS")
-                .long("--addr")
-                .takes_value(true)
-                .help("Contract address."))
-            .arg(Arg::with_name("ABI")
-                .long("--abi")
-                .takes_value(true)
-                .help("Path to the contract ABI file.")))
-        .subcommand(SubCommand::with_name("account")
+            .about("Top level command of account decode commands.")
+            .subcommand(SubCommand::with_name("data")
+                .about("Decodes data fields from the contract state.")
+                .arg(Arg::with_name("TVC")
+                    .long("--tvc")
+                    .short("-t")
+                    .takes_value(true)
+                    .help("Path to the tvc file with contract state.")
+                    .conflicts_with("ADDRESS"))
+                .arg(Arg::with_name("ADDRESS")
+                    .long("--addr")
+                    .short("-a")
+                    .takes_value(true)
+                    .help("Contract address.")
+                    .conflicts_with("TVC"))
+                .arg(Arg::with_name("ABI")
+                    .long("--abi")
+                    .takes_value(true)
+                    .help("Path to the contract ABI file.")))
             .subcommand(SubCommand::with_name("boc")
-                .arg(Arg::with_name("BOC")
+                .about("Decodes data from the file with boc of the account and saves contract tvc file if needed.")
+                .arg(Arg::with_name("BOCFILE")
                     .required(true)
                     .help("Path to the account boc file."))
                 .arg(Arg::with_name("DUMPTVC")
@@ -90,16 +90,23 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     if let Some(m) = m.subcommand_matches("msg") {
         return decode_message_command(m, config).await;
     }
-    if let Some(m) = m.subcommand_matches("tvc") {
-        return decode_tvc_fields(m, config).await;
-    }
-    if let Some(m) = m.subcommand_matches("account") {
-        return decode_account_fields(m, config).await;
-    }
     if let Some(m) = m.subcommand_matches("account") {
         if let Some(m) = m.subcommand_matches("boc") {
             return decode_account_from_boc(m, config).await;
         }
+        if let Some(m) = m.subcommand_matches("data") {
+            return decode_data_command(m, config).await;
+        }
+    }
+    Err("unknown command".to_owned())
+}
+
+async fn decode_data_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    if m.is_present("TVC") {
+        return decode_tvc_fields(m, config).await;
+    }
+    if m.is_present("ADDRESS") {
+        return decode_account_fields(m, config).await;
     }
     Err("unknown command".to_owned())
 }
@@ -108,7 +115,7 @@ async fn decode_body_command(m: &ArgMatches<'_>, config: Config) -> Result<(), S
     let body = m.value_of("BODY");
     let abi = Some(
         match_abi_path(m, &config)
-            .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
+            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
     );
     if !config.is_json {
         print_args!(body, abi);
@@ -118,7 +125,7 @@ async fn decode_body_command(m: &ArgMatches<'_>, config: Config) -> Result<(), S
 }
 
 async fn decode_account_from_boc(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    let boc = m.value_of("BOC");
+    let boc = m.value_of("BOCFILE");
     let tvc_path = m.value_of("DUMPTVC");
 
     if !config.is_json {
@@ -167,39 +174,24 @@ pub fn print_account_data(account: &Account, tvc_path: Option<&str>, config: Con
         _ => ("Undefined".to_owned(), "Undefined".to_owned()),
     };
 
-    let si = match state_init {
+    let (si, code_hash) = match state_init {
         Some(state_init) =>
-            format!("{{\n  \"split_depth\": \"{}\",\n  \"special\": \"{}\",\n  \"data\": \"{}\",\
-\n  \"code\": \"{}\",\n  \"code_hash\": \"{}\",\n  \"lib\": \"{}\"",
-                    state_init.split_depth.as_ref().map(|x| format!("{:?}", (x.0 as u8))).unwrap_or("None".to_string()),
-                    state_init.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
-                    msg_printer::tree_of_cells_into_base64(state_init.data.as_ref()),
-                    msg_printer::tree_of_cells_into_base64(state_init.code.as_ref()),
-                    state_init.code.clone().unwrap().repr_hash().to_hex_string(),
-                    msg_printer::tree_of_cells_into_base64(state_init.library.root()),
-            ),
-        _ => "Undefined".to_owned()
+            (msg_printer::state_init_to_str(state_init, config.is_json),
+             Some(state_init.code.clone().unwrap().repr_hash().to_hex_string())),
+        _ => ("Undefined".to_owned(), None)
     };
 
-    if config.is_json {
-        println!("{{");
-        println!("  \"Address\": \"{}\",", address);
-        println!("  \"State\": \"{}\",", state);
-        println!("  \"Balance\": \"{}\",", balance);
-        println!("  \"last_trans_lt\": \"{}\",", trans_lt);
-        println!("  \"last_paid\": \"{}\",", paid);
-        println!("  \"StatInit\": {},", si.replace("  ", "    "));
-        println!("  }}");
-        println!("}}");
-    } else {
-        println!("\nAddress: {}", address);
-        println!("State: {}", state);
-        println!("Balance: {}", balance);
-        println!("last_trans_lt: {}", trans_lt);
-        println!("last_paid: {}", paid);
-        println!("StateInit: {}", si);
-        println!("}}");
-    }
+    print_account(
+        &config,
+        Some(state),
+        Some(address),
+        Some(balance),
+        Some(paid),
+        Some(trans_lt),
+        None,
+        code_hash,
+        Some(si),
+    );
 
     if tvc_path.is_some() && state_init.is_some() {
         state_init.unwrap().write_to_file(tvc_path.unwrap())
@@ -213,7 +205,7 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: Config) -> Result<()
     let msg = m.value_of("MSG");
     let abi = Some(
         match_abi_path(m, &config)
-            .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
+            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
     );
     if !config.is_json {
         print_args!(msg, abi);
@@ -230,7 +222,7 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
     let tvc = m.value_of("TVC");
     let abi = Some(
         match_abi_path(m, &config)
-            .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
+            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
     );
     if !config.is_json {
         print_args!(tvc, abi);
@@ -255,15 +247,10 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 }
 
 async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    let address = Some(
-        m.value_of("ADDRESS")
-            .map(|s| s.to_string())
-            .or(config.addr.clone())
-            .ok_or("ADDRESS is not defined. Supply it in config file or command line.".to_string())?
-    );
+    let address = m.value_of("ADDRESS");
     let abi = Some(
         match_abi_path(m, &config)
-            .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
+            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
     );
     if !config.is_json {
         print_args!(address, abi);
@@ -466,17 +453,33 @@ mod msg_printer {
             match self.msg.state_init().as_ref() {
                 Some(x) => {
                     let init = format!(
-                        "StateInit\n split_depth: {}\n special: {}\n data: {}\n code: {}\n lib:  {}\n",
-                        x.split_depth.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
-                        x.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
-                        tree_of_cells_into_base64(x.data.as_ref()),
-                        tree_of_cells_into_base64(x.code.as_ref()),
-                        tree_of_cells_into_base64(x.library.root())
+                        "StateInit{}",
+                        state_init_to_str(x, false)
                     );
                     self.json(s, "Init", &init);
                 },
                 None => (),
             };
+        }
+    }
+
+    pub fn state_init_to_str(state_init: &StateInit, is_json: bool) -> String {
+        if !is_json {
+            format!("\n split_depth: {}\n special: {}\n data: {}\n code: {}\n lib:  {}\n",
+                state_init.split_depth.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
+                state_init.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
+                tree_of_cells_into_base64(state_init.data.as_ref()),
+                tree_of_cells_into_base64(state_init.code.as_ref()),
+                tree_of_cells_into_base64(state_init.library.root())
+            )
+        } else {
+            format!("{{\n    \"split_depth\": \"{}\"\n    \"special\": \"{}\"\n    \"data\": \"{}\"\n    \"code\": \"{}\"\n    \"lib\":  \"{}\"\n  }}",
+                state_init.split_depth.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
+                state_init.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
+                tree_of_cells_into_base64(state_init.data.as_ref()),
+                tree_of_cells_into_base64(state_init.code.as_ref()),
+                tree_of_cells_into_base64(state_init.library.root())
+            )
         }
     }
 
