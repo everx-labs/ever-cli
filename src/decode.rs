@@ -17,7 +17,7 @@ use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::Cell;
 use std::fmt::Write;
-use ton_block::{StateInit, Deserializable};
+use ton_block::{Account, Deserializable, Serializable, AccountState};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData, Abi};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
 
@@ -71,6 +71,16 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                 .long("--abi")
                 .takes_value(true)
                 .help("Path to the contract ABI file.")))
+        .subcommand(SubCommand::with_name("account")
+            .subcommand(SubCommand::with_name("boc")
+                .arg(Arg::with_name("BOC")
+                    .required(true)
+                    .help("Path to the account boc file."))
+                .arg(Arg::with_name("DUMPTVC")
+                    .long("--dumptvc")
+                    .short("-d")
+                    .takes_value(true)
+                    .help("Path to the TVC file where to save the dump."))))
 }
 
 pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -86,6 +96,11 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     if let Some(m) = m.subcommand_matches("account") {
         return decode_account_fields(m, config).await;
     }
+    if let Some(m) = m.subcommand_matches("account") {
+        if let Some(m) = m.subcommand_matches("boc") {
+            return decode_account_from_boc(m, config).await;
+        }
+    }
     Err("unknown command".to_owned())
 }
 
@@ -99,6 +114,98 @@ async fn decode_body_command(m: &ArgMatches<'_>, config: Config) -> Result<(), S
         print_args!(body, abi);
     }
     println!("{}", decode_body(body.unwrap(), &abi.unwrap(), config.is_json).await?);
+    Ok(())
+}
+
+async fn decode_account_from_boc(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let boc = m.value_of("BOC");
+    let tvc_path = m.value_of("DUMPTVC");
+
+    if !config.is_json {
+        print_args!(boc, tvc_path);
+    }
+
+    let account = Account::construct_from_file(boc.unwrap())
+        .map_err(|e| format!(" failed to load account from the boc file: {}", e))?;
+
+    print_account_data(&account, tvc_path, config)
+}
+
+pub fn print_account_data(account: &Account, tvc_path: Option<&str>, config: Config) -> Result<(), String> {
+    if account.is_none() {
+        println!("\nAccount is None");
+        return Ok(());
+    }
+    let mut state_init = None;
+
+    let address = match account.get_addr() {
+        Some(address) => format!("{}", address),
+        _ => "Undefined".to_owned(),
+    };
+
+    let state = match account.state() {
+        Some(AccountState::AccountActive(state)) => {
+            state_init = Some(state);
+            "Active".to_owned()
+        },
+        Some(AccountState::AccountFrozen(_hash)) =>
+            "Frozen".to_owned(),
+        Some(AccountState::AccountUninit) =>
+            "Uninit".to_owned(),
+        _ => "Undefined".to_owned(),
+    };
+
+    let balance = match account.balance() {
+        Some(balance) => format!("{}", balance.grams.clone()),
+        _ => "Undefined".to_owned(),
+    };
+
+    let (trans_lt, paid) = match account.stuff() {
+        Some(stuff) =>
+            (format!("{}", stuff.storage().last_trans_lt()),
+            format!("{}", stuff.storage_stat().last_paid())),
+        _ => ("Undefined".to_owned(), "Undefined".to_owned()),
+    };
+
+    let si = match state_init {
+        Some(state_init) =>
+            format!("{{\n  \"split_depth\": \"{}\",\n  \"special\": \"{}\",\n  \"data\": \"{}\",\
+\n  \"code\": \"{}\",\n  \"code_hash\": \"{}\",\n  \"lib\": \"{}\"",
+                    state_init.split_depth.as_ref().map(|x| format!("{:?}", (x.0 as u8))).unwrap_or("None".to_string()),
+                    state_init.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
+                    msg_printer::tree_of_cells_into_base64(state_init.data.as_ref()),
+                    msg_printer::tree_of_cells_into_base64(state_init.code.as_ref()),
+                    state_init.code.clone().unwrap().repr_hash().to_hex_string(),
+                    msg_printer::tree_of_cells_into_base64(state_init.library.root()),
+            ),
+        _ => "Undefined".to_owned()
+    };
+
+    if config.is_json {
+        println!("{{");
+        println!("  \"Address\": \"{}\",", address);
+        println!("  \"State\": \"{}\",", state);
+        println!("  \"Balance\": \"{}\",", balance);
+        println!("  \"last_trans_lt\": \"{}\",", trans_lt);
+        println!("  \"last_paid\": \"{}\",", paid);
+        println!("  \"StatInit\": {},", si.replace("  ", "    "));
+        println!("  }}");
+        println!("}}");
+    } else {
+        println!("\nAddress: {}", address);
+        println!("State: {}", state);
+        println!("Balance: {}", balance);
+        println!("last_trans_lt: {}", trans_lt);
+        println!("last_paid: {}", paid);
+        println!("StateInit: {}", si);
+        println!("}}");
+    }
+
+    if tvc_path.is_some() && state_init.is_some() {
+        state_init.unwrap().write_to_file(tvc_path.unwrap())
+            .map_err(|e| format!("{}", e))?;
+    }
+
     Ok(())
 }
 

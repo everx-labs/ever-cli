@@ -1585,3 +1585,38 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+
+#[test]
+fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
+    let tvc_path = "giver.tvc";
+    let giver_addr = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg("--dumptvc")
+        .arg(tvc_path)
+        .arg(giver_addr)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Saved contract to"));
+
+    fs::remove_file(tvc_path)?;
+
+    let boc_path = "tests/account.boc";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("account")
+        .arg("boc")
+        .arg(boc_path)
+        .arg("--dumptvc")
+        .arg(tvc_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Balance: "))
+        .stdout(predicate::str::contains("StateInit"));
+
+    fs::remove_file(tvc_path)?;
+    Ok(())
+}

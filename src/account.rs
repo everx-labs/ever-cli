@@ -15,6 +15,7 @@ use crate::config::Config;
 use serde_json::json;
 use ton_client::net::{ParamsOfQueryCollection, query_collection};
 use ton_client::utils::{calc_storage_fee, ParamsOfCalcStorageFee};
+use ton_block::{Account, Deserializable, Serializable};
 
 use crate::call::query_account_boc;
 
@@ -24,15 +25,17 @@ const ACCOUNT_FIELDS: &str = r#"
     last_paid
     last_trans_lt
     data
+    boc
     code_hash
 "#;
 
-pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
+pub async fn get_account(conf: Config, addr: &str, dumpfile: Option<&str>) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
     if !conf.is_json {
         println!("Processing...");
     }
+
     let query_result = query_collection(
         ton.clone(),
         ParamsOfQueryCollection {
@@ -111,6 +114,26 @@ pub async fn get_account(conf: Config, addr: &str) -> Result<(), String> {
             }
         } else {
             println!("Account not found.");
+        }
+    }
+    if dumpfile.is_some() {
+        if accounts.len() == 1 {
+            let acc = &accounts[0];
+            let boc = acc["boc"].as_str()
+                .ok_or("failed to get boc of the account")
+                .map_err(|e| format!("{}", e))?;
+            let account = Account::construct_from_base64(boc)
+                .map_err(|e| format!("failed to load account from the boc: {}", e))?;
+            if account.state_init().is_some() {
+                account.state_init().unwrap()
+                    .write_to_file(dumpfile.unwrap())
+                    .map_err(|e| format!("failed to write data to the file: {}", e))?;
+            } else {
+                return Err("account doesn't contain state init.".to_owned());
+            }
+            if !conf.is_json {
+                println!("Saved contract to file {}", &dumpfile.unwrap());
+            }
         }
     }
     Ok(())
