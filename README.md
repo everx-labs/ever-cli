@@ -79,6 +79,7 @@ tonos-cli <subcommand> -h
   - [9.1. Convert tokens to nanotokens](#91-convert-tokens-to-nanotokens)
   - [9.2. Get global config](#92-get-global-config)
   - [9.3. NodeID](#93-nodeid)
+- [10. Fetch and replay commands](#10-fetch-and-replay)
 
 # 1. Installation
 
@@ -1804,4 +1805,16 @@ Input arguments:
      key: None
  keypair: dizzy modify exotic daring gloom rival pipe disagree again film neck fuel
 50232655f2ad44f026b03ec1834ae8316bfa1f3533732da1e19b3b31c0f04143
+```
+
+## 10. Fetch and replay
+
+These two commands are commonly used in pairs to recover a state of account at a specific point before a given transaction.
+
+Example:
+
+```bash
+$ tonos-cli fetch -- -1:5555555555555555555555555555555555555555555555555555555555555555 config.txns
+$ tonos-cli fetch 0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d 570ddeb8.txns
+$ tonos-cli replay config.txns 570ddeb8.txns 197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270
 ```

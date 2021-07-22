@@ -522,7 +522,7 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             tracker.as_mut().unwrap().track(&state.account).await?;
         }
 
-        if &tr.id == txnid {
+        if tr.id == txnid {
             println!("DONE");
             break;            
         }
