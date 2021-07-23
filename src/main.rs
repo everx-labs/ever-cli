@@ -30,6 +30,7 @@ mod helpers;
 mod multisig;
 mod sendfile;
 mod voting;
+mod replay;
 
 use account::{get_account, calc_storage};
 use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method};
@@ -46,6 +47,7 @@ use getconfig::query_global_config;
 use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
+use replay::{fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use crate::config::FullConfig;
 
@@ -409,6 +411,17 @@ async fn main_internal() -> Result <(), String> {
             (about: "Sends the boc file with an external inbound message to account.")
             (@arg BOC: +required +takes_value "Message boc file.")
         )
+        (@subcommand fetch =>
+            (about: "Fetches account's zerostate and transactions.")
+            (@arg ADDRESS: +required +takes_value "Account address to fetch zerostate and txns for.")
+            (@arg OUTPUT: +required +takes_value "Output file name")
+        )
+        (@subcommand replay =>
+            (about: "Replays account's transactions starting from zerostate.")
+            (@arg CONFIG_TXNS: +required +takes_value "File containing zerostate and txns of -1:555..5 account.")
+            (@arg INPUT_TXNS: +required +takes_value "File containing zerostate and txns of the account to replay.")
+            (@arg TXNID: +required +takes_value "Dump account state before this transaction ID and stop replaying.")
+        )
         (@setting SubcommandRequired)
     ).get_matches();
 
@@ -528,6 +541,12 @@ async fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("debot") {
         return debot_command(m, conf).await;
+    }
+    if let Some(m) = matches.subcommand_matches("fetch") {
+        return fetch_command(m, conf).await;
+    }
+    if let Some(m) = matches.subcommand_matches("replay") {
+        return replay_command(m).await;
     }
     if let Some(_) = matches.subcommand_matches("version") {
         println!(
