@@ -10,7 +10,7 @@ readme = "README.md"
 license = "Apache-2.0"
 keywords = ["TON", "SDK", "smart contract", "tonlabs", "solidity"]
 edition = "2018"
-version = "0.16.56"
+version = "0.16.57"
 
 [dependencies]
 async-trait = "0.1.42"
