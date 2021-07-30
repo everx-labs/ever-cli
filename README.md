@@ -1813,8 +1813,70 @@ These two commands are commonly used in pairs to recover a state of account at a
 
 Example:
 
+1) Dump blockchain config history to file.
+
 ```bash
 $ tonos-cli fetch -- -1:5555555555555555555555555555555555555555555555555555555555555555 config.txns
+```
+
+2) Dump account transactions from the network to file.
+
+```bash
 $ tonos-cli fetch 0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d 570ddeb8.txns
+```
+where `0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d` is an example of account address, `570ddeb8.txns` - the name of putput file.
+
+```bash
 $ tonos-cli replay config.txns 570ddeb8.txns 197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270
 ```
+
+where `197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270` is a txn id before which account state should be restored.
+
+Note 1: last command generates 3 files. The file with the longest name in the form of `<addr>-<txn_id>.boc` is a replayed and serialized Account state.
+
+Note 2: to get StateInit (tvc) from Account state use `tonos-cli decode account boc` command with `--dumptvc` option.
+
+### 10.1 How to unfreeze account
+
+- 1) Dump Account state before transaction in which account changed state from Active to Frozen.
+
+- 2) Extract tvc from generated Account state.
+
+- 3) Use contract deployer (address in mainnet: `0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64`) to deploy extracted tvc to frozen account. Send 1 ton to its address and then run its `deploy` method.
+
+    Example: 
+    `tonos-cli --url main.ton.dev call 0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64 deploy --abi deployer.abi.json "{\"stateInit\":\"$(cat state.tvc | base64 -w 0)\",\"value\":500000000,\"dest\":\"-1:618272d6b15fd8f1eaa3cdb61ab9d77ae47ebbfcf7f28d495c727d0e98d523eb\"}"`
+    where `dest` - an address of frozen account, `state.tvc` - extracted account StateInit in step 2. 
+
+Deployer.abi.json:
+```json
+{
+	"ABI version": 2,
+	"header": ["time", "expire"],
+	"functions": [
+		{
+			"name": "deploy",
+			"inputs": [
+				{"name":"stateInit","type":"cell"},
+				{"name":"value","type":"uint128"},
+				{"name":"dest","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "constructor",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		}
+	],
+	"data": [
+	],
+	"events": [
+	]
+}
+```
+
+
