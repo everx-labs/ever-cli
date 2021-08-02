@@ -17,7 +17,7 @@ use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::Cell;
 use std::fmt::Write;
-use ton_block::{Account, Deserializable, Serializable, AccountState, StateInit};
+use ton_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData, Abi};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
 
@@ -143,23 +143,18 @@ pub fn print_account_data(account: &Account, tvc_path: Option<&str>, config: Con
         println!("\nAccount is None");
         return Ok(());
     }
-    let mut state_init = None;
+    let state_init = account.state_init();
 
     let address = match account.get_addr() {
         Some(address) => format!("{}", address),
         _ => "Undefined".to_owned(),
     };
 
-    let state = match account.state() {
-        Some(AccountState::AccountActive(state)) => {
-            state_init = Some(state);
-            "Active".to_owned()
-        },
-        Some(AccountState::AccountFrozen(_hash)) =>
-            "Frozen".to_owned(),
-        Some(AccountState::AccountUninit) =>
-            "Uninit".to_owned(),
-        _ => "Undefined".to_owned(),
+    let state = match account.status() {
+        AccountStatus::AccStateUninit => "Uninit".to_owned(),
+        AccountStatus::AccStateFrozen => "Frozen".to_owned(),
+        AccountStatus::AccStateActive => "Active".to_owned(),
+        AccountStatus::AccStateNonexist => "NonExist".to_owned(),
     };
 
     let balance = match account.balance() {
@@ -167,12 +162,9 @@ pub fn print_account_data(account: &Account, tvc_path: Option<&str>, config: Con
         _ => "Undefined".to_owned(),
     };
 
-    let (trans_lt, paid) = match account.stuff() {
-        Some(stuff) =>
-            (format!("{}", stuff.storage().last_trans_lt()),
-            format!("{}", stuff.storage_stat().last_paid())),
-        _ => ("Undefined".to_owned(), "Undefined".to_owned()),
-    };
+    let trans_lt = account.last_tr_time()
+        .map_or("Undefined".to_owned(), |v| format!("{}", v));
+    let paid = format!("{}", account.last_paid());
 
     let (si, code_hash) = match state_init {
         Some(state_init) =>
