@@ -35,7 +35,7 @@ use ton_client::processing::{
 };
 use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet, run_executor, ParamsOfRunExecutor, AccountForExecutor};
 use ton_client::error::ClientError;
-use ton_block::{Account, Serializable};
+use ton_block::{Account, Serializable, Deserializable};
 use std::str::FromStr;
 use serde_json::Value;
 
@@ -307,6 +307,88 @@ pub async fn emulate_localy(
         println!("Local run succeeded. Executing onchain.");
     }
     Ok(())
+}
+
+pub async fn run_local_for_account(
+    conf: Config,
+    account: &str,
+    abi: String,
+    method: &str,
+    params: &str,
+) -> Result<(), String> {
+    let ton = create_client_verbose(&conf)?;
+    let abi = load_abi(&abi)?;
+
+    let acc = Account::construct_from_file(account)
+        .map_err(|e| format!(" failed to load account from the file {}: {}", account, e))?;
+
+    let acc_boc = base64::encode(&acc.write_to_bytes().unwrap());
+
+    let addr = acc.get_addr()
+        .ok_or("failed to load address from the account.")?
+        .to_string();
+
+    let now = now();
+    let expire_at = conf.lifetime + now;
+    let header = FunctionHeader {
+        expire: Some(expire_at),
+        ..Default::default()
+    };
+
+    let msg = prepare_message(
+        ton.clone(),
+        &addr,
+        abi.clone(),
+        method,
+        params,
+        Some(header),
+        None,
+        conf.is_json,
+    ).await?;
+
+    let res = run_local(
+        ton,
+        abi,
+        msg.message,
+        acc_boc
+    ).await?;
+
+    if !conf.is_json {
+        println!("Succeeded.");
+    }
+
+    if !res.is_null() {
+        if !conf.is_json {
+            println!("Result: {}", serde_json::to_string_pretty(&res).unwrap());
+        } else {
+            println!("{}", serde_json::to_string_pretty(&res).unwrap());
+        }
+    }
+    Ok(())
+}
+
+
+async fn run_local(
+    ton: TonClient,
+    abi: Abi,
+    msg: String,
+    acc_boc: String,
+) -> Result<serde_json::Value, String> {
+
+    let result = run_tvm(
+        ton.clone(),
+        ParamsOfRunTvm {
+            message: msg,
+            account: acc_boc,
+            abi: Some(abi.clone()),
+            return_updated_account: Some(true),
+            ..Default::default()
+        },
+    ).await
+        .map_err(|e| format!("run failed: {:#}", e))?;
+    let res = result.decoded.and_then(|d| d.output)
+        .ok_or("Failed to decode the result. Check that abi matches the contract.")?;
+    Ok(res)
 }
 
 async fn send_message_and_wait(

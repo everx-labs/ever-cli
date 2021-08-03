@@ -1569,3 +1569,24 @@ fn test_gen_deploy_message() -> Result<(), Box<dyn std::error::Error>> {
     let _ = std::fs::remove_file(output);
     Ok(())
 }
+
+#[test]
+fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
+    let boc_path = "tests/depool_acc.boc";
+    let abi_path = "tests/samples/fakeDepool.abi.json";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run_account")
+        .arg(boc_path)
+        .arg("getData")
+        .arg("{}")
+        .arg("--abi")
+        .arg(abi_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains("Result: {"))
+        .stdout(predicate::str::contains(r#""reinvest": false,"#));
+
+    Ok(())
+}
