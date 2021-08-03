@@ -1576,7 +1576,8 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
     let abi_path = "tests/samples/fakeDepool.abi.json";
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("run_account")
+    cmd.arg("run")
+        .arg("--boc")
         .arg(boc_path)
         .arg("getData")
         .arg("{}")

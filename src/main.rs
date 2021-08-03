@@ -266,18 +266,11 @@ async fn main_internal() -> Result <(), String> {
         (@subcommand run =>
             (@setting AllowLeadingHyphen)
             (about: "Runs contract function locally.")
-            (@arg ADDRESS: +required +takes_value "Contract address.")
+            (@arg ADDRESS: +required +takes_value "Contract address or path to the saved account state if --boc flag is specified.")
             (@arg METHOD: +required +takes_value "Name of the function being called.")
             (@arg PARAMS: +required +takes_value "Function arguments. Can be specified with a filename, which contains json data.")
             (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
-        )
-        (@subcommand run_account =>
-            (@setting AllowLeadingHyphen)
-            (about: "Runs contract function locally for saved account state.")
-            (@arg ACCOUNT: +required +takes_value "Path to the saved account state.")
-            (@arg METHOD: +required +takes_value "Name of the function being called.")
-            (@arg PARAMS: +required +takes_value "Function arguments. Can be specified with a filename, which contains json data.")
-            (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
+            (@arg BOC: --boc "Flag that changes behavior of the command to work with the saved account state.")
         )
         (subcommand: runget_sub_command)
         (@subcommand config =>
@@ -469,10 +462,11 @@ async fn main_internal() -> Result <(), String> {
         return call_command(m, conf, CallType::Call).await;
     }
     if let Some(m) = matches.subcommand_matches("run") {
-        return call_command(m, conf, CallType::Run).await;
-    }
-    if let Some(m) = matches.subcommand_matches("run_account") {
-        return run_account(m, conf).await;
+        if m.is_present("BOC") {
+            return run_account(m, conf).await;
+        } else {
+            return call_command(m, conf, CallType::Run).await;
+        }
     }
     if let Some(m) = matches.subcommand_matches("runget") {
         return runget_command(m, conf).await;
@@ -661,7 +655,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
 }
 
 async fn run_account(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    let account = matches.value_of("ACCOUNT");
+    let account = matches.value_of("ADDRESS");
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
 

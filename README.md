@@ -873,7 +873,7 @@ Result: ["1619901678"]
 ### 4.4.5. Run contract method locally for saved account state
 
 ```bash
-tonos-cli run_account [--abi <contract.abi.json>] <account> <method> <params>
+tonos-cli run --boc [--abi <contract.abi.json>] <account> <method> <params>
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -887,7 +887,7 @@ tonos-cli run_account [--abi <contract.abi.json>] <account> <method> <params>
 Example:
 
 ```bash
-$ tonos-cli run_account tests/depool_acc.boc getData '{}' --abi tests/samples/fakeDepool.abi.json 
+$ tonos-cli run --boc tests/depool_acc.boc getData '{}' --abi tests/samples/fakeDepool.abi.json 
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
  account: tests/depool_acc.boc
