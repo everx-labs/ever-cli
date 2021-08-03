@@ -45,6 +45,7 @@ tonos-cli <subcommand> -h
     - [4.4.2. Alternative command to call contract in the blockchain](#442-alternative-command-to-call-contract-in-the-blockchain)
     - [4.4.3. Run contract method locally](#443-run-contract-method-locally)
     - [4.4.4. Run funC get-method](#444-run-func-get-method)
+    - [4.4.5. Run contract method locally for saved account state](#445-run-contract-method-locally-for-saved-account-state)
   - [4.5. Generate encrypted message offline](#45-generate-encrypted-message-offline)
   - [4.6. Broadcast previously generated message](#46-broadcast-previously-generated-message)
   - [4.7. Broadcast previously generated message from a file](#47-broadcast-previously-generated-message-from-a-file)
@@ -867,6 +868,44 @@ Connecting to net.ton.dev
 Running get-method...
 Succeded.
 Result: ["1619901678"]
+```
+
+### 4.4.5. Run contract method locally for saved account state
+
+```bash
+tonos-cli run_account [--abi <contract.abi.json>] <account> <method> <params>
+```
+
+`<contract.abi.json>` - contract interface file.
+
+`<account>` - path to the file with account boc (It can be obtained from the TON Live). 
+
+`<method>` - the method being called.
+
+`<params>` - parameters of the called method.
+
+Example:
+
+```bash
+$ tonos-cli run_account tests/depool_acc.boc getData '{}' --abi tests/samples/fakeDepool.abi.json 
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+ account: tests/depool_acc.boc
+  method: getData
+  params: {}
+     abi: tests/samples/fakeDepool.abi.json
+Generating external inbound message...
+Succeeded.
+Result: {
+  "stake": "65535",
+  "sender": "0:1e0739795a20263747ba659785a791fc2761295593a694f53116ab53439cc0a4",
+  "receiver": "0:0123456789012345012345678901234501234567890123450123456789012346",
+  "withdrawal": "172800",
+  "total": "172800",
+  "reinvest": false,
+  "value": "1000000000"
+}
+
 ```
 
 ## 4.5. Generate encrypted message offline
