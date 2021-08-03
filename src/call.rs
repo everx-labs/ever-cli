@@ -327,7 +327,9 @@ pub async fn run_local_for_account(
     let acc = Account::construct_from_file(account)
         .map_err(|e| format!(" failed to load account from the file {}: {}", account, e))?;
 
-    let acc_boc = base64::encode(&acc.write_to_bytes().unwrap());
+    let acc_bytes = acc.write_to_bytes()
+        .map_err(|e| format!("failed to load data from the account: {}", e))?;
+    let acc_boc = base64::encode(&acc_bytes);
 
     let addr = acc.get_addr()
         .ok_or("failed to load address from the account.")?
@@ -549,9 +551,9 @@ pub async fn call_contract_with_result(
 fn print_json_result(result: Value, conf: Config) {
     if !result.is_null() {
         if !conf.is_json {
-            println!("Result: {}", serde_json::to_string_pretty(&result).unwrap());
+            println!("Result: {}", serde_json::to_string_pretty(&result).unwrap_or("failed to serialize result".to_owned()));
         } else {
-            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            println!("{}", serde_json::to_string_pretty(&result).unwrap_or("failed to serialize result".to_owned()));
         }
     }
 }
