@@ -1569,3 +1569,56 @@ fn test_gen_deploy_message() -> Result<(), Box<dyn std::error::Error>> {
     let _ = std::fs::remove_file(output);
     Ok(())
 }
+
+#[test]
+fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("account")
+        .arg("data")
+        .arg("--abi")
+        .arg("tests/test_abi_v2.1.abi.json")
+        .arg("--tvc")
+        .arg("tests/decode_fields.tvc")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#""__pubkey": "0xe8b1d839abe27b2abb9d4a2943a9143a9c7e2ae06799bd24dec1d7a8891ae5dd","#))
+        .stdout(predicate::str::contains(r#" "a": "I like it.","#));
+
+    Ok(())
+}
+
+
+#[test]
+fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
+    let tvc_path = "giver.tvc";
+    let giver_addr = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg("--dumptvc")
+        .arg(tvc_path)
+        .arg(giver_addr)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Saved contract to"));
+
+    fs::remove_file(tvc_path)?;
+
+    let boc_path = "tests/account.boc";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("account")
+        .arg("boc")
+        .arg(boc_path)
+        .arg("--dumptvc")
+        .arg(tvc_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("balance: "))
+        .stdout(predicate::str::contains("state_init"));
+
+    fs::remove_file(tvc_path)?;
+    Ok(())
+}

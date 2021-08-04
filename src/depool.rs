@@ -250,7 +250,7 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
     let depool = m.value_of("ADDRESS")
         .map(|s| s.to_string())
         .or(conf.addr.clone())
-        .ok_or("depool address is not defined. Supply it in config file or in command line.".to_string())?;
+        .ok_or("depool address is not defined. Supply it in the config file or in command line.".to_string())?;
     let depool = load_ton_address(&depool, &conf)
         .map_err(|e| format!("invalid depool address: {}", e))?;
 

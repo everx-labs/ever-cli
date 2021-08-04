@@ -335,6 +335,7 @@ async fn main_internal() -> Result <(), String> {
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Smart contract address.")
+            (@arg DUMPTVC: -d --dumptvc +takes_value "Dumps account StateInit to specified tvc file.")
         )
         (@subcommand fee =>
             (about: "Calculates fees for executing message or account storage fee.")
@@ -591,7 +592,7 @@ async fn send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
         matches.value_of("ABI")
             .map(|s| s.to_string())
             .or(config.abi_path.clone())
-            .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
+            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
     );
 
     print_args!(message, abi);
@@ -619,7 +620,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
         matches.value_of("ABI")
             .map(|s| s.to_string())
             .or(config.abi_path.clone())
-            .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
+            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
     );
     let params = Some(load_params(params.unwrap())?);
     print_args!(method, params, abi, output);
@@ -661,7 +662,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
         matches.value_of("ABI")
             .map(|s| s.to_string())
             .or(config.abi_path.clone())
-            .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
+            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
     );
 
     let keys = match call {
@@ -729,13 +730,13 @@ async fn callex_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
         matches.value_of("ADDRESS")
             .map(|s| s.to_string())
             .or(config.addr.clone())
-            .ok_or("ADDRESS is not defined. Supply it in config file or in command line.".to_string())?
+            .ok_or("ADDRESS is not defined. Supply it in the config file or in command line.".to_string())?
     );
     let abi = Some(
         matches.value_of("ABI")
         .map(|s| s.to_string())
         .or(config.abi_path.clone())
-        .ok_or("ABI is not defined. Supply it in config file or in command line.".to_string())?
+        .ok_or("ABI is not defined. Supply it in the config file or in command line.".to_string())?
     );
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
@@ -784,13 +785,13 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: D
         matches.value_of("ABI")
             .map(|s| s.to_string())
             .or(config.abi_path.clone())
-            .ok_or("ABI file not defined. Supply it in config file or command line.".to_string())?
+            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
     );
     let keys = Some(
         matches.value_of("SIGN")
             .map(|s| s.to_string())
             .or(config.keys_path.clone())
-            .ok_or("keypair file not defined. Supply it in config file or command line.".to_string())?
+            .ok_or("keypair file is not defined. Supply it in the config file or command line.".to_string())?
     );
     let params = Some(load_params(params.unwrap())?);
     if !config.is_json {
@@ -890,11 +891,12 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
 
 async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
+    let tvcname = matches.value_of("DUMPTVC");
     if !config.is_json {
         print_args!(address);
     }
     let address = load_ton_address(address.unwrap(), &config)?;
-    get_account(config, address.as_str()).await
+    get_account(config, address.as_str(), tvcname).await
 }
 
 async fn storage_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {

@@ -1,0 +1,36 @@
+{
+	"ABI version": 2,
+	"version": "2.1",
+	"header": ["time"],
+	"functions": [
+		{
+			"name": "constructor",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "f",
+			"inputs": [
+				{"name":"cells","type":"cell[]"}
+			],
+			"outputs": [
+			]
+		}
+	],
+	"data": [
+	],
+	"events": [
+	],
+	"fields": [
+		{"name":"__pubkey","type":"uint256"},
+		{"name":"__timestamp","type":"uint64"},
+		{"name":"fun","type":"uint32"},
+		{"name":"opt","type":"optional(bytes)"},
+		{"components":[{"name":"value0","type":"uint256"},{"name":"value1","type":"uint256"},{"name":"value2","type":"uint256"},{"name":"value3","type":"uint256"}],"name":"big","type":"optional(tuple)"},
+		{"name":"a","type":"string"},
+		{"name":"b","type":"bytes"},
+		{"name":"length","type":"uint256"}
+	]
+}
