@@ -1809,22 +1809,22 @@ Input arguments:
 
 ## 10. Fetch and replay
 
-These two commands are commonly used in pairs to recover a state of account at a specific point before a given transaction.
+These two commands are commonly used in pairs to recover a state of the account at the specific point before a given transaction.
 
 Example:
 
-1) Dump blockchain config history to file.
+1) Dump blockchain config history to the file.
 
 ```bash
 $ tonos-cli fetch -- -1:5555555555555555555555555555555555555555555555555555555555555555 config.txns
 ```
 
-2) Dump account transactions from the network to file.
+2) Dump account transactions from the network to the file.
 
 ```bash
 $ tonos-cli fetch 0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d 570ddeb8.txns
 ```
-where `0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d` is an example of account address, `570ddeb8.txns` - the name of putput file.
+where `0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d` is an example of account address, `570ddeb8.txns` - name of the output file.
 
 ```bash
 $ tonos-cli replay config.txns 570ddeb8.txns 197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270
@@ -1840,9 +1840,9 @@ Note 2: to get StateInit (tvc) from Account state use `tonos-cli decode account 
 
 - 1) Dump Account state before transaction in which account changed state from Active to Frozen.
 
-- 2) Extract tvc from generated Account state.
+- 2) Extract tvc from the generated Account state.
 
-- 3) Use contract deployer (address in mainnet: `0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64`) to deploy extracted tvc to frozen account. Send 1 ton to its address and then run its `deploy` method.
+1) Use contract deployer (address in mainnet: `0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64`) to deploy the extracted tvc to the frozen account. Send 1 ton to its address and then run its `deploy` method.
 
     Example: 
     `tonos-cli --url main.ton.dev call 0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64 deploy --abi deployer.abi.json "{\"stateInit\":\"$(cat state.tvc | base64 -w 0)\",\"value\":500000000,\"dest\":\"-1:618272d6b15fd8f1eaa3cdb61ab9d77ae47ebbfcf7f28d495c727d0e98d523eb\"}"`
