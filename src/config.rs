@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -86,7 +86,7 @@ pub struct Config {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct FullConfig {
     config: Config,
-    endpoints_map: HashMap<String, Vec<String>>,
+    endpoints_map: BTreeMap<String, Vec<String>>,
 }
 
 impl Config {
@@ -173,14 +173,14 @@ impl FullConfig {
             endpoints_map: FullConfig::default_map(),
         }
     }
-    pub fn default_map() -> HashMap<String, Vec<String>> {
+    pub fn default_map() -> BTreeMap<String, Vec<String>> {
         [("main.ton.dev".to_owned(), MAIN_ENDPOINTS.to_owned()),
             ("net.ton.dev".to_owned(), NET_ENDPOINTS.to_owned()),
             ("http://127.0.0.1/".to_owned(), SE_ENDPOINTS.to_owned()),
         ].iter().cloned().collect()
     }
 
-    pub fn get_map(path: &str) -> HashMap<String, Vec<String>> {
+    pub fn get_map(path: &str) -> BTreeMap<String, Vec<String>> {
         FullConfig::from_file(path).endpoints_map
     }
 

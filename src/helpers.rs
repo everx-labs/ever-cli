@@ -274,3 +274,73 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
     println!();
     return ("".to_owned(), "".to_owned());
 }
+
+pub fn print_account(
+    config: &Config,
+    acc_type: Option<String>,
+    address: Option<String>,
+    balance: Option<String>,
+    last_paid: Option<String>,
+    last_trans_lt: Option<String>,
+    data: Option<String>,
+    code_hash: Option<String>,
+    state_init: Option<String>,
+) {
+    if config.is_json {
+        println!("{{");
+        if acc_type.is_some() {
+            print!("  \"acc_type\": \"{}\"", acc_type.unwrap());
+        }
+        if address.is_some() {
+            print!(",\n  \"address\": \"{}\"", address.unwrap());
+        }
+        if balance.is_some() {
+            print!(",\n  \"balance\": \"{}\"", balance.unwrap());
+        }
+        if last_paid.is_some() {
+            print!(",\n  \"last_paid\": \"{}\"", last_paid.unwrap());
+        }
+        if last_trans_lt.is_some() {
+            print!(",\n  \"last_trans_lt\": \"{}\"", last_trans_lt.unwrap());
+        }
+        if data.is_some() {
+            print!(",\n  \"data(boc)\": \"{}\"", data.unwrap());
+        }
+        if code_hash.is_some() {
+            print!(",\n  \"code_hash\": \"{}\"", code_hash.unwrap());
+        }
+        if state_init.is_some() {
+            print!(",\n  \"state_init\": {}", state_init.unwrap());
+        }
+        println!("\n}}");
+    } else {
+        if acc_type.is_some() && acc_type.clone().unwrap() == "NonExist" {
+            println!("Account does not exist.");
+            return;
+        }
+        if address.is_some() {
+            println!("address:       {}", address.unwrap());
+        }
+        if acc_type.is_some() {
+            println!("acc_type:      {}", acc_type.unwrap());
+        }
+        if balance.is_some() {
+            println!("balance:       {}", balance.unwrap());
+        }
+        if last_paid.is_some() {
+            println!("last_paid:     {}", last_paid.unwrap());
+        }
+        if last_trans_lt.is_some() {
+            println!("last_trans_lt: {}", last_trans_lt.unwrap());
+        }
+        if data.is_some() {
+            println!("data(boc):     {}", data.unwrap());
+        }
+        if code_hash.is_some() {
+            println!("code_hash:     {}", code_hash.unwrap());
+        }
+        if state_init.is_some() {
+            println!("state_init: {}", state_init.unwrap());
+        }
+    }
+}
