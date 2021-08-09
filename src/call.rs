@@ -13,7 +13,7 @@
 use crate::config::Config;
 use crate::crypto::load_keypair;
 use crate::convert;
-use crate::helpers::{TonClient, now, create_client_verbose, create_client_local, query, load_ton_address, load_abi};
+use crate::helpers::{TonClient, now, now_ms, create_client_verbose, create_client_local, query, load_ton_address, load_abi};
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
 use hex;
@@ -416,7 +416,6 @@ async fn send_message_and_wait(
         let callback = |_| {
             async move {}
         };
-
         let result = send_message(
             ton.clone(),
             ParamsOfSendMessage {
@@ -471,15 +470,15 @@ pub async fn call_contract_with_result(
 
     let mut attempts = conf.retries + 1; // + 1 (first try)
     let total_attempts = attempts.clone();
+    let expire_at = conf.lifetime + now();
+    let time = now_ms();
     while attempts != 0 {
         attempts -= 1;
-        let now = now();
-        let expire_at = conf.lifetime + now;
         let header = FunctionHeader {
             expire: Some(expire_at),
+            time: Some(time),
             ..Default::default()
         };
-
         let msg = prepare_message(
             ton.clone(),
             addr,

@@ -77,6 +77,10 @@ pub fn now() -> u32 {
         .as_secs() as u32
 }
 
+pub fn now_ms() -> u64 {
+    chrono::prelude::Utc::now().timestamp_millis() as u64
+}
+
 pub type TonClient = Arc<ClientContext>;
 
 pub fn create_client_local() -> Result<TonClient, String> {
