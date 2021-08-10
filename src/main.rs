@@ -33,7 +33,7 @@ mod voting;
 mod replay;
 
 use account::{get_account, calc_storage};
-use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method};
+use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method, run_local_for_account};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings};
 use config::{Config, set_config, clear_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
@@ -266,10 +266,11 @@ async fn main_internal() -> Result <(), String> {
         (@subcommand run =>
             (@setting AllowLeadingHyphen)
             (about: "Runs contract function locally.")
-            (@arg ADDRESS: +required +takes_value "Contract address.")
+            (@arg ADDRESS: +required +takes_value "Contract address or path to the saved account state if --boc flag is specified.")
             (@arg METHOD: +required +takes_value "Name of the function being called.")
             (@arg PARAMS: +required +takes_value "Function arguments. Can be specified with a filename, which contains json data.")
             (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
+            (@arg BOC: --boc "Flag that changes behavior of the command to work with the saved account state.")
         )
         (subcommand: runget_sub_command)
         (@subcommand config =>
@@ -462,7 +463,11 @@ async fn main_internal() -> Result <(), String> {
         return call_command(m, conf, CallType::Call).await;
     }
     if let Some(m) = matches.subcommand_matches("run") {
-        return call_command(m, conf, CallType::Run).await;
+        if m.is_present("BOC") {
+            return run_account(m, conf).await;
+        } else {
+            return call_command(m, conf, CallType::Run).await;
+        }
     }
     if let Some(m) = matches.subcommand_matches("runget") {
         return runget_command(m, conf).await;
@@ -648,6 +653,34 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
     println!("Message body: {}", body);
 
     Ok(())
+}
+
+async fn run_account(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let account = matches.value_of("ADDRESS");
+    let method = matches.value_of("METHOD");
+    let params = matches.value_of("PARAMS");
+
+    let abi = Some(
+        matches.value_of("ABI")
+            .map(|s| s.to_string())
+            .or(config.abi_path.clone())
+            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
+    );
+
+    let params = Some(load_params(params.unwrap())?);
+    if !config.is_json {
+        print_args!(account, method, params, abi);
+    }
+
+    let abi = std::fs::read_to_string(abi.unwrap())
+        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+
+    run_local_for_account(config,
+    account.unwrap(),
+        abi,
+        method.unwrap(),
+        &params.unwrap(),
+    ).await
 }
 
 async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) -> Result<(), String> {

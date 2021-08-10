@@ -1622,3 +1622,26 @@ fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
     fs::remove_file(tvc_path)?;
     Ok(())
 }
+
+
+#[test]
+fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
+    let boc_path = "tests/depool_acc.boc";
+    let abi_path = "tests/samples/fakeDepool.abi.json";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--boc")
+        .arg(boc_path)
+        .arg("getData")
+        .arg("{}")
+        .arg("--abi")
+        .arg(abi_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains("Result: {"))
+        .stdout(predicate::str::contains(r#""reinvest": false,"#));
+
+    Ok(())
+}
