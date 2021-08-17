@@ -53,35 +53,42 @@ pub async fn get_account(conf: Config, addr: &str, dumpfile: Option<&str>) -> Re
 
     if accounts.len() == 1 {
         let acc = &accounts[0];
-        let acc_type = acc["acc_type_name"].as_str().unwrap().to_owned();
+        let acc_type = acc["acc_type_name"].as_str().unwrap_or("Undefined").to_owned();
         if acc_type != "NonExist" {
-            let balance = if !conf.is_json {
-                if conf.balance_in_tons {
-                    let bal = acc["balance"].as_str().unwrap();
-                    let bal = u64::from_str_radix(bal, 10).unwrap();
-                    let int_bal = bal as f64 / 1e9;
-                    let frac_balance = (bal as f64 / 1e6 + 0.5) as u64 % 1000;
-                    let balance_str = format!("{}", int_bal as u64);
-                    format!("{}.{} ton", balance_str.chars()
-                        .collect::<Vec<char>>()
-                        .rchunks(3)
-                        .map(|c| c.iter().collect::<String>())
-                        .rev()
-                        .collect::<Vec<String>>()
-                        .join(" "),
-                        frac_balance
-                     )
+            let bal = acc["balance"].as_str();
+            let balance =
+            if bal.is_some() {
+                let bal = bal.unwrap();
+                if !conf.is_json {
+                    if conf.balance_in_tons {
+                        let bal = u64::from_str_radix(bal, 10)
+                            .map_err(|e| format!("failed to decode balance: {}", e))?;
+                        let int_bal = bal as f64 / 1e9;
+                        let frac_balance = (bal as f64 / 1e6 + 0.5) as u64 % 1000;
+                        let balance_str = format!("{}", int_bal as u64);
+                        format!("{}.{} ton", balance_str.chars()
+                            .collect::<Vec<char>>()
+                            .rchunks(3)
+                            .map(|c| c.iter().collect::<String>())
+                            .rev()
+                            .collect::<Vec<String>>()
+                            .join(" "),
+                                frac_balance
+                        )
+                    } else {
+                        format!("{} {}", bal, "nanoton")
+                    }
                 } else {
-                    format!("{} {}", acc["balance"].as_str().unwrap(), "nanoton")
+                    bal.to_owned()
                 }
             } else {
-                acc["balance"].as_str().unwrap().to_owned()
+                "Undefined".to_owned()
             };
-            let last_paid = format!("{}", acc["last_paid"].as_u64().unwrap());
-            let last_trans_id = acc["last_trans_lt"].as_str().unwrap().to_owned();
+            let last_paid = format!("{}", acc["last_paid"].as_u64().ok_or("failed to decode last_paid".to_owned())?);
+            let last_trans_id = acc["last_trans_lt"].as_str().unwrap_or("Undefined").to_owned();
             let data = acc["data"].as_str();
             let data_boc= if data.is_some() {
-                hex::encode(base64::decode(data.unwrap()).unwrap())
+                hex::encode(base64::decode(data.unwrap()).map_err(|e|format!("failed to decode account data: {}", e))?)
             } else {
                 "null".to_owned()
             };

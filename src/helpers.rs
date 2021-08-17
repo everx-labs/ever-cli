@@ -53,8 +53,9 @@ impl log::Log for SimpleLogger {
 
 pub fn read_keys(filename: &str) -> Result<KeyPair, String> {
     let keys_str = std::fs::read_to_string(filename)
-        .map_err(|e| format!("failed to read keypair file: {}", e.to_string()))?;
-    let keys: KeyPair = serde_json::from_str(&keys_str).unwrap();
+        .map_err(|e| format!("failed to read the keypair file: {}", e.to_string()))?;
+    let keys: KeyPair = serde_json::from_str(&keys_str)
+        .map_err(|e| format!("failed to load keypair: {}", e))?;
     Ok(keys)
 }
 
@@ -70,11 +71,12 @@ pub fn load_ton_address(addr: &str, conf: &Config) -> Result<String, String> {
     Ok(addr)
 }
 
-pub fn now() -> u32 {
-    SystemTime::now()
+pub fn now() -> Result<u32, String> {
+    Ok(SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
+        .map_err(|e| format!("failed to obtain system time: {}", e))?
         .as_secs() as u32
+    )
 }
 
 pub fn now_ms() -> u64 {
@@ -243,10 +245,11 @@ pub fn events_filter(addr: &str, since: u32) -> serde_json::Value {
     })
 }
 
-pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &str, is_internal: bool) -> (String, String) {
+pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &str, is_internal: bool) -> Result<(String, String), String> {
     println!("Id: {}", message["id"].as_str().unwrap_or("Undefined"));
     let value = message["value"].as_str().unwrap_or("0x0");
-    let value = u64::from_str_radix(value.trim_start_matches("0x"), 16).unwrap();
+    let value = u64::from_str_radix(value.trim_start_matches("0x"), 16)
+        .map_err(|e| format!("failed to decode msg value: {}", e))?;
     let value: f64 = value as f64 / 1e9;
     println!("Value: {:.9}", value);
     println!("Created at: {} ({})",
@@ -262,7 +265,7 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
             ParamsOfDecodeMessageBody {
                 abi: load_abi(abi).unwrap(),
                 body: body.to_owned(),
-                is_internal: is_internal,
+                is_internal,
                 ..Default::default()
             },
         ).await;
@@ -270,13 +273,14 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
             ("unknown".to_owned(), "{}".to_owned())
         } else {
             let result = result.unwrap();
-            (result.name, serde_json::to_string(&result.value).unwrap())
+            (result.name, serde_json::to_string(&result.value)
+                .map_err(|e| format!("failed to serialize the result: {}", e))?)
         };
         println!("Decoded body:\n{} {}\n", name, args);
-        return (name, args);
+        return Ok((name, args));
     }
     println!();
-    return ("".to_owned(), "".to_owned());
+    return Ok(("".to_owned(), "".to_owned()));
 }
 
 pub fn print_account(

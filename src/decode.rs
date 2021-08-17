@@ -167,9 +167,12 @@ pub fn print_account_data(account: &Account, tvc_path: Option<&str>, config: Con
     let paid = format!("{}", account.last_paid());
 
     let (si, code_hash) = match state_init {
-        Some(state_init) =>
-            (msg_printer::state_init_to_str(state_init, config.is_json),
-             Some(state_init.code.clone().unwrap().repr_hash().to_hex_string())),
+        Some(state_init) => {
+            let code = state_init.code.clone()
+                .ok_or("failed to obtain code from the StateInit")?;
+            (msg_printer::state_init_to_str(state_init, config.is_json)?,
+             Some(code.repr_hash().to_hex_string()))
+        },
         _ => ("Undefined".to_owned(), None)
     };
 
@@ -223,7 +226,7 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let state = StateInit::construct_from_file(tvc.unwrap())
         .map_err(|e| format!("failed to load StateInit from the tvc file: {}", e))?;
-    let b64 = tree_of_cells_into_base64(state.data.as_ref());
+    let b64 = tree_of_cells_into_base64(state.data.as_ref())?;
     let ton = create_client_local()?;
     let res = decode_account_data(
         ton,
@@ -234,7 +237,8 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
         )
         .await
         .map_err(|e| format!("failed to decode data: {}", e))?;
-    println!("TVC fields:\n{}", serde_json::to_string_pretty(&res.data).unwrap());
+    println!("TVC fields:\n{}", serde_json::to_string_pretty(&res.data)
+        .map_err(|e| format!("failed to serialize the result: {}", e))?);
     Ok(())
 }
 
@@ -278,15 +282,16 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(),
         )
         .await
         .map_err(|e| format!("failed to decode data: {}", e))?;
-    println!("Account fields:\n{}", serde_json::to_string_pretty(&res.data).unwrap());
-
+    println!("Account fields:\n{}", serde_json::to_string_pretty(&res.data)
+        .map_err(|e| format!("failed to serialize the result: {}", e))?);
     Ok(())
 }
 
 async fn print_decoded_body(body_vec: Vec<u8>, abi: &str, is_json: bool) -> Result<String, String> {
     let ton = create_client_local()?;
     let mut empty_boc = vec![];
-    serialize_tree_of_cells(&Cell::default(), &mut empty_boc).unwrap();
+    serialize_tree_of_cells(&Cell::default(), &mut empty_boc)
+        .map_err(|e| format!("failed to serialize tree of cells: {}", e))?;
     if body_vec.cmp(&empty_boc) == std::cmp::Ordering::Equal {
         return Err(format!("body is empty"));
     }
@@ -298,11 +303,12 @@ async fn print_decoded_body(body_vec: Vec<u8>, abi: &str, is_json: bool) -> Resu
             Err(_) => decode_msg_body(ton.clone(), abi, &body_base64, true).await?,
         }
     };
-    let output = res.value.take().unwrap();
+    let output = res.value.take().ok_or("failed to obtain the result")?;
     Ok(if is_json {
         format!(" \"BodyCall\": {{\n  \"{}\": {}\n }}", res.name, output)
     } else {
-        format!("{}: {}", res.name, serde_json::to_string_pretty(&output).unwrap())
+        format!("{}: {}", res.name, serde_json::to_string_pretty(&output)
+            .map_err(|e| format!("failed to serialize the result: {}", e))?)
     })
 }
 
@@ -315,9 +321,10 @@ async fn decode_body(body: &str, abi: &str, is_json: bool) -> Result<String, Str
 
     let mut result = String::new();
     let s = &mut result;
-    if is_json { writeln!(s, "{{").unwrap(); }
-    writeln!(s, "{}", print_decoded_body(body_vec, &abi, is_json).await?).unwrap();
-    if is_json { writeln!(s, "}}").unwrap(); }
+    if is_json { writeln!(s, "{{").map_err(|e| format!("failed to serialize the result: {}", e))?; }
+    writeln!(s, "{}", print_decoded_body(body_vec, &abi, is_json).await?)
+        .map_err(|e| format!("failed to serialize the result: {}", e))?;
+    if is_json { writeln!(s, "}}").map_err(|e| format!("failed to serialize the result: {}", e))?; }
     Ok(result)
 }
 
@@ -332,7 +339,7 @@ async fn decode_message(msg_boc: Vec<u8>, abi: Option<String>, is_json: bool) ->
     let mut printer = msg_printer::MsgPrinter::new(&tvm_msg, is_json);
     let mut result = String::new();
     let s = &mut result;
-    write!(s, "{}", printer.print(false)).unwrap();
+    write!(s, "{}", printer.print(false)?).map_err(|e| format!("failed to serialize the result: {}", e))?;
 
     if abi.is_some() && tvm_msg.body().is_some() {
         let abi = abi.unwrap();
@@ -340,9 +347,10 @@ async fn decode_message(msg_boc: Vec<u8>, abi: Option<String>, is_json: bool) ->
         serialize_tree_of_cells(&tvm_msg.body().unwrap().into_cell(), &mut body_vec)
             .map_err(|e| format!("failed to serialize body: {}", e))?;
 
-        writeln!(s, "{}", print_decoded_body(body_vec, &abi, is_json).await?).unwrap();
+        writeln!(s, "{}", print_decoded_body(body_vec, &abi, is_json).await?)
+            .map_err(|e| format!("failed to serialize the result: {}", e))?;
     }
-    if is_json { writeln!(s, "}}").unwrap(); }
+    if is_json { writeln!(s, "}}").map_err(|e| format!("failed to serialize the result: {}", e))?; }
     Ok(result)
 }
 
@@ -366,29 +374,29 @@ mod msg_printer {
             MsgPrinter {off: " ", start: "\"", end: "\",", msg, is_json }
         }
 
-        pub fn print(&mut self, close: bool) -> String {
+        pub fn print(&mut self, close: bool) -> Result<String, String> {
             let mut result = String::new();
             let s = &mut result;
             if self.is_json {
-                write!(s, "{{\n").unwrap();
+                write!(s, "{{\n").map_err(|e| format!("failed to serialize the result: {}", e))?;
             }
-            self.json(s, "Type", &self.print_msg_type());
-            let hdr = self.print_msg_header();
+            self.json(s, "Type", &self.print_msg_type())?;
+            let hdr = self.print_msg_header()?;
             self.start = "{\n";
             self.end = " },";
             self.off = " ";
-            self.json(s, "Header", &hdr);
-            self.state_init_printer(s);
+            self.json(s, "Header", &hdr)?;
+            self.state_init_printer(s)?;
             self.start = "\"";
             if close { self.end = "\""; } else { self.end = "\","; }
             self.off = " ";
             self.json(s, "Body", &tree_of_cells_into_base64(
                 self.msg.body().map(|slice| slice.into_cell()).as_ref(),
-            ));
+            )?)?;
             if self.is_json && close {
-                write!(s, "}}\n").unwrap();
+                write!(s, "}}\n").map_err(|e| format!("failed to serialize the result: {}", e))?;
             }
-            result
+            Ok(result)
         }
 
         fn print_msg_type(&self) -> String {
@@ -400,11 +408,13 @@ mod msg_printer {
         }
 
 
-        fn json<T: std::fmt::Display>(&self, s: &mut String, name: &str, value: &T) {
-            write!(s, "{}\"{}\": {}{}{}\n", self.off, name, self.start, value, self.end).unwrap();
+        fn json<T: std::fmt::Display>(&self, s: &mut String, name: &str, value: &T) -> Result<(), String>{
+            write!(s, "{}\"{}\": {}{}{}\n", self.off, name, self.start, value, self.end)
+                .map_err(|e| format!("failed to serialize message: {}", e))?;
+            Ok(())
         }
 
-        fn print_msg_header(&mut self) -> String {
+        fn print_msg_header(&mut self) -> Result<String, String> {
             let mut result = String::new();
             let s = &mut result;
             self.start = "\"";
@@ -412,77 +422,79 @@ mod msg_printer {
             self.off = "   ";
             match self.msg.header() {
                 CommonMsgInfo::IntMsgInfo(header) => {
-                    self.json(s, "ihr_disabled", &header.ihr_disabled);
-                    self.json(s, "bounce", &header.bounce);
-                    self.json(s, "bounced", &header.bounced);
-                    self.json(s, "source", &header.src);
-                    self.json(s, "destination", &header.dst);
-                    self.json(s, "value", &print_cc(&header.value));
-                    self.json(s, "ihr_fee", &print_grams(&header.ihr_fee));
-                    self.json(s, "fwd_fee", &print_grams(&header.fwd_fee));
-                    self.json(s, "created_lt", &header.created_lt);
+                    self.json(s, "ihr_disabled", &header.ihr_disabled)?;
+                    self.json(s, "bounce", &header.bounce)?;
+                    self.json(s, "bounced", &header.bounced)?;
+                    self.json(s, "source", &header.src)?;
+                    self.json(s, "destination", &header.dst)?;
+                    self.json(s, "value", &print_cc(&header.value))?;
+                    self.json(s, "ihr_fee", &print_grams(&header.ihr_fee))?;
+                    self.json(s, "fwd_fee", &print_grams(&header.fwd_fee))?;
+                    self.json(s, "created_lt", &header.created_lt)?;
                     self.end = "\"";
-                    self.json(s, "created_at", &header.created_at);
+                    self.json(s, "created_at", &header.created_at)?;
                 },
                 CommonMsgInfo::ExtInMsgInfo(header) => {
-                    self.json(s, "source", &header.src);
-                    self.json(s, "destination", &header.dst);
+                    self.json(s, "source", &header.src)?;
+                    self.json(s, "destination", &header.dst)?;
                     self.end = "\"";
-                    self.json(s, "import_fee", &print_grams(&header.import_fee));
+                    self.json(s, "import_fee", &print_grams(&header.import_fee))?;
                 },
                 CommonMsgInfo::ExtOutMsgInfo(header) => {
-                    self.json(s, "source", &header.src);
-                    self.json(s, "destination", &header.dst);
-                    self.json(s, "created_lt", &header.created_lt);
+                    self.json(s, "source", &header.src)?;
+                    self.json(s, "destination", &header.dst)?;
+                    self.json(s, "created_lt", &header.created_lt)?;
                     self.end = "\"";
-                    self.json(s, "created_at", &header.created_at);
+                    self.json(s, "created_at", &header.created_at)?;
                 }
             };
-            result
+            Ok(result)
         }
 
-        fn state_init_printer(&self, s: &mut String) {
+        fn state_init_printer(&self, s: &mut String) -> Result<(), String>{
             match self.msg.state_init().as_ref() {
                 Some(x) => {
                     let init = format!(
                         "StateInit{}",
-                        state_init_to_str(x, false)
+                        state_init_to_str(x, false)?
                     );
-                    self.json(s, "Init", &init);
+                    self.json(s, "Init", &init)?;
                 },
                 None => (),
             };
+            Ok(())
         }
     }
 
-    pub fn state_init_to_str(state_init: &StateInit, is_json: bool) -> String {
+    pub fn state_init_to_str(state_init: &StateInit, is_json: bool) -> Result<String, String> {
         if !is_json {
-            format!("\n split_depth: {}\n special: {}\n data: {}\n code: {}\n lib:  {}\n",
+            Ok(format!("\n split_depth: {}\n special: {}\n data: {}\n code: {}\n lib:  {}\n",
                 state_init.split_depth.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
                 state_init.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
-                tree_of_cells_into_base64(state_init.data.as_ref()),
-                tree_of_cells_into_base64(state_init.code.as_ref()),
-                tree_of_cells_into_base64(state_init.library.root())
-            )
+                tree_of_cells_into_base64(state_init.data.as_ref())?,
+                tree_of_cells_into_base64(state_init.code.as_ref())?,
+                tree_of_cells_into_base64(state_init.library.root())?
+            ))
         } else {
-            format!("{{\n    \"split_depth\": \"{}\"\n    \"special\": \"{}\"\n    \"data\": \"{}\"\n    \"code\": \"{}\"\n    \"lib\":  \"{}\"\n  }}",
+            Ok(format!("{{\n    \"split_depth\": \"{}\"\n    \"special\": \"{}\"\n    \"data\": \"{}\"\n    \"code\": \"{}\"\n    \"lib\":  \"{}\"\n  }}",
                 state_init.split_depth.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
                 state_init.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
-                tree_of_cells_into_base64(state_init.data.as_ref()),
-                tree_of_cells_into_base64(state_init.code.as_ref()),
-                tree_of_cells_into_base64(state_init.library.root())
-            )
+                tree_of_cells_into_base64(state_init.data.as_ref())?,
+                tree_of_cells_into_base64(state_init.code.as_ref())?,
+                tree_of_cells_into_base64(state_init.library.root())?
+            ))
         }
     }
 
-    pub fn tree_of_cells_into_base64(root_cell: Option<&Cell>) -> String {
+    pub fn tree_of_cells_into_base64(root_cell: Option<&Cell>) -> Result<String, String> {
         match root_cell {
             Some(cell) => {
                 let mut bytes = Vec::new();
-                serialize_tree_of_cells(cell, &mut bytes).unwrap();
-                base64::encode(&bytes)
+                serialize_tree_of_cells(cell, &mut bytes)
+                    .map_err(|e| format!("failed to serialize tree of cells: {}", e))?;
+                Ok(base64::encode(&bytes))
             }
-            None => "".to_string()
+            None => Ok("".to_string())
         }
     }
 

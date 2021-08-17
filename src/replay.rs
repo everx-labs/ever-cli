@@ -101,7 +101,8 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) -> R
 
     if !zerostate_found {
         let data = format!("{{\"id\":\"{}\",\"boc\":\"{}\"}}\n",
-            account_address, base64::encode(&Account::default().write_to_bytes().unwrap()));
+            account_address, base64::encode(&Account::default().write_to_bytes()
+                .map_err(|e| format!("failed to serialize account: {}", e))?));
         writer.write_all(data.as_bytes()).map_err(|e| format!("Failed to write to file: {}", e))?;
     }
 
@@ -167,17 +168,23 @@ struct State {
 }
 
 impl State {
-    fn new(filename: &str) -> Self {
-        let file = File::open(filename).unwrap();
+    fn new(filename: &str) -> Result<Self, String> {
+        let file = File::open(filename)
+            .map_err(|e| format!("failed to open file {}: {}", filename, e))?;
         let mut lines = io::BufReader::new(file).lines();
 
-        let first_line = lines.next().unwrap().unwrap();
-        let value = serde_json::from_str::<Value>(first_line.as_str()).unwrap();
-        let boc = value["boc"].as_str().unwrap();
-        let account = Account::construct_from_base64(boc).unwrap();
-        let account_addr = String::from(value["id"].as_str().unwrap());
+        let first_line = lines.next()
+            .ok_or("file is empty")?
+            .map_err(|e| format!("failed to read first line: {}", e))?;
+        let value = serde_json::from_str::<Value>(first_line.as_str())
+            .map_err(|e| format!("failed to deserialize value: {}", e))?;
+        let boc = value["boc"].as_str().ok_or("failed to decode boc")?;
+        let account = Account::construct_from_base64(boc)
+            .map_err(|e| format!("failed to load account from the boc: {}", e))?;
+        let account_addr = String::from(value["id"].as_str()
+                                            .ok_or("failed to load account address")?);
 
-        Self { account, account_addr, tr: None, lines }
+        Ok(Self { account, account_addr, tr: None, lines })
     }
 
     pub fn next_transaction(&mut self) -> Option<()>{
@@ -259,7 +266,6 @@ impl ReplayTracker for ElectorUnfreezeTracker {
             .await.map_err(|e| format!("Failed to execute run_tvm: {}", e))?
             .decoded.ok_or("Failed to decode run_tvm result")?
             .output.ok_or("Empty body")?;
-        //println!("{}", serde_json::to_string_pretty(&output).unwrap());
         let past_elections = output["past_elections"].as_object().ok_or(format!("Failed to parse value"))?;
         for (key, value) in past_elections {
             let elect_at = u32::from_str_radix(&key, 10)
@@ -366,7 +372,11 @@ impl ReplayTracker for ConfigParam34Tracker {
         let param = config.raw_config().config(34).map_err(
             |e| format!("Failed to get config param 34: {}", e))?;
         if let Some(ConfigParamEnum::ConfigParam34(cfg34)) = param {
-            let hash = cfg34.write_to_new_cell().unwrap().into_cell().unwrap().repr_hash();
+            let hash = cfg34.write_to_new_cell()
+                .map_err(|e| format!("failed to serialize config param 32: {}", e))?
+                .into_cell()
+                .map_err(|e| format!("failed to finalize cell: {}", e))?
+                .repr_hash();
             if self.cur_hash != UInt256::default() && self.cur_hash != hash {
                 println!("DBG cfg34 hash changed to {}", &hash.to_hex_string()[..8]);
             }
@@ -391,9 +401,9 @@ impl log::Log for TrivialLogger {
 
 async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
     trace_execution: bool, track_elector_unfreeze: bool, track_config_param_34: bool) -> Result<(), String> {
-    let mut account_state = State::new(input_filename);
-    let mut config_state = State::new(config_filename);
-    assert!(config_state.account_addr == CONFIG_ADDR);
+    let mut account_state = State::new(input_filename)?;
+    let mut config_state = State::new(config_filename)?;
+    assert_eq!(config_state.account_addr, CONFIG_ADDR);
 
     let mut config = BlockchainConfig::default();
     let mut cur_block_lt = 0u64;
@@ -428,7 +438,7 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
 
         let config_account = config_state.account.clone();
         let state = choose(&mut account_state, &mut config_state);
-        let tr = state.tr.as_ref().unwrap();
+        let tr = state.tr.as_ref().ok_or("failed to obtain state transaction")?;
 
         //print!("lt {: >26} {: >16x}, txn for {}, ", tr.tr.lt, tr.tr.lt, &state.account_addr[..8]);
 
@@ -442,7 +452,8 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             .map_err(|e| format!("Failed to serialize: {}", e))?;
 
         let account_old_hash_local = account_root.repr_hash();
-        let account_old_hash_remote = tr.tr.read_state_update().unwrap().old_hash;
+        let account_old_hash_remote = tr.tr.read_state_update()
+            .map_err(|e| format!("failed to read state update: {}", e))?.old_hash;
         if account_old_hash_local != account_old_hash_remote {
             println!("FAILURE\nOld hashes mismatch:\nremote {}\nlocal  {}",
                 account_old_hash_remote.to_hex_string(),
@@ -469,7 +480,8 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
                 .write_to_file(format!("config-{}-test.boc", txnid).as_str());
         }
         let executor: Box<dyn TransactionExecutor> =
-            match tr.tr.read_description().unwrap() {
+            match tr.tr.read_description()
+                .map_err(|e| format!("failed to raed transaction: {}", e))? {
                 TransactionDescr::TickTock(desc) => {
                     Box::new(TickTockTransactionExecutor::new(config.clone(), desc.tt))
                 }
@@ -485,7 +497,8 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             tracker.as_mut().unwrap().track(&state.account).await?;
         }
 
-        let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c).unwrap());
+        let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c)
+            .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
         let params = ExecuteParams {
             state_libs: HashmapE::default(),
             block_unixtime: tr.tr.now,
@@ -500,15 +513,19 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             params).map_err(|e| format!("Failed to execute txn: {}", e))?;
         state.account = Account::construct_from_cell(account_root.clone())
             .map_err(|e| format!("Failed to construct account: {}", e))?;
-        state.account.update_storage_stat().unwrap();
+        state.account.update_storage_stat()
+            .map_err(|e| format!("failed to update account: {}", e))?;
 
         let account_new_hash_local = account_root.repr_hash();
-        let account_new_hash_remote = tr.tr.read_state_update().unwrap().new_hash;
+        let account_new_hash_remote = tr.tr.read_state_update()
+            .map_err(|e| format!("failed to read state update: {}", e))?
+            .new_hash;
         if account_new_hash_local != account_new_hash_remote {
             println!("FAILURE\nNew hashes mismatch:\nremote {}\nlocal  {}",
                 account_new_hash_remote.to_hex_string(),
                 account_new_hash_local.to_hex_string());
-            println!("{:?}", tr_local.read_description().unwrap());
+            println!("{:?}", tr_local.read_description()
+                .map_err(|e| format!("failed to read description: {}", e))?);
             exit(2);
         }
 

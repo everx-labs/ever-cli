@@ -107,9 +107,10 @@ pub fn print_encoded_message(msg: &EncodedMessage) {
     }
 }
 
-fn pack_message(msg: &EncodedMessage, method: &str, is_raw: bool) -> Vec<u8> {
-    if is_raw {
-        base64::decode(&msg.message).unwrap()
+fn pack_message(msg: &EncodedMessage, method: &str, is_raw: bool) -> Result<Vec<u8>, String> {
+    let res = if is_raw {
+        base64::decode(&msg.message)
+            .map_err(|e| format!("failed to decode message: {}", e))?
     } else {
         let json_msg = json!({
             "msg": {
@@ -120,8 +121,11 @@ fn pack_message(msg: &EncodedMessage, method: &str, is_raw: bool) -> Vec<u8> {
             },
             "method": method,
         });
-        serde_json::to_string(&json_msg).unwrap().into_bytes()
-    }
+        serde_json::to_string(&json_msg)
+            .map_err(|e| format!("failed to serialize message: {}", e))?
+            .into_bytes()
+    };
+    Ok(res)
 }
 
 fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String> {
@@ -170,7 +174,7 @@ async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) 
         result.name,
         serde_json::to_string_pretty(
             &result.value.unwrap_or(json!({}))
-        ).unwrap()
+        ).map_err(|e| format!("failed to serialize result: {}", e))?
     ))
 }
 
@@ -188,7 +192,7 @@ fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Res
     let abi_obj = Contract::load(abi.as_bytes()).map_err(|e| format!("failed to parse ABI: {}", e))?;
     let functions = abi_obj.functions();
 
-    let func_obj = functions.get(method).unwrap();
+    let func_obj = functions.get(method).ok_or("failed to load function from abi")?;
     let inputs = func_obj.input_params();
 
     let mut params_json = json!({ });
@@ -335,7 +339,7 @@ pub async fn run_local_for_account(
         .ok_or("failed to load address from the account.")?
         .to_string();
 
-    let now = now();
+    let now = now()?;
     let expire_at = conf.lifetime + now;
     let header = FunctionHeader {
         expire: Some(expire_at),
@@ -470,7 +474,7 @@ pub async fn call_contract_with_result(
 
     let mut attempts = conf.retries + 1; // + 1 (first try)
     let total_attempts = attempts.clone();
-    let expire_at = conf.lifetime + now();
+    let expire_at = conf.lifetime + now()?;
     let time = now_ms();
     while attempts != 0 {
         attempts -= 1;
@@ -550,9 +554,9 @@ pub async fn call_contract_with_result(
 fn print_json_result(result: Value, conf: Config) {
     if !result.is_null() {
         if !conf.is_json {
-            println!("Result: {}", serde_json::to_string_pretty(&result).unwrap_or("failed to serialize result".to_owned()));
+            println!("Result: {}", serde_json::to_string_pretty(&result).unwrap_or("failed to serialize the result".to_owned()));
         } else {
-            println!("{}", serde_json::to_string_pretty(&result).unwrap_or("failed to serialize result".to_owned()));
+            println!("{}", serde_json::to_string_pretty(&result).unwrap_or("failed to serialize the result".to_owned()));
         }
     }
 }
@@ -583,7 +587,7 @@ pub fn display_generated_message(
 ) -> Result<(), String> {
     print_encoded_message(msg);
 
-    let msg_bytes = pack_message(msg, method, is_raw);
+    let msg_bytes = pack_message(msg, method, is_raw)?;
     if output.is_some() {
         let out_file = output.unwrap();
         std::fs::write(out_file, msg_bytes)
@@ -593,7 +597,7 @@ pub fn display_generated_message(
         let msg_hex = hex::encode(&msg_bytes);
         println!("Message: {}", msg_hex);
         println!();
-        qr2term::print_qr(msg_hex).unwrap();
+        qr2term::print_qr(msg_hex).map_err(|e| format!("failed to print QR code: {}", e))?;
         println!();
     }
     Ok(())
@@ -617,7 +621,7 @@ pub async fn generate_message(
 
     let abi = load_abi(&abi)?;
 
-    let now = now();
+    let now = now()?;
     let expire_at = lifetime + now;
     let header = FunctionHeader {
         expire: Some(expire_at),
@@ -657,7 +661,8 @@ pub async fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) 
 
     println!("Succeded.");
     if !result.is_null() {
-        println!("Result: {}", serde_json::to_string_pretty(&result).unwrap());
+        println!("Result: {}", serde_json::to_string_pretty(&result)
+            .map_err(|e| format!("failed to serialize result: {}", e))?);
     }
     Ok(())
 }
