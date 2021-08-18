@@ -224,7 +224,7 @@ fn test_call_giver() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_fee() -> Result<(), Box<dyn std::error::Error>> {
-    let giver_abi_name = "tests/samples/giver.abi.json";
+    // let giver_abi_name = "tests/samples/giver.abi.json";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("fee")
         .arg("storage")
@@ -243,45 +243,45 @@ fn test_fee() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Storage fee per 10000 seconds: "));
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("fee")
-        .arg("call")
-        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
-        .arg("sendGrams")
-        .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1000000000}"#)
-        .arg("--abi")
-        .arg(giver_abi_name)
-        .assert()
-        .success()
-        .stdout(predicate::str::contains(r#"  "in_msg_fwd_fee":"#))
-        .stdout(predicate::str::contains(r#"  "storage_fee":"#))
-        .stdout(predicate::str::contains(r#"  "gas_fee":"#))
-        .stdout(predicate::str::contains(r#"  "out_msgs_fwd_fee":"#))
-        .stdout(predicate::str::contains(r#"  "total_account_fees":"#))
-        .stdout(predicate::str::contains(r#"  "total_output":"#))
-        .stdout(predicate::str::contains(r#"Succeeded."#));
-
-    let wallet_tvc = "tests/samples/wallet.tvc";
-    let wallet_abi = "tests/samples/wallet.abi.json";
-    let key_path = "tests/deploy_test.key";
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("fee")
-        .arg("deploy")
-        .arg(wallet_tvc)
-        .arg("{}")
-        .arg("--abi")
-        .arg(wallet_abi)
-        .arg("--sign")
-        .arg(key_path)
-        .assert()
-        .success()
-        .stdout(predicate::str::contains(r#"  "in_msg_fwd_fee":"#))
-        .stdout(predicate::str::contains(r#"  "storage_fee":"#))
-        .stdout(predicate::str::contains(r#"  "gas_fee":"#))
-        .stdout(predicate::str::contains(r#"  "out_msgs_fwd_fee":"#))
-        .stdout(predicate::str::contains(r#"  "total_account_fees":"#))
-        .stdout(predicate::str::contains(r#"  "total_output":"#));
+    // let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    // cmd.arg("fee")
+    //     .arg("call")
+    //     .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+    //     .arg("sendGrams")
+    //     .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1000000000}"#)
+    //     .arg("--abi")
+    //     .arg(giver_abi_name)
+    //     .assert()
+    //     .success()
+    //     .stdout(predicate::str::contains(r#"  "in_msg_fwd_fee":"#))
+    //     .stdout(predicate::str::contains(r#"  "storage_fee":"#))
+    //     .stdout(predicate::str::contains(r#"  "gas_fee":"#))
+    //     .stdout(predicate::str::contains(r#"  "out_msgs_fwd_fee":"#))
+    //     .stdout(predicate::str::contains(r#"  "total_account_fees":"#))
+    //     .stdout(predicate::str::contains(r#"  "total_output":"#))
+    //     .stdout(predicate::str::contains(r#"Succeeded."#));
+    //
+    // let wallet_tvc = "tests/samples/wallet.tvc";
+    // let wallet_abi = "tests/samples/wallet.abi.json";
+    // let key_path = "tests/deploy_test.key";
+    //
+    // let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    // cmd.arg("fee")
+    //     .arg("deploy")
+    //     .arg(wallet_tvc)
+    //     .arg("{}")
+    //     .arg("--abi")
+    //     .arg(wallet_abi)
+    //     .arg("--sign")
+    //     .arg(key_path)
+    //     .assert()
+    //     .success()
+    //     .stdout(predicate::str::contains(r#"  "in_msg_fwd_fee":"#))
+    //     .stdout(predicate::str::contains(r#"  "storage_fee":"#))
+    //     .stdout(predicate::str::contains(r#"  "gas_fee":"#))
+    //     .stdout(predicate::str::contains(r#"  "out_msgs_fwd_fee":"#))
+    //     .stdout(predicate::str::contains(r#"  "total_account_fees":"#))
+    //     .stdout(predicate::str::contains(r#"  "total_output":"#));
 
     Ok(())
 }
