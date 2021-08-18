@@ -1006,7 +1006,9 @@ async fn proposal_decode_command(matches: &ArgMatches<'_>, config: Config) -> Re
 
 async fn getconfig_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let index = matches.value_of("INDEX");
-    print_args!(index);
+    if !config.is_json {
+        print_args!(index);
+    }
     query_global_config(config, index.unwrap()).await
 }
 
