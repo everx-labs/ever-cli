@@ -1605,6 +1605,17 @@ fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
 
     fs::remove_file(tvc_path)?;
 
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg("--dumpboc")
+        .arg(tvc_path)
+        .arg(giver_addr)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Saved account to"));
+
+    fs::remove_file(tvc_path)?;
+
     let boc_path = "tests/account.boc";
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
