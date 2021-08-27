@@ -666,7 +666,8 @@ tonos-cli account <address> [--dumptvc <tvc_path>]
 ```
 
 `<address>` - contract [address](#41-generate-contract-address).
-`--dumptvc <tvc_path>` - this flag can be specified to dump account StateInit to the <tvc_path> file. 
+`--dumptvc <tvc_path>` - this flag can be specified to dump account StateInit to the <tvc_path> file.
+`--dumpboc <boc_path>` - this flag can be specified to dump account boc to the <boc_path> file.
 
 Example:
 
