@@ -23,7 +23,6 @@ use ton_client::error::ClientError;
 use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection};
 use ton_client::{ClientConfig, ClientContext};
 
-
 const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
 const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
 

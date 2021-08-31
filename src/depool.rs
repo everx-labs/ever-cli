@@ -14,8 +14,7 @@ use crate::{print_args, VERBOSE_MODE};
 use crate::config::Config;
 use crate::convert;
 use crate::depool_abi::{DEPOOL_ABI, PARTICIPANT_ABI};
-use crate::helpers::
-    {
+use crate::helpers::{
     create_client_local,
     create_client_verbose,
     load_abi,
@@ -25,19 +24,14 @@ use crate::helpers::
     answer_filter,
     events_filter,
     print_message,
-    };
+};
 use crate::multisig::{send_with_body, MSIG_ABI};
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 use serde_json;
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet, ParamsOfDecodeMessageBody};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, ParamsOfWaitForCollection, SortDirection};
-use crate::call::{prepare_message, print_encoded_message};
-use ton_client::processing::{
-    ParamsOfSendMessage,
-    ParamsOfWaitForTransaction,
-    wait_for_transaction,
-    send_message,
-};
+use crate::call::{prepare_message_params, process_message};
+
 use std::collections::HashMap;
 
 pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
@@ -831,48 +825,18 @@ async fn call_contract_and_get_answer(
         "payload": body,
     }).to_string();
 
-    let msg = prepare_message(
-        ton.clone(),
+    let msg = prepare_message_params(
         src_addr,
         abi.clone(),
         "submitTransaction",
         &params,
         None,
         Some(keys.to_owned()),
-        false
-    ).await?;
-
-    print_encoded_message(&msg);
+    )?;
 
     println!("Multisig message processing... ");
-    let callback = |_| {
-        async move {}
-    };
 
-    let result = send_message(
-        ton.clone(),
-        ParamsOfSendMessage {
-            message: msg.message.clone(),
-            abi: Some(abi.clone()),
-            send_events: false,
-            ..Default::default()
-        },
-        callback,
-    ).await
-    .map_err(|e| format!("Failed: {:#}", e))?;
-
-    wait_for_transaction(
-        ton.clone(),
-        ParamsOfWaitForTransaction {
-            abi: Some(abi.clone()),
-            message: msg.message.clone(),
-            shard_block_id: result.shard_block_id,
-            send_events: true,
-            ..Default::default()
-        },
-        callback.clone(),
-    ).await
-    .map_err(|e| format!("Failed: {:#}", e))?;
+    process_message(ton.clone(), msg).await?;
 
     println!("\nMessage was successfully sent to the multisig, waiting for message to be sent to the depool...");
 

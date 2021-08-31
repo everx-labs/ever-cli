@@ -10,11 +10,10 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address};
+use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address,};
 use crate::config::Config;
 use crate::crypto::load_keypair;
-use crate::call::{EncodedMessage, display_generated_message, emulate_localy};
-use ton_client::processing::{ParamsOfProcessMessage};
+use crate::call::{EncodedMessage, display_generated_message, emulate_locally, process_message};
 use ton_client::abi::{
     encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage
 };
@@ -40,23 +39,13 @@ pub async fn deploy_contract(
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
     if conf.local_run || is_fee {
-        emulate_localy(ton.clone(), addr.as_str(), enc_msg.message, is_fee).await?;
+        emulate_locally(ton.clone(), addr.as_str(), enc_msg.message, is_fee).await?;
         if is_fee {
             return Ok(());
         }
     }
 
-    let callback = |_event| { async move { } };
-    ton_client::processing::process_message(
-        ton.clone(),
-        ParamsOfProcessMessage {
-            message_encode_params: msg,
-            send_events: true,
-            ..Default::default()
-        },
-        callback,
-    ).await
-    .map_err(|e| format!("deploy failed: {:#}", e))?;
+    process_message(ton.clone(), msg).await?;
 
     if !conf.is_json {
         println!("Transaction succeeded.");
