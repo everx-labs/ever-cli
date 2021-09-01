@@ -260,7 +260,7 @@ fn test_fee() -> Result<(), Box<dyn std::error::Error>> {
     //     .stdout(predicate::str::contains(r#"  "total_account_fees":"#))
     //     .stdout(predicate::str::contains(r#"  "total_output":"#))
     //     .stdout(predicate::str::contains(r#"Succeeded."#));
-
+    //
     // let wallet_tvc = "tests/samples/wallet.tvc";
     // let wallet_abi = "tests/samples/wallet.abi.json";
     // let key_path = "tests/deploy_test.key";
@@ -1602,6 +1602,17 @@ fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success()
         .stdout(predicate::str::contains("Saved contract to"));
+
+    fs::remove_file(tvc_path)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg("--dumpboc")
+        .arg(tvc_path)
+        .arg(giver_addr)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Saved account to"));
 
     fs::remove_file(tvc_path)?;
 

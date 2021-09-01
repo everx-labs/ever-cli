@@ -32,8 +32,9 @@ use ton_client::processing::{
     ParamsOfWaitForTransaction,
     wait_for_transaction,
     send_message,
+    ErrorCode
 };
-use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet, run_executor, ParamsOfRunExecutor, AccountForExecutor};
+use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet, run_executor, ParamsOfRunExecutor, AccountForExecutor, StdContractError};
 use ton_client::error::ClientError;
 use ton_block::{Account, Serializable, Deserializable};
 use std::str::FromStr;
@@ -474,10 +475,10 @@ pub async fn call_contract_with_result(
 
     let mut attempts = conf.retries + 1; // + 1 (first try)
     let total_attempts = attempts.clone();
-    let expire_at = conf.lifetime + now()?;
-    let time = now_ms();
     while attempts != 0 {
         attempts -= 1;
+        let expire_at = conf.lifetime + now();
+        let time = now_ms();
         let header = FunctionHeader {
             expire: Some(expire_at),
             time: Some(time),
@@ -498,29 +499,17 @@ pub async fn call_contract_with_result(
             print_encoded_message(&msg);
         }
 
-        let mut retry: bool = true;
+        let mut retry: bool = false;
         let error_handler = |err: ClientError| {
-            // obtaining error code
-            let code = err.code.clone();
-            // but if it was simulated locally and local exit code is not zero,
-            // we ignore previous exit code because it means we shouldn't make a retry.
-            if !err.data["exit_code"].is_null() {
-                if err.data["exit_code"].as_i64().unwrap_or(-1) != 0 {
-                    retry = false;
+            // retry only if error code is MessageExpired
+            if err.code == ErrorCode::MessageExpired as u32{
+                // but we should also check possible local execution error
+                let local_error = err.data["local_error"]["data"]["exit_code"].clone();
+                if err.data["local_error"].is_null() ||
+                    local_error.as_i64().unwrap_or(-1) == StdContractError::ReplayProtection as i64||
+                    local_error.as_i64().unwrap_or(-1) == StdContractError::ExtMessageExpired as i64 {
+                    retry = true;
                 }
-            }
-            // There is also another way how SDK can print local run results.
-            let local_error = err.data["local_error"]["data"]["exit_code"].clone();
-            if !local_error.is_null() {
-                if local_error.as_i64().unwrap_or(-1) != 0 {
-                    retry = false;
-                }
-            }
-            // if error code was 4XX then don't perform a retry. Also if error was 508,
-            // it means that message could have been delivered after timeout and for not
-            // to cause double call we shouldn't perform a retry.
-            if  (((code / 100) as u32 % 10) == 4) || (code == 508) {
-                retry = false;
             }
         };
 

@@ -29,7 +29,7 @@ const ACCOUNT_FIELDS: &str = r#"
     code_hash
 "#;
 
-pub async fn get_account(conf: Config, addr: &str, dumpfile: Option<&str>) -> Result<(), String> {
+pub async fn get_account(conf: Config, addr: &str, dumpfile: Option<&str>, dumpboc: Option<&str>) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
     if !conf.is_json {
@@ -115,7 +115,7 @@ pub async fn get_account(conf: Config, addr: &str, dumpfile: Option<&str>) -> Re
         }
     }
 
-    if dumpfile.is_some() {
+    if dumpfile.is_some() || dumpboc.is_some() {
         if accounts.len() == 1 {
             let acc = &accounts[0];
             let boc = acc["boc"].as_str()
@@ -123,16 +123,26 @@ pub async fn get_account(conf: Config, addr: &str, dumpfile: Option<&str>) -> Re
                 .map_err(|e| format!("{}", e))?;
             let account = Account::construct_from_base64(boc)
                 .map_err(|e| format!("failed to load account from the boc: {}", e))?;
-            if account.state_init().is_some() {
-                account.state_init().unwrap()
-                    .write_to_file(dumpfile.unwrap())
-                    .map_err(|e| format!("failed to write data to the file: {}", e))?;
-            } else {
-                return Err("account doesn't contain state init.".to_owned());
+            if dumpfile.is_some() {
+                if account.state_init().is_some() {
+                    account.state_init().unwrap()
+                        .write_to_file(dumpfile.unwrap())
+                        .map_err(|e| format!("failed to write data to the file {}: {}", dumpfile.unwrap(), e))?;
+                } else {
+                    return Err("account doesn't contain state init.".to_owned());
+                }
+                if !conf.is_json {
+                    println!("Saved contract to file {}", &dumpfile.unwrap());
+                }
             }
-            if !conf.is_json {
-                println!("Saved contract to file {}", &dumpfile.unwrap());
+            if dumpboc.is_some() {
+                account.write_to_file(dumpboc.unwrap())
+                    .map_err(|e| format!("failed to write data to the file {}: {}", dumpboc.unwrap(), e))?;
+                if !conf.is_json {
+                    println!("Saved account to file {}", &dumpboc.unwrap());
+                }
             }
+
         }
     }
     Ok(())
