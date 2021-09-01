@@ -482,7 +482,7 @@ pub async fn process_message(
         },
         callback,
     ).await
-        .map_err(|e| format!("Failed: {}", e))?;
+        .map_err(|e| format!("Failed: {:#}", e))?;
 
     Ok(res.decoded.and_then(|d| d.output).unwrap_or(json!({})))
 }
