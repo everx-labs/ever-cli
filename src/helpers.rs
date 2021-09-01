@@ -262,7 +262,7 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
         let result = ton_client::abi::decode_message_body(
             ton.clone(),
             ParamsOfDecodeMessageBody {
-                abi: load_abi(abi).unwrap(),
+                abi: load_abi(abi)?,
                 body: body.to_owned(),
                 is_internal,
                 ..Default::default()
