@@ -7,6 +7,10 @@ use std::fs;
 mod common;
 use common::{BIN_NAME, NETWORK, get_config};
 
+fn now_ms() -> u64 {
+    chrono::prelude::Utc::now().timestamp_millis() as u64
+}
+
 #[test]
 fn test_config_1() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -224,7 +228,7 @@ fn test_call_giver() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_fee() -> Result<(), Box<dyn std::error::Error>> {
-    // let giver_abi_name = "tests/samples/giver.abi.json";
+    let giver_abi_name = "tests/samples/giver.abi.json";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("fee")
         .arg("storage")
@@ -243,45 +247,45 @@ fn test_fee() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Storage fee per 10000 seconds: "));
 
-    // let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    // cmd.arg("fee")
-    //     .arg("call")
-    //     .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
-    //     .arg("sendGrams")
-    //     .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1000000000}"#)
-    //     .arg("--abi")
-    //     .arg(giver_abi_name)
-    //     .assert()
-    //     .success()
-    //     .stdout(predicate::str::contains(r#"  "in_msg_fwd_fee":"#))
-    //     .stdout(predicate::str::contains(r#"  "storage_fee":"#))
-    //     .stdout(predicate::str::contains(r#"  "gas_fee":"#))
-    //     .stdout(predicate::str::contains(r#"  "out_msgs_fwd_fee":"#))
-    //     .stdout(predicate::str::contains(r#"  "total_account_fees":"#))
-    //     .stdout(predicate::str::contains(r#"  "total_output":"#))
-    //     .stdout(predicate::str::contains(r#"Succeeded."#));
-    //
-    // let wallet_tvc = "tests/samples/wallet.tvc";
-    // let wallet_abi = "tests/samples/wallet.abi.json";
-    // let key_path = "tests/deploy_test.key";
-    //
-    // let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    // cmd.arg("fee")
-    //     .arg("deploy")
-    //     .arg(wallet_tvc)
-    //     .arg("{}")
-    //     .arg("--abi")
-    //     .arg(wallet_abi)
-    //     .arg("--sign")
-    //     .arg(key_path)
-    //     .assert()
-    //     .success()
-    //     .stdout(predicate::str::contains(r#"  "in_msg_fwd_fee":"#))
-    //     .stdout(predicate::str::contains(r#"  "storage_fee":"#))
-    //     .stdout(predicate::str::contains(r#"  "gas_fee":"#))
-    //     .stdout(predicate::str::contains(r#"  "out_msgs_fwd_fee":"#))
-    //     .stdout(predicate::str::contains(r#"  "total_account_fees":"#))
-    //     .stdout(predicate::str::contains(r#"  "total_output":"#));
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("fee")
+        .arg("call")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("sendGrams")
+        .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1000000000}"#)
+        .arg("--abi")
+        .arg(giver_abi_name)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#"  "in_msg_fwd_fee":"#))
+        .stdout(predicate::str::contains(r#"  "storage_fee":"#))
+        .stdout(predicate::str::contains(r#"  "gas_fee":"#))
+        .stdout(predicate::str::contains(r#"  "out_msgs_fwd_fee":"#))
+        .stdout(predicate::str::contains(r#"  "total_account_fees":"#))
+        .stdout(predicate::str::contains(r#"  "total_output":"#))
+        .stdout(predicate::str::contains(r#"Succeeded."#));
+
+    let wallet_tvc = "tests/samples/wallet.tvc";
+    let wallet_abi = "tests/samples/wallet.abi.json";
+    let key_path = "tests/deploy_test.key";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("fee")
+        .arg("deploy")
+        .arg(wallet_tvc)
+        .arg("{}")
+        .arg("--abi")
+        .arg(wallet_abi)
+        .arg("--sign")
+        .arg(key_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#"  "in_msg_fwd_fee":"#))
+        .stdout(predicate::str::contains(r#"  "storage_fee":"#))
+        .stdout(predicate::str::contains(r#"  "gas_fee":"#))
+        .stdout(predicate::str::contains(r#"  "out_msgs_fwd_fee":"#))
+        .stdout(predicate::str::contains(r#"  "total_account_fees":"#))
+        .stdout(predicate::str::contains(r#"  "total_output":"#));
 
     Ok(())
 }
@@ -1453,10 +1457,9 @@ fn test_depool_4() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
-    let depool_abi = "tests/samples/fakeDepool.abi.json";
     let seed_phrase = "blanket time net universe ketchup maid way poem scatter blur limit drill";
-
     let config = get_config().unwrap();
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
     let depool_addr = config["addr"].as_str().unwrap();
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -1588,7 +1591,6 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
 #[test]
 fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
     let tvc_path = "giver.tvc";
@@ -1634,7 +1636,6 @@ fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
 #[test]
 fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
     let boc_path = "tests/depool_acc.boc";
@@ -1653,6 +1654,150 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Succeeded."))
         .stdout(predicate::str::contains("Result: {"))
         .stdout(predicate::str::contains(r#""reinvest": false,"#));
+
+    Ok(())
+}
+
+#[test]
+fn test_run_async_call() -> Result<(), Box<dyn std::error::Error>> {
+    let giver_abi_name = "tests/samples/giver.abi.json";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg(&*NETWORK)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--async_call")
+        .arg("false")
+        .assert()
+        .success();
+
+    let time = now_ms();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("sendGrams")
+        .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1000000000}"#)
+        .arg("--abi")
+        .arg(giver_abi_name)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded"));
+
+    let duration = now_ms() - time;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--async_call")
+        .arg("true")
+        .assert()
+        .success();
+
+    let time = now_ms();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("sendGrams")
+        .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1000000000}"#)
+        .arg("--abi")
+        .arg(giver_abi_name)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded"));
+
+    assert!(duration > now_ms() - time);
+
+    let config = get_config().unwrap();
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
+    let depool_addr = config["addr"].as_str().unwrap();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012346"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--async_call")
+        .arg("false")
+        .arg("--local_run")
+        .arg("true")
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012346"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("sendGrams")
+        .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1000000000}"#)
+        .arg("--abi")
+        .arg(giver_abi_name)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Local run succeeded"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--async_call")
+        .arg("false")
+        .arg("--local_run")
+        .arg("true")
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(depool_abi)
+        .arg(&depool_addr)
+        .arg("getData")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012346"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("sendGrams")
+        .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1000000000}"#)
+        .arg("--abi")
+        .arg(giver_abi_name)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--async_call")
+        .arg("false")
+        .arg("--local_run")
+        .arg("false")
+        .assert()
+        .success();
 
     Ok(())
 }

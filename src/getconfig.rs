@@ -249,7 +249,8 @@ pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String
         "blocks",
         json!({
             "seq_no": {
-                "eq": last_key_block_query[0]["prev_key_block_seqno"].as_u64().unwrap() 
+                "eq": last_key_block_query[0]["prev_key_block_seqno"].as_u64()
+                    .ok_or("failed to decode prev_key_block_seqno")?
             },
             "workchain_id": {
                 "eq": -1 
