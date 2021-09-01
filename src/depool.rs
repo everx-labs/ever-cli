@@ -361,15 +361,16 @@ async fn answer_command(m: &ArgMatches<'_>, conf: Config, depool: &str) -> Resul
     ).await.map_err(|e| format!("failed to query depool messages: {}", e))?;
     println!("{} answers found", messages.result.len());
     for messages in &messages.result {
-        print_answer(ton.clone(), messages).await;
+        print_answer(ton.clone(), messages).await?;
     }
     println!("Done");
     Ok(())
 }
 
-async fn print_answer(ton: TonClient, message: &serde_json::Value) {
+async fn print_answer(ton: TonClient, message: &serde_json::Value) -> Result <(), String> {
     println!("Answer:");
-    print_message(ton, message, PARTICIPANT_ABI, true).await;
+    print_message(ton, message, PARTICIPANT_ABI, true).await?;
+    Ok(())
 }
 
 /*
@@ -394,14 +395,16 @@ async fn events_command(m: &ArgMatches<'_>, conf: Config, depool: &str) -> Resul
     }
 }
 
-async fn print_event(ton: TonClient, event: &serde_json::Value) {
-    println!("event {}", event["id"].as_str().unwrap());
+async fn print_event(ton: TonClient, event: &serde_json::Value) -> Result<(), String> {
+    println!("event {}", event["id"].as_str()
+        .ok_or("failed to serialize event id")?);
 
-    let body = event["body"].as_str().unwrap();
+    let body = event["body"].as_str()
+        .ok_or("failed to serialize event body")?;
     let result = ton_client::abi::decode_message_body(
         ton.clone(),
         ParamsOfDecodeMessageBody {
-            abi: load_abi(DEPOOL_ABI).unwrap(),
+            abi: load_abi(DEPOOL_ABI).map_err(|e| format!("failed to load depool abi: {}", e))?,
             body: body.to_owned(),
             is_internal: false,
             ..Default::default()
@@ -411,15 +414,17 @@ async fn print_event(ton: TonClient, event: &serde_json::Value) {
         ("unknown".to_owned(), "{}".to_owned())
     } else {
         let result = result.unwrap();
-        (result.name, serde_json::to_string(&result.value).unwrap())
+        (result.name, serde_json::to_string(&result.value)
+            .map_err(|e| format!("failed to serialize the result: {}", e))?)
     };
 
     println!("{} {} ({})\n{}\n",
         name,
-        event["created_at"].as_u64().unwrap(),
-        event["created_at_string"].as_str().unwrap(),
+        event["created_at"].as_u64().ok_or("failed to serialize event field")?,
+        event["created_at_string"].as_str().ok_or("failed to serialize event field")?,
         args
     );
+    Ok(())
 }
 
 async fn get_events(conf: Config, depool: &str, since: u32) -> Result<(), String> {
@@ -438,7 +443,7 @@ async fn get_events(conf: Config, depool: &str, since: u32) -> Result<(), String
     ).await.map_err(|e| format!("failed to query depool events: {}", e))?;
     println!("{} events found", events.result.len());
     for event in &events.result {
-        print_event(ton.clone(), event).await;
+        print_event(ton.clone(), event).await?;
     }
     println!("Done");
     Ok(())
@@ -452,7 +457,7 @@ async fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
         ton.clone(),
         ParamsOfWaitForCollection {
             collection: "messages".to_owned(),
-            filter: Some(events_filter(depool, now())),
+            filter: Some(events_filter(depool, now()?)),
             result: "id body created_at created_at_string".to_owned(),
             timeout: Some(conf.timeout),
             ..Default::default()
@@ -460,7 +465,7 @@ async fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
 
     ).await.map_err(|e| println!("failed to query event: {}", e.to_string()));
     if event.is_ok() {
-        print_event(ton.clone(), &event.unwrap().result).await;
+        print_event(ton.clone(), &event.unwrap().result).await?;
     }
     Ok(())
 }
@@ -630,12 +635,16 @@ async fn add_exotic_stake(
     call_contract(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &format!("{}", value), &cmd.keys, &body, true).await
 }
 
+fn get_stake(stake: &str) -> Result<u64, String> {
+    u64::from_str_radix(
+        &convert::convert_token(stake)?, 10,
+    ).map_err(|e| format!("failed to decode the stake as an integer: {}", e))
+}
+
 async fn remove_stake(
     cmd: CommandData<'_>,
 ) -> Result<(), String> {
-    let stake = u64::from_str_radix(
-        &convert::convert_token(cmd.stake)?, 10,
-    ).unwrap();
+    let stake = get_stake(cmd.stake)?;
     let body = encode_remove_stake(stake).await?;
     call_contract(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body, true).await
 }
@@ -643,18 +652,14 @@ async fn remove_stake(
 async fn withdraw_stake(
     cmd: CommandData<'_>,
 ) -> Result<(), String> {
-    let stake = u64::from_str_radix(
-        &convert::convert_token(cmd.stake)?, 10,
-    ).unwrap();
+    let stake = get_stake(cmd.stake)?;
     let body = encode_withdraw_stake(stake).await?;
     call_contract(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body, true).await
 }
 
 async fn transfer_stake(cmd: CommandData<'_>, dest: &str) -> Result<(), String> {
     let dest = load_ton_address(dest, &cmd.conf)?;
-    let stake = u64::from_str_radix(
-        &convert::convert_token(cmd.stake)?, 10,
-    ).unwrap();
+    let stake = get_stake(cmd.stake)?;
     let body = encode_transfer_stake(dest.as_str(), stake).await?;
     call_contract(cmd.conf.clone(), &cmd.wallet, &cmd.depool, &cmd.depool_fee, &cmd.keys, &body, true).await
 }
@@ -690,7 +695,8 @@ async fn encode_body(func: &str, params: serde_json::Value) -> Result<String, St
         client.clone(),
         ParamsOfEncodeMessageBody {
             abi: load_abi(DEPOOL_ABI)?,
-            call_set: CallSet::some_with_function_and_input(func, params).unwrap(),
+            call_set: CallSet::some_with_function_and_input(func, params)
+                .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
             ..Default::default()
         },
@@ -815,7 +821,7 @@ async fn call_contract_and_get_answer(
 ) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
     let abi = load_abi(MSIG_ABI)?;
-    let start = now();
+    let start = now()?;
 
     let params = json!({
         "dest": dest_addr,
@@ -895,11 +901,16 @@ async fn call_contract_and_get_answer(
         if message.is_ok() {
             let message = message.unwrap().result;
             println!("\nAnswer: ");
-            let (name, args) = print_message(ton.clone(), &message, PARTICIPANT_ABI, true).await;
+            let (name, args) = print_message(ton.clone(), &message, PARTICIPANT_ABI, true).await?;
             if name == "receiveAnswer" {
-                let args: serde_json::Value = serde_json::from_str(&args).unwrap();
-                let status = args["errcode"].as_str().unwrap().parse::<u32>().unwrap();
-                let comment = args["comment"].as_str().unwrap();
+                let args: serde_json::Value = serde_json::from_str(&args)
+                    .map_err(|e| format!("failed to deserialize args: {}", e))?;
+                let status = args["errcode"].as_str()
+                    .ok_or("failed to serialize the error code")?
+                    .parse::<u32>()
+                    .map_err(|e| format!("failed to parse the error code: {}", e))?;
+                let comment = args["comment"].as_str()
+                    .ok_or("failed to serialize the comment")?;
                 if statuses.contains_key(&status) {
                     println!("Answer status: {}\nComment: {}", statuses[&status], comment);
                 } else {

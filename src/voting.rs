@@ -143,7 +143,8 @@ pub async fn decode_proposal(
 
 			let comment = String::from_utf8(
 				hex::decode(
-					result.value.unwrap()["comment"].as_str().unwrap()
+					result.value.ok_or("failed to get result value")?["comment"].as_str()
+						.ok_or("failed to obtain result comment")?
 				).map_err(|e| format!("failed to parse comment from transaction payload: {}", e))?
 			).map_err(|e| format!("failed to convert comment to string: {}", e))?;
 

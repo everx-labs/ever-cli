@@ -90,8 +90,7 @@ fn default_config_name() -> Result<String, String> {
     env::current_dir()
         .map_err(|e| format!("cannot get current dir: {}", e))
         .map(|dir| {
-            dir.join(PathBuf::from(CONFIG_BASE_NAME))
-                .to_str().unwrap().to_string()
+            dir.join(PathBuf::from(CONFIG_BASE_NAME)).to_str().unwrap().to_string()
         })
 }
 
@@ -643,7 +642,8 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
         client.clone(),
         ParamsOfEncodeMessageBody {
             abi: load_abi(&abi)?,
-            call_set: CallSet::some_with_function_and_input(&method.unwrap(), params).unwrap(),
+            call_set: CallSet::some_with_function_and_input(&method.unwrap(), params)
+                .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
             ..Default::default()
         },
@@ -914,7 +914,7 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
     let tvc = matches.value_of("TVC");
     let wc = matches.value_of("WC");
     let keys = matches.value_of("GENKEY").or(matches.value_of("SETKEY"));
-    let new_keys = matches.is_present("GENKEY");
+    let new_keys = matches.is_present("GENKEY") ;
     let init_data = matches.value_of("DATA");
     let update_tvc = matches.is_present("SAVE");
     let abi = matches.value_of("ABI");
@@ -1024,7 +1024,8 @@ fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
         convert::nodeid_from_pubkey(&vec)?
     } else if let Some(pair) = keypair {
         let pair = crypto::load_keypair(pair)?;
-        convert::nodeid_from_pubkey(&hex::decode(&pair.public).unwrap())?
+        convert::nodeid_from_pubkey(&hex::decode(&pair.public)
+            .map_err(|e| format!("failed to decode public key: {}", e))?)?
     } else {
         return Err("Either public key or key pair parameter should be provided".to_owned());
     };
