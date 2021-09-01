@@ -477,7 +477,7 @@ pub async fn call_contract_with_result(
     let total_attempts = attempts.clone();
     while attempts != 0 {
         attempts -= 1;
-        let expire_at = conf.lifetime + now();
+        let expire_at = conf.lifetime + now()?;
         let time = now_ms();
         let header = FunctionHeader {
             expire: Some(expire_at),
@@ -610,8 +610,7 @@ pub async fn generate_message(
 
     let abi = load_abi(&abi)?;
 
-    let now = now()?;
-    let expire_at = lifetime + now;
+    let expire_at = lifetime + now()?;
     let header = FunctionHeader {
         expire: Some(expire_at),
         ..Default::default()
