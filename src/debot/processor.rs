@@ -2,7 +2,7 @@ use serde_json::Value;
 use super::{ApproveKind, PipeChain, ChainLink};
 use std::vec::IntoIter;
 use ton_client::debot::DebotActivity;
-use ton_client::abi::{CallSet};
+use ton_client::abi::{CallSet, Abi};
 
 #[derive(Debug)]
 pub enum ProcessorError {
@@ -17,22 +17,26 @@ pub enum ProcessorError {
 }
 
 pub struct ChainProcessor {
-    manifest: PipeChain,
+    pipechain: PipeChain,
     chain_iter: IntoIter<ChainLink>,
 }
 
 impl ChainProcessor {
-    pub fn new(mut manifest: PipeChain ) -> Self {
-        let chain_vec = std::mem::take(&mut manifest.chain);
-        Self { manifest, chain_iter: chain_vec.into_iter() }
+    pub fn new(mut pipechain: PipeChain ) -> Self {
+        let chain_vec = std::mem::take(&mut pipechain.chain);
+        Self { pipechain, chain_iter: chain_vec.into_iter() }
+    }
+
+    pub fn abi(&self) -> Option<Abi> {
+        self.pipechain.abi.clone().map(|v| Abi::Json(v.to_string())) 
     }
 
     pub fn interactive(&self) -> bool {
-        self.manifest.interactive
+        self.pipechain.interactive
     }
 
     pub fn default_start(&self) -> bool {
-        self.manifest.init_method == "start"
+        self.pipechain.init_method == "start"
     }
 
     pub fn print(&self, message: &str) {
@@ -42,19 +46,19 @@ impl ChainProcessor {
     }
 
     pub fn initial_msg(&self) -> Option<String> {
-        self.manifest.init_msg.clone()
+        self.pipechain.init_msg.clone()
     }
 
     pub fn initial_call_set(&self) -> Option<CallSet> {
-        if self.manifest.init_msg.is_some() {
+        if self.pipechain.init_msg.is_some() {
             return None;
         }
         if self.default_start() {
             return None;
         }
-        match &self.manifest.init_args {
-            Some(args) => CallSet::some_with_function_and_input(&self.manifest.init_method, args.clone()),
-            None => CallSet::some_with_function(&self.manifest.init_method),
+        match &self.pipechain.init_args {
+            Some(args) => CallSet::some_with_function_and_input(&self.pipechain.init_method, args.clone()),
+            None => CallSet::some_with_function(&self.pipechain.init_method),
         }
         
     }
@@ -66,7 +70,7 @@ impl ChainProcessor {
         in_params: &Value
     ) -> Result<Option<Value>, ProcessorError> {
         let chlink = self.chain_iter.next().ok_or(
-            if self.manifest.interactive {
+            if self.pipechain.interactive {
                 ProcessorError::InterfaceCallNeeded
             } else {
                 ProcessorError::NoMoreChainlinks
@@ -93,7 +97,7 @@ impl ChainProcessor {
 
     pub fn next_signing_box(&mut self) -> Result<u32, ProcessorError> {
         let chlink = self.chain_iter.next().ok_or(
-            if self.manifest.interactive {
+            if self.pipechain.interactive {
                 ProcessorError::InterfaceCallNeeded
             } else {
                 ProcessorError::NoMoreChainlinks
@@ -113,7 +117,7 @@ impl ChainProcessor {
         let app_kind = match activity {
             DebotActivity::Transaction {..} => ApproveKind::ApproveOnchainCall,
         };
-        let auto_approve = self.manifest.auto_approve.as_ref().and_then(|vec| {
+        let auto_approve = self.pipechain.auto_approve.as_ref().and_then(|vec| {
             Some(vec.iter().find(|x| **x == app_kind).is_some())
         });
 
@@ -122,7 +126,7 @@ impl ChainProcessor {
             if auto_approve.is_some() {
                 return Ok(auto_approve.unwrap());
             } else {
-                if self.manifest.interactive {
+                if self.pipechain.interactive {
                     return Err(ProcessorError::InteractiveApproveNeeded);
                 } else {
                     return Ok(false);

@@ -1,0 +1,19 @@
+{
+    "version": 0,
+    "debotAddress": "0:8d4c68a51f16104fce18c589c2f7f530a4d5f8be25b37fbdda1543c899ab0cf2",
+    "initMethod": "invokeTest",
+    "initArgs": {
+        "arg1": "1500000000",
+        "arg2": "68656c6c6f20776f726c6421",
+        "arg3": true,
+        "arg4": 3,
+        "arg5": "0:e859a5858fc99c8f6044aa179af68140c2fb9b07b3f52b70bef51e0c799fd2df",
+        "arg6": "0x816747e3c1e0c3be11797a76ffd5f823a1c933586cac2f170bc1395f1f25e15b",
+        "arg7": {
+            "1": { "data": "10" },
+            "2": { "data": "2020" }
+        }
+    },
+    "interactive": false,
+    "chain": []
+}

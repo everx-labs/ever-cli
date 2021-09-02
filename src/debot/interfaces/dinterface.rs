@@ -68,7 +68,9 @@ impl SupportedInterfaces {
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Echo::new());
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Terminal::new(Printer {processor}));
+        let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(
+            Arc::new(Terminal::new(Printer {processor}))
+        );
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(Menu::new()));
@@ -79,7 +81,9 @@ impl SupportedInterfaces {
         );
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(UserInfo::new(conf.clone()));
+        let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(
+            Arc::new(UserInfo::new(conf.clone()))
+        );
         interfaces.insert(iface.get_id(), iface);
 
         Self { client, interfaces }

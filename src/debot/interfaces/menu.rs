@@ -8,7 +8,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 use ton_client::encoding::decode_abi_number;
 
-const ID: &'static str = "ac1a4d3ecea232e49783df4a23a81823cdca3205dc58cd20c4db259c25605b48";
+pub(super) const ID: &'static str = "ac1a4d3ecea232e49783df4a23a81823cdca3205dc58cd20c4db259c25605b48";
 
 const ABI: &str = r#"
 {

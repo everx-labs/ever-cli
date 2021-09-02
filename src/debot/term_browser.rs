@@ -15,7 +15,8 @@ use crate::config::Config;
 use crate::helpers::{create_client, load_ton_address, load_abi, TonClient};
 use std::io::{self, BufRead, Write};
 use std::sync::Arc;
-use ton_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, encode_internal_message};
+use ton_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, ParamsOfDecodeMessage, 
+    encode_internal_message, decode_message};
 use ton_client::boc::{ParamsOfParse, parse_message};
 use ton_client::debot::{DebotInterfaceExecutor, DEngine, DebotInfo, DEBOT_WC};
 use std::collections::{HashMap, VecDeque};
@@ -45,13 +46,13 @@ struct TerminalBrowser {
 }
 
 impl TerminalBrowser {
-    async fn new(client: TonClient, addr: &str, conf: Config, manifest: PipeChain) -> Result<Self, String> {
-        let processor = ChainProcessor::new(manifest);
+    async fn new(client: TonClient, addr: &str, conf: Config, pipechain: PipeChain) -> Result<Self, String> {
+        let processor = ChainProcessor::new(pipechain);
         let start = processor.default_start();
         let interactive = processor.interactive();
         let call_set = processor.initial_call_set();
         let mut init_message = processor.initial_msg();
-
+        
         let processor = Arc::new(tokio::sync::RwLock::new(processor));
         let mut browser = Self {
             client: client.clone(),
@@ -62,7 +63,6 @@ impl TerminalBrowser {
             processor,
             interactive
         };
-
         browser.fetch_debot(addr, start, !interactive).await?;
         let abi = browser.bots.get(addr).unwrap().abi.clone();
 
@@ -73,6 +73,7 @@ impl TerminalBrowser {
                     ParamsOfEncodeInternalMessage {
                         abi: Some(abi),
                         address: Some(addr.to_owned()),
+                        src_address: Some(format!("{}:{}", DEBOT_WC, BROWSER_ID)),
                         call_set,
                         value: "1000000000000000".to_owned(),
                         ..Default::default()
@@ -93,7 +94,9 @@ impl TerminalBrowser {
 
     async fn fetch_debot(&mut self, addr: &str, call_start: bool, autorun: bool) -> Result<(), String> {
         let debot_addr = load_ton_address(addr, &self.conf)?;
-        let callbacks = Arc::new(Callbacks::new(self.client.clone(), self.conf.clone(), self.processor.clone()));
+        let callbacks = Arc::new(
+            Callbacks::new(self.client.clone(), self.conf.clone(), self.processor.clone())
+        );
         let callbacks_ref = Arc::clone(&callbacks);
         let mut dengine = DEngine::new_with_client(
             debot_addr.clone(),
@@ -197,6 +200,24 @@ impl TerminalBrowser {
         println!("{}", info.hello.unwrap_or_else(|| format!("None")));
     }
 
+    async fn decode_answer(&mut self, message: String, _debot_addr: &str) -> Result<(), String> {
+        let abi = self.processor.read().await.abi();
+        let ret_string = if let Some(abi) = abi {
+            let decoded = decode_message(
+                self.client.clone(),
+                ParamsOfDecodeMessage { abi, message },
+            ).await.map_err(|e| format!("{}", e))?;
+            let ret_value: serde_json::Value = decoded.value.unwrap_or(json!({}));
+            serde_json::to_string_pretty(&ret_value)
+                .map_err(|e| format!("invalid answer json from DeBot: {}", e))?
+        } else {
+            message
+        };
+        println!("Returned value:");
+        println!("{}", ret_string);
+        Ok(())
+    }
+
 }
 
 pub(crate) fn input<R, W>(prefix: &str, reader: &mut R, writer: &mut W) -> String
@@ -265,14 +286,13 @@ pub fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
     Ok((n, argc, argv))
 }
 
-/// Launches Terminal DeBot Browser with one DeBot.
+/// Starts Terminal DeBot Browser with main DeBot.
 ///
-/// Fetches DeBot by address from blockchain and if `start` is true, starts it in interactive mode.
-/// If `init_message` has a value then Browser sends it to DeBot before starting it.
+/// Fetches DeBot by address from blockchain and runs it according to pipechain.
 pub async fn run_debot_browser(
     addr: &str,
     config: Config,
-    mut manifest: PipeChain,
+    mut pipechain: PipeChain,
     signkey_path: Option<String>,
 ) -> Result<(), String> {
     println!("Network: {}", config.url);
@@ -282,13 +302,13 @@ pub async fn run_debot_browser(
         let input = std::io::BufReader::new(path.as_bytes());
         let mut sbox = TerminalSigningBox::new(ton.clone(), vec![], Some(input)).await?;
         let sbox_handle = sbox.leak();
-        for cl in manifest.chain.iter_mut() {
+        for cl in pipechain.chain.iter_mut() {
             if let ChainLink::SigningBox{handle} = cl {
                 *handle = sbox_handle.0;
             }
         }
     }
-    let mut browser = TerminalBrowser::new(ton.clone(), addr, config, manifest).await?;
+    let mut browser = TerminalBrowser::new(ton.clone(), addr, config, pipechain).await?;
     loop {
         let mut next_msg = browser.msg_queue.pop_front();
         while let Some(msg) = next_msg {
@@ -312,7 +332,8 @@ pub async fn run_debot_browser(
 
             if wc == DEBOT_WC {
                 if id == BROWSER_ID {
-
+                    // Message from DeBot to Browser itself
+                    browser.decode_answer(msg, msg_src).await?;
                 } else {
                     browser.call_interface(msg, &id, msg_src).await?;
                 }
@@ -323,6 +344,7 @@ pub async fn run_debot_browser(
             next_msg = browser.msg_queue.pop_front();
         }
 
+        // Next block is deprecated. Remove it
         let not_found_err = "Internal error: DeBot not found";
         let action = browser.bots.get(addr)
             .ok_or_else(|| not_found_err.to_owned())?
@@ -336,6 +358,7 @@ pub async fn run_debot_browser(
             },
             None => break,
         }
+        // ---------------------------------------
     }
     Ok(())
 }

@@ -5,7 +5,8 @@ use std::sync::{Arc};
 use tokio::sync::RwLock;
 use serde_json::Value;
 use super::dinterface::{decode_answer_id, decode_prompt, decode_string_arg};
-use super::menu::MenuItem;
+use super::menu::{MenuItem, ID as MENU_ID};
+use super::terminal::ID as TERMINAL_ID;
 
 pub struct InputInterface {
     processor: Arc<RwLock<ChainProcessor>>,
@@ -35,12 +36,24 @@ impl DebotInterface for InputInterface {
     }
 
     async fn call(&self, func: &str, args: &Value) -> InterfaceResult {
-        let result = self
-            .processor
-            .write().await
-            .next_input(&self.get_id(), func, args);
+        if &self.get_id() == TERMINAL_ID {
+            if func == "print" || func == "printf" {
+                return self.inner_interface.call(func, args).await;
+            }
+        }
+        let result = self.processor.write().await.next_input(&self.get_id(), func, args);
         match result {
-            Err(ProcessorError::InterfaceCallNeeded) => self.inner_interface.call(func, args).await,
+            Err(ProcessorError::InterfaceCallNeeded) => {
+                let res = self.inner_interface.call(func, args).await?;
+                /*let dbg = serde_json::to_string_pretty(&json!({
+                    "type": "Input",
+                    "interface": self.get_id(),
+                    "method": func,
+                    "params": res.1,
+                })).unwrap();
+                println!("{}", dbg);*/
+                Ok(res)
+            },
             Err(e) => Err(format!("{:?}", e))?,
             Ok(params) => {
                 let prompt = decode_prompt(args);
@@ -56,7 +69,7 @@ impl DebotInterface for InputInterface {
                 for arg in params.as_object().unwrap() {
                     processor.print(&format!("{}", arg.1));
                 }
-                let answer_id = if self.get_id() == "ac1a4d3ecea232e49783df4a23a81823cdca3205dc58cd20c4db259c25605b48" {
+                let answer_id = if self.get_id() == MENU_ID {
                     let n = params["index"].as_u64().unwrap();
                     let menu_items: Vec<MenuItem> = serde_json::from_value(args["items"].clone()).unwrap();
                     let menu = menu_items.get(n as usize);

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-fn default_init_method() -> String { "start".to_owned() }
+fn default_init_method() -> String { format!("start") }
 fn default_mandatory() -> bool { false }
 fn default_interactive() -> bool { true }
 
@@ -21,6 +21,7 @@ pub struct PipeChain {
     pub init_method: String,
     pub init_args: Option<Value>,
     pub init_msg: Option<String>,
+    pub abi: Option<Value>,
     pub auto_approve: Option<Vec<ApproveKind>>,
     #[serde(default = "default_interactive")]
     pub interactive: bool,

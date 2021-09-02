@@ -136,14 +136,12 @@ async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String>
         PipeChain::default()
     };
     let addr = load_ton_address(addr.unwrap(), &config)?;
-    println!("DeBot Browser started");
     let mut result = run_debot_browser(addr.as_str(), config, manifest, signkey_path).await;
     if let Err(ref msg) = result {
         if msg.contains("NoMoreChainlinks") {
             result = Ok(());
         }
     }
-    println!("Debot Browser finished");
     result
 }
 

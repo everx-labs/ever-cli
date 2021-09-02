@@ -7,7 +7,7 @@ use crate::convert::convert_token;
 use ton_client::encoding::decode_abi_bigint;
 use std::io::{Read};
 
-const ID: &'static str = "8796536366ee21852db56dccb60bc564598b618c865fc50c8b1ab740bba128e3";
+pub(super) const ID: &'static str = "8796536366ee21852db56dccb60bc564598b618c865fc50c8b1ab740bba128e3";
 
 const ABI: &str = r#"
 {
