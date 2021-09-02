@@ -4,7 +4,7 @@ use super::{
     AddressInput, AmountInput, ConfirmInput, Menu, NumberInput, SigningBoxInput, Terminal, UserInfo, InputInterface,
 };
 use crate::config::Config;
-use crate::debot::ManifestProcessor;
+use crate::debot::ChainProcessor;
 use crate::helpers::TonClient;
 use num_bigint::BigInt;
 use num_traits::cast::NumCast;
@@ -33,7 +33,7 @@ impl DebotInterfaceExecutor for SupportedInterfaces {
 
 /// Helper struct used only inside SupportedInterfaces.
 struct InterfaceWrapper {
-    processor: Arc<RwLock<ManifestProcessor>>,
+    processor: Arc<RwLock<ChainProcessor>>,
 }
 impl InterfaceWrapper {
     fn wrap(
@@ -45,7 +45,7 @@ impl InterfaceWrapper {
 }
 
 impl SupportedInterfaces {
-    pub fn new(client: TonClient, conf: &Config, processor: Arc<RwLock<ManifestProcessor>>) -> Self {
+    pub fn new(client: TonClient, conf: &Config, processor: Arc<RwLock<ChainProcessor>>) -> Self {
         let mut interfaces = HashMap::new();
 
         let iw = InterfaceWrapper { processor: processor.clone() };
@@ -87,7 +87,7 @@ impl SupportedInterfaces {
 }
 
 pub struct Printer {
-    processor: Arc<RwLock<ManifestProcessor>>,
+    processor: Arc<RwLock<ChainProcessor>>,
 }
 
 impl Printer {

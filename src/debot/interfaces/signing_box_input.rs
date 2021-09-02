@@ -6,7 +6,7 @@ use ton_client::debot::{DebotInterface, InterfaceResult};
 use ton_client::encoding::decode_abi_bigint;
 use crate::helpers::TonClient;
 use crate::debot::term_signing_box::TerminalSigningBox;
-use crate::debot::{ManifestProcessor, ProcessorError};
+use crate::debot::{ChainProcessor, ProcessorError};
 use tokio::sync::RwLock;
 use std::sync::Arc;
 
@@ -39,10 +39,10 @@ const ABI: &str = r#"
 pub struct SigningBoxInput {
     handles: RwLock<Vec<TerminalSigningBox>>,
     client: TonClient,
-    processor: Arc<RwLock<ManifestProcessor>>,
+    processor: Arc<RwLock<ChainProcessor>>,
 }
 impl SigningBoxInput {
-    pub fn new(client: TonClient, processor: Arc<RwLock<ManifestProcessor>>) -> Self {
+    pub fn new(client: TonClient, processor: Arc<RwLock<ChainProcessor>>) -> Self {
         Self { handles: RwLock::new(vec![]), client, processor }
     }
 

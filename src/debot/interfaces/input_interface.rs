@@ -1,5 +1,5 @@
 use ton_client::abi::Abi;
-use crate::debot::{ManifestProcessor, ProcessorError};
+use crate::debot::{ChainProcessor, ProcessorError};
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use std::sync::{Arc};
 use tokio::sync::RwLock;
@@ -8,14 +8,14 @@ use super::dinterface::{decode_answer_id, decode_prompt, decode_string_arg};
 use super::menu::MenuItem;
 
 pub struct InputInterface {
-    processor: Arc<RwLock<ManifestProcessor>>,
+    processor: Arc<RwLock<ChainProcessor>>,
     inner_interface: Arc<dyn DebotInterface + Send + Sync>,
 }
 
 impl InputInterface {
     pub fn new(
         inner_interface: Arc<dyn DebotInterface + Send + Sync>,
-        processor: Arc<RwLock<ManifestProcessor>>,
+        processor: Arc<RwLock<ChainProcessor>>,
     ) -> Self {
         Self {
             inner_interface,

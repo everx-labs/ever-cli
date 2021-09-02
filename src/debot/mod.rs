@@ -10,20 +10,21 @@
 * See the License for the specific TON DEV software governing permissions and
 * limitations under the License.
 */
-use crate::config::Config;
-use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-use simplelog::*;
-use term_browser::run_debot_browser;
-use crate::helpers::load_ton_address;
-
+mod callbacks;
 mod interfaces;
-mod manifest;
+mod pipechain;
 mod processor;
 mod term_signing_box;
 pub mod term_browser;
 
-use processor::{ManifestProcessor, ProcessorError};
-use manifest::{ApproveKind, DebotManifest, ChainLink};
+use crate::config::Config;
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use simplelog::*;
+use term_browser::{run_debot_browser, terminal_input, input, action_input};
+use crate::helpers::load_ton_address;
+use callbacks::Callbacks;
+use processor::{ChainProcessor, ProcessorError};
+use pipechain::{ApproveKind, PipeChain, ChainLink};
 pub use interfaces::dinterface::SupportedInterfaces;
 
 pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
@@ -132,7 +133,7 @@ async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String>
         serde_json::from_str(&manifest_raw)
             .map_err(|e| format!("failed to parse manifest: {}", e))?
     } else {
-        DebotManifest::default()
+        PipeChain::default()
     };
     let addr = load_ton_address(addr.unwrap(), &config)?;
     println!("DeBot Browser started");
@@ -150,7 +151,7 @@ async fn invoke_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String
     let addr = m.value_of("ADDRESS");
     let _addr = load_ton_address(addr.unwrap(), &config)?;
     let message = m.value_of("MESSAGE").unwrap().to_owned();
-    let mut manifest = DebotManifest::default();
+    let mut manifest = PipeChain::default();
     manifest.init_msg = Some(message);
     //run_debot_browser(addr.as_str(), config, false, Some(message)).await
     Ok(())

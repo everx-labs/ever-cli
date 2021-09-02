@@ -1,5 +1,5 @@
 use serde_json::Value;
-use super::{ApproveKind, DebotManifest, ChainLink};
+use super::{ApproveKind, PipeChain, ChainLink};
 use std::vec::IntoIter;
 use ton_client::debot::DebotActivity;
 use ton_client::abi::{CallSet};
@@ -16,13 +16,13 @@ pub enum ProcessorError {
     // UnexpectedApproveKind,
 }
 
-pub struct ManifestProcessor {
-    manifest: DebotManifest,
+pub struct ChainProcessor {
+    manifest: PipeChain,
     chain_iter: IntoIter<ChainLink>,
 }
 
-impl ManifestProcessor {
-    pub fn new(mut manifest: DebotManifest ) -> Self {
+impl ChainProcessor {
+    pub fn new(mut manifest: PipeChain ) -> Self {
         let chain_vec = std::mem::take(&mut manifest.chain);
         Self { manifest, chain_iter: chain_vec.into_iter() }
     }
@@ -63,7 +63,7 @@ impl ManifestProcessor {
         &mut self,
         in_interface: &str,
         in_method: &str,
-        _in_params: &Value
+        in_params: &Value
     ) -> Result<Option<Value>, ProcessorError> {
         let chlink = self.chain_iter.next().ok_or(
             if self.manifest.interactive {
@@ -74,9 +74,13 @@ impl ManifestProcessor {
         )?;
         
         match chlink {
-            ChainLink::Input {interface, method, params, mandatory: _} => {
+            ChainLink::Input {interface, method, params, mandatory} => {
                 if interface != in_interface {
-                    Err(ProcessorError::UnexpectedInterface)
+                    if !mandatory {
+                        self.next_input(in_interface, in_method, in_params)
+                    } else {
+                        Err(ProcessorError::UnexpectedInterface)
+                    }
                 } else if method != in_method {
                     Err(ProcessorError::UnexpectedMethod)
                 } else {

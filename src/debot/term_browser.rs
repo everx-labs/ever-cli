@@ -12,18 +12,14 @@
 */
 use super::term_signing_box::TerminalSigningBox;
 use crate::config::Config;
-use crate::convert::convert_u64_to_tokens;
 use crate::helpers::{create_client, load_ton_address, load_abi, TonClient};
 use std::io::{self, BufRead, Write};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use ton_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, encode_internal_message};
 use ton_client::boc::{ParamsOfParse, parse_message};
-use ton_client::crypto::SigningBoxHandle;
-use ton_client::debot::{DebotInterfaceExecutor, BrowserCallbacks, DAction, DEngine,
-    DebotActivity, DebotInfo, STATE_EXIT, DEBOT_WC};
-use ton_client::error::ClientResult;
+use ton_client::debot::{DebotInterfaceExecutor, DEngine, DebotInfo, DEBOT_WC};
 use std::collections::{HashMap, VecDeque};
-use super::{ChainLink, DebotManifest, ManifestProcessor, ProcessorError, SupportedInterfaces};
+use super::{Callbacks, ChainLink, PipeChain, ChainProcessor, SupportedInterfaces};
 
 const BROWSER_ID: &'static str = "0000000000000000000000000000000000000000000000000000000000000000";
 /// Stores Debot info needed for DBrowser.
@@ -44,13 +40,13 @@ struct TerminalBrowser {
     /// Set of intrefaces implemented by current DBrowser.
     interfaces: SupportedInterfaces,
     conf: Config,
-    processor: Arc<tokio::sync::RwLock<ManifestProcessor>>,
+    processor: Arc<tokio::sync::RwLock<ChainProcessor>>,
     interactive: bool,
 }
 
 impl TerminalBrowser {
-    async fn new(client: TonClient, addr: &str, conf: &Config, manifest: DebotManifest) -> Result<Self, String> {
-        let processor = ManifestProcessor::new(manifest);
+    async fn new(client: TonClient, addr: &str, conf: Config, manifest: PipeChain) -> Result<Self, String> {
+        let processor = ChainProcessor::new(manifest);
         let start = processor.default_start();
         let interactive = processor.interactive();
         let call_set = processor.initial_call_set();
@@ -61,8 +57,8 @@ impl TerminalBrowser {
             client: client.clone(),
             msg_queue: Default::default(),
             bots: HashMap::new(),
-            interfaces: SupportedInterfaces::new(client.clone(), conf, processor.clone()),
-            conf: conf.clone(),
+            interfaces: SupportedInterfaces::new(client.clone(), &conf, processor.clone()),
+            conf,
             processor,
             interactive
         };
@@ -71,19 +67,21 @@ impl TerminalBrowser {
         let abi = browser.bots.get(addr).unwrap().abi.clone();
 
         if !start && init_message.is_none() {
-            init_message = Some(encode_internal_message(
-                browser.client.clone(),
-                ParamsOfEncodeInternalMessage {
-                    abi: Some(abi),
-                    address: Some(addr.to_owned()),
-                    call_set,
-                    value: "1000000000000000".to_owned(),
-                    ..Default::default()
-                }
-            )
-            .await
-            .map_err(|e| format!("{}", e))?
-            .message);
+            init_message = Some(
+                encode_internal_message(
+                    browser.client.clone(),
+                    ParamsOfEncodeInternalMessage {
+                        abi: Some(abi),
+                        address: Some(addr.to_owned()),
+                        call_set,
+                        value: "1000000000000000".to_owned(),
+                        ..Default::default()
+                    },
+                )
+                .await
+                .map_err(|e| format!("{}", e))?
+                .message,
+            );
         }
 
         if let Some(msg) = init_message {
@@ -126,10 +124,7 @@ impl TerminalBrowser {
         if call_start {
             dengine.start().await?;
         }
-        {
-            let msgs = &mut callbacks_ref.state.write().unwrap().msg_queue;
-            self.msg_queue.append(msgs);
-        }
+        callbacks_ref.take_messages(&mut self.msg_queue);
 
         self.bots.insert(
             debot_addr,
@@ -171,8 +166,7 @@ impl TerminalBrowser {
             .map_err(|e| format!("{}", e))?
             .message;
             let result = debot.dengine.send(response_msg).await;
-            let new_msgs = &mut debot.callbacks.state.write().unwrap().msg_queue;
-            self.msg_queue.append(new_msgs);
+            debot.callbacks.take_messages(&mut self.msg_queue);
             if let Err(e) = result {
                 println!("Debot error: {}", e);
             }
@@ -188,8 +182,7 @@ impl TerminalBrowser {
         let debot = self.bots.get_mut(addr)
             .ok_or_else(|| "Internal error: debot not found")?;
         debot.dengine.send(msg).await.map_err(|e| format!("Debot failed: {}", e))?;
-        let new_msgs = &mut debot.callbacks.state.write().unwrap().msg_queue;
-        self.msg_queue.append(new_msgs);
+        debot.callbacks.take_messages(&mut self.msg_queue);
         Ok(())
     }
 
@@ -204,178 +197,6 @@ impl TerminalBrowser {
         println!("{}", info.hello.unwrap_or_else(|| format!("None")));
     }
 
-}
-
-#[derive(Default)]
-struct ActiveState {
-    state_id: u8,
-    active_actions: Vec<DAction>,
-    msg_queue: VecDeque<String>,
-}
-
-struct Callbacks {
-    _config: Config,
-    client: TonClient,
-    state: Arc<RwLock<ActiveState>>,
-    processor: Arc<tokio::sync::RwLock<ManifestProcessor>>,
-}
-
-impl Callbacks {
-    pub fn new(client: TonClient, config: Config, processor: Arc<tokio::sync::RwLock<ManifestProcessor>>) -> Self {
-        Self { 
-            client, 
-            _config: config, 
-            processor,
-            state: Arc::new(RwLock::new(ActiveState::default())), 
-        }
-    }
-
-    pub fn select_action(&self) -> Option<DAction> {
-        let state = self.state.read().unwrap();
-        if state.state_id == STATE_EXIT {
-            return None;
-        }
-        if state.active_actions.len() == 0 {
-            debug!("no more actions, exit loop");
-            return None;
-        }
-
-        loop {
-            let res = action_input(state.active_actions.len());
-            if res.is_err() {
-                println!("{}", res.unwrap_err());
-                continue;
-            }
-            let (n, _, _) = res.unwrap();
-            let act = state.active_actions.get(n - 1);
-            if act.is_none() {
-                println!("Invalid action. Try again.");
-                continue;
-            }
-            return act.map(|a| a.clone());
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl BrowserCallbacks for Callbacks {
-    /// Debot asks browser to print message to user
-    async fn log(&self, msg: String) {
-        self.processor.read().await.print(&format!("{}", msg));
-    }
-
-    /// Debot is switched to another context.
-    async fn switch(&self, ctx_id: u8) {
-        debug!("switched to ctx {}", ctx_id);
-        let mut state = self.state.write().unwrap();
-        state.state_id = ctx_id;
-        if ctx_id == STATE_EXIT {
-            return;
-        }
-
-        state.active_actions = vec![];
-    }
-
-    async fn switch_completed(&self) {
-    }
-
-    /// Debot asks browser to show user an action from the context
-    async fn show_action(&self, act: DAction) {
-        let mut state = self.state.write().unwrap();
-        println!("{}) {}", state.active_actions.len() + 1, act.desc);
-        state.active_actions.push(act);
-    }
-
-    // Debot engine asks user to enter argument for an action.
-    async fn input(&self, prefix: &str, value: &mut String) {
-        let stdio = io::stdin();
-        let mut reader = stdio.lock();
-        let mut writer = io::stdout();
-        *value = input(prefix, &mut reader, &mut writer);
-    }
-
-    /// Debot engine requests keys to sign something
-    async fn get_signing_box(&self) -> Result<SigningBoxHandle, String> {
-        let result = self
-            .processor
-            .write().await
-            .next_signing_box();
-        let handle = match result {
-            Err(ProcessorError::InterfaceCallNeeded) => {
-                TerminalSigningBox::new::<&[u8]>(self.client.clone(), vec![], None).await?.leak().0
-            },
-            Err(e) => Err(format!("{:?}", e))?,
-            Ok(handle) => handle,
-        };
-        
-        Ok(SigningBoxHandle(handle))
-    }
-
-    /// Debot asks to run action of another debot
-    async fn invoke_debot(&self, _debot: String, _action: DAction) -> Result<(), String> {
-        //debug!("fetching debot {} action {}", &debot, action.name);
-        //println!("Invoking debot {}", &debot);
-        //run_debot_browser(&debot, self.config.clone(), false, None).await
-        Ok(())
-    }
-
-    async fn send(&self, message: String) {
-        let mut state = self.state.write().unwrap();
-        state.msg_queue.push_back(message);
-    }
-
-    async fn approve(&self, activity: DebotActivity) -> ClientResult<bool> {
-        let mut approved = false;
-        let result = self.processor.write().await.next_approve(&activity);
-        
-        let mut info = String::new();
-        info += "--------------------\n";
-        info += "[Permission Request]\n";
-        info += "--------------------\n";
-        let prompt;
-        match activity {
-            DebotActivity::Transaction{msg: _, dst, out, fee, setcode, signkey, signing_box_handle: _} => {
-                info += "DeBot is going to create an onchain transaction.\n";
-                info += "Details:\n";
-                info += &format!("  account: {}\n", dst);
-                info += &format!("  Transaction fees: {} tokens\n", convert_u64_to_tokens(fee));
-                if out.len() > 0 {
-                    info += "  Outgoing transfers from account:\n";
-                    for spending in out {
-                        info += &format!(
-                            "    recipient: {}, amount: {} tokens\n",
-                            spending.dst,
-                            convert_u64_to_tokens(spending.amount),
-                        );
-                    }
-                } else {
-                    info += "  No outgoing transfers from account.\n";
-                }
-                info += &format!("  Message signer public key: {}\n", signkey);
-                if setcode {
-                    info += "  Warning: the transaction will change the account smart contract code\n";
-                }
-                prompt = "Confirm the transaction (y/n)?";
-            },
-        }
-        self.processor.read().await.print(&info);
-        approved = match result {
-            Err(ProcessorError::InteractiveApproveNeeded) => {
-                let _ = terminal_input(prompt, |val| {
-                    approved = match val.as_str() {
-                        "y" => true,
-                        "n" => false,
-                        _ => Err(format!("invalid enter"))?,
-                    };
-                    Ok(())
-                });
-                approved
-            },
-            Err(_) => false,
-            Ok(res) => res,
-        };
-        Ok(approved)
-    }
 }
 
 pub(crate) fn input<R, W>(prefix: &str, reader: &mut R, writer: &mut W) -> String
@@ -451,7 +272,7 @@ pub fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
 pub async fn run_debot_browser(
     addr: &str,
     config: Config,
-    mut manifest: DebotManifest,
+    mut manifest: PipeChain,
     signkey_path: Option<String>,
 ) -> Result<(), String> {
     println!("Network: {}", config.url);
@@ -467,7 +288,7 @@ pub async fn run_debot_browser(
             }
         }
     }
-    let mut browser = TerminalBrowser::new(ton.clone(), addr, &config, manifest).await?;
+    let mut browser = TerminalBrowser::new(ton.clone(), addr, config, manifest).await?;
     loop {
         let mut next_msg = browser.msg_queue.pop_front();
         while let Some(msg) = next_msg {
@@ -479,13 +300,11 @@ pub async fn run_debot_browser(
             .map_err(|e| format!("{}", e))?
             .parsed;
 
-            let msg_dest = parsed["dst"]
-            .as_str()
-            .ok_or(format!("invalid message in queue: no dst address"))?;
+            let msg_dest = parsed["dst"].as_str()
+                .ok_or(format!("invalid message in queue: no dst address"))?;
 
-            let msg_src = parsed["src"]
-            .as_str()
-            .ok_or(format!("invalid message in queue: no src address"))?;
+            let msg_src = parsed["src"].as_str()
+                .ok_or(format!("invalid message in queue: no src address"))?;
 
             let wc_and_addr: Vec<_> = msg_dest.split(':').collect();
             let id = wc_and_addr[1].to_string();
@@ -504,14 +323,15 @@ pub async fn run_debot_browser(
             next_msg = browser.msg_queue.pop_front();
         }
 
+        let not_found_err = "Internal error: DeBot not found";
         let action = browser.bots.get(addr)
-            .ok_or_else(|| "Internal error: debot not found".to_owned())?
+            .ok_or_else(|| not_found_err.to_owned())?
             .callbacks
             .select_action();
         match action {
             Some(act) => {
                 let debot = browser.bots.get_mut(addr)
-                    .ok_or_else(|| "Internal error: debot not found".to_owned())?;
+                    .ok_or_else(|| not_found_err.to_owned())?;
                 debot.dengine.execute_action(&act).await?
             },
             None => break,
