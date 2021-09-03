@@ -58,14 +58,12 @@ impl SigningBoxInput {
             }
         )?;
         println!("{}", prompt);
-        let result = self
-            .processor
-            .write()
-            .await
-            .next_signing_box();
+        let result = self.processor.write().await.next_signing_box();
         match result {
             Err(ProcessorError::InterfaceCallNeeded) => {
-                let signing_box = TerminalSigningBox::new::<&[u8]>(self.client.clone(), possible_keys, None).await?;
+                let signing_box = TerminalSigningBox::new::<&[u8]>(
+                    self.client.clone(), possible_keys, None
+                ).await?;
                 let handle = signing_box.handle();
                 self.handles.write().await.push(signing_box);
                 Ok((answer_id, json!({ "handle": handle.0})))

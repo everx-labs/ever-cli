@@ -2,6 +2,7 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 // uncomment for debug
 // use std::io::Write;
+use serde_json::json;
 mod common;
 use common::{BIN_NAME, NETWORK, giver, grep_address};
 
@@ -126,5 +127,37 @@ fn test_userinfo() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Account is valid"))
         .stdout(predicate::str::contains("Public key is valid"));
+    Ok(())
+}
+
+#[test]
+fn test_pipechain() -> Result<(), Box<dyn std::error::Error>> {
+    let path_to_pipechain = "tests/PipechainTest1.chain";
+    let addr = deploy_debot("PipechainTest")?;
+    let (_, _, _) = get_debot_paths("PipechainTest");
+    let chain = std::fs::read_to_string(path_to_pipechain)?;
+    let mut val: serde_json::Value = serde_json::from_str(&chain)?;
+    val["debotAddress"] = json!(addr);
+    let return_value = val["initArgs"]["arg7"].clone();
+    std::fs::write(path_to_pipechain, serde_json::to_string_pretty(&val).unwrap())?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.timeout(std::time::Duration::from_secs(2))
+        .arg("-j")
+        .arg("debot")
+        .arg("start")
+        .arg(&addr)
+        .arg("--pipechain")
+        .arg(path_to_pipechain);
+    let assert = cmd
+        .assert()
+        .success();
+
+    let out_value: serde_json::Value = serde_json::from_slice(&assert.get_output().stdout).unwrap();
+    let eq = predicate::eq(return_value);
+    assert_eq!(true,  eq.eval(&out_value["ret1"]));
+    // uncomment for debug
+    // let out = cmd.get_output();
+    // std::io::stdout().lock().write_all(&out.stdout)?;
     Ok(())
 }

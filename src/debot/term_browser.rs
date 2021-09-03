@@ -43,6 +43,8 @@ struct TerminalBrowser {
     conf: Config,
     processor: Arc<tokio::sync::RwLock<ChainProcessor>>,
     interactive: bool,
+    /// Browser exit argument. Initialized only if DeBot sends message to the DeBot Browser address.
+    pub exit_arg: Option<serde_json::Value>,
 }
 
 impl TerminalBrowser {
@@ -61,7 +63,8 @@ impl TerminalBrowser {
             interfaces: SupportedInterfaces::new(client.clone(), &conf, processor.clone()),
             conf,
             processor,
-            interactive
+            interactive,
+            exit_arg: None,
         };
         browser.fetch_debot(addr, start, !interactive).await?;
         let abi = browser.bots.get(addr).unwrap().abi.clone();
@@ -200,21 +203,18 @@ impl TerminalBrowser {
         println!("{}", info.hello.unwrap_or_else(|| format!("None")));
     }
 
-    async fn decode_answer(&mut self, message: String, _debot_addr: &str) -> Result<(), String> {
+    async fn set_exit_arg(&mut self, message: String, _debot_addr: &str) -> Result<(), String> {
         let abi = self.processor.read().await.abi();
-        let ret_string = if let Some(abi) = abi {
+        let arg = if let Some(abi) = abi {
             let decoded = decode_message(
                 self.client.clone(),
                 ParamsOfDecodeMessage { abi, message },
             ).await.map_err(|e| format!("{}", e))?;
-            let ret_value: serde_json::Value = decoded.value.unwrap_or(json!({}));
-            serde_json::to_string_pretty(&ret_value)
-                .map_err(|e| format!("invalid answer json from DeBot: {}", e))?
+            decoded.value.unwrap_or(json!({}))
         } else {
-            message
+            json!({"message": message})
         };
-        println!("Returned value:");
-        println!("{}", ret_string);
+        self.exit_arg = Some(arg);
         Ok(())
     }
 
@@ -294,8 +294,10 @@ pub async fn run_debot_browser(
     config: Config,
     mut pipechain: PipeChain,
     signkey_path: Option<String>,
-) -> Result<(), String> {
-    println!("Network: {}", config.url);
+) -> Result<Option<serde_json::Value>, String> {
+    if !config.is_json {
+        println!("Network: {}", config.url);
+    }
     let ton = create_client(&config)?;
     
     if let Some(path) = signkey_path {
@@ -332,8 +334,8 @@ pub async fn run_debot_browser(
 
             if wc == DEBOT_WC {
                 if id == BROWSER_ID {
-                    // Message from DeBot to Browser itself
-                    browser.decode_answer(msg, msg_src).await?;
+                    // Message from DeBot to Browser
+                    browser.set_exit_arg(msg, msg_src).await?;
                 } else {
                     browser.call_interface(msg, &id, msg_src).await?;
                 }
@@ -360,7 +362,8 @@ pub async fn run_debot_browser(
         }
         // ---------------------------------------
     }
-    Ok(())
+    
+    Ok(browser.exit_arg)
 }
 
 #[cfg(test)]

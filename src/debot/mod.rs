@@ -52,9 +52,9 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                         .help("DeBot TON address."),
                 )
                 .arg(
-                    Arg::with_name("MANIFEST")
+                    Arg::with_name("PIPECHAIN")
                         .short("m")
-                        .long("manifest")
+                        .long("pipechain")
                         .takes_value(true)
                         .help("Path to DeBot Manifest."),
                 )
@@ -123,34 +123,38 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 
 async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
-    let manifest = m.value_of("MANIFEST");
+    let pipechain = m.value_of("PIPECHAIN");
     let signkey_path = m.value_of("SIGNKEY")
         .map(|x| x.to_owned())
         .or(config.keys_path.clone());
-    let manifest = if let Some(filename) = manifest {
+    let is_json = config.is_json;
+    let pipechain = if let Some(filename) = pipechain {
         let manifest_raw = std::fs::read_to_string(filename)
-            .map_err(|e| format!("failed to read manifest: {}", e))?;
+            .map_err(|e| format!("failed to read pipechain: {}", e))?;
         serde_json::from_str(&manifest_raw)
-            .map_err(|e| format!("failed to parse manifest: {}", e))?
+            .map_err(|e| format!("failed to parse pipechain: {}", e))?
     } else {
         PipeChain::default()
     };
     let addr = load_ton_address(addr.unwrap(), &config)?;
-    let mut result = run_debot_browser(addr.as_str(), config, manifest, signkey_path).await;
-    if let Err(ref msg) = result {
-        if msg.contains("NoMoreChainlinks") {
-            result = Ok(());
-        }
+    let result = run_debot_browser(addr.as_str(), config, pipechain, signkey_path).await;
+    match result {
+        Err(ref err) if err.contains("NoMoreChainlinks") => Ok(()),
+        Ok(arg) if arg.is_some() => {
+            if !is_json { println!("Returned value:"); }
+            println!("{}", serde_json::to_string_pretty(&arg.unwrap()).unwrap_or_default());
+            Ok(())
+        },
+        _ => result.map(|_| ()),
     }
-    result
 }
 
 async fn invoke_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
     let _addr = load_ton_address(addr.unwrap(), &config)?;
     let message = m.value_of("MESSAGE").unwrap().to_owned();
-    let mut manifest = PipeChain::default();
-    manifest.init_msg = Some(message);
+    let mut pipechain = PipeChain::default();
+    pipechain.init_msg = Some(message);
     //run_debot_browser(addr.as_str(), config, false, Some(message)).await
     Ok(())
 }
