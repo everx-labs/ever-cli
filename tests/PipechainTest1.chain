@@ -1,6 +1,6 @@
 {
   "version": 0,
-  "debotAddress": "0:c99222825576e3d23f8ec6291ebfec6162ccbc871761871a3a14da714277cfbf",
+  "debotAddress": "0:1c0905f4dde25eb46ae66d99498df9f2c434d825722ddbc8e1f2affe5b49b9e4",
   "initMethod": "invokeTest",
   "initArgs": {
     "arg1": "1500000000",
@@ -46,7 +46,7 @@
     "data": [],
     "events": []
   },
-  "interactive": false,
+  "quiet": true,
   "chain": [
     {
       "type": "Input",

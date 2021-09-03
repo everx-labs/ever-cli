@@ -32,7 +32,7 @@ impl ChainProcessor {
     }
 
     pub fn interactive(&self) -> bool {
-        self.pipechain.interactive
+        !self.pipechain.quiet
     }
 
     pub fn default_start(&self) -> bool {
@@ -70,7 +70,7 @@ impl ChainProcessor {
         in_params: &Value
     ) -> Result<Option<Value>, ProcessorError> {
         let chlink = self.chain_iter.next().ok_or(
-            if self.pipechain.interactive {
+            if self.interactive() {
                 ProcessorError::InterfaceCallNeeded
             } else {
                 ProcessorError::NoMoreChainlinks
@@ -97,7 +97,7 @@ impl ChainProcessor {
 
     pub fn next_signing_box(&mut self) -> Result<u32, ProcessorError> {
         let chlink = self.chain_iter.next().ok_or(
-            if self.pipechain.interactive {
+            if self.interactive() {
                 ProcessorError::InterfaceCallNeeded
             } else {
                 ProcessorError::NoMoreChainlinks
@@ -115,7 +115,7 @@ impl ChainProcessor {
     pub fn next_approve(&mut self, activity: &DebotActivity) -> Result<bool, ProcessorError> {
         
         let app_kind = match activity {
-            DebotActivity::Transaction {..} => ApproveKind::ApproveOnchainCall,
+            DebotActivity::Transaction {..} => ApproveKind::ApproveOnChainCall,
         };
         let auto_approve = self.pipechain.auto_approve.as_ref().and_then(|vec| {
             Some(vec.iter().find(|x| **x == app_kind).is_some())
@@ -126,7 +126,7 @@ impl ChainProcessor {
             if auto_approve.is_some() {
                 return Ok(auto_approve.unwrap());
             } else {
-                if self.pipechain.interactive {
+                if self.interactive() {
                     return Err(ProcessorError::InteractiveApproveNeeded);
                 } else {
                     return Ok(false);

@@ -134,7 +134,7 @@ async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String>
         serde_json::from_str(&manifest_raw)
             .map_err(|e| format!("failed to parse pipechain: {}", e))?
     } else {
-        PipeChain::default()
+        PipeChain::new()
     };
     let addr = load_ton_address(addr.unwrap(), &config)?;
     let result = run_debot_browser(addr.as_str(), config, pipechain, signkey_path).await;

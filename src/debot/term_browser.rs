@@ -42,6 +42,7 @@ struct TerminalBrowser {
     interfaces: SupportedInterfaces,
     conf: Config,
     processor: Arc<tokio::sync::RwLock<ChainProcessor>>,
+    /// Indicates if Browser will interact with the user or not.
     interactive: bool,
     /// Browser exit argument. Initialized only if DeBot sends message to the DeBot Browser address.
     pub exit_arg: Option<serde_json::Value>,

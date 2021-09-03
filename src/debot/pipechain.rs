@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::default::Default;
 
 fn default_init_method() -> String { format!("start") }
 fn default_mandatory() -> bool { false }
-fn default_interactive() -> bool { true }
 
 #[derive(Deserialize, Clone, PartialEq)]
 pub enum ApproveKind {
-    ApproveOnchainCall,
+    ApproveOnChainCall,
     ApproveNetwork,
     ApproveMessageLimit,
 }
@@ -23,9 +23,17 @@ pub struct PipeChain {
     pub init_msg: Option<String>,
     pub abi: Option<Value>,
     pub auto_approve: Option<Vec<ApproveKind>>,
-    #[serde(default = "default_interactive")]
-    pub interactive: bool,
+    pub quiet: bool,
     pub chain: Vec<ChainLink>,
+}
+
+impl PipeChain {
+    pub fn new() -> Self {
+        let mut pipechain = PipeChain::default();
+        pipechain.init_method = default_init_method();
+        pipechain.quiet = false;
+        pipechain
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
