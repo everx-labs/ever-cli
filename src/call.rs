@@ -423,9 +423,9 @@ async fn run_local(
     Ok(res)
 }
 
-async fn send_message_and_wait(
+pub async fn send_message_and_wait(
     ton: TonClient,
-    abi: Abi,
+    abi: Option<Abi>,
     msg: String,
     conf: Config,
 ) -> Result<serde_json::Value, String> {
@@ -440,7 +440,7 @@ async fn send_message_and_wait(
         ton.clone(),
         ParamsOfSendMessage {
             message: msg.clone(),
-            abi: Some(abi.clone()),
+            abi: abi.clone(),
             send_events: false,
             ..Default::default()
         },
@@ -452,7 +452,7 @@ async fn send_message_and_wait(
         let result = wait_for_transaction(
             ton.clone(),
             ParamsOfWaitForTransaction {
-                abi: Some(abi.clone()),
+                abi,
                 message: msg.clone(),
                 shard_block_id: result.shard_block_id,
                 send_events: true,
@@ -544,7 +544,7 @@ pub async fn call_contract_with_result(
         }
         if conf.async_call {
             return send_message_and_wait(ton,
-                                         abi,
+                                         Some(abi),
                                          msg.message,
                                          conf).await;
         }
@@ -663,7 +663,7 @@ pub async fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) 
     println!("{}", params.1);
     println!("Processing... ");
 
-    let result = send_message_and_wait(ton, abi, msg.message,  conf).await?;
+    let result = send_message_and_wait(ton, Some(abi), msg.message,  conf).await?;
 
     println!("Succeeded.");
     if !result.is_null() {

@@ -668,12 +668,27 @@ fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
         .success();
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--async_call")
+        .arg("true")
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--url")
         .arg("https://net.ton.dev")
         .arg("sendfile")
         .arg("call.boc");
     cmd.assert()
         .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--async_call")
+        .arg("false")
+        .assert()
+        .success();
+
     Ok(())
 }
 

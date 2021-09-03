@@ -12,7 +12,7 @@
  */
 use crate::helpers::create_client_verbose;
 use crate::config::Config;
-use ton_client::processing::{ParamsOfSendMessage, send_message};
+use crate::call::send_message_and_wait;
 
 pub async fn sendfile(conf: Config, msg_boc: &str) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
@@ -23,18 +23,9 @@ pub async fn sendfile(conf: Config, msg_boc: &str) -> Result<(), String> {
     let dst = tvm_msg.dst()
         .ok_or(format!("failed to parse dst address"))?;
 
-    let callback = |_| {
-        async move {}
-    };
-
     println!("Sending message to account {}", dst);
-    let msg = ParamsOfSendMessage {
-        message: base64::encode(&boc_vec),
-        send_events: false,
-        ..Default::default()
-    };
-    send_message(ton, msg, callback).await
-        .map_err(|e| format!("Failed: {}", e))?;
+
+    send_message_and_wait(ton, None, base64::encode(&boc_vec), conf).await?;
     println!("Succeded.");
     Ok(())
 }
