@@ -73,13 +73,16 @@ pub async fn generate_address(
 
     if update_tvc {
         let initial_data = initial_data.map(|s| s.to_string());
-        let key_bytes = hex::decode(&keys.public).unwrap();
+        let key_bytes = hex::decode(&keys.public)
+            .map_err(|e| format!("failed to decode public key: {}", e))?;
         update_contract_state(tvc, &key_bytes, initial_data, &abi_str)?;
     }
 
     if new_keys && keys_file.is_some() {
-        let keys_json = serde_json::to_string_pretty(&keys).unwrap();
-        std::fs::write(keys_file.unwrap(), &keys_json).unwrap();
+        let keys_json = serde_json::to_string_pretty(&keys)
+            .map_err(|e| format!("failed to serialize the keypair: {}", e))?;
+        std::fs::write(keys_file.unwrap(), &keys_json)
+            .map_err(|e| format!("failed to save the keypair: {}", e))?;
     }
 
 
@@ -96,7 +99,7 @@ pub async fn generate_address(
 
 fn calc_userfriendly_address(address: &str, bounce: bool, test: bool) -> Result<String, String> {
     convert_address(
-        create_client_local().unwrap(),
+        create_client_local()?,
         ParamsOfConvertAddress {
             address: address.to_owned(),
             output_format: AddressStringFormat::Base64{ url: true, bounce, test },
@@ -126,8 +129,10 @@ fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, ab
     let vec_bytes = contract_image.serialize()
         .map_err(|e| format!("unable to serialize contract image: {}", e))?;
 
-    state_init.seek(std::io::SeekFrom::Start(0)).unwrap();
-    state_init.write_all(&vec_bytes).unwrap();
+    state_init.seek(std::io::SeekFrom::Start(0))
+        .map_err(|e| format!("failed to access the tvc file: {}", e))?;
+    state_init.write_all(&vec_bytes)
+        .map_err(|e| format!("failed to update the tvc file: {}", e))?;
     println!("TVC file updated");
 
     Ok(())

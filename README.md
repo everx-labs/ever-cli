@@ -45,12 +45,16 @@ tonos-cli <subcommand> -h
     - [4.4.2. Alternative command to call contract in the blockchain](#442-alternative-command-to-call-contract-in-the-blockchain)
     - [4.4.3. Run contract method locally](#443-run-contract-method-locally)
     - [4.4.4. Run funC get-method](#444-run-func-get-method)
+    - [4.4.5. Run contract method locally for saved account state](#445-run-contract-method-locally-for-saved-account-state)
   - [4.5. Generate encrypted message offline](#45-generate-encrypted-message-offline)
   - [4.6. Broadcast previously generated message](#46-broadcast-previously-generated-message)
   - [4.7. Broadcast previously generated message from a file](#47-broadcast-previously-generated-message-from-a-file)
-  - [4.8. Decode messages](#48-decode-messages)
+  - [4.8. Decode commands](#48-decode-commands)
     - [4.8.1. Decode BOC file](#481-decode-boc-file)
     - [4.8.2. Decode message body](#482-decode-message-body)
+    - [4.8.3. Decode account commands](#483-decode-account-commands)
+      - [4.8.3.1. Decode account data fields](#4831-decode-account-data-fields)
+      - [4.8.3.2. Decode data from the account BOC file](#4832-decode-data-from-the-account-boc-file)
   - [4.9. Generate payload for internal function call](#49-generate-payload-for-internal-function-call)
 - [5. DeBot commands](#5-debot-commands)
 - [6. Multisig commands](#6-multisig-commands)
@@ -658,10 +662,12 @@ Succeeded.
 You may use the following command to check the current status of a contract:
 
 ```bash
-tonos-cli account <address>
+tonos-cli account <address> [--dumptvc <tvc_path>]
 ```
 
 `<address>` - contract [address](#41-generate-contract-address).
+`--dumptvc <tvc_path>` - this flag can be specified to dump account StateInit to the <tvc_path> file.
+`--dumpboc <boc_path>` - this flag can be specified to dump account boc to the <boc_path> file.
 
 Example:
 
@@ -869,6 +875,44 @@ Succeded.
 Result: ["1619901678"]
 ```
 
+### 4.4.5. Run contract method locally for saved account state
+
+```bash
+tonos-cli run --boc [--abi <contract.abi.json>] <account> <method> <params>
+```
+
+`<contract.abi.json>` - contract interface file.
+
+`<account>` - path to the file with account boc (It can be obtained from the TON Live). 
+
+`<method>` - the method being called.
+
+`<params>` - parameters of the called method.
+
+Example:
+
+```bash
+$ tonos-cli run --boc tests/depool_acc.boc getData '{}' --abi tests/samples/fakeDepool.abi.json 
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+ account: tests/depool_acc.boc
+  method: getData
+  params: {}
+     abi: tests/samples/fakeDepool.abi.json
+Generating external inbound message...
+Succeeded.
+Result: {
+  "stake": "65535",
+  "sender": "0:1e0739795a20263747ba659785a791fc2761295593a694f53116ab53439cc0a4",
+  "receiver": "0:0123456789012345012345678901234501234567890123450123456789012346",
+  "withdrawal": "172800",
+  "total": "172800",
+  "reinvest": false,
+  "value": "1000000000"
+}
+
+```
+
 ## 4.5. Generate encrypted message offline
 
 An internet connection is not required to create an encrypted message. Use the following command to do it:
@@ -985,7 +1029,7 @@ Sending message to account 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f58
 Succeded.
 ```
 
-## 4.8. Decode messages
+## 4.8. Decode commands
 
 ### 4.8.1. Decode BOC file
 
@@ -1048,6 +1092,80 @@ submitTransaction: {
   "allBalance": false,
   "payload": "te6ccgEBAQEAAgAAAA=="
 }
+```
+
+### 4.8.3. Decode account commands
+
+#### 4.8.3.1. Decode account data fields
+
+Use the following command to decode data fields of the contract.
+
+```bash
+tonos-cli decode account data --abi <contract.abi.json> --addr <contract_address>
+tonos-cli decode account data --abi <contract.abi.json> --tvc <contract_file>
+```
+
+`<contract.abi.json>` - contract interface file.
+
+Contract address on blockchain or path to the file with contract's StateInit can be specified
+with options `--addr` and `--tvc` respectively.
+
+```bash
+$ tonos-cli decode account data --abi tests/test_abi_v2.1.abi.json --tvc tests/decode_fields.tvc 
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+     tvc: tests/decode_fields.tvc
+     abi: tests/test_abi_v2.1.abi.json
+TVC fields:
+{
+  "__pubkey": "0xe8b1d839abe27b2abb9d4a2943a9143a9c7e2ae06799bd24dec1d7a8891ae5dd",
+  "__timestamp": "1626254942358",
+  "fun": "22",
+  "opt": "48656c6c6f",
+  "big": {
+    "value0": "0x0000000000000000000000000000000000000000000000000000000000000002",
+    "value1": "0x0000000000000000000000000000000000000000000000000000000000000008",
+    "value2": "0x0000000000000000000000000000000000000000000000000000000000000002",
+    "value3": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "a": "I like it.",
+  "b": "",
+  "length": "0x000000000000000000000000000000000000000000000000000000000000000f"
+}
+```
+
+#### 4.8.3.2. Decode data from the account BOC file
+
+Use the following command to decode data from the file with BOC of the account and save
+StateInit to a separate file if needed.
+
+```bash
+tonos-cli decode account boc <boc_file> [--dumptvc <tvc_path>]
+```
+
+`<boc_file>` - path to the file with BOC of the account. E.g. it can be obtained from  
+the TON Live.
+`--dumptvc <tvc_path>` - this flag can be specified to dump account StateInit to the <tvc_path> file.
+
+```bash
+$ tonos-cli decode account boc tests/account.boc --dumptvc acc.tvc
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+     boc: tests/account.boc
+tvc_path: acc.tvc
+address:       0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
+acc_type:      Active
+balance:       908097175476967754
+last_paid:     1626706323
+last_trans_lt: 246923000003
+code_hash:     4e92716de61d456e58f16e4e867e3e93a7548321eace86301b51c8b80ca6239b
+state_init: 
+ split_depth: None
+ special: None
+ data: te6ccgEBAgEAUAABQZXAaqdD0fkADdZLdUmPEGr0t+dEQjTX3mfqJpiPYYHf4AEAU6AFqBJgJG7Ncw9arsqLrQ5Aoeenp6RgXcbQ7vUibecz0mAAAAAMHrI00A==
+ code: te6ccgECFAEAA6EAAib/APSkICLAAZL0oOGK7VNYMPShAwEBCvSkIPShAgAAAgEgBgQB/P9/Ie1E0CDXScIBn9P/0wD0Bfhqf/hh+Gb4Yo4b9AVt+GpwAYBA9A7yvdcL//hicPhjcPhmf/hh4tMAAY4SgQIA1xgg+QFY+EIg+GX5EPKo3iP4QvhFIG6SMHDeuvLgZSHTP9MfNDH4IyEBvvK5IfkAIPhKgQEA9A4gkTHeswUATvLgZvgAIfhKIgFVAcjLP1mBAQD0Q/hqIwRfBNMfAfAB+EdukvI83gIBIAwHAgFYCwgBCbjomPxQCQH++EFujhLtRNDT/9MA9AX4an/4Yfhm+GLe0XBtbwL4SoEBAPSGlQHXCz9/k3BwcOKRII43IyMjbwJvIsgizwv/Ic8LPzExAW8iIaQDWYAg9ENvAjQi+EqBAQD0fJUB1ws/f5NwcHDiAjUzMehfA8iCEHdEx+KCEIAAAACxzwsfIQoAom8iAssf9ADIglhgAAAAAAAAAAAAAAAAzwtmgQOYIs8xAbmWcc9AIc8XlXHPQSHN4iDJcfsAWzDA/44S+ELIy//4Rs8LAPhKAfQAye1U3n/4ZwDFuRar5/8ILdHG3aiaBBrpOEAz+n/6YB6Avw1P/ww/DN8MUcN+gK2/DU4AMAgegd5XuuF//wxOHwxuHwzP/ww8W98I0l5Gcm4/DNxfABo/CFkZf/8I2eFgHwlAPoAZPaqP/wzwAgEgDw0B17sV75NfhBbo4S7UTQ0//TAPQF+Gp/+GH4Zvhi3vpA1w1/ldTR0NN/39cMAJXU0dDSAN/RIiIic8hxzwsBIs8KAHPPQCTPFiP6AoBpz0Byz0AgySL7AF8F+EqBAQD0hpUB1ws/f5NwcHDikSCA4Ako4t+CMiAbuf+EojASEBgQEA9FswMfhq3iL4SoEBAPR8lQHXCz9/k3BwcOICNTMx6F8DXwP4QsjL//hGzwsA+EoB9ADJ7VR/+GcCASAREADHuORhh18ILdHCXaiaGn/6YB6Avw1P/ww/DN8MW9qaPwhfCKQN0kYOG9deXAy/AB8IWRl//wjZ4WAfCUA+gBk9qp8B5B9ghBodo92qfgBGHwhZGX//CNnhYB8JQD6AGT2qj/8M8AIC2hMSAC2vhCyMv/+EbPCwD4SgH0AMntVPgP8gCAB1pwIccAnSLQc9ch1wsAwAGQkOLgIdcNH5LyPOFTEcAAkODBAyKCEP////28sZLyPOAB8AH4R26S8jzeg=
+ lib:  
+
 ```
 
 ## 4.9. Generate payload for internal function call

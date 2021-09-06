@@ -218,7 +218,7 @@ pub async fn encode_transfer_body(text: &str) -> Result<String, String> {
 			call_set: CallSet::some_with_function_and_input(
 				"transfer", 
 				json!({ "comment": text	}),
-			).unwrap(),
+			).ok_or("failed to create CallSet with specified parameters")?,
 			is_internal: true,
 			..Default::default()
 		},

@@ -86,7 +86,8 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     ).map_err(|e| format!("failed to get KeyPair from secret key: {}", e))?;
 
     // special case if secret contains public key too.
-    let secret = hex::decode(&keypair.secret).unwrap();
+    let secret = hex::decode(&keypair.secret)
+        .map_err(|e| format!("failed to decode the keypair: {}", e))?;
     if secret.len() > 32 {
         keypair.secret = hex::encode(&secret[..32]);
     }
@@ -105,14 +106,16 @@ pub fn extract_pubkey(mnemonic: &str) -> Result<(), String> {
     println!("Succeeded.");
     println!("Public key: {}", keypair.public);
     println!();
-    qr2term::print_qr(&keypair.public).unwrap();
+    qr2term::print_qr(&keypair.public)
+        .map_err(|e| format!("failed to print the QR code: {}", e))?;
     println!();
     Ok(())
 }
 
 pub fn generate_keypair(keys_path: &str, mnemonic: &str) -> Result<(), String> {
     let keys = generate_keypair_from_mnemonic(mnemonic)?;
-    let keys_json = serde_json::to_string_pretty(&keys).unwrap();
+    let keys_json = serde_json::to_string_pretty(&keys)
+        .map_err(|e| format!("failed to serialize the keypair: {}", e))?;
     std::fs::write(keys_path, &keys_json)
         .map_err(|e| format!("failed to create file with keys: {}", e))?;
     println!("Succeeded.");

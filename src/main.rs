@@ -33,7 +33,7 @@ mod voting;
 mod replay;
 
 use account::{get_account, calc_storage};
-use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method};
+use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method, run_local_for_account};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings};
 use config::{Config, set_config, clear_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
@@ -90,8 +90,7 @@ fn default_config_name() -> Result<String, String> {
     env::current_dir()
         .map_err(|e| format!("cannot get current dir: {}", e))
         .map(|dir| {
-            dir.join(PathBuf::from(CONFIG_BASE_NAME))
-                .to_str().unwrap().to_string()
+            dir.join(PathBuf::from(CONFIG_BASE_NAME)).to_str().unwrap().to_string()
         })
 }
 
@@ -266,10 +265,11 @@ async fn main_internal() -> Result <(), String> {
         (@subcommand run =>
             (@setting AllowLeadingHyphen)
             (about: "Runs contract function locally.")
-            (@arg ADDRESS: +required +takes_value "Contract address.")
+            (@arg ADDRESS: +required +takes_value "Contract address or path to the saved account state if --boc flag is specified.")
             (@arg METHOD: +required +takes_value "Name of the function being called.")
             (@arg PARAMS: +required +takes_value "Function arguments. Can be specified with a filename, which contains json data.")
             (@arg ABI: --abi +takes_value "Path to the contract ABI file.")
+            (@arg BOC: --boc "Flag that changes behavior of the command to work with the saved account state.")
         )
         (subcommand: runget_sub_command)
         (@subcommand config =>
@@ -335,7 +335,8 @@ async fn main_internal() -> Result <(), String> {
             (version: &*format!("{}", env!("CARGO_PKG_VERSION")))
             (author: "TONLabs")
             (@arg ADDRESS: +required +takes_value "Smart contract address.")
-            (@arg DUMPTVC: -d --dumptvc +takes_value "Dumps account StateInit to specified tvc file.")
+            (@arg DUMPTVC: -d --dumptvc +takes_value  conflicts_with[DUMPBOC] "Dumps account StateInit to the specified tvc file.")
+            (@arg DUMPBOC: -b --dumpboc +takes_value conflicts_with[DUMPTVC] "Dumps the whole account state boc to the specified file.")
         )
         (@subcommand fee =>
             (about: "Calculates fees for executing message or account storage fee.")
@@ -462,7 +463,11 @@ async fn main_internal() -> Result <(), String> {
         return call_command(m, conf, CallType::Call).await;
     }
     if let Some(m) = matches.subcommand_matches("run") {
-        return call_command(m, conf, CallType::Run).await;
+        if m.is_present("BOC") {
+            return run_account(m, conf).await;
+        } else {
+            return call_command(m, conf, CallType::Run).await;
+        }
     }
     if let Some(m) = matches.subcommand_matches("runget") {
         return runget_command(m, conf).await;
@@ -637,7 +642,8 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
         client.clone(),
         ParamsOfEncodeMessageBody {
             abi: load_abi(&abi)?,
-            call_set: CallSet::some_with_function_and_input(&method.unwrap(), params).unwrap(),
+            call_set: CallSet::some_with_function_and_input(&method.unwrap(), params)
+                .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
             ..Default::default()
         },
@@ -648,6 +654,34 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
     println!("Message body: {}", body);
 
     Ok(())
+}
+
+async fn run_account(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let account = matches.value_of("ADDRESS");
+    let method = matches.value_of("METHOD");
+    let params = matches.value_of("PARAMS");
+
+    let abi = Some(
+        matches.value_of("ABI")
+            .map(|s| s.to_string())
+            .or(config.abi_path.clone())
+            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
+    );
+
+    let params = Some(load_params(params.unwrap())?);
+    if !config.is_json {
+        print_args!(account, method, params, abi);
+    }
+
+    let abi = std::fs::read_to_string(abi.unwrap())
+        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+
+    run_local_for_account(config,
+    account.unwrap(),
+        abi,
+        method.unwrap(),
+        &params.unwrap(),
+    ).await
 }
 
 async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) -> Result<(), String> {
@@ -880,7 +914,7 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
     let tvc = matches.value_of("TVC");
     let wc = matches.value_of("WC");
     let keys = matches.value_of("GENKEY").or(matches.value_of("SETKEY"));
-    let new_keys = matches.is_present("GENKEY");
+    let new_keys = matches.is_present("GENKEY") ;
     let init_data = matches.value_of("DATA");
     let update_tvc = matches.is_present("SAVE");
     let abi = matches.value_of("ABI");
@@ -892,11 +926,12 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
 async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let tvcname = matches.value_of("DUMPTVC");
+    let bocname = matches.value_of("DUMPBOC");
     if !config.is_json {
         print_args!(address);
     }
     let address = load_ton_address(address.unwrap(), &config)?;
-    get_account(config, address.as_str(), tvcname).await
+    get_account(config, address.as_str(), tvcname, bocname).await
 }
 
 async fn storage_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -973,7 +1008,9 @@ async fn proposal_decode_command(matches: &ArgMatches<'_>, config: Config) -> Re
 
 async fn getconfig_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let index = matches.value_of("INDEX");
-    print_args!(index);
+    if !config.is_json {
+        print_args!(index);
+    }
     query_global_config(config, index.unwrap()).await
 }
 
@@ -987,7 +1024,8 @@ fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
         convert::nodeid_from_pubkey(&vec)?
     } else if let Some(pair) = keypair {
         let pair = crypto::load_keypair(pair)?;
-        convert::nodeid_from_pubkey(&hex::decode(&pair.public).unwrap())?
+        convert::nodeid_from_pubkey(&hex::decode(&pair.public)
+            .map_err(|e| format!("failed to decode public key: {}", e))?)?
     } else {
         return Err("Either public key or key pair parameter should be provided".to_owned());
     };

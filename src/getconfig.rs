@@ -249,7 +249,8 @@ pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String
         "blocks",
         json!({
             "seq_no": {
-                "eq": last_key_block_query[0]["prev_key_block_seqno"].as_u64().unwrap() 
+                "eq": last_key_block_query[0]["prev_key_block_seqno"].as_u64()
+                    .ok_or("failed to decode prev_key_block_seqno")?
             },
             "workchain_id": {
                 "eq": -1 
@@ -266,6 +267,11 @@ pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String
     let config = &config_query[0]["master"]["config"][&config_name];
     let config_str = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("failed to parse config body from sdk: {}", e))?;
-    println!("Config {}: {}", config_name, config_str);
+
+    if conf.is_json {
+        println!("{}", config_str);
+    } else {
+        println!("Config {}: {}", config_name, config_str);
+    }
     Ok(())
 }
