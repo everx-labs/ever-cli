@@ -11,13 +11,6 @@
 			]
 		},
 		{
-			"name": "start",
-			"inputs": [
-			],
-			"outputs": [
-			]
-		},
-		{
 			"name": "getDebotInfo",
 			"id": "0xDEB",
 			"inputs": [
@@ -41,6 +34,44 @@
 			],
 			"outputs": [
 				{"name":"interfaces","type":"uint256[]"}
+			]
+		},
+		{
+			"name": "start",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "setSignBoxHandle",
+			"inputs": [
+				{"name":"handle","type":"uint32"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "onSuccess",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "onError",
+			"inputs": [
+				{"name":"sdkError","type":"uint32"},
+				{"name":"exitCode","type":"uint32"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "setDataOnchain",
+			"inputs": [
+			],
+			"outputs": [
 			]
 		},
 		{

@@ -9,8 +9,8 @@
         "bounce": true,
         "payload": ""
     },
-    "interactive": true,
-    "autoApprove": ["ApproveOnchainCall"],
+    "quiet": false,
+    "autoApprove": ["ApproveOnChainCall"],
     "chain": [
     {
         "type": "Input",

@@ -1,8 +1,8 @@
 {
     "version": 0,
     "debotAddress": "0:09403116d2d04f3d86ab2de138b390f6ec1b0bc02363dbf006953946e807051e",
-    "interactive": false,
-    "autoApprove": ["ApproveOnchainCall"],
+    "quiet": true,
+    "autoApprove": ["ApproveOnChainCall"],
     "chain": [
     {
         "type": "Input",

@@ -9,6 +9,7 @@ import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/Menu/
 import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/AddressInput/AddressInput.sol";
 import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/AmountInput/AmountInput.sol";
 import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/UserInfo/UserInfo.sol";
+import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/SigningBoxInput/SigningBoxInput.sol";
 import "ICompleted.sol";
 
 contract Invoked is Debot {
@@ -29,10 +30,6 @@ contract Invoked is Debot {
         m_icon = icon;
     }
 
-    /// @notice Entry point function for DeBot.
-    function start() public override {
-    }
-
     /// @notice Returns Metadata about DeBot.
     function getDebotInfo() public functionID(0xDEB) override view returns(
         string name, string version, string publisher, string caption, string author,
@@ -51,7 +48,37 @@ contract Invoked is Debot {
     }
 
     function getRequiredInterfaces() public view override returns (uint256[] interfaces) {
-        return [ Terminal.ID, AddressInput.ID, AmountInput.ID, ConfirmInput.ID, Menu.ID, UserInfo.ID];
+        return [Terminal.ID, AddressInput.ID, AmountInput.ID, ConfirmInput.ID, Menu.ID, UserInfo.ID];
+    }
+
+    /// @notice Entry point function for DeBot.
+    function start() public override {
+        uint256[] empty;
+        SigningBoxInput.get(tvm.functionId(setSignBoxHandle), "Enter keys", empty);
+    }
+
+    function setSignBoxHandle(uint32 handle) public {
+        require(handle != 0);
+        this.setDataOnchain{
+            abiVer: 2, extMsg: true, sign: true,
+            time: 0, expire: 0, pubkey: 0, signBoxHandle: handle,
+            callbackId: tvm.functionId(onSuccess),
+            onErrorId: tvm.functionId(onError)
+        }();
+    }
+
+    function onSuccess() public {
+
+    }
+
+    function onError(uint32 sdkError, uint32 exitCode) public {
+        sdkError; exitCode;
+        revert();
+    }
+
+    function setDataOnchain() public {
+        require(msg.pubkey() == tvm.pubkey());
+        tvm.accept();
     }
 
     //
@@ -79,6 +106,8 @@ contract Invoked is Debot {
         m_arg6 = arg6;
         m_arg7 = arg7;
     }
+
+    // ----------------------------------------------------
 
     function checkArg1(uint128 value) public {
         require(value == m_arg1, 201);
