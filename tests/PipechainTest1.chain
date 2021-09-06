@@ -1,6 +1,6 @@
 {
   "version": 0,
-  "debotAddress": "0:1c0905f4dde25eb46ae66d99498df9f2c434d825722ddbc8e1f2affe5b49b9e4",
+  "debotAddress": "",
   "initMethod": "invokeTest",
   "initArgs": {
     "arg1": "1500000000",

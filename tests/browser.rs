@@ -173,20 +173,17 @@ fn test_pipechain_signing() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd
-        //.arg("-j")
+        .arg("-j")
         .arg("debot")
         .arg("start")
         .arg(&addr)
         .arg("--pipechain")
-        .arg(path_to_pipechain);
-    let assert = cmd
+        .arg(path_to_pipechain)
+        .arg("--signkey")
+        .arg(keys);
+    let _assert = cmd
         .assert()
-        .success();
-
-    println!("{}", std::str::from_utf8(&assert.get_output().stdout).unwrap());
-
-    // uncomment for debug
-    // let out = cmd.get_output();
-    // std::io::stdout().lock().write_all(&out.stdout)?;
+        .success()
+        .stdout(predicate::str::contains("Debot error").count(0));
     Ok(())
 }
