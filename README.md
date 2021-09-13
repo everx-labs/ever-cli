@@ -59,6 +59,7 @@ tonos-cli <subcommand> -h
 - [5. DeBot commands](#5-debot-commands)
 - [6. Multisig commands](#6-multisig-commands)
   - [6.1. Send tokens](#61-send-tokens)
+  - [6.2. Deploy wallet](#62-deploy-wallet)
 - [7. DePool commands](#7-depool-commands)
   - [7.1. Configure TONOS-CLI for DePool operations](#71-configure-tonos-cli-for-depool-operations)
   - [7.2. Deposit stakes](#72-deposit-stakes)
@@ -1233,7 +1234,7 @@ Further input depends on the DeBot, which usually explains any actions it offers
 
 # 6. Multisig commands
 
-Multisig commands allow you to work with any existing Multisig wallets <link to repo> in a more convenient way and without the need for ABI files.
+Multisig commands allow you to work with any existing Multisig wallets <link to repo> in a more convenient way and with no need of ABI files.
 
 ## 6.1. Send tokens
 
@@ -1249,7 +1250,7 @@ tonos-cli multisig send --addr <sender_address> --dest <recipient_address> --pur
 
 `<"text_in_quotes">` - accompanying message. Only the recipient will be able to decrypt and read it.
 
-`<path_to_keys_or_seed_phrase>` - path to sender wallet key file of the corresponding seed phrase in quotes.
+`<path_to_keys_or_seed_phrase>` - path to sender wallet key file or the corresponding seed phrase in quotes.
 
 `--value *number*` - value to be transferred (in tokens).
 
@@ -1268,6 +1269,39 @@ Succeeded.
 Result: {
   "transId": "0"
 }.
+```
+
+# 6.2. Deploy wallet
+
+Use the following command to deploy a multisignature wallet:
+
+```bash
+tonos-cli multisig deploy [--setcode] [--owners <owners_list>] [--confirms <confirms_cnt>] [--local <local_giver_value>] --keys <path_to_keys_or_seed_phrase>
+```
+
+`--setcode` - flag that changes type of the wallet to the SetcodeMultisigWallet. If not specified, a SafeMultisigWallet is deployed.
+
+`--owners <owners_list>` - option that sets wallet owners. If not specified, the only owner is deploy signed (set with --keys option).
+
+`--confirms <confirms_cnt>` - option that sets required number of confirmations. If not specified, is set to 1.
+
+`--local <local_giver_value>` - value that should be transferred from the local giver if wallet is deployed onto the Node SE (in nanotons).
+
+`--keys <path_to_keys_or_seed_phrase>` - path to the wallet key file or the corresponding seed phrase in quotes.
+
+
+Example:
+
+```bash
+$ tonos-cli multisig deploy -k "young tell target alter sport dignity enforce improve pottery fashion alert genuine" --local 1_000_000_000
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Wallet address: 0:4d892e63989c1c0ad64b0bbe22e8d036b0da271c19b6686d01bd29a99dcbc86d
+Connecting to http://127.0.0.1/
+Expire at: Mon, 13 Sep 2021 14:55:29 +0300
+MessageId: 3c3537e36e2a4a4018b7463db2bf57efad5dc0dc0233b040c2f5e165cb43e887
+MessageId: 8102067efc190b2e728d91d632c985634fc4717b7ae1137a4bbcf756c4cf8705
+Wallet successfully deployed
+Wallet address: 0:4d892e63989c1c0ad64b0bbe22e8d036b0da271c19b6686d01bd29a99dcbc86d
 ```
 
 # 7. DePool commands
