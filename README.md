@@ -662,7 +662,7 @@ Succeeded.
 You may use the following command to check the current status of a contract:
 
 ```bash
-tonos-cli account <address> [--dumptvc <tvc_path>]
+tonos-cli account <address> [--dumptvc <tvc_path>] [--dumpboc <boc_path>]
 ```
 
 `<address>` - contract [address](#41-generate-contract-address).
