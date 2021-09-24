@@ -682,13 +682,20 @@ pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<St
     }
 }
 
-pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>) -> Result<(), String> {
+pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>, is_boc:bool) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
-    let addr = load_ton_address(addr, &conf)
-        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
-
-    let acc_boc = query_account_boc(ton.clone(), addr.as_str()).await?;
+    let acc_boc = if is_boc {
+        let acc = Account::construct_from_file(addr)
+            .map_err(|e| format!(" failed to load account from the file {}: {}", addr, e))?;
+        let acc_bytes = acc.write_to_bytes()
+            .map_err(|e| format!("failed to load data from the account: {}", e))?;
+        base64::encode(&acc_bytes)
+    } else {
+        let addr = load_ton_address(addr, &conf)
+            .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
+        query_account_boc(ton.clone(), addr.as_str()).await?
+    };
 
     let params = params.map(|p| serde_json::from_str(&p))
         .transpose()

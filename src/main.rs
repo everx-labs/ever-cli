@@ -128,13 +128,16 @@ async fn main_internal() -> Result <(), String> {
         .setting(AppSettings::DontCollapseArgsInUsage)
         .arg(Arg::with_name("ADDRESS")
             .required(true)
-            .help("Contract address."))
+            .help("Contract address or path to the saved account state if --boc flag is specified."))
         .arg(Arg::with_name("METHOD")
             .required(true)
             .help("Name of the function being called."))
         .arg(Arg::with_name("PARAMS")
             .help("Function arguments.")
-            .multiple(true));
+            .multiple(true))
+        .arg(Arg::with_name("BOC")
+            .long("--boc")
+            .help("Flag that changes behavior of the command to work with the saved account state."));
 
     let no_answer_with_value = Arg::with_name("NO_ANSWER")
         .long("--no-answer")
@@ -804,9 +807,16 @@ async fn runget_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
     let params = params.map(|values| {
         json!(values.collect::<Vec<_>>()).to_string()
     });
-    print_args!(address, method, params);
-    let address = load_ton_address(address.unwrap(), &config)?;
-    run_get_method(config, address.as_str(), method.unwrap(), params).await
+    if !config.is_json {
+        print_args!(address, method, params);
+    }
+    let is_boc = matches.is_present("BOC");
+    let address =  if is_boc {
+        address.unwrap().to_string()
+    } else {
+        load_ton_address(address.unwrap(), &config)?
+    };
+    run_get_method(config, &address, method.unwrap(), params, is_boc).await
 }
 
 async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: DeployType) -> Result<(), String> {
