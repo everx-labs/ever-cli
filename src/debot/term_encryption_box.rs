@@ -4,7 +4,7 @@ use crate::helpers::TonClient;
 use serde_json::Value;
 use std::io::{self, BufRead, Write};
 use ton_client::crypto::{
-    encryption_box_encrypt, encryption_box_decrypt, remove_signing_box, create_encryption_box,
+    register_encryption_box,
     RegisteredEncryptionBox, EncryptionBoxHandle, EncryptionAlgorithm,
 };
 use ton_client::crypto::{EncryptionBoxInfo, register_encryption_box,
@@ -17,8 +17,24 @@ pub(super) enum EncryptionBoxType {
 }
 
 pub struct ChaChaBox {
+    /// 256-bit key.
     pub key: String,
+    /// 96-bit nonce.
     pub nonce: String,
+    /// Client context.
+    pub client: TonClient,
+}
+
+pub struct NaClBox {
+    /// Receiver's public key.
+    pub their_pubkey: String,
+    /// Sender's private key.
+    pub ssecret: String,
+    /// Receiver's private key.
+    pub rsecret: String,
+    /// Nonce.
+    pub nonce: String,
+    /// Client context.
     pub client: TonClient,
 }
 
@@ -53,6 +69,19 @@ impl ton_client::crypto::EncryptionBox for ChaChaBox{
     }
 }
 
+#[async_trait::async_trait]
+impl ton_client::crypto::EncryptionBox for NaClBox{
+    /// Gets encryption box information
+    async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
+        EncryptionBoxInfo {hdpath: None, algorithm: Some("NaCl".to_string()),
+            options: Some(json!({"their_pubkey": hex::encode(self.their_pubkey.clone()), "secret": hex::encode(self.secret.clone()), "nonce": hex::encode(self.nonce.clone())})), public: None})
+    }
+    /// Encrypts data
+    async fn encrypt(&self, data: &String) -> ClientResult<String> {}
+    /// Decrypts data
+    async fn decrypt(&self, data: &String) -> ClientResult<String> {}
+}
+
 pub(super) struct TerminalEncryptionBox {
     handle: EncryptionBoxHandle,
     box_type: EncryptionBoxType,
@@ -67,6 +96,18 @@ impl TerminalEncryptionBox {
         };
         Ok(Self { handle, box_type, client })
     }*/
+    pub async fn new(client: TonClient, box_type: EncryptionBoxType, box_args: Value) -> Self {
+        match box_type {
+            Nacl => {},
+            ChaCha20 => {
+                let registered_box = register_encryption_box(
+                    client,
+                    ChaChaBox{key: String::from(""), nonce: String::from(""), client}
+                ).await.unwrap().handle;
+                Self{handle: registered_box, box_type: box_type, client: client}
+            },
+        }
+    }
     pub fn handle(&self) -> EncryptionBoxHandle {
         self.handle.clone()
     }
