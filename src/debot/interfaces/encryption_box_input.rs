@@ -6,6 +6,7 @@ use crate::helpers::TonClient;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use ton_client::abi::Abi;
+use ton_client::crypto::EncryptionBoxHandle;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use ton_client::encoding::decode_abi_bigint;
 
@@ -105,7 +106,7 @@ impl EncryptionBoxInput {
         .await;
         let handle = encryption_box.handle();
         self.handles.write().await.push(encryption_box);
-        Ok((answer_id, json!({})))
+        Ok((answer_id, json!({ "handle": handle.0})))
     }
     async fn get_nacl_secret_box(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
@@ -119,7 +120,9 @@ impl EncryptionBoxInput {
             nonce: nonce,
         })
         .await;
-        Ok((answer_id, json!({})))
+        let handle = encryption_box.handle();
+        self.handles.write().await.push(encryption_box);
+        Ok((answer_id, json!({ "handle": handle.0})))
     }
     async fn get_chacha20_box(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
@@ -133,10 +136,24 @@ impl EncryptionBoxInput {
             nonce: nonce,
         })
         .await;
-        Ok((answer_id, json!({})))
+        let handle = encryption_box.handle();
+        self.handles.write().await.push(encryption_box);
+        Ok((answer_id, json!({ "handle": handle.0})))
     }
     async fn remove_handle(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
+        let handle = u32::from_str_radix(
+            args["handle"]
+                .as_str()
+                .ok_or(format!("handle not found in argument list"))?,
+            10,
+        )
+        .map_err(|e| format!("{}", e))
+        .unwrap();
+        self.handles
+            .write()
+            .await
+            .retain(|value| (*value).handle().0 != handle);
         Ok((answer_id, json!({})))
     }
     async fn get_supported_algorithms(&self, args: &Value) -> InterfaceResult {
