@@ -1,21 +1,27 @@
 use super::term_browser::input;
+use crate::crypto::load_keypair;
 use crate::helpers::TonClient;
 use base64;
-use serde_json::Value;
-use std::io::{self, BufRead, Write};
+use std::io::{self};
 use ton_client::crypto::{
     chacha20, nacl_box, nacl_box_open, nacl_secret_box, nacl_secret_box_open,
     register_encryption_box, EncryptionBoxHandle, EncryptionBoxInfo, ParamsOfChaCha20,
     ParamsOfNaclBox, ParamsOfNaclBoxOpen, ParamsOfNaclSecretBox, ParamsOfNaclSecretBoxOpen,
-    ResultOfNaclBox, ResultOfNaclBoxOpen,
 };
 use ton_client::error::ClientResult;
 
 #[derive(Clone, Copy)]
-pub(super) enum EncryptionBoxType {
+pub(crate) enum EncryptionBoxType {
     SecretNaCl,
     NaCl,
     ChaCha20,
+}
+
+pub(crate) struct ParamsOfTerminalEncryptionBox {
+    pub box_type: EncryptionBoxType,
+    pub their_pubkey: String,
+    pub nonce: String,
+    pub context: TonClient,
 }
 
 pub struct NaClSecretBox {
@@ -23,7 +29,7 @@ pub struct NaClSecretBox {
     pub key: String,
     /// 96-bit nonce, encoded in `hex`.
     pub nonce: String,
-    /// Client context.
+    /// Client params.context.
     pub client: TonClient,
 }
 
@@ -32,7 +38,7 @@ pub struct ChaChaBox {
     pub key: String,
     /// 96-bit nonce, encoded in `hex`.
     pub nonce: String,
-    /// Client context.
+    /// Client params.context.
     pub client: TonClient,
 }
 
@@ -40,12 +46,10 @@ pub struct NaClBox {
     /// Receiver's public key - unprefixed 0-padded to 64 symbols hex string.
     pub their_pubkey: String,
     /// Sender's private key - unprefixed 0-padded to 64 symbols hex string.
-    pub ssecret: String,
-    /// Receiver's private key - unprefixed 0-padded to 64 symbols hex string.
-    pub rsecret: String,
+    pub secret: String,
     /// Nonce, encoded in `hex`.
     pub nonce: String,
-    /// Client context.
+    /// Client params.context.
     pub client: TonClient,
 }
 
@@ -144,7 +148,7 @@ impl ton_client::crypto::EncryptionBox for NaClBox {
                 decrypted: base64::encode(data),
                 nonce: self.nonce.clone(),
                 their_public: self.their_pubkey.clone(),
-                secret: self.ssecret.clone(),
+                secret: self.secret.clone(),
             },
         )
         .unwrap()
@@ -157,7 +161,7 @@ impl ton_client::crypto::EncryptionBox for NaClBox {
                 encrypted: data.clone(),
                 nonce: self.nonce.clone(),
                 their_public: self.their_pubkey.clone(),
-                secret: self.rsecret.clone(),
+                secret: self.secret.clone(),
             },
         )
         .unwrap()
@@ -172,72 +176,66 @@ pub(super) struct TerminalEncryptionBox {
 }
 
 impl TerminalEncryptionBox {
-    pub async fn new(client: TonClient, box_type: EncryptionBoxType, box_args: Value) -> Self {
-        match box_type {
+    pub async fn new(params: ParamsOfTerminalEncryptionBox) -> Self {
+        let key: String;
+
+        {
+            let stdio = io::stdin();
+            let mut reader = stdio.lock();
+            let mut writer = io::stdout();
+            let enter_str = "enter seed phrase or path to keypair file";
+            let mut pair = Err("no keypair".to_string());
+            let value = input(enter_str, &mut reader, &mut writer);
+            pair = load_keypair(&value).map_err(|e| e.to_string());
+            key = pair.unwrap().secret;
+        }
+
+        let registered_box = match params.box_type {
             EncryptionBoxType::SecretNaCl => {
-                let key = String::from("");
-                let nonce = String::from("");
-                let registered_box = register_encryption_box(
-                    client.clone(),
+                register_encryption_box(
+                    params.context.clone(),
                     NaClSecretBox {
                         key: hex::encode(&key), //TODO: HAS TO BE 0-padded to 64 symbols hex string
-                        nonce: hex::encode(&nonce),
-                        client: client.clone(),
+                        nonce: hex::encode(&params.nonce),
+                        client: params.context.clone(),
                     },
                 )
                 .await
                 .unwrap()
-                .handle;
-                Self {
-                    handle: registered_box,
-                    box_type: box_type,
-                    client: client.clone(),
-                }
+                .handle
             }
             EncryptionBoxType::NaCl => {
-                let their_pubkey = String::from("");
-                let ssecret = String::from("");
-                let rsecret = String::from("");
-                let nonce = String::from("");
-                let registered_box = register_encryption_box(
-                    client.clone(),
+                register_encryption_box(
+                    params.context.clone(),
                     NaClBox {
-                        their_pubkey: hex::encode(&their_pubkey), //TODO: HAS TO BE 0-padded to 64 symbols hex string
-                        ssecret: hex::encode(&ssecret), //TODO: HAS TO BE 0-padded to 64 symbols hex string
-                        rsecret: hex::encode(&rsecret), //TODO: HAS TO BE 0-padded to 64 symbols hex string
-                        nonce: hex::encode(&nonce),
-                        client: client.clone(),
+                        their_pubkey: hex::encode(&params.their_pubkey), //TODO: HAS TO BE 0-padded to 64 symbols hex string
+                        secret: hex::encode(&key), //TODO: HAS TO BE 0-padded to 64 symbols hex string
+                        nonce: hex::encode(&params.nonce),
+                        client: params.context.clone(),
                     },
                 )
                 .await
                 .unwrap()
-                .handle;
-                Self {
-                    handle: registered_box,
-                    box_type: box_type,
-                    client: client.clone(),
-                }
+                .handle
             }
             EncryptionBoxType::ChaCha20 => {
-                let key = String::from("");
-                let nonce = String::from("");
-                let registered_box = register_encryption_box(
-                    client.clone(),
+                register_encryption_box(
+                    params.context.clone(),
                     ChaChaBox {
                         key: base64::encode(&key),
-                        nonce: hex::encode(&nonce),
-                        client: client.clone(),
+                        nonce: hex::encode(&params.nonce),
+                        client: params.context.clone(),
                     },
                 )
                 .await
                 .unwrap()
-                .handle;
-                Self {
-                    handle: registered_box,
-                    box_type: box_type,
-                    client: client.clone(),
-                }
+                .handle
             }
+        };
+        Self {
+            handle: registered_box,
+            box_type: params.box_type,
+            client: params.context.clone(),
         }
     }
     pub fn handle(&self) -> EncryptionBoxHandle {

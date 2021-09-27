@@ -6,9 +6,7 @@ use crate::helpers::TonClient;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use ton_client::abi::Abi;
-use ton_client::crypto::EncryptionBoxHandle;
 use ton_client::debot::{DebotInterface, InterfaceResult};
-use ton_client::encoding::decode_abi_bigint;
 
 const ID: &'static str = "c13024e101c95e71afb1f5fa6d72f633d51e721de0320d73dfd6121a54e4d40b";
 
