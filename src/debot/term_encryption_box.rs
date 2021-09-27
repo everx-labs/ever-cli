@@ -187,7 +187,7 @@ impl TerminalEncryptionBox {
             let mut pair = Err("no keypair".to_string());
             let value = input(enter_str, &mut reader, &mut writer);
             pair = load_keypair(&value).map_err(|e| e.to_string());
-            key = pair.unwrap().secret;
+            key = format!("{:064}", pair.unwrap().secret);
         }
 
         let registered_box = match params.box_type {
@@ -195,7 +195,7 @@ impl TerminalEncryptionBox {
                 register_encryption_box(
                     params.context.clone(),
                     NaClSecretBox {
-                        key: hex::encode(&key), //TODO: HAS TO BE 0-padded to 64 symbols hex string
+                        key: hex::encode(&key),
                         nonce: hex::encode(&params.nonce),
                         client: params.context.clone(),
                     },
@@ -205,11 +205,12 @@ impl TerminalEncryptionBox {
                 .handle
             }
             EncryptionBoxType::NaCl => {
+                let padded_pubkey = format!("{:064}", params.their_pubkey);
                 register_encryption_box(
                     params.context.clone(),
                     NaClBox {
-                        their_pubkey: hex::encode(&params.their_pubkey), //TODO: HAS TO BE 0-padded to 64 symbols hex string
-                        secret: hex::encode(&key), //TODO: HAS TO BE 0-padded to 64 symbols hex string
+                        their_pubkey: hex::encode(&params.their_pubkey),
+                        secret: hex::encode(&key),
                         nonce: hex::encode(&params.nonce),
                         client: params.context.clone(),
                     },
