@@ -11,16 +11,16 @@
 * limitations under the License.
 */
 use crate::config::Config;
+use crate::helpers::load_ton_address;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use simplelog::*;
 use term_browser::run_debot_browser;
-use crate::helpers::load_ton_address;
 
-pub mod term_browser;
 mod interfaces;
+pub mod term_browser;
 pub use interfaces::dinterface::SupportedInterfaces;
-mod term_signing_box;
 mod term_encryption_box;
+mod term_signing_box;
 
 pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("debot")
@@ -36,7 +36,7 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                     Arg::with_name("ADDRESS")
                         .required(true)
                         .help("DeBot TON address."),
-                )
+                ),
         )
         .subcommand(
             SubCommand::with_name("start")
@@ -45,7 +45,7 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                     Arg::with_name("ADDRESS")
                         .required(true)
                         .help("DeBot TON address."),
-                )
+                ),
         )
         .subcommand(
             SubCommand::with_name("invoke")
@@ -53,13 +53,13 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(
                     Arg::with_name("ADDRESS")
                         .required(true)
-                        .help("Debot TON address.")
+                        .help("Debot TON address."),
                 )
                 .arg(
                     Arg::with_name("MESSAGE")
                         .required(true)
-                        .help("Message to DeBot encoded as base64/base64url.")
-                )
+                        .help("Message to DeBot encoded as base64/base64url."),
+                ),
         )
 }
 

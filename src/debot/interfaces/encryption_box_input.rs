@@ -1,12 +1,13 @@
-use super::dinterface::{decode_answer_id, decode_prompt, decode_nonce};
+use super::dinterface::{decode_answer_id, decode_nonce, decode_prompt, decode_string_arg};
+use crate::debot::term_encryption_box::{
+    EncryptionBoxType, ParamsOfTerminalEncryptionBox, TerminalEncryptionBox,
+};
+use crate::helpers::TonClient;
 use serde_json::Value;
+use tokio::sync::RwLock;
 use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use ton_client::encoding::decode_abi_bigint;
-use crate::helpers::TonClient;
-use ton_client::crypto::boxes::encryption_box::{EncryptionBox};
-use crate::debot::term_encryption_box::{TerminalEncryptionBox, EncryptionBoxType};
-use tokio::sync::RwLock;
 
 const ID: &'static str = "c13024e101c95e71afb1f5fa6d72f633d51e721de0320d73dfd6121a54e4d40b";
 
@@ -83,36 +84,69 @@ pub struct EncryptionBoxInput {
 
 impl EncryptionBoxInput {
     pub fn new(client: TonClient) -> Self {
-        Self {handles: RwLock::new(vec![]), cliemt}
+        Self {
+            handles: RwLock::new(vec![]),
+            client: client,
+        }
     }
 
-    async fn getNaclBox($self, args: &Value) -> InterfaceResult {
+    async fn get_nacl_box(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let prompt = decode_prompt(args)?;
-        Ok((answer_id, json!({})));
+        let nonce = decode_nonce(args)?;
+        let their_pubkey = decode_string_arg(args, "theirPubkey")?;
+        println!("{}", prompt);
+        let encryption_box = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
+            context: self.client.clone(),
+            box_type: EncryptionBoxType::NaCl,
+            their_pubkey: their_pubkey,
+            nonce: nonce,
+        })
+        .await;
+        let handle = encryption_box.handle();
+        self.handles.write().await.push(encryption_box);
+        Ok((answer_id, json!({})))
     }
-    async fn getNaclSecretBox($self, args: &Value) -> InterfaceResult {
+    async fn get_nacl_secret_box(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let prompt = decode_prompt(args)?;
-        Ok((answer_id, json!({})));
+        let nonce = decode_nonce(args)?;
+        println!("{}", prompt);
+        let encryption_box = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
+            context: self.client.clone(),
+            box_type: EncryptionBoxType::SecretNaCl,
+            their_pubkey: String::from(""),
+            nonce: nonce,
+        })
+        .await;
+        Ok((answer_id, json!({})))
     }
-    async fn getChaCha20Box($self, args: &Value) -> InterfaceResult {
+    async fn get_chacha20_box(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let prompt = decode_prompt(args)?;
-        Ok((answer_id, json!({})));
+        let nonce = decode_nonce(args)?;
+        println!("{}", prompt);
+        let encryption_box = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
+            context: self.client.clone(),
+            box_type: EncryptionBoxType::ChaCha20,
+            their_pubkey: String::from(""),
+            nonce: nonce,
+        })
+        .await;
+        Ok((answer_id, json!({})))
     }
-    async fn remove($self, args: &Value) -> InterfaceResult {
+    async fn remove_handle(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
-        Ok((answer_id, json!({})));
+        Ok((answer_id, json!({})))
     }
-    async fn getSupportedAlgorithms($self, args: &Value) -> InterfaceResult {
+    async fn get_supported_algorithms(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
-        Ok((answer_id, json!({})));
+        Ok((answer_id, json!(["NaCl", "Secret NaCl", "ChaCha20"])))
     }
 }
 
 #[async_trait::async_trait]
-impl DebotInterface for SigningBoxInput {
+impl DebotInterface for EncryptionBoxInput {
     fn get_id(&self) -> String {
         ID.to_string()
     }
@@ -123,13 +157,12 @@ impl DebotInterface for SigningBoxInput {
 
     async fn call(&self, func: &str, args: &Value) -> InterfaceResult {
         match func {
-            "getNaclBox" => self.getNaclBox(args).await,
-            "getNaclSecretBox" => self.getNaclSecretBox(args).await,
-            "getChaCha20Box" => self.getChaCha20Box(args).await,
-            "remove" => self.removeHandle(args).await,
-            "getSupportedAlgorithms" => self.getSupportedAlgorithms(args).await,
+            "getNaclBox" => self.get_nacl_box(args).await,
+            "getNaclSecretBox" => self.get_nacl_secret_box(args).await,
+            "getChaCha20Box" => self.get_chacha20_box(args).await,
+            "remove" => self.remove_handle(args).await,
+            "getSupportedAlgorithms" => self.get_supported_algorithms(args).await,
             _ => Err(format!("function \"{}\" is not implemented", func)),
         }
     }
 }
-
