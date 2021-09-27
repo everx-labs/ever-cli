@@ -16,6 +16,7 @@ pub mod amount_input;
 pub mod confirm_input;
 pub mod dinterface;
 pub mod echo;
+pub mod encryption_box_input;
 pub mod menu;
 pub mod number_input;
 pub mod signing_box_input;
