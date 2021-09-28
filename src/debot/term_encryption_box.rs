@@ -57,11 +57,9 @@ pub struct NaClBox {
 impl ton_client::crypto::EncryptionBox for NaClSecretBox {
     async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
         Ok(EncryptionBoxInfo {
-            hdpath: None,
-            algorithm: Some("SecretNaCl".to_string()),
-            options: Some(
-                json!({/*"key": hex::encode(self.key.clone()), */"nonce": self.nonce.clone()}),
-            ),
+            hdpath: Some(String::from("0")),
+            algorithm: Some("NaclSecretBox".to_string()),
+            options: Some(json!({"nonce": self.nonce.clone()})),
             public: None,
         })
     }
@@ -95,11 +93,9 @@ impl ton_client::crypto::EncryptionBox for NaClSecretBox {
 impl ton_client::crypto::EncryptionBox for ChaChaBox {
     async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
         Ok(EncryptionBoxInfo {
-            hdpath: None,
+            hdpath: Some(String::from("0")),
             algorithm: Some("ChaCha20".to_string()),
-            options: Some(
-                json!({/*"key": hex::encode(self.key.clone()), */"nonce": self.nonce.clone()}),
-            ),
+            options: Some(json!({"nonce": self.nonce.clone()})),
             public: None,
         })
     }
@@ -133,11 +129,11 @@ impl ton_client::crypto::EncryptionBox for ChaChaBox {
 impl ton_client::crypto::EncryptionBox for NaClBox {
     async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
         Ok(EncryptionBoxInfo {
-            hdpath: None,
-            algorithm: Some("NaCl".to_string()),
+            hdpath: Some(String::from("0")),
+            algorithm: Some("NaclBox".to_string()),
             options: Some(json!({
-                "their_pubkey": hex::encode(self.their_pubkey.clone()),
-                "nonce": hex::encode(self.nonce.clone())})),
+                "their_public": self.their_pubkey.clone(),
+                "nonce": self.nonce.clone()})),
             public: None,
         })
     }
@@ -184,9 +180,8 @@ impl TerminalEncryptionBox {
             let mut reader = stdio.lock();
             let mut writer = io::stdout();
             let enter_str = "enter seed phrase or path to keypair file";
-            let mut pair = Err("no keypair".to_string());
             let value = input(enter_str, &mut reader, &mut writer);
-            pair = load_keypair(&value).map_err(|e| e.to_string());
+            let pair = load_keypair(&value).map_err(|e| e.to_string());
             key = format!("{:064}", pair.unwrap().secret);
         }
 
@@ -209,7 +204,7 @@ impl TerminalEncryptionBox {
                 register_encryption_box(
                     params.context.clone(),
                     NaClBox {
-                        their_pubkey: hex::encode(&params.their_pubkey),
+                        their_pubkey: hex::encode(&padded_pubkey),
                         secret: hex::encode(&key),
                         nonce: hex::encode(&params.nonce),
                         client: params.context.clone(),

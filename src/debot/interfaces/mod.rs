@@ -27,6 +27,7 @@ pub mod userinfo;
 pub use address_input::AddressInput;
 pub use amount_input::AmountInput;
 pub use confirm_input::ConfirmInput;
+pub use encryption_box_input::EncryptionBoxInput;
 pub use menu::Menu;
 pub use number_input::NumberInput;
 pub use signing_box_input::SigningBoxInput;
