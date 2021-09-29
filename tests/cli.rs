@@ -1827,3 +1827,115 @@ fn test_run_async_call() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
+    let boc_path = "tests/depool_acc.boc";
+    let abi_path = "tests/samples/fakeDepool.abi.json";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("runx")
+        .arg("--boc")
+        .arg("--addr")
+        .arg(boc_path)
+        .arg("getData")
+        .arg("--abi")
+        .arg(abi_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains("Result: {"))
+        .stdout(predicate::str::contains(r#""reinvest": false,"#));
+
+    let giver_abi_name = "tests/samples/giver.abi.json";
+    let wallet_tvc = "tests/samples/SafeMultisigWallet.tvc";
+    let wallet_abi = "tests/samples/SafeMultisigWallet.abi.json";
+    let key_path = "tests/deploy_test.key";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg(&*NETWORK)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genphrase")
+        .output()
+        .expect("Failed to generate a seed phrase.");
+    let mut seed = String::from_utf8_lossy(&out.stdout).to_string();
+    seed.replace_range(..seed.find('"').unwrap_or(0), "");
+    seed.retain(|c| c != '\n' && c != '"');
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("getkeypair")
+        .arg(key_path)
+        .arg(seed)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg("--setkey")
+        .arg(key_path)
+        .arg(wallet_tvc)
+        .arg(wallet_abi)
+        .output()
+        .expect("Failed to generate address.");
+
+    let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
+    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
+    addr.replace_range(addr.find("testnet").unwrap_or(addr.len())-1.., "");
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("callx")
+        .arg("--abi")
+        .arg(giver_abi_name)
+        .arg("--addr")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("sendGrams")
+        .arg("--dest")
+        .arg(addr.clone())
+        .arg("--amount")
+        .arg("1000000000");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--abi")
+        .arg(wallet_abi)
+        .arg("--addr")
+        .arg(addr.clone())
+        .arg("--keys")
+        .arg(key_path)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("deployx")
+        .arg(wallet_tvc)
+        .arg("--owners")
+        .arg(r#"["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"]"#)
+        .arg("--reqConfirms")
+        .arg("1");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(addr))
+        .stdout(predicate::str::contains("Transaction succeeded."));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("runx")
+        .arg("getParameters");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("clear")
+        .assert()
+        .success();
+
+    Ok(())
+}
