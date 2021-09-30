@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 
-const ID: &'static str = "c13024e101c95e71afb1f5fa6d72f633d51e721de0320d73dfd6121a54e4d40b";
+const ID: &'static str = "5b5f76b54d976d72f1ada3063d1af2e5352edaf1ba86b3b311170d4d81056d61";
 
 const ABI: &str = r#"
 {
@@ -156,7 +156,14 @@ impl EncryptionBoxInput {
     }
     async fn get_supported_algorithms(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
-        Ok((answer_id, json!(["NaCl", "Secret NaCl", "ChaCha20"])))
+        Ok((
+            answer_id,
+            json!([
+                base64::encode("NaCl"),
+                base64::encode("Secret NaCl"),
+                base64::encode("ChaCha20")
+            ]),
+        ))
     }
 }
 
