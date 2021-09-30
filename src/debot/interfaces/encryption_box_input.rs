@@ -14,7 +14,7 @@ const ABI: &str = r#"
 {
 	"ABI version": 2,
 	"header": ["time"],
-	"functions": "functions": [
+	"functions": [
         {
             "name": "getNaclBox",
             "inputs": [
@@ -158,11 +158,11 @@ impl EncryptionBoxInput {
         let answer_id = decode_answer_id(args)?;
         Ok((
             answer_id,
-            json!([
-                base64::encode("NaCl"),
-                base64::encode("Secret NaCl"),
-                base64::encode("ChaCha20")
-            ]),
+            json!({"names":vec!(
+                hex::encode("NaCl"),
+                hex::encode("Secret NaCl"),
+                hex::encode("ChaCha20")
+            )}),
         ))
     }
 }
