@@ -1,15 +1,17 @@
-use super::{Menu, AddressInput, AmountInput, ConfirmInput, NumberInput, SigningBoxInput, Terminal, UserInfo};
 use super::echo::Echo;
 use super::stdout::Stdout;
+use super::{
+    AddressInput, AmountInput, ConfirmInput, Menu, NumberInput, SigningBoxInput, Terminal, UserInfo,
+};
 use crate::config::Config;
 use crate::helpers::TonClient;
+use num_bigint::BigInt;
+use num_traits::cast::NumCast;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use ton_client::debot::{DebotInterface, DebotInterfaceExecutor};
-use ton_client::encoding::{decode_abi_number, decode_abi_bigint};
-use num_traits::cast::NumCast;
-use num_bigint::BigInt;
+use ton_client::encoding::{decode_abi_bigint, decode_abi_number};
 
 pub struct SupportedInterfaces {
     client: TonClient,
@@ -30,7 +32,8 @@ impl SupportedInterfaces {
     pub fn new(client: TonClient, conf: &Config) -> Self {
         let mut interfaces = HashMap::new();
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(AddressInput::new(conf.clone()));
+        let iface: Arc<dyn DebotInterface + Send + Sync> =
+            Arc::new(AddressInput::new(conf.clone()));
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(AmountInput::new());
@@ -54,10 +57,12 @@ impl SupportedInterfaces {
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Menu::new());
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(SigningBoxInput::new(client.clone()));
+        let iface: Arc<dyn DebotInterface + Send + Sync> =
+            Arc::new(SigningBoxInput::new(client.clone()));
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(UserInfo::new(conf.clone()));
+        let iface: Arc<dyn DebotInterface + Send + Sync> =
+            Arc::new(UserInfo::new(client.clone(), conf.clone()));
         interfaces.insert(iface.get_id(), iface);
 
         Self { client, interfaces }
@@ -88,8 +93,7 @@ pub fn decode_bool_arg(args: &Value, name: &str) -> Result<bool, String> {
 }
 
 pub fn decode_string_arg(args: &Value, name: &str) -> Result<String, String> {
-    let bytes = hex::decode(&decode_arg(args, name)?)
-        .map_err(|e| format!("{}", e))?;
+    let bytes = hex::decode(&decode_arg(args, name)?).map_err(|e| format!("{}", e))?;
     std::str::from_utf8(&bytes)
         .map_err(|e| format!("{}", e))
         .map(|x| x.to_string())
@@ -114,17 +118,16 @@ pub fn decode_int256(args: &Value, name: &str) -> Result<BigInt, String> {
         .map_err(|e| format!("failed to decode integer \"{}\": {}", num_str, e))
 }
 
-pub fn decode_array<F, T>(args: &Value, name: &str, validator: F) -> Result<Vec<T>, String> 
-    where F: Fn(&Value) -> Option<T>
+pub fn decode_array<F, T>(args: &Value, name: &str, validator: F) -> Result<Vec<T>, String>
+where
+    F: Fn(&Value) -> Option<T>,
 {
     let array = args[name]
         .as_array()
         .ok_or(format!("\"{}\" is invalid: must be array", name))?;
     let mut strings = vec![];
     for elem in array {
-        strings.push(
-            validator(&elem).ok_or(format!("invalid array element type"))?
-        );
+        strings.push(validator(&elem).ok_or(format!("invalid array element type"))?);
     }
     Ok(strings)
 }
