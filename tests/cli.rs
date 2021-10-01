@@ -1924,7 +1924,10 @@ fn test_multisig() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success()
         .stdout(predicate::str::contains("Succeeded"));
-=======
+    Ok(())
+}
+
+#[test]
 fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
     let boc_path = "tests/depool_acc.boc";
     let abi_path = "tests/samples/fakeDepool.abi.json";
