@@ -11,6 +11,87 @@ fn now_ms() -> u64 {
     chrono::prelude::Utc::now().timestamp_millis() as u64
 }
 
+fn generate_phrase_and_key(key_path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genphrase")
+        .output()
+        .expect("Failed to generate a seed phrase.");
+    let mut seed = String::from_utf8_lossy(&out.stdout).to_string();
+    seed.replace_range(..seed.find('"').unwrap_or(0), "");
+    seed.retain(|c| c != '\n' && c != '"');
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("getkeypair")
+        .arg(key_path)
+        .arg(seed.clone())
+        .assert()
+        .success();
+
+    Ok(seed)
+}
+
+fn generate_public_key(seed: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genpubkey")
+        .arg(seed)
+        .output()
+        .expect("Failed to generate a public key phrase.");
+    let mut key = String::from_utf8_lossy(&out.stdout).to_string();
+    key.replace_range(..key.find("Public key: ").unwrap_or(0) + "Public key: ".len(), "");
+    key.replace_range(key.find("\n\n").unwrap_or(key.len())-1.., "");
+
+    Ok(key)
+}
+
+fn generate_key_and_address(
+    key_path: &str,
+    tvc_path: &str,
+    abi_path: &str
+) -> Result<String, Box<dyn std::error::Error>> {
+    generate_phrase_and_key(key_path)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg("--setkey")
+        .arg(key_path)
+        .arg(tvc_path)
+        .arg(abi_path)
+        .output()
+        .expect("Failed to generate address.");
+
+    let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
+    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
+    addr.replace_range(addr.find("testnet").unwrap_or(addr.len())-1.., "");
+
+    Ok(addr)
+}
+
+fn ask_giver(target: &str, amount: u64) -> Result<(), Box<dyn std::error::Error>> {
+    let giver_abi = "tests/samples/giver.abi.json";
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg(&*NETWORK)
+        .assert()
+        .success();
+
+    let arg_string = format!(r#"{{"dest":"{}","amount":{}}}"#, target, amount);
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
+        .arg("sendGrams")
+        .arg(arg_string)
+        .arg("--abi")
+        .arg(giver_abi)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded"));
+
+    Ok(())
+}
+
+
 #[test]
 fn test_config_1() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -205,25 +286,7 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_call_giver() -> Result<(), Box<dyn std::error::Error>> {
-    let giver_abi_name = "tests/samples/giver.abi.json";
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg(&*NETWORK)
-        .assert()
-        .success();
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("call")
-        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
-        .arg("sendGrams")
-        .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1000000000}"#)
-        .arg("--abi")
-        .arg(giver_abi_name)
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Succeeded"));
-
-    Ok(())
+    ask_giver("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94", 1000000000)
 }
 
 #[test]
@@ -393,56 +456,13 @@ fn test_getkeypair() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
-    let giver_abi_name = "tests/samples/giver.abi.json";
     let wallet_tvc = "tests/samples/wallet.tvc";
     let wallet_abi = "tests/samples/wallet.abi.json";
     let key_path = "tests/deploy_test.key";
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg(&*NETWORK)
-        .assert()
-        .success();
+    let addr = generate_key_and_address(key_path, wallet_tvc, wallet_abi)?;
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("genphrase")
-        .output()
-        .expect("Failed to generate a seed phrase.");
-    let mut seed = String::from_utf8_lossy(&out.stdout).to_string();
-    seed.replace_range(..seed.find('"').unwrap_or(0), "");
-    seed.retain(|c| c != '\n' && c != '"');
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("getkeypair")
-        .arg(key_path)
-        .arg(seed)
-        .assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("genaddr")
-        .arg("--setkey")
-        .arg(key_path)
-        .arg(wallet_tvc)
-        .arg(wallet_abi)
-        .output()
-        .expect("Failed to generate address.");
-
-    let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
-    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
-    addr.replace_range(addr.find("testnet").unwrap_or(addr.len())-1.., "");
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("call")
-        .arg("--abi")
-        .arg(giver_abi_name)
-        .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
-        .arg("sendGrams")
-        // use precalculated wallet address
-        .arg(format!(r#"{{"dest":"{}","amount":1000000000}}"#, addr));
-    cmd.assert()
-        .success();
+    ask_giver(&addr, 1000000000)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("deploy")
@@ -466,20 +486,7 @@ fn test_genaddr_seed() -> Result<(), Box<dyn std::error::Error>> {
     let msig_tvc = "tests/samples/SafeMultisigWallet.tvc";
     let key_path = "tests/deploy_test.key";
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("genphrase")
-        .output()
-        .expect("Failed to generate a seed phrase.");
-    let mut seed = String::from_utf8_lossy(&out.stdout).to_string();
-    seed.replace_range(..seed.find('"').unwrap_or(0), "");
-    seed.retain(|c| c != '\n' && c != '"');
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("getkeypair")
-        .arg(key_path)
-        .arg(seed.clone())
-        .assert()
-        .success();
+    let seed = generate_phrase_and_key(key_path)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     let out = cmd.arg("genaddr")
@@ -910,48 +917,13 @@ fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std:
 
 #[test]
 fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
-    let giver_abi_name = "tests/samples/giver.abi.json";
-    let giver_addr = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
     let depool_abi = "tests/samples/fakeDepool.abi.json";
     let depool_tvc = "tests/samples/fakeDepool.tvc";
     let msig_abi = "tests/samples/SafeMultisigWallet.abi.json";
     let msig_tvc = "tests/samples/SafeMultisigWallet.tvc";
     let key_path = "tests/deploy_test.key";
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg(&*NETWORK)
-        .assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("genphrase")
-        .output()
-        .expect("Failed to generate a seed phrase.");
-    let mut seed = String::from_utf8_lossy(&out.stdout).to_string();
-    seed.replace_range(..seed.find('"').unwrap_or(0), "");
-    seed.retain(|c| c != '\n' && c != '"');
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("getkeypair")
-        .arg(key_path)
-        .arg(seed)
-        .assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("genaddr")
-        .arg("--setkey")
-        .arg(key_path)
-        .arg(msig_tvc)
-        .arg(msig_abi)
-        .output()
-        .expect("Failed to generate address.");
-
-    let mut msig_addr = String::from_utf8_lossy(&out.stdout).to_string();
-    msig_addr.replace_range(..msig_addr.find("0:").unwrap_or(0), "");
-    msig_addr.replace_range(msig_addr.find("testnet").unwrap_or(msig_addr.len())-1.., "");
+    let msig_addr = generate_key_and_address(key_path, msig_tvc, msig_abi)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     let out = cmd.arg("genaddr")
@@ -966,15 +938,7 @@ fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
     depool_addr.replace_range(..depool_addr.find("0:").unwrap_or(0), "");
     depool_addr.replace_range(depool_addr.find("testnet").unwrap_or(depool_addr.len())-1.., "");
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("call")
-        .arg("--abi")
-        .arg(giver_abi_name)
-        .arg(giver_addr)
-        .arg("sendGrams")
-        .arg(format!(r#"{{"dest":"{}","amount":10000000000}}"#, depool_addr));
-    cmd.assert()
-        .success();
+    ask_giver(&depool_addr, 10000000000)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("deploy")
@@ -989,15 +953,7 @@ fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(&depool_addr))
         .stdout(predicate::str::contains("Transaction succeeded."));
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("call")
-        .arg("--abi")
-        .arg(giver_abi_name)
-        .arg(giver_addr)
-        .arg("sendGrams")
-        .arg(format!(r#"{{"dest":"{}","amount":30000000000}}"#, msig_addr));
-    cmd.assert()
-        .success();
+    ask_giver(&msig_addr, 30000000000)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("deploy")
@@ -1539,33 +1495,7 @@ fn test_gen_deploy_message() -> Result<(), Box<dyn std::error::Error>> {
     let wallet_abi = "tests/samples/wallet.abi.json";
     let key_path = "tests/deploy_test.key";
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("genphrase")
-        .output()
-        .expect("Failed to generate a seed phrase.");
-    let mut seed = String::from_utf8_lossy(&out.stdout).to_string();
-    seed.replace_range(..seed.find('"').unwrap_or(0), "");
-    seed.retain(|c| c != '\n' && c != '"');
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("getkeypair")
-        .arg(key_path)
-        .arg(seed)
-        .assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    let out = cmd.arg("genaddr")
-        .arg("--setkey")
-        .arg(key_path)
-        .arg(wallet_tvc)
-        .arg(wallet_abi)
-        .output()
-        .expect("Failed to generate address.");
-
-    let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
-    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
-    addr.replace_range(addr.find("testnet").unwrap_or(addr.len())-1.., "");
+    let addr = generate_key_and_address(key_path, wallet_tvc, wallet_abi)?;
 
     let _ = std::fs::remove_file(output);
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -1814,6 +1744,186 @@ fn test_run_async_call() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success();
 
+    Ok(())
+}
+
+#[test]
+fn test_multisig() -> Result<(), Box<dyn std::error::Error>> {
+    let key_path = "tests/deploy_test.key";
+    let safe_msig_abi = "tests/samples/SafeMultisigWallet.abi.json";
+    let setcode_msig_abi = "tests/samples/SetcodeMultisigWallet.abi.json";
+
+    generate_phrase_and_key(key_path)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("multisig")
+        .arg("deploy")
+        .arg("-k")
+        .arg(key_path)
+        .output()
+        .expect("Failed to generate multisig address.");
+    let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
+    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
+    addr.replace_range(addr.find("Connecting").unwrap_or(addr.len())-1.., "");
+
+    ask_giver(&addr, 1000000000)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("multisig")
+        .arg("deploy")
+        .arg("-k")
+        .arg(key_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Wallet successfully deployed"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg(addr)
+        .arg("sendTransaction")
+        .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":100000,"bounce":"false","flags":1,"payload":""}"#)
+        .arg("--abi")
+        .arg(safe_msig_abi)
+        .arg("--sign")
+        .arg(key_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("multisig")
+        .arg("deploy")
+        .arg("--setcode")
+        .arg("-k")
+        .arg(key_path)
+        .output()
+        .expect("Failed to generate multisig address.");
+    let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
+    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
+    addr.replace_range(addr.find("Connecting").unwrap_or(addr.len())-1.., "");
+
+    ask_giver(&addr, 1000000000)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("multisig")
+        .arg("deploy")
+        .arg("--setcode")
+        .arg("-k")
+        .arg(key_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Wallet successfully deployed"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg(addr)
+        .arg("getUpdateRequests")
+        .arg("{}")
+        .arg("--abi")
+        .arg(setcode_msig_abi)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded"));
+
+    let key_path1 = "key1";
+    let seed = generate_phrase_and_key(key_path1)?;
+    let key1 = generate_public_key(&seed)?;
+
+    let key_path2 = "key2";
+    let seed = generate_phrase_and_key(key_path2)?;
+    let key2 = generate_public_key(&seed)?;
+
+    let key_path3 = "key3";
+    let seed = generate_phrase_and_key(key_path3)?;
+    let key3 = generate_public_key(&seed)?;
+
+    let owners_string = format!(r#"["0x{}","0x{}","0x{}"]"#, key1, key2, key3);
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("multisig")
+        .arg("deploy")
+        .arg("-k")
+        .arg(key_path1)
+        .arg("--owners")
+        .arg(owners_string.clone())
+        .arg("--confirms")
+        .arg("2")
+        .output()
+        .expect("Failed to generate multisig address.");
+    let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
+    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
+    addr.replace_range(addr.find("Connecting").unwrap_or(addr.len())-1.., "");
+
+    ask_giver(&addr, 1000000000)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("multisig")
+        .arg("deploy")
+        .arg("-k")
+        .arg(key_path1)
+        .arg("--owners")
+        .arg(owners_string)
+        .arg("--confirms")
+        .arg("2")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Wallet successfully deployed"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(safe_msig_abi)
+        .arg(addr.clone())
+        .arg("getCustodians")
+        .arg("{}")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(key1.clone()))
+        .stdout(predicate::str::contains(key2.clone()))
+        .stdout(predicate::str::contains(key3.clone()));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--abi")
+        .arg(safe_msig_abi)
+        .arg(addr.clone())
+        .arg("getParameters")
+        .arg("{}")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#""requiredTxnConfirms": "2""#));
+
+    fs::remove_file(key_path1)?;
+    fs::remove_file(key_path2)?;
+    fs::remove_file(key_path3)?;
+
+    let seed = generate_phrase_and_key(key_path)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("multisig")
+        .arg("deploy")
+        .arg("-k")
+        .arg(seed)
+        .arg("--local")
+        .arg("1_000_000_000")
+        .output()
+        .expect("Failed to generate multisig address.");
+    let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
+    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
+    addr.replace_range(addr.find("Connecting").unwrap_or(addr.len())-1.., "");
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("call")
+        .arg(addr)
+        .arg("sendTransaction")
+        .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":100000,"bounce":"false","flags":1,"payload":""}"#)
+        .arg("--abi")
+        .arg(safe_msig_abi)
+        .arg("--sign")
+        .arg(key_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded"));
     Ok(())
 }
 
