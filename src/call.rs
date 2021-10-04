@@ -502,6 +502,20 @@ pub async fn call_contract_with_result(
     is_fee: bool,
 ) -> Result<serde_json::Value, String> {
     let ton = create_client_verbose(&conf)?;
+    call_contract_with_client(ton, conf, addr, abi, method, params, keys, local, is_fee).await
+}
+
+pub async fn call_contract_with_client(
+    ton: TonClient,
+    conf: Config,
+    addr: &str,
+    abi: String,
+    method: &str,
+    params: &str,
+    keys: Option<String>,
+    local: bool,
+    is_fee: bool,
+) -> Result<serde_json::Value, String> {
     let abi = load_abi(&abi)?;
 
     let expire_at = conf.lifetime + now()?;
