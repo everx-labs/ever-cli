@@ -859,6 +859,7 @@ tonos-cli runget <address> <method> [<params>...]
 `<method>` - the method being called.
 
 `<params>` - parameters of the called method. Can have multiple values: one for each function parameter.
+Parameters should be specified separately without json wrap and argument names.
 
 Example:
 
@@ -873,7 +874,20 @@ Connecting to net.ton.dev
 Running get-method...
 Succeded.
 Result: ["1619901678"]
+
+$ tonos-cli runget --boc acc.boc compute_returned_stake 0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+ address: acc.boc
+  method: compute_returned_stake
+  params: ["0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587"]
+Connecting to main.ton.dev
+Running get-method...
+Succeeded.
+Result: ["125387107580525"]
 ```
+
+
 
 ### 4.4.5. Run contract method locally for saved account state
 
