@@ -28,8 +28,7 @@ impl TerminalSigningBox {
     }
 
     pub async fn new_with_keypath(client: TonClient, keys_path: String) -> Result<Self, String> {
-        let stdio = io::stdin();
-        let keys = read_keys(&keys_path).unwrap();
+        let keys = read_keys(&keys_path).unwrap_or_default();
         let handle = get_signing_box(client.clone(), keys)
             .await
             .map(|r| r.handle)

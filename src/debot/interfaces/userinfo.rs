@@ -81,7 +81,7 @@ impl UserInfo {
         let answer_id = decode_answer_id(args)?;
         let mut signing_box = TerminalSigningBox::new_with_keypath(
             self.client.clone(),
-            self.config.keys_path.clone().unwrap(),
+            self.config.keys_path.clone().unwrap_or_default(),
         )
         .await?;
         let handle = signing_box.leak();
