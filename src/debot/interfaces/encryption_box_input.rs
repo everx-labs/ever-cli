@@ -130,8 +130,8 @@ impl EncryptionBoxInput {
         let encryption_box = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
             context: self.client.clone(),
             box_type: EncryptionBoxType::ChaCha20,
-            their_pubkey: String::from(""),
-            nonce: nonce,
+            their_pubkey: String::new(),
+            nonce,
         })
         .await;
         let handle = encryption_box.handle();
@@ -140,29 +140,26 @@ impl EncryptionBoxInput {
     }
     async fn remove_handle(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
-        let handle = u32::from_str_radix(
-            args["handle"]
-                .as_str()
-                .ok_or(format!("handle not found in argument list"))?,
-            10,
-        )
-        .map_err(|e| format!("{}", e))
-        .unwrap();
-        self.handles
+        let handle = decode_num_arg::<u32>(args, "handle")?;
+        let removed: bool = self
+            .handles
             .write()
             .await
             .retain(|value| (*value).handle().0 != handle);
-        Ok((answer_id, json!({})))
+        Ok((answer_id, json!({ "removed": removed })))
     }
     async fn get_supported_algorithms(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         Ok((
             answer_id,
-            json!({"names":vec!(
-                hex::encode("NaCl"),
-                hex::encode("Secret NaCl"),
-                hex::encode("ChaCha20")
-            )}),
+            json!({
+                "names":
+                    vec![
+                        hex::encode("NaclBox"),
+                        hex::encode("NaclSecretBox"),
+                        hex::encode("ChaCha20"),
+                    ]
+            }),
         ))
     }
 }
