@@ -1,6 +1,6 @@
 use super::term_browser::input;
 use crate::crypto::load_keypair;
-use crate::helpers::TonClient;
+use crate::helpers::{TonClient, HD_PATH};
 use base64;
 use std::io::{self};
 use ton_client::crypto::{
@@ -57,7 +57,7 @@ pub struct NaClBox {
 impl ton_client::crypto::EncryptionBox for NaClSecretBox {
     async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
         Ok(EncryptionBoxInfo {
-            hdpath: Some(String::from("0")),
+            hdpath: Some(String::from(HD_PATH)),
             algorithm: Some("NaclSecretBox".to_string()),
             options: Some(json!({"nonce": self.nonce.clone()})),
             public: None,
@@ -93,7 +93,7 @@ impl ton_client::crypto::EncryptionBox for NaClSecretBox {
 impl ton_client::crypto::EncryptionBox for ChaChaBox {
     async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
         Ok(EncryptionBoxInfo {
-            hdpath: Some(String::from("0")),
+            hdpath: Some(String::from(HD_PATH)),
             algorithm: Some("ChaCha20".to_string()),
             options: Some(json!({"nonce": self.nonce.clone()})),
             public: None,
@@ -129,7 +129,7 @@ impl ton_client::crypto::EncryptionBox for ChaChaBox {
 impl ton_client::crypto::EncryptionBox for NaClBox {
     async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
         Ok(EncryptionBoxInfo {
-            hdpath: Some(String::from("0")),
+            hdpath: Some(String::from(HD_PATH)),
             algorithm: Some("NaclBox".to_string()),
             options: Some(json!({
                 "their_public": self.their_pubkey.clone(),
@@ -172,7 +172,7 @@ pub(super) struct TerminalEncryptionBox {
 }
 
 impl TerminalEncryptionBox {
-    pub async fn new(params: ParamsOfTerminalEncryptionBox) -> Self {
+    pub async fn new(params: ParamsOfTerminalEncryptionBox) -> Result<Self, String> {
         let key: String;
 
         {
@@ -181,8 +181,8 @@ impl TerminalEncryptionBox {
             let mut writer = io::stdout();
             let enter_str = "enter seed phrase or path to keypair file";
             let value = input(enter_str, &mut reader, &mut writer);
-            let pair = load_keypair(&value).map_err(|e| e.to_string());
-            key = format!("{:064}", pair.unwrap().secret);
+            let pair = load_keypair(&value).map_err(|e| e.to_string())?;
+            key = format!("{:064}", pair.secret);
         }
 
         let registered_box = match params.box_type {
@@ -196,7 +196,7 @@ impl TerminalEncryptionBox {
                     },
                 )
                 .await
-                .unwrap()
+                .map_err(|e| e.to_string())?
                 .handle
             }
             EncryptionBoxType::NaCl => {
@@ -211,7 +211,7 @@ impl TerminalEncryptionBox {
                     },
                 )
                 .await
-                .unwrap()
+                .map_err(|e| e.to_string())?
                 .handle
             }
             EncryptionBoxType::ChaCha20 => {
@@ -224,7 +224,7 @@ impl TerminalEncryptionBox {
                     },
                 )
                 .await
-                .unwrap()
+                .map_err(|e| e.to_string())?
                 .handle
             }
         };
