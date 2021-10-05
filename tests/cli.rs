@@ -1600,6 +1600,28 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Result: {"))
         .stdout(predicate::str::contains(r#""reinvest": false,"#));
 
+    let boc_path = "tests/account_fift.boc";
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("runget")
+        .arg("--boc")
+        .arg(boc_path)
+        .arg("past_election_ids")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains(r#"Result: [["1633273052",["1633338588",null]]]"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("runget")
+        .arg("--boc")
+        .arg(boc_path)
+        .arg("compute_returned_stake")
+        .arg("0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains(r#"Result: ["125387107580525"]"#));
+
     Ok(())
 }
 
