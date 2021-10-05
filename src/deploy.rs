@@ -13,7 +13,13 @@
 use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address,};
 use crate::config::Config;
 use crate::crypto::load_keypair;
-use crate::call::{EncodedMessage, display_generated_message, emulate_locally, process_message,};
+use crate::call::{
+    EncodedMessage,
+    display_generated_message,
+    emulate_locally,
+    process_message,
+    send_message_and_wait,
+};
 use ton_client::abi::{
     encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage, Abi,
 };
@@ -40,16 +46,28 @@ pub async fn deploy_contract(
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
     if conf.local_run || is_fee {
-        emulate_locally(ton.clone(), addr.as_str(), enc_msg.message, is_fee).await?;
+        emulate_locally(ton.clone(), addr.as_str(), enc_msg.message.clone(), is_fee).await?;
         if is_fee {
             return Ok(());
         }
     }
 
-    process_message(ton.clone(), msg).await?;
+    if conf.async_call {
+        let abi = std::fs::read_to_string(abi)
+            .map_err(|e| format!("failed to read ABI file: {}", e))?;
+        let abi = load_abi(&abi)?;
+        send_message_and_wait(ton,
+                              Some(abi),
+                              enc_msg.message,
+                              conf.clone()).await?;
+    } else {
+        process_message(ton.clone(), msg).await?;
+    }
 
     if !conf.is_json {
-        println!("Transaction succeeded.");
+        if !conf.async_call {
+            println!("Transaction succeeded.");
+        }
         println!("Contract deployed at address: {}", addr);
     }
     Ok(())
