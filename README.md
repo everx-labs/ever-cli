@@ -852,10 +852,11 @@ Result: {
 ### 4.4.4. Run funC get-method
 
 ```bash
-tonos-cli runget <address> <method> [<params>...]
+tonos-cli runget [--boc] <address> <method> [<params>...]
 ```
 
-`<address>` - contract [address](#41-generate-contract-address).
+`<address>` - contract [address](#41-generate-contract-address) or path to the file with account boc
+(It can be obtained from the TON Live) if `--boc` option is used.
 
 `<method>` - the method being called.
 
