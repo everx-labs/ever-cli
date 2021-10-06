@@ -455,6 +455,61 @@ fn test_getkeypair() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_async_deploy() -> Result<(), Box<dyn std::error::Error>> {
+    let wallet_tvc = "tests/samples/wallet.tvc";
+    let wallet_abi = "tests/samples/wallet.abi.json";
+    let key_path = "tests/deploy_test.key";
+
+    let addr = generate_key_and_address(key_path, wallet_tvc, wallet_abi)?;
+
+    ask_giver(&addr, 1000000000)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg(addr.clone())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("acc_type:      Uninit"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--async_call")
+        .arg("true")
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("deploy")
+        .arg(wallet_tvc)
+        .arg("{}")
+        .arg("--abi")
+        .arg(wallet_abi)
+        .arg("--sign")
+        .arg(key_path);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(addr.clone()));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--async_call")
+        .arg("false")
+        .assert()
+        .success();
+
+    sleep(Duration::new(1, 0));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg(addr.clone())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("acc_type:      Active"));
+
+    Ok(())
+}
+
+#[test]
 fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
     let wallet_tvc = "tests/samples/wallet.tvc";
     let wallet_abi = "tests/samples/wallet.abi.json";
