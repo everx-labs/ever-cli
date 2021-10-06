@@ -697,7 +697,11 @@ pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<St
 }
 
 pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>, is_boc:bool) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+    let ton = if !is_boc {
+        create_client_verbose(&conf)?
+    } else {
+        create_client_local()?
+    };
 
     let acc_boc = if is_boc {
         let acc = Account::construct_from_file(addr)
