@@ -1677,6 +1677,22 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Succeeded."))
         .stdout(predicate::str::contains(r#"Result: ["125387107580525"]"#));
 
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("-j")
+        .arg("runget")
+        .arg("--boc")
+        .arg(boc_path)
+        .arg("participant_list_extended")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#"value0": "0","#))
+        .stdout(predicate::str::contains(r#"value1": "0","#))
+        .stdout(predicate::str::contains(r#"value2": "0","#))
+        .stdout(predicate::str::contains(r#"value3": "0","#))
+        .stdout(predicate::str::contains(r#"value4": null,"#))
+        .stdout(predicate::str::contains(r#"value5": "0","#))
+        .stdout(predicate::str::contains(r#"value6": "0""#));
+
     Ok(())
 }
 
