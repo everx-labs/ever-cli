@@ -852,7 +852,7 @@ Result: {
 ### 4.4.4. Run funC get-method
 
 ```bash
-tonos-cli runget [--boc] <address> <method> [<params>...]
+tonos-cli runget [--boc] <address> <method> [<params>...] [--bc_config <config_path>]
 ```
 
 `<address>` - contract [address](#41-generate-contract-address) or path to the file with account boc
@@ -862,6 +862,9 @@ tonos-cli runget [--boc] <address> <method> [<params>...]
 
 `<params>` - parameters of the called method. Can have multiple values: one for each function parameter.
 Parameters should be specified separately without json wrap and argument names.
+
+`--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config 
+BOC.
 
 Example:
 
@@ -894,7 +897,7 @@ Result: ["125387107580525"]
 ### 4.4.5. Run contract method locally for saved account state
 
 ```bash
-tonos-cli run --boc [--abi <contract.abi.json>] <account> <method> <params>
+tonos-cli run --boc [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>]
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -904,6 +907,9 @@ tonos-cli run --boc [--abi <contract.abi.json>] <account> <method> <params>
 `<method>` - the method being called.
 
 `<params>` - parameters of the called method.
+
+`--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config
+BOC.
 
 Example:
 

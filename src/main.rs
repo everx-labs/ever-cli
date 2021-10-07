@@ -224,7 +224,12 @@ async fn main_internal() -> Result <(), String> {
             .multiple(true))
         .arg(Arg::with_name("BOC")
             .long("--boc")
-            .help("Flag that changes behavior of the command to work with the saved account state."));
+            .help("Flag that changes behavior of the command to work with the saved account state."))
+        .arg(Arg::with_name("BCCONFIG")
+            .long("--bc_config")
+            .requires("BOC")
+            .takes_value(true)
+            .help("Path to the file with blockchain config."));
 
     let runget_cmd = SubCommand::with_name("runget")
         .about("Runs get-method of a FIFT contract.")
@@ -242,7 +247,12 @@ async fn main_internal() -> Result <(), String> {
             .multiple(true))
         .arg(Arg::with_name("BOC")
             .long("--boc")
-            .help("Flag that changes behavior of the command to work with the saved account state."));
+            .help("Flag that changes behavior of the command to work with the saved account state."))
+        .arg(Arg::with_name("BCCONFIG")
+            .long("--bc_config")
+            .requires("BOC")
+            .takes_value(true)
+            .help("Path to the file with blockchain config."));
 
     let version_cmd = SubCommand::with_name("version")
         .about("Prints build and version info.");
@@ -420,7 +430,12 @@ async fn main_internal() -> Result <(), String> {
         .arg(abi_arg.clone())
         .arg(Arg::with_name("BOC")
             .long("--boc")
-            .help("Flag that changes behavior of the command to work with the saved account state."));
+            .help("Flag that changes behavior of the command to work with the saved account state."))
+        .arg(Arg::with_name("BCCONFIG")
+            .long("--bc_config")
+            .requires("BOC")
+            .takes_value(true)
+            .help("Path to the file with blockchain config."));
 
     let config_clear_cmd = SubCommand::with_name("clear")
         .setting(AppSettings::AllowLeadingHyphen)
@@ -1017,12 +1032,13 @@ async fn runx_account(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
     if !config.is_json {
         print_args!(account, method, params, abi);
     }
-
+    let bc_config = matches.value_of("BCCONFIG");
     run_local_for_account(config,
                           account.unwrap(),
                           loaded_abi,
                           method.unwrap(),
                           &params.unwrap(),
+                          bc_config,
     ).await
 }
 
@@ -1041,11 +1057,13 @@ async fn run_account(matches: &ArgMatches<'_>, config: Config) -> Result<(), Str
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
 
+    let bc_config = matches.value_of("BCCONFIG");
     run_local_for_account(config,
     account.unwrap(),
         abi,
         method.unwrap(),
         &params.unwrap(),
+        bc_config,
     ).await
 }
 
@@ -1209,7 +1227,8 @@ async fn runget_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
     } else {
         load_ton_address(address.unwrap(), &config)?
     };
-    run_get_method(config, &address, method.unwrap(), params, is_boc).await
+    let bc_config = matches.value_of("BCCONFIG");
+    run_get_method(config, &address, method.unwrap(), params, is_boc, bc_config).await
 }
 
 fn wc_from_matches_or_config(matches: &ArgMatches<'_>, config: Config) -> Result<i32 ,String> {

@@ -1655,12 +1655,42 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Result: {"))
         .stdout(predicate::str::contains(r#""reinvest": false,"#));
 
+    let config_path = "tests/block_config.boc";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--boc")
+        .arg(boc_path)
+        .arg("getData")
+        .arg("{}")
+        .arg("--abi")
+        .arg(abi_path)
+        .arg("--bc_config")
+        .arg(config_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains("Result: {"))
+        .stdout(predicate::str::contains(r#""reinvest": false,"#));
+
     let boc_path = "tests/account_fift.boc";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("runget")
         .arg("--boc")
         .arg(boc_path)
         .arg("past_election_ids")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains(r#"Result: [["1633273052",["1633338588",null]]]"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("runget")
+        .arg("--boc")
+        .arg(boc_path)
+        .arg("past_election_ids")
+        .arg("--bc_config")
+        .arg(config_path)
         .assert()
         .success()
         .stdout(predicate::str::contains("Succeeded."))
