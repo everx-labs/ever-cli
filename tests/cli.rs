@@ -971,6 +971,33 @@ fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std:
 }
 
 #[test]
+fn test_decode_compiler_version() -> Result<(), Box<dyn std::error::Error>> {
+    let boc_path = "tests/account.boc";
+    let tvc_path = "tests/samples/fakeDepool.tvc";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("compiler_version")
+        .arg("--boc")
+        .arg(boc_path);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Version: sol 0.51.0"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("compiler_version")
+        .arg("--tvc")
+        .arg(tvc_path);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Version: sol 0.51.0"));
+
+    Ok(())
+}
+
+
+#[test]
 fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
     let depool_tvc = "tests/samples/fakeDepool.tvc";
@@ -1539,6 +1566,14 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012346"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("compiler_version")
+        .arg(&depool_addr);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Version: sol 0.51.0"));
 
     Ok(())
 }

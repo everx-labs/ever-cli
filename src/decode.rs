@@ -19,6 +19,7 @@ use ton_types::Cell;
 use std::fmt::Write;
 use ton_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData, Abi};
+use ton_client::boc::{get_compiler_version, ParamsOfGetCompilerVersion};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
 
 fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
@@ -51,6 +52,19 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                     .long("--abi")
                     .takes_value(true)
                     .help("Path to the contract ABI file.")))
+        .subcommand(SubCommand::with_name("compiler_version")
+            .about("Decodes compiler version from the contract's code.")
+            .arg(Arg::with_name("TVC")
+                .long("--tvc")
+                .conflicts_with("BOC")
+                .help("Contract is passed via path to the TVC file."))
+            .arg(Arg::with_name("BOC")
+                .long("--boc")
+                .conflicts_with("TVC")
+                .help("Contract is passed via path to the BOC file."))
+            .arg(Arg::with_name("INPUT")
+                .required(true)
+                .help("Contract address or path to the file with contract data.")))
         .subcommand(SubCommand::with_name("account")
             .about("Top level command of account decode commands.")
             .subcommand(SubCommand::with_name("data")
@@ -89,6 +103,9 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     }
     if let Some(m) = m.subcommand_matches("msg") {
         return decode_message_command(m, config).await;
+    }
+    if let Some(m) = m.subcommand_matches("compiler_version") {
+        return decode_version_command(m, config).await;
     }
     if let Some(m) = m.subcommand_matches("account") {
         if let Some(m) = m.subcommand_matches("boc") {
@@ -352,6 +369,74 @@ async fn decode_message(msg_boc: Vec<u8>, abi: Option<String>, is_json: bool) ->
     }
     if is_json { writeln!(s, "}}").map_err(|e| format!("failed to serialize the result: {}", e))?; }
     Ok(result)
+}
+
+async fn decode_version_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let input = m.value_of("INPUT");
+    if !config.is_json {
+        print_args!(input);
+    }
+    let ton = if m.is_present("BOC") || m.is_present("TVC") {
+        create_client_local()?
+    } else {
+        create_client_verbose(&config)?
+    };
+
+    let input = input.unwrap();
+    let code : String = if m.is_present("BOC") || m.is_present("TVC") {
+        let state_init = if m.is_present("BOC") {
+            let account = Account::construct_from_file(input)
+                .map_err(|e| format!(" failed to load account from the boc file {}: {}", input, e))?;
+            account.state_init().ok_or("Failed to load stateInit from the BOC.")?.to_owned()
+        } else {
+            StateInit::construct_from_file(input)
+                .map_err(|e| format!("failed to load StateInit from the tvc file: {}", e))?
+        };
+        let code = state_init.code.ok_or("StateInit doesn't contain code.")?;
+        let mut bytes = vec![];
+        serialize_tree_of_cells(&code, &mut bytes)
+            .map_err(|e| format!("failed to serialize tree of cells: {}", e))?;
+        base64::encode(&bytes)
+    } else {
+        let input = if input.contains(":") {
+            input.to_owned()
+        } else {
+            format!("{}:{}", config.wc, input)
+        };
+        let accounts = query(
+            ton.clone(),
+            "accounts",
+            json!({ "id": { "eq": input } }),
+            "code",
+            None,
+        ).await
+            .map_err(|e| format!("failed to query account data: {}", e))?;
+
+        if accounts.len() == 0 {
+            return Err(format!("account not found"));
+        }
+        let data = accounts[0]["code"].as_str();
+        if data.is_none() {
+            return Err(format!("account doesn't contain code"));
+        }
+        data.unwrap().to_string()
+    };
+
+    let result = get_compiler_version(
+        ton.clone(),
+        ParamsOfGetCompilerVersion {
+            code
+        }
+    ).await
+        .map_err(|e| format!("Failed to get compiler version: {}", e))?;
+
+    if result.version.is_some() {
+        println!("Version: {}", result.version.unwrap());
+    } else {
+        println!("Version: Undefined");
+    }
+
+    Ok(())
 }
 
 

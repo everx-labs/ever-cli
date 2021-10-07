@@ -55,6 +55,7 @@ tonos-cli <subcommand> -h
     - [4.8.3. Decode account commands](#483-decode-account-commands)
       - [4.8.3.1. Decode account data fields](#4831-decode-account-data-fields)
       - [4.8.3.2. Decode data from the account BOC file](#4832-decode-data-from-the-account-boc-file)
+    - [4.8.4. Decode compiler version](#484-decode-compiler-version)
   - [4.9. Generate payload for internal function call](#49-generate-payload-for-internal-function-call)
 - [5. DeBot commands](#5-debot-commands)
 - [6. Multisig commands](#6-multisig-commands)
@@ -1188,6 +1189,40 @@ state_init:
  code: te6ccgECFAEAA6EAAib/APSkICLAAZL0oOGK7VNYMPShAwEBCvSkIPShAgAAAgEgBgQB/P9/Ie1E0CDXScIBn9P/0wD0Bfhqf/hh+Gb4Yo4b9AVt+GpwAYBA9A7yvdcL//hicPhjcPhmf/hh4tMAAY4SgQIA1xgg+QFY+EIg+GX5EPKo3iP4QvhFIG6SMHDeuvLgZSHTP9MfNDH4IyEBvvK5IfkAIPhKgQEA9A4gkTHeswUATvLgZvgAIfhKIgFVAcjLP1mBAQD0Q/hqIwRfBNMfAfAB+EdukvI83gIBIAwHAgFYCwgBCbjomPxQCQH++EFujhLtRNDT/9MA9AX4an/4Yfhm+GLe0XBtbwL4SoEBAPSGlQHXCz9/k3BwcOKRII43IyMjbwJvIsgizwv/Ic8LPzExAW8iIaQDWYAg9ENvAjQi+EqBAQD0fJUB1ws/f5NwcHDiAjUzMehfA8iCEHdEx+KCEIAAAACxzwsfIQoAom8iAssf9ADIglhgAAAAAAAAAAAAAAAAzwtmgQOYIs8xAbmWcc9AIc8XlXHPQSHN4iDJcfsAWzDA/44S+ELIy//4Rs8LAPhKAfQAye1U3n/4ZwDFuRar5/8ILdHG3aiaBBrpOEAz+n/6YB6Avw1P/ww/DN8MUcN+gK2/DU4AMAgegd5XuuF//wxOHwxuHwzP/ww8W98I0l5Gcm4/DNxfABo/CFkZf/8I2eFgHwlAPoAZPaqP/wzwAgEgDw0B17sV75NfhBbo4S7UTQ0//TAPQF+Gp/+GH4Zvhi3vpA1w1/ldTR0NN/39cMAJXU0dDSAN/RIiIic8hxzwsBIs8KAHPPQCTPFiP6AoBpz0Byz0AgySL7AF8F+EqBAQD0hpUB1ws/f5NwcHDikSCA4Ako4t+CMiAbuf+EojASEBgQEA9FswMfhq3iL4SoEBAPR8lQHXCz9/k3BwcOICNTMx6F8DXwP4QsjL//hGzwsA+EoB9ADJ7VR/+GcCASAREADHuORhh18ILdHCXaiaGn/6YB6Avw1P/ww/DN8MW9qaPwhfCKQN0kYOG9deXAy/AB8IWRl//wjZ4WAfCUA+gBk9qp8B5B9ghBodo92qfgBGHwhZGX//CNnhYB8JQD6AGT2qj/8M8AIC2hMSAC2vhCyMv/+EbPCwD4SgH0AMntVPgP8gCAB1pwIccAnSLQc9ch1wsAwAGQkOLgIdcNH5LyPOFTEcAAkODBAyKCEP////28sZLyPOAB8AH4R26S8jzeg=
  lib:  
 
+```
+
+### 4.8.4. Decode compiler version
+
+Compiler version can be decoded for network account or file with account BOC or TVC.
+
+```bash
+tonos-cli decode compiler_version [--tvc] [--boc] <input>
+```
+
+`<input>` - depending on the flags this parameter should contain:
+  - path to the file with account BOC if `--boc` flag is specified;
+  - path to the TVC file if `--tvc` flag is specified;
+  - contract network address otherwise. 
+
+```bash
+$ tonos-cli decode compiler_version contract.tvc --tvc
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+   input: boc.acc
+Version: sol 0.51.0
+
+tonos-cli decode compiler_version account.boc --boc
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+   input: boc.acc
+Version: sol 0.51.0
+
+$ tonos-cli decode compiler_version e242b6b25d087b0115191bd5c925f40bca3aec1e191508c59e933745daf615d4
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+   input: e242b6b25d087b0115191bd5c925f40bca3aec1e191508c59e933745daf615d4
+Connecting to http://127.0.0.1/
+Version: sol 0.51.0
 ```
 
 ## 4.9. Generate payload for internal function call
