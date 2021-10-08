@@ -43,7 +43,7 @@ use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
 use helpers::{load_ton_address, load_abi, create_client_local};
 use genaddr::generate_address;
-use getconfig::query_global_config;
+use getconfig::{query_global_config, dump_blockchain_config};
 use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
@@ -675,6 +675,13 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true)
             .help("Parameter index."));
 
+    let bcconfig_cmd = SubCommand::with_name("bcconfig")
+        .about("Dumps the blockchain config for the last key block.")
+        .arg(Arg::with_name("PATH")
+            .required(true)
+            .takes_value(true)
+            .help("Path to the file where to save the blockchain config."));
+
     let nodeid_cmd = SubCommand::with_name("nodeid")
         .about("Calculates node ID from the validator public key")
         .arg(Arg::with_name("KEY")
@@ -764,6 +771,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(create_decode_command())
         .subcommand(create_debot_command())
         .subcommand(getconfig_cmd)
+        .subcommand(bcconfig_cmd)
         .subcommand(nodeid_cmd)
         .subcommand(sendfile_cmd)
         .subcommand(fetch_cmd)
@@ -895,6 +903,9 @@ async fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("getconfig") {
         return getconfig_command(m, conf).await;
+    }
+    if let Some(m) = matches.subcommand_matches("bcconfig") {
+        return dump_bc_config_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("nodeid") {
         return nodeid_command(m);
@@ -1445,6 +1456,14 @@ async fn getconfig_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
         print_args!(index);
     }
     query_global_config(config, index.unwrap()).await
+}
+
+async fn dump_bc_config_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let path = matches.value_of("PATH");
+    if !config.is_json {
+        print_args!(path);
+    }
+    dump_blockchain_config(config, path.unwrap()).await
 }
 
 fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {

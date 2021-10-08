@@ -1694,6 +1694,26 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = "tests/block_config.boc";
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg("main.ton.dev")
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("bcconfig")
+        .arg(config_path)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg(&*NETWORK)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
         .arg("--boc")
         .arg(boc_path)
@@ -1731,6 +1751,8 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Succeeded."))
         .stdout(predicate::str::contains(r#"Result: [["1633273052",["1633338588",null]]]"#));
+
+    fs::remove_file(config_path)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("runget")

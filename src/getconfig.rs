@@ -10,10 +10,11 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::{create_client_verbose, query};
+use crate::helpers::{create_client_verbose, query, query_with_limit};
 use crate::config::Config;
-use serde_json::json;
+use serde_json::{json};
 use ton_client::net::{OrderBy, SortDirection};
+use ton_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
 
 const QUERY_FIELDS: &str = r#"
 master { 
@@ -272,6 +273,43 @@ pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String
         println!("{}", config_str);
     } else {
         println!("Config {}: {}", config_name, config_str);
+    }
+    Ok(())
+}
+
+pub async fn dump_blockchain_config(conf: Config, path: &str) -> Result<(), String> {
+    let ton = create_client_verbose(&conf)?;
+
+    let last_key_block_query = query_with_limit(
+        ton.clone(),
+        "blocks",
+        json!({ "workchain_id": { "eq":-1 }, "key_block": { "eq":true }}),
+        "boc",
+        Some(vec![OrderBy{ path: "seq_no".to_owned(), direction: SortDirection::DESC }]),
+        Some(1),
+    ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
+
+    if last_key_block_query.len() == 0 {
+        Err("Key block not found".to_string())?;
+    }
+
+    let block = last_key_block_query[0]["boc"].as_str()
+        .ok_or("Failed to query last block BOC.")?.to_owned();
+
+    let bc_config = get_blockchain_config(
+        ton.clone(),
+        ParamsOfGetBlockchainConfig {
+            block_boc: block,
+        },
+    ).await
+        .map_err(|e| format!("Failed to get blockchain config: {}", e))?;
+
+    let bc_config = base64::decode(&bc_config.config_boc)
+        .map_err(|e| format!("Failed to decode BOC: {}", e))?;
+    std::fs::write(path, bc_config)
+        .map_err(|e| format!("Failed to write data to the file {}: {}", path, e))?;
+    if !conf.is_json {
+        println!("Config successfully saved to {}", path);
     }
     Ok(())
 }

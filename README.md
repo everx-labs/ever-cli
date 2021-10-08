@@ -85,6 +85,7 @@ tonos-cli <subcommand> -h
   - [9.1. Convert tokens to nanotokens](#91-convert-tokens-to-nanotokens)
   - [9.2. Get global config](#92-get-global-config)
   - [9.3. NodeID](#93-nodeid)
+  - [9.4. Dump blockchain config](#94-dump-blockchain-config)
 - [10. Fetch and replay commands](#10-fetch-and-replay)
 
 # 1. Installation
@@ -865,7 +866,7 @@ tonos-cli runget [--boc] <address> <method> [<params>...] [--bc_config <config_p
 Parameters should be specified separately without json wrap and argument names.
 
 `--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config 
-BOC.
+BOC. It can be obtained with [dump blockchain config](#94-dump-blockchain-config) command.
 
 Example:
 
@@ -910,7 +911,7 @@ tonos-cli run --boc [--abi <contract.abi.json>] <account> <method> <params> [--b
 `<params>` - parameters of the called method.
 
 `--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config
-BOC.
+BOC. It can be obtained with [dump blockchain config](#94-dump-blockchain-config) command.
 
 Example:
 
@@ -2049,6 +2050,25 @@ Input arguments:
      key: None
  keypair: dizzy modify exotic daring gloom rival pipe disagree again film neck fuel
 50232655f2ad44f026b03ec1834ae8316bfa1f3533732da1e19b3b31c0f04143
+```
+
+## 9.4. Dump blockchain config
+
+```bash
+tonos-cli bcconfig <path>
+```
+
+`<path>` - path where to save the blockchain config dump.
+
+Example:
+
+```bash
+$ tonos-cli bcconfig config.boc
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+    path: config.boc
+Connecting to main.ton.dev
+Config successfully saved to config.boc
 ```
 
 ## 10. Fetch and replay
