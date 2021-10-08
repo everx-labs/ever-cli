@@ -970,32 +970,6 @@ fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std:
     Ok(())
 }
 
-#[test]
-fn test_decode_compiler_version() -> Result<(), Box<dyn std::error::Error>> {
-    let boc_path = "tests/account.boc";
-    let tvc_path = "tests/samples/fakeDepool.tvc";
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("decode")
-        .arg("compiler_version")
-        .arg("--boc")
-        .arg(boc_path);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("Version: sol 0.51.0"));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("decode")
-        .arg("compiler_version")
-        .arg("--tvc")
-        .arg(tvc_path);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("Version: sol 0.51.0"));
-
-    Ok(())
-}
-
 
 #[test]
 fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
@@ -1569,21 +1543,13 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("decode")
-        .arg("compiler_version")
-        .arg(&depool_addr);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("Version: sol 0.51.0"));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("decode")
         .arg("tvc")
         .arg(&depool_addr);
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("version: sol 0.51.0"))
-        .stdout(predicate::str::contains("code_depth: 7"))
-        .stdout(predicate::str::contains("data_depth: 1"));
+        .stdout(predicate::str::contains(r#"version": "sol 0.51.0"#))
+        .stdout(predicate::str::contains(r#"code_depth": "7"#))
+        .stdout(predicate::str::contains(r#"data_depth": "1"#));
 
     Ok(())
 }
@@ -1641,9 +1607,9 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
         .arg(boc_path)
         .assert()
         .success()
-        .stdout(predicate::str::contains("version: sol 0.51.0"))
-        .stdout(predicate::str::contains("code_depth: 7"))
-        .stdout(predicate::str::contains("data_depth: 1"));
+        .stdout(predicate::str::contains(r#"version": "sol 0.51.0"#))
+        .stdout(predicate::str::contains(r#"code_depth": "7"#))
+        .stdout(predicate::str::contains(r#"data_depth": "1"#));
 
 
     let tvc_path = "tests/samples/fakeDepool.tvc";
@@ -1654,9 +1620,9 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
         .arg(tvc_path)
         .assert()
         .success()
-        .stdout(predicate::str::contains("version: sol 0.51.0"))
-        .stdout(predicate::str::contains("code_depth: 7"))
-        .stdout(predicate::str::contains("data_depth: 1"));
+        .stdout(predicate::str::contains(r#"version": "sol 0.51.0"#))
+        .stdout(predicate::str::contains(r#"code_depth": "7"#))
+        .stdout(predicate::str::contains(r#"data_depth": "1"#));
 
     Ok(())
 }

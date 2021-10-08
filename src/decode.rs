@@ -29,8 +29,8 @@ fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
 }
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
-    let version_cmd = SubCommand::with_name("compiler_version")
-        .about("Decodes compiler version from the contract's code.")
+    let tvc_cmd = SubCommand::with_name("tvc")
+        .about("Decodes tvc data (including compiler version) from different sources.")
         .arg(Arg::with_name("TVC")
             .long("--tvc")
             .conflicts_with("BOC")
@@ -65,9 +65,7 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                     .long("--abi")
                     .takes_value(true)
                     .help("Path to the contract ABI file.")))
-        .subcommand(version_cmd.clone())
-        .subcommand(version_cmd.clone().name("tvc")
-            .about("Decodes tvc from different sources"))
+        .subcommand(tvc_cmd)
         .subcommand(SubCommand::with_name("account")
             .about("Top level command of account decode commands.")
             .subcommand(SubCommand::with_name("data")
@@ -106,9 +104,6 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     }
     if let Some(m) = m.subcommand_matches("msg") {
         return decode_message_command(m, config).await;
-    }
-    if let Some(m) = m.subcommand_matches("compiler_version") {
-        return decode_version_command(m, config).await;
     }
     if let Some(m) = m.subcommand_matches("tvc") {
         return decode_tvc_command(m, config).await;
@@ -443,8 +438,22 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
         account.state_init().ok_or("Failed to load stateInit from the BOC.")?.to_owned()
     };
 
+    if !config.is_json {
+        println!("Decoded data:");
+    }
     let code = tree_of_cells_into_base64(state.code.as_ref())?;
-    println!("StateInit\n split_depth: {}\n special: {}\n data: {}\n code: {}\n code_hash: {}\n data_hash: {}\n code_depth: {}\n data_depth: {}\n version: {}\n lib:  {}\n",
+    println!(r#"{{
+  "split_depth": "{}",
+  "special": "{}",
+  "data": "{}",
+  "code": "{}",
+  "code_hash": "{}",
+  "data_hash": "{}",
+  "code_depth": "{}",
+  "data_depth": "{}",
+  "version": "{}",
+  "lib":  "{}"
+}}"#,
         state.split_depth.as_ref().map(|x| format!("{:?}", (x.0 as u8))).unwrap_or("None".to_string()),
         state.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
         tree_of_cells_into_base64(state.data.as_ref())?,
@@ -458,37 +467,6 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     );
     Ok(())
 }
-
-async fn decode_version_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    let (input, ton) = parse_arg_and_create_client(m, config.clone())?;
-    let code = if m.is_present("BOC") || m.is_present("TVC") {
-        let state_init = load_state_init(m)?;
-        let code = state_init.code.ok_or("StateInit doesn't contain code.")?;
-        let mut bytes = vec![];
-        serialize_tree_of_cells(&code, &mut bytes)
-            .map_err(|e| format!("failed to serialize tree of cells: {}", e))?;
-        base64::encode(&bytes)
-    } else {
-        let input = if input.contains(":") {
-            input
-        } else {
-            format!("{}:{}", config.wc, input)
-        };
-        query_field(ton.clone(), &input, "code").await?
-    };
-
-    let result = get_version(ton, code).await?;
-    if !config.is_json {
-        println!("Version: {}", result);
-    } else {
-        println!("{{");
-        println!("  \"version\": \"{}\"", result);
-        println!("}}");
-    }
-
-    Ok(())
-}
-
 
 mod msg_printer {
     use ton_block::*;
