@@ -13,10 +13,17 @@
 use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address,};
 use crate::config::Config;
 use crate::crypto::load_keypair;
-use crate::call::{EncodedMessage, display_generated_message, emulate_locally, process_message};
-use ton_client::abi::{
-    encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage
+use crate::call::{
+    EncodedMessage,
+    display_generated_message,
+    emulate_locally,
+    process_message,
+    send_message_and_wait,
 };
+use ton_client::abi::{
+    encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage, Abi,
+};
+use ton_client::crypto::KeyPair;
 
 pub async fn deploy_contract(
     conf: Config,
@@ -39,16 +46,28 @@ pub async fn deploy_contract(
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
     if conf.local_run || is_fee {
-        emulate_locally(ton.clone(), addr.as_str(), enc_msg.message, is_fee).await?;
+        emulate_locally(ton.clone(), addr.as_str(), enc_msg.message.clone(), is_fee).await?;
         if is_fee {
             return Ok(());
         }
     }
 
-    process_message(ton.clone(), msg).await?;
+    if conf.async_call {
+        let abi = std::fs::read_to_string(abi)
+            .map_err(|e| format!("failed to read ABI file: {}", e))?;
+        let abi = load_abi(&abi)?;
+        send_message_and_wait(ton,
+                              Some(abi),
+                              enc_msg.message,
+                              conf.clone()).await?;
+    } else {
+        process_message(ton.clone(), msg).await?;
+    }
 
     if !conf.is_json {
-        println!("Transaction succeeded.");
+        if !conf.async_call {
+            println!("Transaction succeeded.");
+        }
         println!("Contract deployed at address: {}", addr);
     }
     Ok(())
@@ -88,16 +107,27 @@ pub async fn prepare_deploy_message(
     keys_file: &str,
     wc: i32
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
-
     let abi = std::fs::read_to_string(abi)
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let abi = load_abi(&abi)?;
 
-    let keys = load_keypair(keys_file)?;
-
     let tvc_bytes = &std::fs::read(tvc)
         .map_err(|e| format!("failed to read smart contract file: {}", e))?;
 
+    let keys = load_keypair(keys_file)?;
+    return prepare_deploy_message_params(tvc_bytes, abi, params, keys, wc).await;
+
+}
+
+
+pub async fn prepare_deploy_message_params(
+    tvc_bytes: &Vec<u8>,
+    abi: Abi,
+    params: &str,
+    // keys_file: &str,
+    keys: KeyPair,
+    wc: i32
+) -> Result<(ParamsOfEncodeMessage, String), String> {
     let tvc_base64 = base64::encode(&tvc_bytes);
 
     let addr = calc_acc_address(

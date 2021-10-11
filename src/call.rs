@@ -55,7 +55,7 @@ use ton_client::tvm::{
 };
 use ton_block::{Account, Serializable, Deserializable};
 use std::str::FromStr;
-use serde_json::Value;
+use serde_json::{Value, Map};
 
 pub struct EncodedMessage {
     pub message_id: String,
@@ -502,6 +502,20 @@ pub async fn call_contract_with_result(
     is_fee: bool,
 ) -> Result<serde_json::Value, String> {
     let ton = create_client_verbose(&conf)?;
+    call_contract_with_client(ton, conf, addr, abi, method, params, keys, local, is_fee).await
+}
+
+pub async fn call_contract_with_client(
+    ton: TonClient,
+    conf: Config,
+    addr: &str,
+    abi: String,
+    method: &str,
+    params: &str,
+    keys: Option<String>,
+    local: bool,
+    is_fee: bool,
+) -> Result<serde_json::Value, String> {
     let abi = load_abi(&abi)?;
 
     let expire_at = conf.lifetime + now()?;
@@ -682,19 +696,32 @@ pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<St
     }
 }
 
-pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>, is_boc:bool) -> Result<(), String> {
+    let ton = if !is_boc {
+        create_client_verbose(&conf)?
+    } else {
+        create_client_local()?
+    };
 
-    let addr = load_ton_address(addr, &conf)
-        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
-
-    let acc_boc = query_account_boc(ton.clone(), addr.as_str()).await?;
+    let acc_boc = if is_boc {
+        let acc = Account::construct_from_file(addr)
+            .map_err(|e| format!(" failed to load account from the file {}: {}", addr, e))?;
+        let acc_bytes = acc.write_to_bytes()
+            .map_err(|e| format!("failed to load data from the account: {}", e))?;
+        base64::encode(&acc_bytes)
+    } else {
+        let addr = load_ton_address(addr, &conf)
+            .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
+        query_account_boc(ton.clone(), addr.as_str()).await?
+    };
 
     let params = params.map(|p| serde_json::from_str(&p))
         .transpose()
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
 
-    println!("Running get-method...");
+    if !conf.is_json {
+        println!("Running get-method...");
+    }
     let result = run_get(
         ton,
         ParamsOfRunGet {
@@ -707,7 +734,25 @@ pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Opti
     .map_err(|e| format!("run failed: {}", e.to_string()))?
     .output;
 
-    println!("Succeeded.");
-    println!("Result: {}", result);
+    if !conf.is_json {
+        println!("Succeeded.");
+        println!("Result: {}", result);
+    } else {
+        let mut res = Map::new();
+        match result {
+            Value::Array(array) => {
+                let mut i = 0;
+                for val in array.iter() {
+                    res.insert(format!("value{}", i), val.to_owned());
+                    i = 1 + i;
+                }
+            },
+            _ => {
+                res.insert("value0".to_owned(), result);
+            }
+        }
+        let res = Value::Object(res);
+        println!("{}", serde_json::to_string_pretty(&res).unwrap_or("Undefined".to_string()));
+    }
     Ok(())
 }
