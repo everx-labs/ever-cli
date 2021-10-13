@@ -851,16 +851,31 @@ fn test_account_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_decode_msg() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("--json").arg("decode")
-        .arg("msg").arg("tests/samples/wallet.boc")
-        .arg("--abi").arg("tests/samples/wallet.abi.json");
-    cmd.assert()
+    cmd.arg("--json")
+        .arg("decode")
+        .arg("msg")
+        .arg("tests/samples/wallet.boc")
+        .arg("--abi")
+        .arg("tests/samples/wallet.abi.json")
+        .assert()
         .success()
         .stdout(predicate::str::contains("sendTransaction"))
         .stdout(predicate::str::contains("dest"))
         .stdout(predicate::str::contains("value"))
         .stdout(predicate::str::contains("bounce"));
 
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json")
+        .arg("decode")
+        .arg("msg")
+        .arg("tests/deploy_msg.boc")
+        .arg("--abi")
+        .arg("tests/samples/wallet.abi.json")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Init": {"#))
+        .stdout(predicate::str::contains(r#""StateInit": {"#))
+        .stdout(predicate::str::contains(r#""data": "te6ccgEBAgEAKAABAcABAEPQAZ6jzp01QGBqmSPd8SBPy4vE1I8GSisk4ihjvGiRJP7g""#));
     Ok(())
 }
 
