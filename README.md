@@ -55,6 +55,7 @@ tonos-cli <subcommand> -h
     - [4.8.3. Decode account commands](#483-decode-account-commands)
       - [4.8.3.1. Decode account data fields](#4831-decode-account-data-fields)
       - [4.8.3.2. Decode data from the account BOC file](#4832-decode-data-from-the-account-boc-file)
+    - [4.8.4. Decode TVC fields](#484-decode-tvc-fields)
   - [4.9. Generate payload for internal function call](#49-generate-payload-for-internal-function-call)
 - [5. DeBot commands](#5-debot-commands)
 - [6. Multisig commands](#6-multisig-commands)
@@ -84,6 +85,7 @@ tonos-cli <subcommand> -h
   - [9.1. Convert tokens to nanotokens](#91-convert-tokens-to-nanotokens)
   - [9.2. Get global config](#92-get-global-config)
   - [9.3. NodeID](#93-nodeid)
+  - [9.4. Dump blockchain config](#94-dump-blockchain-config)
 - [10. Fetch and replay commands](#10-fetch-and-replay)
 
 # 1. Installation
@@ -852,7 +854,7 @@ Result: {
 ### 4.4.4. Run funC get-method
 
 ```bash
-tonos-cli runget [--boc] <address> <method> [<params>...]
+tonos-cli runget [--boc] <address> <method> [<params>...] [--bc_config <config_path>]
 ```
 
 `<address>` - contract [address](#41-generate-contract-address) or path to the file with account boc
@@ -862,6 +864,9 @@ tonos-cli runget [--boc] <address> <method> [<params>...]
 
 `<params>` - parameters of the called method. Can have multiple values: one for each function parameter.
 Parameters should be specified separately without json wrap and argument names.
+
+`--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config 
+BOC. It can be obtained with [dump blockchain config](#94-dump-blockchain-config) command.
 
 Example:
 
@@ -894,7 +899,7 @@ Result: ["125387107580525"]
 ### 4.4.5. Run contract method locally for saved account state
 
 ```bash
-tonos-cli run --boc [--abi <contract.abi.json>] <account> <method> <params>
+tonos-cli run --boc [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>]
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -904,6 +909,9 @@ tonos-cli run --boc [--abi <contract.abi.json>] <account> <method> <params>
 `<method>` - the method being called.
 
 `<params>` - parameters of the called method.
+
+`--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config
+BOC. It can be obtained with [dump blockchain config](#94-dump-blockchain-config) command.
 
 Example:
 
@@ -1182,6 +1190,76 @@ state_init:
  code: te6ccgECFAEAA6EAAib/APSkICLAAZL0oOGK7VNYMPShAwEBCvSkIPShAgAAAgEgBgQB/P9/Ie1E0CDXScIBn9P/0wD0Bfhqf/hh+Gb4Yo4b9AVt+GpwAYBA9A7yvdcL//hicPhjcPhmf/hh4tMAAY4SgQIA1xgg+QFY+EIg+GX5EPKo3iP4QvhFIG6SMHDeuvLgZSHTP9MfNDH4IyEBvvK5IfkAIPhKgQEA9A4gkTHeswUATvLgZvgAIfhKIgFVAcjLP1mBAQD0Q/hqIwRfBNMfAfAB+EdukvI83gIBIAwHAgFYCwgBCbjomPxQCQH++EFujhLtRNDT/9MA9AX4an/4Yfhm+GLe0XBtbwL4SoEBAPSGlQHXCz9/k3BwcOKRII43IyMjbwJvIsgizwv/Ic8LPzExAW8iIaQDWYAg9ENvAjQi+EqBAQD0fJUB1ws/f5NwcHDiAjUzMehfA8iCEHdEx+KCEIAAAACxzwsfIQoAom8iAssf9ADIglhgAAAAAAAAAAAAAAAAzwtmgQOYIs8xAbmWcc9AIc8XlXHPQSHN4iDJcfsAWzDA/44S+ELIy//4Rs8LAPhKAfQAye1U3n/4ZwDFuRar5/8ILdHG3aiaBBrpOEAz+n/6YB6Avw1P/ww/DN8MUcN+gK2/DU4AMAgegd5XuuF//wxOHwxuHwzP/ww8W98I0l5Gcm4/DNxfABo/CFkZf/8I2eFgHwlAPoAZPaqP/wzwAgEgDw0B17sV75NfhBbo4S7UTQ0//TAPQF+Gp/+GH4Zvhi3vpA1w1/ldTR0NN/39cMAJXU0dDSAN/RIiIic8hxzwsBIs8KAHPPQCTPFiP6AoBpz0Byz0AgySL7AF8F+EqBAQD0hpUB1ws/f5NwcHDikSCA4Ako4t+CMiAbuf+EojASEBgQEA9FswMfhq3iL4SoEBAPR8lQHXCz9/k3BwcOICNTMx6F8DXwP4QsjL//hGzwsA+EoB9ADJ7VR/+GcCASAREADHuORhh18ILdHCXaiaGn/6YB6Avw1P/ww/DN8MW9qaPwhfCKQN0kYOG9deXAy/AB8IWRl//wjZ4WAfCUA+gBk9qp8B5B9ghBodo92qfgBGHwhZGX//CNnhYB8JQD6AGT2qj/8M8AIC2hMSAC2vhCyMv/+EbPCwD4SgH0AMntVPgP8gCAB1pwIccAnSLQc9ch1wsAwAGQkOLgIdcNH5LyPOFTEcAAkODBAyKCEP////28sZLyPOAB8AH4R26S8jzeg=
  lib:  
 
+```
+
+### 4.8.4. Decode TVC fields
+
+TVC can be decoded for network account or file with account BOC or TVC.
+
+```bash
+tonos-cli decode tvc [--tvc] [--boc] <input>
+```
+
+`<input>` - depending on the flags this parameter should contain:
+- path to the file with account BOC if `--boc` flag is specified;
+- path to the TVC file if `--tvc` flag is specified;
+- contract network address otherwise.
+
+```bash
+$ tonos-cli decode tvc --boc account.boc 
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+   input: account.boc
+Decoded data:
+{
+  "split_depth": "None",
+  "special": "None",
+  "data": "te6ccgEBAgEAkQABowWvkA5qHmFvsIUxqyOHGegsw+mhvvuZc5taNDPm+bI8AAABfFtnzLOAAAAAAAAAAEAMpbXqnWxVq2MH9mu2c3ABPAlgHxYzBcVVGea3KTKb6UgBAHOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAO5rKAI",
+  "code": "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",
+  "code_hash": "82236b6062da156069b3cbf5020daf1a17b76869d676df216177fca950ab37df",
+  "data_hash": "7197d8544363ac2b2718240a84448584a675727ec8d42efd3726e82a4c8a3853",
+  "code_depth": "7",
+  "data_depth": "1",
+  "version": "sol 0.51.0",
+  "lib":  ""
+}
+
+$ tonos-cli decode tvc --tvc fakeDepool.tvc 
+Config: default
+Input arguments:
+   input: fakeDepool.tvc
+Decoded data:
+{
+  "split_depth": "None",
+  "special": "None",
+  "data": "te6ccgEBAgEAKAABAcABAEPQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAg",
+  "code": "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",
+  "code_hash": "82236b6062da156069b3cbf5020daf1a17b76869d676df216177fca950ab37df",
+  "data_hash": "55a703465a160dce20481375de2e5b830c841c2787303835eb5821d62d65ca9d",
+  "code_depth": "7",
+  "data_depth": "1",
+  "version": "sol 0.51.0",
+  "lib":  ""
+}
+
+$ tonos-cli decode tvc 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+   input: 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
+Connecting to http://127.0.0.1/
+Decoded data:
+{
+  "split_depth": "None",
+  "special": "None",
+  "data": "te6ccgEBAQEASwAAkWOlCuhADbJ3v+8vaQu9RUczWADX7uP05UFjmpt/sOAVAAABfF7iC8SAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMsA=",
+  "code": "te6ccgECDwEAAakABCSK7VMg4wMgwP/jAiDA/uMC8gsMAgEOApztRNDXScMB+GYh2zzTAAGOEoECANcYIPkBWPhCIPhl+RDyqN7TPwH4QyG58rQg+COBA+iogggbd0CgufK0+GPTHwH4I7zyudMfAds88jwFAwNK7UTQ10nDAfhmItDXCwOpOADcIccA4wIh1w0f8rwh4wMB2zzyPAsLAwM8IIIQJe+yCLrjAiCCEETv7Oy64wIgghBotV8/uuMCBwYEAkgw+EJu4wD4RvJz0fhC8uBl+EUgbpIwcN74Qrry4Gb4ANs88gAFCAFK7UTQ10nCAYqOGnDtRND0BXD4aoBA9A7yvdcL//hicPhjcPhq4goBUDDR2zz4SiGOHI0EcAAAAAAAAAAAAAAAADE7+zsgyM7L/8lw+wDe8gAKAygw+Eby4Ez4Qm7jANP/0ds82zzyAAoJCAAk+Er4Q/hCyMv/yz/Pg8v/ye1UACr4RSBukjBw3vhCuvLgZvgA+Eqg+GoAJu1E0NP/0z/TADHT/9H4avhj+GIACvhG8uBMAgr0pCD0oQ4NABRzb2wgMC41MS4wAAA=",
+  "code_hash": "d840258803b9d7472f2d959a5db7bb42d246f5e8f0dc6a94bb459ebb730a0e01",
+  "data_hash": "0ea45bfc864790ee1d66301059fa2cbdaba7a75e9e4f4bc1d2fbffd8401ee798",
+  "code_depth": "5",
+  "data_depth": "0",
+  "version": "sol 0.51.0",
+  "lib":  ""
+}
 ```
 
 ## 4.9. Generate payload for internal function call
@@ -1972,6 +2050,25 @@ Input arguments:
      key: None
  keypair: dizzy modify exotic daring gloom rival pipe disagree again film neck fuel
 50232655f2ad44f026b03ec1834ae8316bfa1f3533732da1e19b3b31c0f04143
+```
+
+## 9.4. Dump blockchain config
+
+```bash
+tonos-cli bcconfig <path>
+```
+
+`<path>` - path where to save the blockchain config dump.
+
+Example:
+
+```bash
+$ tonos-cli bcconfig config.boc
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+    path: config.boc
+Connecting to main.ton.dev
+Config successfully saved to config.boc
 ```
 
 ## 10. Fetch and replay

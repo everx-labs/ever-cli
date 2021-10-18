@@ -12,13 +12,14 @@
  */
 use crate::{print_args, VERBOSE_MODE};
 use crate::config::Config;
-use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query};
+use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query, TonClient};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::Cell;
 use std::fmt::Write;
 use ton_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData, Abi};
+use ton_client::boc::{get_compiler_version, ParamsOfGetCompilerVersion};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
 
 fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
@@ -28,6 +29,19 @@ fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
 }
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
+    let tvc_cmd = SubCommand::with_name("tvc")
+        .about("Decodes tvc data (including compiler version) from different sources.")
+        .arg(Arg::with_name("TVC")
+            .long("--tvc")
+            .conflicts_with("BOC")
+            .help("Contract is passed via path to the TVC file."))
+        .arg(Arg::with_name("BOC")
+            .long("--boc")
+            .conflicts_with("TVC")
+            .help("Contract is passed via path to the BOC file."))
+        .arg(Arg::with_name("INPUT")
+            .required(true)
+            .help("Contract address or path to the file with contract data."));
     SubCommand::with_name("decode")
         .about("Decode commands.")
         .setting(AppSettings::AllowLeadingHyphen)
@@ -51,6 +65,7 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                     .long("--abi")
                     .takes_value(true)
                     .help("Path to the contract ABI file.")))
+        .subcommand(tvc_cmd)
         .subcommand(SubCommand::with_name("account")
             .about("Top level command of account decode commands.")
             .subcommand(SubCommand::with_name("data")
@@ -89,6 +104,9 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     }
     if let Some(m) = m.subcommand_matches("msg") {
         return decode_message_command(m, config).await;
+    }
+    if let Some(m) = m.subcommand_matches("tvc") {
+        return decode_tvc_command(m, config).await;
     }
     if let Some(m) = m.subcommand_matches("account") {
         if let Some(m) = m.subcommand_matches("boc") {
@@ -256,28 +274,13 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(),
 
     let ton = create_client_verbose(&config)?;
 
-    let accounts = query(
-        ton.clone(),
-        "accounts",
-        json!({ "id": { "eq": address } }),
-        "data",
-        None,
-    ).await
-        .map_err(|e| format!("failed to query account data: {}", e))?;
-
-    if accounts.len() == 0 {
-        return Err(format!("account not found"));
-    }
-    let data = accounts[0]["data"].as_str();
-    if data.is_none() {
-        return Err(format!("account doesn't contain data"));
-    }
+    let data = query_field(ton.clone(), &address.unwrap(), "data").await?;
 
     let res = decode_account_data(
         ton,
         ParamsOfDecodeAccountData {
                 abi: Abi::Json(abi),
-                data: data.unwrap().to_owned(),
+                data,
             }
         )
         .await
@@ -354,6 +357,116 @@ async fn decode_message(msg_boc: Vec<u8>, abi: Option<String>, is_json: bool) ->
     Ok(result)
 }
 
+fn load_state_init(m: &ArgMatches<'_>) -> Result<StateInit, String> {
+    let input = m.value_of("INPUT").unwrap();
+    let stat_init = if m.is_present("BOC") {
+        let account = Account::construct_from_file(input)
+            .map_err(|e| format!(" failed to load account from the boc file {}: {}", input, e))?;
+        account.state_init().ok_or("Failed to load stateInit from the BOC.")?.to_owned()
+    } else {
+        StateInit::construct_from_file(input)
+            .map_err(|e| format!("failed to load StateInit from the tvc file: {}", e))?
+    };
+    Ok(stat_init)
+}
+
+async fn query_field(ton: TonClient, address: &str, field: &str) -> Result<String, String> {
+    let accounts = query(
+        ton.clone(),
+        "accounts",
+        json!({ "id": { "eq": address } }),
+        field,
+        None,
+    ).await
+        .map_err(|e| format!("failed to query account data: {}", e))?;
+
+    if accounts.len() == 0 {
+        return Err(format!("account not found"));
+    }
+    let data = accounts[0][field].as_str();
+    if data.is_none() {
+        return Err(format!("account doesn't contain {}", field));
+    }
+    Ok(data.unwrap().to_string())
+}
+
+fn parse_arg_and_create_client(m: &ArgMatches<'_>, config: Config) -> Result<(String, TonClient), String>{
+    let input = m.value_of("INPUT");
+    if !config.is_json {
+        print_args!(input);
+    }
+    let ton = if m.is_present("BOC") || m.is_present("TVC") {
+        create_client_local()?
+    } else {
+        create_client_verbose(&config)?
+    };
+
+    Ok((input.unwrap().to_owned(), ton))
+}
+
+async fn get_version(ton: TonClient, code: String) -> Result<String, String>{
+    let result = get_compiler_version(
+        ton,
+        ParamsOfGetCompilerVersion {
+            code
+        }
+    ).await
+        .map_err(|e| format!("Failed to get compiler version: {}", e))?;
+
+    let version = if result.version.is_some() {
+        result.version.unwrap()
+    } else {
+        "Undefined".to_owned()
+    };
+    Ok(version)
+}
+
+
+async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let (input, ton) = parse_arg_and_create_client(m, config.clone())?;
+    let state = if m.is_present("BOC") || m.is_present("TVC") {
+        load_state_init(m)?
+    } else {
+        let input = if input.contains(":") {
+            input
+        } else {
+            format!("{}:{}", config.wc, input)
+        };
+        let boc = query_field(ton.clone(), &input, "boc").await?;
+        let account = Account::construct_from_base64(&boc)
+            .map_err(|e| format!("Failed to query account BOC: {}", e))?;
+        account.state_init().ok_or("Failed to load stateInit from the BOC.")?.to_owned()
+    };
+
+    if !config.is_json {
+        println!("Decoded data:");
+    }
+    let code = tree_of_cells_into_base64(state.code.as_ref())?;
+    println!(r#"{{
+  "split_depth": "{}",
+  "special": "{}",
+  "data": "{}",
+  "code": "{}",
+  "code_hash": "{}",
+  "data_hash": "{}",
+  "code_depth": "{}",
+  "data_depth": "{}",
+  "version": "{}",
+  "lib":  "{}"
+}}"#,
+        state.split_depth.as_ref().map(|x| format!("{:?}", (x.0 as u8))).unwrap_or("None".to_string()),
+        state.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
+        tree_of_cells_into_base64(state.data.as_ref())?,
+        code.clone(),
+        state.code.clone().unwrap().repr_hash().to_hex_string(),
+        state.data.clone().unwrap().repr_hash().to_hex_string(),
+        state.code.clone().unwrap().depth(0),
+        state.data.clone().unwrap().depth(0),
+        get_version(ton, code).await?,
+        tree_of_cells_into_base64(state.library.root())?,
+    );
+    Ok(())
+}
 
 mod msg_printer {
     use ton_block::*;

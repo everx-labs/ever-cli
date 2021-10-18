@@ -1,5 +1,6 @@
 {
 	"ABI version": 2,
+	"version": "2.2",
 	"header": ["time", "expire"],
 	"functions": [
 		{
@@ -157,5 +158,17 @@
 			"outputs": [
 			]
 		}
+	],
+	"fields": [
+		{"name":"_pubkey","type":"uint256"},
+		{"name":"_timestamp","type":"uint64"},
+		{"name":"_constructorFlag","type":"bool"},
+		{"name":"m_stake","type":"uint64"},
+		{"name":"m_sender","type":"address"},
+		{"name":"m_receiver","type":"address"},
+		{"name":"m_withdrawal","type":"uint32"},
+		{"name":"m_total","type":"uint32"},
+		{"name":"m_reinvest","type":"bool"},
+		{"name":"m_value","type":"uint128"}
 	]
 }

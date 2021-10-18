@@ -44,15 +44,7 @@ use ton_client::processing::{
     wait_for_transaction,
     send_message,
 };
-use ton_client::tvm::{
-    run_tvm,
-    run_get,
-    ParamsOfRunTvm,
-    ParamsOfRunGet,
-    run_executor,
-    ParamsOfRunExecutor,
-    AccountForExecutor,
-};
+use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet, run_executor, ParamsOfRunExecutor, AccountForExecutor, ExecutionOptions};
 use ton_block::{Account, Serializable, Deserializable};
 use std::str::FromStr;
 use serde_json::{Value, Map};
@@ -346,6 +338,7 @@ pub async fn run_local_for_account(
     abi: String,
     method: &str,
     params: &str,
+    bc_config: Option<&str>,
 ) -> Result<(), String> {
 
     if !conf.is_json {
@@ -388,7 +381,8 @@ pub async fn run_local_for_account(
         ton,
         abi,
         msg.message,
-        acc_boc
+        acc_boc,
+        bc_config
     ).await?;
 
     if !conf.is_json {
@@ -399,14 +393,28 @@ pub async fn run_local_for_account(
     Ok(())
 }
 
+fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<ExecutionOptions>, String> {
+    if bc_config.is_some() {
+        let bytes = std::fs::read(bc_config.unwrap())
+            .map_err(|e| format!("Failed to read data from file {}: {}", bc_config.unwrap(), e))?;
+        let config_boc = base64::encode(&bytes);
+        let ex_opt = ExecutionOptions{
+            blockchain_config: Some(config_boc),
+            ..Default::default()
+        };
+        return Ok(Some(ex_opt));
+    }
+    Ok(None)
+}
 
 async fn run_local(
     ton: TonClient,
     abi: Abi,
     msg: String,
     acc_boc: String,
+    bc_config: Option<&str>,
 ) -> Result<serde_json::Value, String> {
-
+    let execution_options = prepare_execution_options(bc_config)?;
     let result = run_tvm(
         ton.clone(),
         ParamsOfRunTvm {
@@ -414,6 +422,7 @@ async fn run_local(
             account: acc_boc,
             abi: Some(abi.clone()),
             return_updated_account: Some(true),
+            execution_options,
             ..Default::default()
         },
     ).await
@@ -548,7 +557,7 @@ pub async fn call_contract_with_client(
                 println!("Running get-method...");
             }
             let acc_boc = query_account_boc(ton.clone(), addr).await?;
-            return run_local(ton.clone(), abi, msg.message.clone(), acc_boc).await;
+            return run_local(ton.clone(), abi, msg.message.clone(), acc_boc, None).await;
         }
         if conf.local_run || is_fee {
             emulate_locally(ton.clone(), addr, msg.message.clone(), is_fee).await?;
@@ -696,7 +705,7 @@ pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<St
     }
 }
 
-pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>, is_boc:bool) -> Result<(), String> {
+pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>, is_boc:bool, bc_config: Option<&str>) -> Result<(), String> {
     let ton = if !is_boc {
         create_client_verbose(&conf)?
     } else {
@@ -722,12 +731,14 @@ pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Opti
     if !conf.is_json {
         println!("Running get-method...");
     }
+    let execution_options = prepare_execution_options(bc_config)?;
     let result = run_get(
         ton,
         ParamsOfRunGet {
             account: acc_boc,
             function_name: method.to_owned(),
             input: params,
+            execution_options,
             ..Default::default()
         },
     ).await

@@ -970,6 +970,7 @@ fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std:
     Ok(())
 }
 
+
 #[test]
 fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
     let depool_abi = "tests/samples/fakeDepool.abi.json";
@@ -1540,6 +1541,16 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"receiver": "0:0123456789012345012345678901234501234567890123450123456789012346"#));
 
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("tvc")
+        .arg(&depool_addr);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#"version": "sol 0.51.0"#))
+        .stdout(predicate::str::contains(r#"code_depth": "7"#))
+        .stdout(predicate::str::contains(r#"data_depth": "1"#));
+
     Ok(())
 }
 
@@ -1587,6 +1598,31 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#""__pubkey": "0xe8b1d839abe27b2abb9d4a2943a9143a9c7e2ae06799bd24dec1d7a8891ae5dd","#))
         .stdout(predicate::str::contains(r#" "a": "I like it.","#));
+
+    let boc_path = "tests/account.boc";
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("tvc")
+        .arg("--boc")
+        .arg(boc_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#"version": "sol 0.51.0"#))
+        .stdout(predicate::str::contains(r#"code_depth": "7"#))
+        .stdout(predicate::str::contains(r#"data_depth": "1"#));
+
+
+    let tvc_path = "tests/samples/fakeDepool.tvc";
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("decode")
+        .arg("tvc")
+        .arg("--tvc")
+        .arg(tvc_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#"version": "sol 0.51.0"#))
+        .stdout(predicate::str::contains(r#"code_depth": "7"#))
+        .stdout(predicate::str::contains(r#"data_depth": "1"#));
 
     Ok(())
 }
@@ -1655,6 +1691,44 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Result: {"))
         .stdout(predicate::str::contains(r#""reinvest": false,"#));
 
+    let config_path = "tests/block_config.boc";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg("main.ton.dev")
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("bcconfig")
+        .arg(config_path)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg(&*NETWORK)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--boc")
+        .arg(boc_path)
+        .arg("getData")
+        .arg("{}")
+        .arg("--abi")
+        .arg(abi_path)
+        .arg("--bc_config")
+        .arg(config_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains("Result: {"))
+        .stdout(predicate::str::contains(r#""reinvest": false,"#));
+
     let boc_path = "tests/account_fift.boc";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("runget")
@@ -1665,6 +1739,20 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Succeeded."))
         .stdout(predicate::str::contains(r#"Result: [["1633273052",["1633338588",null]]]"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("runget")
+        .arg("--boc")
+        .arg(boc_path)
+        .arg("past_election_ids")
+        .arg("--bc_config")
+        .arg(config_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains(r#"Result: [["1633273052",["1633338588",null]]]"#));
+
+    fs::remove_file(config_path)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("runget")
