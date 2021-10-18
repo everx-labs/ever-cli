@@ -911,7 +911,7 @@ Result: ["125387107580525"]
 
 
 
-### 4.4.5. Run contract method locally for saved account state
+### 4.4.5. Run contract method locally for saved account BOC
 
 ```bash
 tonos-cli run [--boc] [--tvc] [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>]
