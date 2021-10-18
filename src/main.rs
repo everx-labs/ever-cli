@@ -675,12 +675,13 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true)
             .help("Parameter index."));
 
-    let bcconfig_cmd = SubCommand::with_name("bcconfig")
-        .about("Dumps the blockchain config for the last key block.")
-        .arg(Arg::with_name("PATH")
-            .required(true)
-            .takes_value(true)
-            .help("Path to the file where to save the blockchain config."));
+    let bcconfig_cmd = SubCommand::with_name("dump")
+        .subcommand(SubCommand::with_name("config")
+            .about("Dumps the blockchain config for the last key block.")
+            .arg(Arg::with_name("PATH")
+                .required(true)
+                .takes_value(true)
+                .help("Path to the file where to save the blockchain config.")));
 
     let nodeid_cmd = SubCommand::with_name("nodeid")
         .about("Calculates node ID from the validator public key")
@@ -904,8 +905,10 @@ async fn main_internal() -> Result <(), String> {
     if let Some(m) = matches.subcommand_matches("getconfig") {
         return getconfig_command(m, conf).await;
     }
-    if let Some(m) = matches.subcommand_matches("bcconfig") {
-        return dump_bc_config_command(m, conf).await;
+    if let Some(matches) = matches.subcommand_matches("dump") {
+        if let Some(m) = matches.subcommand_matches("config") {
+            return dump_bc_config_command(m, conf).await;
+        }
     }
     if let Some(m) = matches.subcommand_matches("nodeid") {
         return nodeid_command(m);

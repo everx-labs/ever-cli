@@ -1195,12 +1195,12 @@ state_init:
 
 ```
 
-### 4.8.4. Decode TVC fields
+### 4.8.4. Decode stateInit fields
 
-TVC can be decoded for network account or file with account BOC or TVC.
+StateInit can be decoded for network account or file with account BOC or TVC.
 
 ```bash
-tonos-cli decode tvc [--tvc] [--boc] <input>
+tonos-cli decode stateinit [--tvc] [--boc] <input>
 ```
 
 `<input>` - depending on the flags this parameter should contain:
@@ -1209,7 +1209,7 @@ tonos-cli decode tvc [--tvc] [--boc] <input>
 - contract network address otherwise.
 
 ```bash
-$ tonos-cli decode tvc --boc account.boc 
+$ tonos-cli decode stateinit --boc account.boc 
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
    input: account.boc
@@ -1227,7 +1227,7 @@ Decoded data:
   "lib":  ""
 }
 
-$ tonos-cli decode tvc --tvc fakeDepool.tvc 
+$ tonos-cli decode stateinit --tvc fakeDepool.tvc 
 Config: default
 Input arguments:
    input: fakeDepool.tvc
@@ -1245,7 +1245,7 @@ Decoded data:
   "lib":  ""
 }
 
-$ tonos-cli decode tvc 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
+$ tonos-cli decode stateinit 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
    input: 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
@@ -2078,7 +2078,7 @@ Input arguments:
 ## 9.4. Dump blockchain config
 
 ```bash
-tonos-cli bcconfig <path>
+tonos-cli dump config <path>
 ```
 
 `<path>` - path where to save the blockchain config dump.
@@ -2086,7 +2086,7 @@ tonos-cli bcconfig <path>
 Example:
 
 ```bash
-$ tonos-cli bcconfig config.boc
+$ tonos-cli dump config config.boc
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
     path: config.boc

@@ -28,8 +28,8 @@ fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
 }
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
-    let tvc_cmd = SubCommand::with_name("tvc")
-        .about("Decodes tvc data (including compiler version) from different sources.")
+    let tvc_cmd = SubCommand::with_name("stateinit")
+        .about("Decodes stateInit data (including compiler version) from different sources.")
         .arg(Arg::with_name("TVC")
             .long("--tvc")
             .conflicts_with("BOC")
@@ -37,7 +37,7 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("BOC")
             .long("--boc")
             .conflicts_with("TVC")
-            .help("Contract is passed via path to the BOC file."))
+            .help("Contract is passed via path to the account BOC file."))
         .arg(Arg::with_name("INPUT")
             .required(true)
             .help("Contract address or path to the file with contract data."));
@@ -104,7 +104,7 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     if let Some(m) = m.subcommand_matches("msg") {
         return decode_message_command(m, config).await;
     }
-    if let Some(m) = m.subcommand_matches("tvc") {
+    if let Some(m) = m.subcommand_matches("stateinit") {
         return decode_tvc_command(m, config).await;
     }
     if let Some(m) = m.subcommand_matches("account") {
@@ -188,10 +188,13 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
             let code = state_init.code.clone()
                 .ok_or("failed to obtain code from the StateInit")?;
             let ton = create_client_local()?;
-            (serde_json::to_string_pretty(
-                &msg_printer::serialize_state_init(state_init, ton).await?)
+            (
+                serde_json::to_string_pretty(
+                    &msg_printer::serialize_state_init(state_init, ton)
+                        .await?)
                  .map_err(|e| format!("Failed to serialize stateInit: {}", e))?,
-             Some(code.repr_hash().to_hex_string()))
+                Some(code.repr_hash().to_hex_string())
+            )
         },
         _ => ("Undefined".to_owned(), None)
     };
@@ -276,7 +279,7 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(),
 
     let ton = create_client_verbose(&config)?;
 
-    let data = query_field(ton.clone(), &address.unwrap(), "data").await?;
+    let data = query_account(ton.clone(), &address.unwrap(), "data").await?;
 
     let res = decode_account_data(
         ton,
@@ -358,7 +361,7 @@ fn load_state_init(m: &ArgMatches<'_>) -> Result<StateInit, String> {
     Ok(stat_init)
 }
 
-async fn query_field(ton: TonClient, address: &str, field: &str) -> Result<String, String> {
+async fn query_account(ton: TonClient, address: &str, field: &str) -> Result<String, String> {
     let accounts = query(
         ton.clone(),
         "accounts",
@@ -378,23 +381,20 @@ async fn query_field(ton: TonClient, address: &str, field: &str) -> Result<Strin
     Ok(data.unwrap().to_string())
 }
 
-fn parse_arg_and_create_client(m: &ArgMatches<'_>, config: Config) -> Result<(String, TonClient), String>{
+async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let input = m.value_of("INPUT");
     if !config.is_json {
         print_args!(input);
     }
-    let ton = if m.is_present("BOC") || m.is_present("TVC") {
+    let is_local = m.is_present("BOC") || m.is_present("TVC");
+    let ton = if is_local {
         create_client_local()?
     } else {
         create_client_verbose(&config)?
     };
+    let input = input.unwrap().to_owned();
 
-    Ok((input.unwrap().to_owned(), ton))
-}
-
-async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    let (input, ton) = parse_arg_and_create_client(m, config.clone())?;
-    let state = if m.is_present("BOC") || m.is_present("TVC") {
+    let state = if is_local {
         load_state_init(m)?
     } else {
         let input = if input.contains(":") {
@@ -402,7 +402,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
         } else {
             format!("{}:{}", config.wc, input)
         };
-        let boc = query_field(ton.clone(), &input, "boc").await?;
+        let boc = query_account(ton.clone(), &input, "boc").await?;
         let account = Account::construct_from_base64(&boc)
             .map_err(|e| format!("Failed to query account BOC: {}", e))?;
         account.state_init().ok_or("Failed to load stateInit from the BOC.")?.to_owned()
@@ -462,10 +462,10 @@ mod msg_printer {
             "special" : state.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
             "data" : tree_of_cells_into_base64(state.data.as_ref())?,
             "code" : code.clone(),
-            "code_hash" : state.code.clone().unwrap().repr_hash().to_hex_string(),
-            "data_hash" : state.data.clone().unwrap().repr_hash().to_hex_string(),
-            "code_depth" : state.code.clone().unwrap().depth(0).to_string(),
-            "data_depth" : state.data.clone().unwrap().depth(0).to_string(),
+            "code_hash" : state.code.as_ref().map(|code| code.repr_hash().to_hex_string()).unwrap_or("None".to_string()),
+            "data_hash" : state.data.as_ref().map(|code| code.repr_hash().to_hex_string()).unwrap_or("None".to_string()),
+            "code_depth" : state.code.as_ref().map(|code| code.repr_depth().to_string()).unwrap_or("None".to_string()),
+            "data_depth" : state.data.as_ref().map(|code| code.repr_depth().to_string()).unwrap_or("None".to_string()),
             "version" : get_code_version(ton, code).await?,
             "lib" : tree_of_cells_into_base64(state.library.root())?,
         }))

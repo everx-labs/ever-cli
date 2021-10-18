@@ -394,9 +394,9 @@ pub async fn run_local_for_account(
 }
 
 fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<ExecutionOptions>, String> {
-    if bc_config.is_some() {
-        let bytes = std::fs::read(bc_config.unwrap())
-            .map_err(|e| format!("Failed to read data from file {}: {}", bc_config.unwrap(), e))?;
+    if let Some(config) = bc_config {
+        let bytes = std::fs::read(config)
+            .map_err(|e| format!("Failed to read data from file {}: {}", config, e))?;
         let config_boc = base64::encode(&bytes);
         let ex_opt = ExecutionOptions{
             blockchain_config: Some(config_boc),

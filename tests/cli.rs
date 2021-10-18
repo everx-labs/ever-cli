@@ -1558,7 +1558,7 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("decode")
-        .arg("tvc")
+        .arg("stateinit")
         .arg(&depool_addr);
     cmd.assert()
         .success()
@@ -1617,7 +1617,7 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
     let boc_path = "tests/account.boc";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("decode")
-        .arg("tvc")
+        .arg("stateinit")
         .arg("--boc")
         .arg(boc_path)
         .assert()
@@ -1630,7 +1630,7 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
     let tvc_path = "tests/samples/fakeDepool.tvc";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("decode")
-        .arg("tvc")
+        .arg("stateinit")
         .arg("--tvc")
         .arg(tvc_path)
         .assert()
@@ -1716,7 +1716,8 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .success();
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("bcconfig")
+    cmd.arg("dump")
+        .arg("config")
         .arg(config_path)
         .assert()
         .success();
