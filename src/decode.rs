@@ -413,10 +413,9 @@ async fn get_version(ton: TonClient, code: String) -> String {
         }
     ).await;
 
-    if result.is_ok() {
-        let result = result.unwrap().version;
-        if result.is_some() {
-            return result.unwrap();
+    if let Ok(result) = result {
+        if let Some(version) = result.version {
+            return version;
         }
     }
     "Undefined".to_owned()
