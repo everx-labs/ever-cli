@@ -57,6 +57,7 @@ tonos-cli <subcommand> -h
       - [4.8.3.2. Decode data from the account BOC file](#4832-decode-data-from-the-account-boc-file)
     - [4.8.4. Decode TVC fields](#484-decode-tvc-fields)
   - [4.9. Generate payload for internal function call](#49-generate-payload-for-internal-function-call)
+  - [4.10. Alternative syntax for call, deploy and run commands](#410-alternative-syntax-for-call-deploy-and-run-commands)
 - [5. DeBot commands](#5-debot-commands)
 - [6. Multisig commands](#6-multisig-commands)
   - [6.1. Send tokens](#61-send-tokens)
@@ -749,6 +750,8 @@ Result: {
 tonos-cli callex <method> [<address>] [<contract.abi.json>] [<seed_or_keyfile>] params...
 ```
 
+**Note:** this command is deprecated, use [`callx`](#410-alternative-syntax-for-call-deploy-and-run-commands) instead.
+
 `<method>` - the method being called.
 
 `<address>` - contract [address](#41-generate-contract-address).
@@ -1287,6 +1290,26 @@ Input arguments:
      abi: SetcodeMultisigWallet.abi.json
   output: None
 Message body: te6ccgEBAgEAOwABaxMdgs2f4YuqQqYv2R3eNwmIeX4QpHhn7SzubLvRH8ey1BZjazjAAAAAAAAAAAAAAAABvlHQBAEAAA==
+```
+
+## 4.10. Alternative syntax for call, deploy and run commands
+
+To facilitate usage of tonos-cli use commands `callx`, `runx` and `deployx` instead of `call`, `run` and `deploy`.
+These alternative syntax commands have almost the same syntax as classic, but allow to specify address, abi and keys
+options in the config file. Also, this commands allow to skip params option if command doesn't need it.  
+Examples:
+
+```bash
+# specify options manually
+tonos-cli callx --keys giver.key --abi giver.abi.json --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
+
+# options are taken from the config
+tonos-cli config --abi giver.abi.json --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --keys giver.key
+tonos-cli callx sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
+
+# if contract function or constructor doesn't take arguments, parameters can be skipped
+tonos-cli deployx contract.tvc
+tonos-cli runx getParameters
 ```
 
 # 5. DeBot commands
