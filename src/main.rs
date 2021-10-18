@@ -213,7 +213,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("ADDRESS")
             .long("--addr")
             .takes_value(true)
-            .help("Contract address or path to the saved account state if --boc flag is specified."))
+            .help("Contract address or path to the saved account state if --boc or --tvc flag is specified."))
         .arg(abi_arg.clone())
         .arg(Arg::with_name("METHOD")
             .help("Name of the function being called.")
@@ -224,7 +224,12 @@ async fn main_internal() -> Result <(), String> {
             .multiple(true))
         .arg(Arg::with_name("BOC")
             .long("--boc")
-            .help("Flag that changes behavior of the command to work with the saved account state."))
+            .conflicts_with("TVC")
+            .help("Flag that changes behavior of the command to work with the saved account state (account BOC)."))
+        .arg(Arg::with_name("TVC")
+            .long("--tvc")
+            .conflicts_with("BOC")
+            .help("Flag that changes behavior of the command to work with the saved contract state (stateInit TVC)."))
         .arg(Arg::with_name("BCCONFIG")
             .long("--bc_config")
             .requires("BOC")
@@ -238,7 +243,7 @@ async fn main_internal() -> Result <(), String> {
         .setting(AppSettings::DontCollapseArgsInUsage)
         .arg(Arg::with_name("ADDRESS")
             .required(true)
-            .help("Contract address or path to the saved account state if --boc flag is specified."))
+            .help("Contract address or path to the saved account state if --boc or --tvc flag is specified."))
         .arg(Arg::with_name("METHOD")
             .required(true)
             .help("Name of the function being called."))
@@ -247,7 +252,12 @@ async fn main_internal() -> Result <(), String> {
             .multiple(true))
         .arg(Arg::with_name("BOC")
             .long("--boc")
-            .help("Flag that changes behavior of the command to work with the saved account state."))
+            .conflicts_with("TVC")
+            .help("Flag that changes behavior of the command to work with the saved account state(account BOC)."))
+        .arg(Arg::with_name("TVC")
+            .long("--tvc")
+            .conflicts_with("BOC")
+            .help("Flag that changes behavior of the command to work with the saved contract state (stateInit TVC)."))
         .arg(Arg::with_name("BCCONFIG")
             .long("--bc_config")
             .requires("BOC")
@@ -424,13 +434,18 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("ADDRESS")
             .required(true)
             .takes_value(true)
-            .help("Contract address or path to the saved account state if --boc flag is specified."))
+            .help("Contract address or path to the saved account state if --boc or --tvc flag is specified."))
         .arg(method_arg.clone())
         .arg(params_arg.clone())
         .arg(abi_arg.clone())
         .arg(Arg::with_name("BOC")
             .long("--boc")
-            .help("Flag that changes behavior of the command to work with the saved account state."))
+            .conflicts_with("TVC")
+            .help("Flag that changes behavior of the command to work with the saved account state (account BOC)."))
+        .arg(Arg::with_name("TVC")
+            .long("--tvc")
+            .conflicts_with("BOC")
+            .help("Flag that changes behavior of the command to work with the saved contract state (stateInit TVC)."))
         .arg(Arg::with_name("BCCONFIG")
             .long("--bc_config")
             .requires("BOC")
@@ -831,7 +846,7 @@ async fn main_internal() -> Result <(), String> {
         return call_command(m, conf, CallType::Call).await;
     }
     if let Some(m) = matches.subcommand_matches("run") {
-        return if m.is_present("BOC") {
+        return if m.is_present("BOC") || m.is_present("TVC") {
             run_account(m, conf).await
         } else {
             call_command(m, conf, CallType::Run).await
@@ -1050,6 +1065,7 @@ async fn runx_account(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
                           method.unwrap(),
                           &params.unwrap(),
                           bc_config,
+                          matches.is_present("TVC"),
     ).await
 }
 
@@ -1075,6 +1091,7 @@ async fn run_account(matches: &ArgMatches<'_>, config: Config) -> Result<(), Str
         method.unwrap(),
         &params.unwrap(),
         bc_config,
+        matches.is_present("TVC"),
     ).await
 }
 
@@ -1232,14 +1249,15 @@ async fn runget_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
     if !config.is_json {
         print_args!(address, method, params);
     }
-    let is_boc = matches.is_present("BOC");
-    let address =  if is_boc {
+    let is_local = matches.is_present("BOC") || matches.is_present("TVC");
+    let is_tvc = matches.is_present("TVC");
+    let address =  if is_local {
         address.unwrap().to_string()
     } else {
         load_ton_address(address.unwrap(), &config)?
     };
     let bc_config = matches.value_of("BCCONFIG");
-    run_get_method(config, &address, method.unwrap(), params, is_boc, bc_config).await
+    run_get_method(config, &address, method.unwrap(), params, is_local, is_tvc, bc_config).await
 }
 
 fn wc_from_matches_or_config(matches: &ArgMatches<'_>, config: Config) -> Result<i32 ,String> {
