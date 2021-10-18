@@ -30,6 +30,7 @@ fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
     let tvc_cmd = SubCommand::with_name("tvc")
+        .setting(AppSettings::AllowLeadingHyphen)
         .about("Decodes tvc data (including compiler version) from different sources.")
         .arg(Arg::with_name("TVC")
             .long("--tvc")
@@ -404,21 +405,21 @@ fn parse_arg_and_create_client(m: &ArgMatches<'_>, config: Config) -> Result<(St
     Ok((input.unwrap().to_owned(), ton))
 }
 
-async fn get_version(ton: TonClient, code: String) -> Result<String, String>{
+async fn get_version(ton: TonClient, code: String) -> String {
     let result = get_compiler_version(
         ton,
         ParamsOfGetCompilerVersion {
             code
         }
-    ).await
-        .map_err(|e| format!("Failed to get compiler version: {}", e))?;
+    ).await;
 
-    let version = if result.version.is_some() {
-        result.version.unwrap()
-    } else {
-        "Undefined".to_owned()
-    };
-    Ok(version)
+    if result.is_ok() {
+        let result = result.unwrap().version;
+        if result.is_some() {
+            return result.unwrap();
+        }
+    }
+    "Undefined".to_owned()
 }
 
 
@@ -462,7 +463,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
         state.data.clone().unwrap().repr_hash().to_hex_string(),
         state.code.clone().unwrap().repr_depth(),
         state.data.clone().unwrap().repr_depth(),
-        get_version(ton, code).await?,
+        get_version(ton, code).await,
         tree_of_cells_into_base64(state.library.root())?,
     );
     Ok(())
