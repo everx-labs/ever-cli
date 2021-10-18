@@ -460,8 +460,8 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
         code.clone(),
         state.code.clone().unwrap().repr_hash().to_hex_string(),
         state.data.clone().unwrap().repr_hash().to_hex_string(),
-        state.code.clone().unwrap().depth(0),
-        state.data.clone().unwrap().depth(0),
+        state.code.clone().unwrap().repr_depth(),
+        state.data.clone().unwrap().repr_depth(),
         get_version(ton, code).await?,
         tree_of_cells_into_base64(state.library.root())?,
     );
