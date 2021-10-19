@@ -45,7 +45,7 @@ use ton_client::processing::{
     send_message,
 };
 use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet, run_executor, ParamsOfRunExecutor, AccountForExecutor, ExecutionOptions};
-use ton_block::{Account, Serializable, Deserializable};
+use ton_block::{Account, Serializable, Deserializable, MsgAddressInt, CurrencyCollection, StateInit};
 use std::str::FromStr;
 use serde_json::{Value, Map};
 
@@ -332,6 +332,22 @@ pub async fn emulate_locally(
     Ok(())
 }
 
+fn load_account(path: &str, from_tvc: bool) -> Result<Account, String> {
+    Ok(if from_tvc {
+        Account::active_by_init_code_hash(
+            MsgAddressInt::default(),
+            CurrencyCollection::default(),
+            0,
+            StateInit::construct_from_file(path)
+                .map_err(|e| format!(" failed to load TVC from the file {}: {}", path, e))?,
+            true
+        ).map_err(|e| format!(" failed to create account with the stateInit: {}",e))?
+    } else {
+        Account::construct_from_file(path)
+            .map_err(|e| format!(" failed to load account from the file {}: {}", path, e))?
+    })
+}
+
 pub async fn run_local_for_account(
     conf: Config,
     account: &str,
@@ -339,6 +355,7 @@ pub async fn run_local_for_account(
     method: &str,
     params: &str,
     bc_config: Option<&str>,
+    is_tvc: bool,
 ) -> Result<(), String> {
 
     if !conf.is_json {
@@ -348,8 +365,7 @@ pub async fn run_local_for_account(
     let ton = create_client_local()?;
     let abi = load_abi(&abi)?;
 
-    let acc = Account::construct_from_file(account)
-        .map_err(|e| format!(" failed to load account from the file {}: {}", account, e))?;
+    let acc = load_account(account, is_tvc)?;
 
     let acc_bytes = acc.write_to_bytes()
         .map_err(|e| format!("failed to load data from the account: {}", e))?;
@@ -705,16 +721,15 @@ pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<St
     }
 }
 
-pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>, is_boc:bool, bc_config: Option<&str>) -> Result<(), String> {
-    let ton = if !is_boc {
+pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>, is_local: bool, is_tvc: bool, bc_config: Option<&str>) -> Result<(), String> {
+    let ton = if !is_local {
         create_client_verbose(&conf)?
     } else {
         create_client_local()?
     };
 
-    let acc_boc = if is_boc {
-        let acc = Account::construct_from_file(addr)
-            .map_err(|e| format!(" failed to load account from the file {}: {}", addr, e))?;
+    let acc_boc = if is_local {
+        let acc = load_account(addr, is_tvc)?;
         let acc_bytes = acc.write_to_bytes()
             .map_err(|e| format!("failed to load data from the account: {}", e))?;
         base64::encode(&acc_bytes)
