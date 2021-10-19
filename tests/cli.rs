@@ -2050,6 +2050,40 @@ fn test_multisig() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Wallet successfully deployed"));
 
+    let owners_string = format!(r#"{},{},{}"]"#, key1, key2, key3);
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("multisig")
+        .arg("deploy")
+        .arg("-k")
+        .arg(key_path2)
+        .arg("--owners")
+        .arg(owners_string)
+        .arg("--confirms")
+        .arg("2")
+        .arg("-l")
+        .arg("5000000000")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Wallet successfully deployed"));
+
+    let owners_string = format!(r#"0x{},"0x{}',"{}""]"#, key1, key2, key3);
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("multisig")
+        .arg("deploy")
+        .arg("-k")
+        .arg(key_path3)
+        .arg("--owners")
+        .arg(owners_string)
+        .arg("--confirms")
+        .arg("2")
+        .arg("-l")
+        .arg("5000000000")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Wallet successfully deployed"));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
         .arg("--abi")
