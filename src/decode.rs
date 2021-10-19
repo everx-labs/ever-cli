@@ -29,7 +29,8 @@ fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
     let tvc_cmd = SubCommand::with_name("stateinit")
-        .about("Decodes stateInit data (including compiler version) from different sources.")
+        .setting(AppSettings::AllowLeadingHyphen)
+        .about("Decodes tvc data (including compiler version) from different sources.")
         .arg(Arg::with_name("TVC")
             .long("--tvc")
             .conflicts_with("BOC")
