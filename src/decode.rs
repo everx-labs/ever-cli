@@ -439,21 +439,20 @@ mod msg_printer {
         }
     }
 
-    async fn get_code_version(ton: TonClient, code: String) -> Result<String, String>{
+    async fn get_code_version(ton: TonClient, code: String) -> String {
         let result = get_compiler_version(
             ton,
             ParamsOfGetCompilerVersion {
                 code
             }
-        ).await
-            .map_err(|e| format!("Failed to get compiler version: {}", e))?;
+        ).await;
 
-        let version = if result.version.is_some() {
-            result.version.unwrap()
-        } else {
-            "Undefined".to_owned()
-        };
-        Ok(version)
+        if let Ok(result) = result {
+            if let Some(version) = result.version {
+                return version;
+            }
+        }
+        "Undefined".to_owned()
     }
 
     pub async fn serialize_state_init (state: &StateInit, ton: TonClient) -> Result<Value, String> {
@@ -467,7 +466,7 @@ mod msg_printer {
             "data_hash" : state.data.as_ref().map(|code| code.repr_hash().to_hex_string()).unwrap_or("None".to_string()),
             "code_depth" : state.code.as_ref().map(|code| code.repr_depth().to_string()).unwrap_or("None".to_string()),
             "data_depth" : state.data.as_ref().map(|code| code.repr_depth().to_string()).unwrap_or("None".to_string()),
-            "version" : get_code_version(ton, code).await?,
+            "version" : get_code_version(ton, code).await,
             "lib" : tree_of_cells_into_base64(state.library.root())?,
         }))
     }

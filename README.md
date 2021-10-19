@@ -1450,6 +1450,9 @@ MessageId: 3c3537e36e2a4a4018b7463db2bf57efad5dc0dc0233b040c2f5e165cb43e887
 MessageId: 8102067efc190b2e728d91d632c985634fc4717b7ae1137a4bbcf756c4cf8705
 Wallet successfully deployed
 Wallet address: 0:4d892e63989c1c0ad64b0bbe22e8d036b0da271c19b6686d01bd29a99dcbc86d
+
+# deploy with owners
+tonos-cli multisig deploy -l 5000000000 -c 2 -o '["0x8b445b0feab10b9abf4e039d649348ec8662e3673fe9c37b7208c4d9d04c9b3f","0xddc5bc7198c90feb75d9ce09e1b1f25a7e14a252fef31b50fac048c6ac3ee46c"]' -k test.key 
 ```
 
 # 7. DePool commands
