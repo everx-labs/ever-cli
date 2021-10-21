@@ -857,11 +857,12 @@ Result: {
 ### 4.4.4. Run funC get-method
 
 ```bash
-tonos-cli runget [--boc] <address> <method> [<params>...] [--bc_config <config_path>]
+tonos-cli runget [--boc] [--tvc] <address> <method> [<params>...] [--bc_config <config_path>]
 ```
 
-`<address>` - contract [address](#41-generate-contract-address) or path to the file with account boc
-(It can be obtained from the TON Live) if `--boc` option is used.
+`<address>` - contract [address](#41-generate-contract-address) or path to the file with:
+* account boc (It can be obtained from the TON Live) if `--boc` option is used;
+* account state init if flag `--tvc` is used.
 
 `<method>` - the method being called.
 
@@ -895,19 +896,31 @@ Connecting to main.ton.dev
 Running get-method...
 Succeeded.
 Result: ["125387107580525"]
+
+$ tonos-cli runget --tvc acc.tvc compute_returned_stake 0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+ address: acc.boc
+  method: compute_returned_stake
+  params: ["0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587"]
+Connecting to main.ton.dev
+Running get-method...
+Succeeded.
+Result: ["125387107580525"]
 ```
 
 
 
-### 4.4.5. Run contract method locally for saved account state
+### 4.4.5. Run contract method locally for saved account BOC
 
 ```bash
-tonos-cli run --boc [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>]
+tonos-cli run [--boc] [--tvc] [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>]
 ```
 
 `<contract.abi.json>` - contract interface file.
 
-`<account>` - path to the file with account boc (It can be obtained from the TON Live). 
+`<account>` - path to the file with account boc for flag `--boc` or account state init for flag `--tvc`
+(they can be obtained from the network with `account` command). 
 
 `<method>` - the method being called.
 
@@ -920,6 +933,25 @@ Example:
 
 ```bash
 $ tonos-cli run --boc tests/depool_acc.boc getData '{}' --abi tests/samples/fakeDepool.abi.json 
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+ account: tests/depool_acc.boc
+  method: getData
+  params: {}
+     abi: tests/samples/fakeDepool.abi.json
+Generating external inbound message...
+Succeeded.
+Result: {
+  "stake": "65535",
+  "sender": "0:1e0739795a20263747ba659785a791fc2761295593a694f53116ab53439cc0a4",
+  "receiver": "0:0123456789012345012345678901234501234567890123450123456789012346",
+  "withdrawal": "172800",
+  "total": "172800",
+  "reinvest": false,
+  "value": "1000000000"
+}
+
+$ tonos-cli run --tvc tests/depool_acc.tvc getData '{}' --abi tests/samples/fakeDepool.abi.json 
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
  account: tests/depool_acc.boc
@@ -1195,12 +1227,12 @@ state_init:
 
 ```
 
-### 4.8.4. Decode TVC fields
+### 4.8.4. Decode stateInit fields
 
-TVC can be decoded for network account or file with account BOC or TVC.
+StateInit can be decoded for network account or file with account BOC or TVC.
 
 ```bash
-tonos-cli decode tvc [--tvc] [--boc] <input>
+tonos-cli decode stateinit [--tvc] [--boc] <input>
 ```
 
 `<input>` - depending on the flags this parameter should contain:
@@ -1209,7 +1241,7 @@ tonos-cli decode tvc [--tvc] [--boc] <input>
 - contract network address otherwise.
 
 ```bash
-$ tonos-cli decode tvc --boc account.boc 
+$ tonos-cli decode stateinit --boc account.boc 
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
    input: account.boc
@@ -1227,7 +1259,7 @@ Decoded data:
   "lib":  ""
 }
 
-$ tonos-cli decode tvc --tvc fakeDepool.tvc 
+$ tonos-cli decode stateinit --tvc fakeDepool.tvc 
 Config: default
 Input arguments:
    input: fakeDepool.tvc
@@ -1245,7 +1277,7 @@ Decoded data:
   "lib":  ""
 }
 
-$ tonos-cli decode tvc 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
+$ tonos-cli decode stateinit 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
    input: 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
@@ -1418,6 +1450,9 @@ MessageId: 3c3537e36e2a4a4018b7463db2bf57efad5dc0dc0233b040c2f5e165cb43e887
 MessageId: 8102067efc190b2e728d91d632c985634fc4717b7ae1137a4bbcf756c4cf8705
 Wallet successfully deployed
 Wallet address: 0:4d892e63989c1c0ad64b0bbe22e8d036b0da271c19b6686d01bd29a99dcbc86d
+
+# deploy with owners
+tonos-cli multisig deploy -l 5000000000 -c 2 -o '["0x8b445b0feab10b9abf4e039d649348ec8662e3673fe9c37b7208c4d9d04c9b3f","0xddc5bc7198c90feb75d9ce09e1b1f25a7e14a252fef31b50fac048c6ac3ee46c"]' -k test.key 
 ```
 
 # 7. DePool commands
@@ -2078,7 +2113,7 @@ Input arguments:
 ## 9.4. Dump blockchain config
 
 ```bash
-tonos-cli bcconfig <path>
+tonos-cli dump config <path>
 ```
 
 `<path>` - path where to save the blockchain config dump.
@@ -2086,7 +2121,7 @@ tonos-cli bcconfig <path>
 Example:
 
 ```bash
-$ tonos-cli bcconfig config.boc
+$ tonos-cli dump config config.boc
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
     path: config.boc
