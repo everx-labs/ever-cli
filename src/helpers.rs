@@ -144,12 +144,13 @@ pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
     create_client(conf)
 }
 
-pub async fn query(
+pub async fn query_with_limit(
     ton: TonClient,
     collection: &str,
     filter: serde_json::Value,
     result: &str,
     order: Option<Vec<OrderBy>>,
+    limit: Option<u32>,
 ) -> Result<Vec<serde_json::Value>, ClientError> {
     query_collection(
         ton,
@@ -158,11 +159,22 @@ pub async fn query(
             filter: Some(filter),
             result: result.to_owned(),
             order,
+            limit,
             ..Default::default()
         },
     )
-    .await
-    .map(|r| r.result)
+        .await
+        .map(|r| r.result)
+}
+
+pub async fn query(
+    ton: TonClient,
+    collection: &str,
+    filter: serde_json::Value,
+    result: &str,
+    order: Option<Vec<OrderBy>>,
+) -> Result<Vec<serde_json::Value>, ClientError> {
+    query_with_limit(ton, collection, filter, result, order, None).await
 }
 
 pub async fn decode_msg_body(

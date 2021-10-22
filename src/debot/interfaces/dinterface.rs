@@ -66,7 +66,8 @@ impl SupportedInterfaces {
             Arc::new(EncryptionBoxInput::new(client.clone()));
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(UserInfo::new(conf.clone()));
+        let iface: Arc<dyn DebotInterface + Send + Sync> =
+            Arc::new(UserInfo::new(client.clone(), conf.clone()));
         interfaces.insert(iface.get_id(), iface);
 
         Self { client, interfaces }

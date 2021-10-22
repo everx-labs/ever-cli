@@ -1,159 +1,138 @@
+.version sol 0.51.0
+
 .macro constructor
 DROP
-GETGLOB 1
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7_with_init_storage$
 }
-;; constructor protection
 GETGLOB 6
 THROWIF 51
-PUSHINT 1
-SETGLOB 6
-;; end constructor protection
 ENDS
 ACCEPT
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .macro sendAnswer
 DROP
-; Decode input parameters
+GETGLOB 6
+THROWIFNOT 76
+.loc fakeDepool.sol, 11
 ENDS
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $sendAnswer_internal_macro$
 }
 IFREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	sendAnswer_internal
 .type	sendAnswer_internal, @function
 CALL $sendAnswer_internal_macro$
 
 .macro sendAnswer_internal_macro
-; function sendAnswer
-;; Remote call IFakeDePoolClient.receiveAnswer
-;; get member sender
+.loc fakeDepool.sol, 12
+PUSHINT 222
+PUSHINT 11
 GETGLOB 9
 NEWC
 STSLICECONST x62_
 STSLICE
 PUSHSLICE x39896800000000000000000000000000007e213c89_
 STSLICER
-;; errcode
-PUSHINT 11
-STUR 32
-;; comment
-PUSHINT 222
-STUR 64
+STU 32
+STU 64
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function sendAnswer
+.loc fakeDepool.sol, 0
 
 .macro addOrdinaryStake
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
-; Decode stake
+.loc fakeDepool.sol, 25
 LDU 64
 ENDS
-;; param: stake
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $addOrdinaryStake_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	addOrdinaryStake_internal
 .type	addOrdinaryStake_internal, @function
 CALL $addOrdinaryStake_internal_macro$
 
 .macro addOrdinaryStake_internal_macro
-;; param: stake
-; function addOrdinaryStake
-; expValue
-; end expValue
-;; push identifier stake
-DUP
-; colValue
+.loc fakeDepool.sol, 26
 SETGLOB 10
-; end colValue
-; expValue
-; end expValue
-;; get member sender
+.loc fakeDepool.sol, 27
 GETGLOB 9
-; colValue
 SETGLOB 11
-; end colValue
-; expValue
-; end expValue
-;; get member value
-CALLREF {
-	CALL $message_balance_macro$
-}
-; colValue
+.loc fakeDepool.sol, 28
+DEPTH
+ADDCONST -2
+PICK
 SETGLOB 16
-; end colValue
-;; Remote call IFakeDePoolClient.receiveAnswer
-;; get member sender
+.loc fakeDepool.sol, 29
+PUSHINT 222
+PUSHINT 11
 GETGLOB 9
 NEWC
 STSLICECONST x62_
 STSLICE
 PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
 STSLICER
-;; errcode
-PUSHINT 11
-STUR 32
-;; comment
-PUSHINT 222
-STUR 64
+STU 32
+STU 64
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function addOrdinaryStake
-DROP
+.loc fakeDepool.sol, 0
 
 .macro addVestingStake
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
-; Decode stake
+.loc fakeDepool.sol, 32
 LDU 64
-; Decode beneficiary
-LDMSGADDR
-; Decode withdrawalPeriod
+LDMSGADDRQ
+PUSHCONT {
+	LDREF
+	ENDS
+	CTOS
+	LDMSGADDR
+}
+IFNOT
 LDUQ 32
 PUSHCONT {
-	;; load next cell
 	LDREF
 	ENDS
 	CTOS
 	LDU 32
 }
 IFNOT
-; Decode totalPeriod
 LDUQ 32
 PUSHCONT {
-	;; load next cell
 	LDREF
 	ENDS
 	CTOS
@@ -161,119 +140,84 @@ PUSHCONT {
 }
 IFNOT
 ENDS
-;; param: stake
-;; param: beneficiary
-;; param: withdrawalPeriod
-;; param: totalPeriod
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $addVestingStake_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	addVestingStake_internal
 .type	addVestingStake_internal, @function
 CALL $addVestingStake_internal_macro$
 
 .macro addVestingStake_internal_macro
-;; param: stake
-;; param: beneficiary
-;; param: withdrawalPeriod
-;; param: totalPeriod
-; function addVestingStake
-; expValue
-; end expValue
-;; get member sender
+.loc fakeDepool.sol, 33
 GETGLOB 9
-; colValue
 SETGLOB 11
-; end colValue
-; expValue
-; end expValue
-;; get member value
-CALLREF {
-	CALL $message_balance_macro$
-}
-; colValue
+.loc fakeDepool.sol, 34
+DEPTH
+ADDCONST -2
+PICK
 SETGLOB 16
-; end colValue
-; expValue
-; end expValue
-;; push identifier stake
-PUSH S3
-; colValue
+.loc fakeDepool.sol, 35
+ROLL 3
 SETGLOB 10
-; end colValue
-; expValue
-; end expValue
-;; push identifier beneficiary
-PUSH S2
-; colValue
+.loc fakeDepool.sol, 36
+ROT
 SETGLOB 12
-; end colValue
-; expValue
-; end expValue
-;; push identifier withdrawalPeriod
-PUSH S1
-; colValue
+.loc fakeDepool.sol, 37
+SWAP
 SETGLOB 13
-; end colValue
-; expValue
-; end expValue
-;; push identifier totalPeriod
-DUP
-; colValue
+.loc fakeDepool.sol, 38
 SETGLOB 14
-; end colValue
-;; Remote call IFakeDePoolClient.receiveAnswer
-;; get member sender
+.loc fakeDepool.sol, 39
+PUSHINT 0
+DUP
 GETGLOB 9
 NEWC
 STSLICECONST x62_
 STSLICE
 PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
 STSLICER
-;; errcode
-PUSHINT 0
-STUR 32
-;; comment
-PUSHINT 0
-STUR 64
+STU 32
+STU 64
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function addVestingStake
-BLKDROP 4
+.loc fakeDepool.sol, 0
 
 .macro addLockStake
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
-; Decode stake
+.loc fakeDepool.sol, 42
 LDU 64
-; Decode beneficiary
-LDMSGADDR
-; Decode withdrawalPeriod
+LDMSGADDRQ
+PUSHCONT {
+	LDREF
+	ENDS
+	CTOS
+	LDMSGADDR
+}
+IFNOT
 LDUQ 32
 PUSHCONT {
-	;; load next cell
 	LDREF
 	ENDS
 	CTOS
 	LDU 32
 }
 IFNOT
-; Decode totalPeriod
 LDUQ 32
 PUSHCONT {
-	;; load next cell
 	LDREF
 	ENDS
 	CTOS
@@ -281,489 +225,366 @@ PUSHCONT {
 }
 IFNOT
 ENDS
-;; param: stake
-;; param: beneficiary
-;; param: withdrawalPeriod
-;; param: totalPeriod
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $addLockStake_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	addLockStake_internal
 .type	addLockStake_internal, @function
 CALL $addLockStake_internal_macro$
 
 .macro addLockStake_internal_macro
-;; param: stake
-;; param: beneficiary
-;; param: withdrawalPeriod
-;; param: totalPeriod
-; function addLockStake
-; expValue
-; end expValue
-;; get member sender
+.loc fakeDepool.sol, 43
 GETGLOB 9
-; colValue
 SETGLOB 11
-; end colValue
-; expValue
-; end expValue
-;; get member value
-CALLREF {
-	CALL $message_balance_macro$
-}
-; colValue
+.loc fakeDepool.sol, 44
+DEPTH
+ADDCONST -2
+PICK
 SETGLOB 16
-; end colValue
-; expValue
-; end expValue
-;; push identifier stake
-PUSH S3
-; colValue
+.loc fakeDepool.sol, 45
+ROLL 3
 SETGLOB 10
-; end colValue
-; expValue
-; end expValue
-;; push identifier beneficiary
-PUSH S2
-; colValue
+.loc fakeDepool.sol, 46
+ROT
 SETGLOB 12
-; end colValue
-; expValue
-; end expValue
-;; push identifier withdrawalPeriod
-PUSH S1
-; colValue
+.loc fakeDepool.sol, 47
+SWAP
 SETGLOB 13
-; end colValue
-; expValue
-; end expValue
-;; push identifier totalPeriod
-DUP
-; colValue
+.loc fakeDepool.sol, 48
 SETGLOB 14
-; end colValue
-;; Remote call IFakeDePoolClient.receiveAnswer
-;; get member sender
+.loc fakeDepool.sol, 49
+PUSHINT 0
+DUP
 GETGLOB 9
 NEWC
 STSLICECONST x62_
 STSLICE
 PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
 STSLICER
-;; errcode
-PUSHINT 0
-STUR 32
-;; comment
-PUSHINT 0
-STUR 64
+STU 32
+STU 64
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function addLockStake
-BLKDROP 4
+.loc fakeDepool.sol, 0
 
 .macro withdrawFromPoolingRound
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
-; Decode withdrawValue
+.loc fakeDepool.sol, 52
 LDU 64
 ENDS
-;; param: withdrawValue
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $withdrawFromPoolingRound_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	withdrawFromPoolingRound_internal
 .type	withdrawFromPoolingRound_internal, @function
 CALL $withdrawFromPoolingRound_internal_macro$
 
 .macro withdrawFromPoolingRound_internal_macro
-;; param: withdrawValue
-; function withdrawFromPoolingRound
-; expValue
-; end expValue
-;; get member sender
+.loc fakeDepool.sol, 53
 GETGLOB 9
-; colValue
 SETGLOB 11
-; end colValue
-; expValue
-; end expValue
-;; get member value
-CALLREF {
-	CALL $message_balance_macro$
-}
-; colValue
+.loc fakeDepool.sol, 54
+DEPTH
+ADDCONST -2
+PICK
 SETGLOB 16
-; end colValue
-; expValue
-; end expValue
-;; push identifier withdrawValue
-DUP
-; colValue
+.loc fakeDepool.sol, 55
 SETGLOB 10
-; end colValue
-;; Remote call IFakeDePoolClient.receiveAnswer
-;; get member sender
+.loc fakeDepool.sol, 56
+PUSHINT 0
+DUP
 GETGLOB 9
 NEWC
 STSLICECONST x62_
 STSLICE
 PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
 STSLICER
-;; errcode
-PUSHINT 0
-STUR 32
-;; comment
-PUSHINT 0
-STUR 64
+STU 32
+STU 64
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function withdrawFromPoolingRound
-DROP
+.loc fakeDepool.sol, 0
 
 .macro withdrawPart
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
-; Decode withdrawValue
+.loc fakeDepool.sol, 59
 LDU 64
 ENDS
-;; param: withdrawValue
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $withdrawPart_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	withdrawPart_internal
 .type	withdrawPart_internal, @function
 CALL $withdrawPart_internal_macro$
 
 .macro withdrawPart_internal_macro
-;; param: withdrawValue
-; function withdrawPart
-; expValue
-; end expValue
-;; get member sender
+.loc fakeDepool.sol, 60
 GETGLOB 9
-; colValue
 SETGLOB 11
-; end colValue
-; expValue
-; end expValue
-;; get member value
-CALLREF {
-	CALL $message_balance_macro$
-}
-; colValue
+.loc fakeDepool.sol, 61
+DEPTH
+ADDCONST -2
+PICK
 SETGLOB 16
-; end colValue
-; expValue
-; end expValue
-;; push identifier withdrawValue
-DUP
-; colValue
+.loc fakeDepool.sol, 62
 SETGLOB 10
-; end colValue
-;; Remote call IFakeDePoolClient.receiveAnswer
-;; get member sender
+.loc fakeDepool.sol, 63
+PUSHINT 0
+DUP
 GETGLOB 9
 NEWC
 STSLICECONST x62_
 STSLICE
 PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
 STSLICER
-;; errcode
-PUSHINT 0
-STUR 32
-;; comment
-PUSHINT 0
-STUR 64
+STU 32
+STU 64
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function withdrawPart
-DROP
+.loc fakeDepool.sol, 0
 
 .macro withdrawAll
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
+.loc fakeDepool.sol, 66
 ENDS
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $withdrawAll_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	withdrawAll_internal
 .type	withdrawAll_internal, @function
 CALL $withdrawAll_internal_macro$
 
 .macro withdrawAll_internal_macro
-; function withdrawAll
-; expValue
-; end expValue
-;; get member sender
+.loc fakeDepool.sol, 67
 GETGLOB 9
-; colValue
 SETGLOB 11
-; end colValue
-; expValue
-; end expValue
-;; get member value
-CALLREF {
-	CALL $message_balance_macro$
-}
-; colValue
+.loc fakeDepool.sol, 68
+DEPTH
+ADDCONST -2
+PICK
 SETGLOB 16
-; end colValue
-; expValue
-; end expValue
+.loc fakeDepool.sol, 69
 FALSE
-; colValue
 SETGLOB 15
-; end colValue
-;; Remote call IFakeDePoolClient.receiveAnswer
-;; get member sender
+.loc fakeDepool.sol, 70
+PUSHINT 0
+DUP
 GETGLOB 9
 NEWC
 STSLICECONST x62_
 STSLICE
 PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
 STSLICER
-;; errcode
-PUSHINT 0
-STUR 32
-;; comment
-PUSHINT 0
-STUR 64
+STU 32
+STU 64
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function withdrawAll
+.loc fakeDepool.sol, 0
 
 .macro cancelWithdrawal
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
+.loc fakeDepool.sol, 73
 ENDS
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $cancelWithdrawal_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	cancelWithdrawal_internal
 .type	cancelWithdrawal_internal, @function
 CALL $cancelWithdrawal_internal_macro$
 
 .macro cancelWithdrawal_internal_macro
-; function cancelWithdrawal
-; expValue
-; end expValue
-;; get member sender
+.loc fakeDepool.sol, 74
 GETGLOB 9
-; colValue
 SETGLOB 11
-; end colValue
-; expValue
-; end expValue
-;; get member value
-CALLREF {
-	CALL $message_balance_macro$
-}
-; colValue
+.loc fakeDepool.sol, 75
+DEPTH
+ADDCONST -2
+PICK
 SETGLOB 16
-; end colValue
-; expValue
-; end expValue
+.loc fakeDepool.sol, 76
 TRUE
-; colValue
 SETGLOB 15
-; end colValue
-;; Remote call IFakeDePoolClient.receiveAnswer
-;; get member sender
+.loc fakeDepool.sol, 77
+PUSHINT 0
+DUP
 GETGLOB 9
 NEWC
 STSLICECONST x62_
 STSLICE
 PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
 STSLICER
-;; errcode
-PUSHINT 0
-STUR 32
-;; comment
-PUSHINT 0
-STUR 64
+STU 32
+STU 64
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function cancelWithdrawal
+.loc fakeDepool.sol, 0
 
 .macro transferStake
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
-; Decode dest
-LDMSGADDR
-; Decode amount
-LDU 64
+.loc fakeDepool.sol, 80
+LDMSGADDRQ
+PUSHCONT {
+	LDREF
+	ENDS
+	CTOS
+	LDMSGADDR
+}
+IFNOT
+LDUQ 64
+PUSHCONT {
+	LDREF
+	ENDS
+	CTOS
+	LDU 64
+}
+IFNOT
 ENDS
-;; param: dest
-;; param: amount
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $transferStake_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	transferStake_internal
 .type	transferStake_internal, @function
 CALL $transferStake_internal_macro$
 
 .macro transferStake_internal_macro
-;; param: dest
-;; param: amount
-; function transferStake
-; expValue
-; end expValue
-;; get member sender
+.loc fakeDepool.sol, 81
 GETGLOB 9
-; colValue
 SETGLOB 11
-; end colValue
-; expValue
-; end expValue
-;; get member value
-CALLREF {
-	CALL $message_balance_macro$
-}
-; colValue
+.loc fakeDepool.sol, 82
+DEPTH
+ADDCONST -2
+PICK
 SETGLOB 16
-; end colValue
-; expValue
-; end expValue
-;; push identifier amount
-DUP
-; colValue
+.loc fakeDepool.sol, 83
 SETGLOB 10
-; end colValue
-; expValue
-; end expValue
-;; push identifier dest
-PUSH S1
-; colValue
+.loc fakeDepool.sol, 84
 SETGLOB 12
-; end colValue
-;; Remote call IFakeDePoolClient.receiveAnswer
-;; get member sender
+.loc fakeDepool.sol, 85
+PUSHINT 0
+DUP
 GETGLOB 9
 NEWC
 STSLICECONST x62_
 STSLICE
 PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
 STSLICER
-;; errcode
-PUSHINT 0
-STUR 32
-;; comment
-PUSHINT 0
-STUR 64
+STU 32
+STU 64
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function transferStake
-DROP2
+.loc fakeDepool.sol, 0
 
 .macro ticktock
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
+.loc fakeDepool.sol, 88
 ENDS
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $ticktock_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	ticktock_internal
 .type	ticktock_internal, @function
 CALL $ticktock_internal_macro$
 
 .macro ticktock_internal_macro
-; function ticktock
-; expValue
-; end expValue
-;; get member sender
+.loc fakeDepool.sol, 89
 GETGLOB 9
-; colValue
 SETGLOB 11
-; end colValue
-; expValue
-; end expValue
-;; get member value
-CALLREF {
-	CALL $message_balance_macro$
-}
-; colValue
+.loc fakeDepool.sol, 90
+DEPTH
+ADDCONST -2
+PICK
 SETGLOB 16
-; end colValue
-;; transfer()
-;; get member sender
+.loc fakeDepool.sol, 91
 GETGLOB 9
 NEWC
 STSLICECONST x62_
@@ -773,78 +594,68 @@ STSLICER
 ENDC
 PUSHINT 1
 SENDRAWMSG
-;; emit StakeSigningRequested
-PUSHSLICE xc000000000000000000000000045163712
+.loc fakeDepool.sol, 93
+PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000005_
+PUSHSLICE xc00000000000000000000000004516371200000001
 NEWC
 STSLICE
-;; electionId
-PUSHINT 1
-STUR 32
-;; proxy
-PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000005_
-STSLICER
+STSLICE
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function ticktock
+.loc fakeDepool.sol, 0
 
 .macro receiveFunds
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
+.loc fakeDepool.sol, 96
 ENDS
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $receiveFunds_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	receiveFunds_internal
 .type	receiveFunds_internal, @function
 CALL $receiveFunds_internal_macro$
 
 .macro receiveFunds_internal_macro
-; function receiveFunds
-; expValue
-; end expValue
-;; get member sender
+.loc fakeDepool.sol, 97
 GETGLOB 9
-; colValue
 SETGLOB 11
-; end colValue
-; expValue
-; end expValue
-;; get member value
-CALLREF {
-	CALL $message_balance_macro$
-}
-; colValue
+.loc fakeDepool.sol, 98
+DEPTH
+ADDCONST -2
+PICK
 SETGLOB 16
-; end colValue
-; end function receiveFunds
+.loc fakeDepool.sol, 0
 
 .macro getData
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
+.loc fakeDepool.sol, 101
 ENDS
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $getData_internal_macro$
 }
-;; emitting 7 value(s)
 PUSH S7
-EQINT -1
 PUSHCONT {
 	PUSH S9
 	CTOS
@@ -855,383 +666,307 @@ PUSHCONT {
 	NEWC
 	STSLICECONST xc
 	STSLICE
-	PUSHINT 97
-	STZEROES
-	STSLICECONST 1
+	PUSHINT 1
+	STUR 98
+	REVERSE 8, 0
 	NEWC
 	STSLICECONST xbb14f64b
-	PUSH S8
-	STUR 64
-	PUSH S7
-	STSLICER
-	PUSH S6
-	STSLICER
-	PUSH S5
-	STUR 32
-	PUSH S4
-	STUR 32
-	PUSH S3
-	STIR 1
-	PUSH S2
-	STUR 128
+	STU 64
+	STSLICE
+	ROLLREV 5
+	NEWC
+	STSLICE
+	STU 32
+	STU 32
+	STI 1
+	STU 128
+	STBREFR
 	STBREFR
 	ENDC
 	PUSHINT 0
 	SENDRAWMSG
 }
-IF
-BLKDROP 7
+PUSHCONT {
+	BLKDROP 7
+}
+IFELSE
 IFREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	getData_internal
 .type	getData_internal, @function
 CALL $getData_internal_macro$
 
 .macro getData_internal_macro
-;; ret param: stake
-PUSHINT 0
-;; ret param: sender
-PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
-;; ret param: receiver
-PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
-;; ret param: withdrawal
-;; ret param: total
-;; ret param: reinvest
-;; ret param: value
-PUSHINT 0
-BLKPUSH 3, 0
-; function getData
-;; return
-;; push identifier m_stake
+.loc fakeDepool.sol, 103
 GETGLOB 10
-;; push identifier m_sender
 GETGLOB 11
-;; push identifier m_receiver
 GETGLOB 12
-;; push identifier m_withdrawal
 GETGLOB 13
-;; push identifier m_total
 GETGLOB 14
-;; push identifier m_reinvest
 GETGLOB 15
-;; push identifier m_value
 GETGLOB 16
-BLKDROP2 7, 7
-; end function getData
+.loc fakeDepool.sol, 0
 
 .macro setVestingDonor
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
-; Decode donor
-LDMSGADDR
+.loc fakeDepool.sol, 106
+LDMSGADDRQ
+PUSHCONT {
+	LDREF
+	ENDS
+	CTOS
+	LDMSGADDR
+}
+IFNOT
 ENDS
-;; param: donor
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $setVestingDonor_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	setVestingDonor_internal
 .type	setVestingDonor_internal, @function
 CALL $setVestingDonor_internal_macro$
 
 .macro setVestingDonor_internal_macro
-;; param: donor
-; function setVestingDonor
-; expValue
-; end expValue
-;; push identifier donor
-DUP
-; colValue
+.loc fakeDepool.sol, 107
 SETGLOB 12
-; end colValue
-;; Remote call IFakeDePoolClient.receiveAnswer
-;; get member sender
+.loc fakeDepool.sol, 108
+PUSHINT 0
+DUP
 GETGLOB 9
 NEWC
 STSLICECONST x62_
 STSLICE
 PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
 STSLICER
-;; errcode
-PUSHINT 0
-STUR 32
-;; comment
-PUSHINT 0
-STUR 64
+STU 32
+STU 64
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function setVestingDonor
-DROP
+.loc fakeDepool.sol, 0
 
 .macro setLockDonor
 DROP
-GETGLOB 1
+GETGLOB 6
+THROWIFNOT 76
+GETGLOB 2
 ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-; Decode input parameters
-; Decode donor
-LDMSGADDR
+.loc fakeDepool.sol, 111
+LDMSGADDRQ
+PUSHCONT {
+	LDREF
+	ENDS
+	CTOS
+	LDMSGADDR
+}
+IFNOT
 ENDS
-;; param: donor
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $setLockDonor_internal_macro$
 }
 CALLREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	setLockDonor_internal
 .type	setLockDonor_internal, @function
 CALL $setLockDonor_internal_macro$
 
 .macro setLockDonor_internal_macro
-;; param: donor
-; function setLockDonor
-; expValue
-; end expValue
-;; push identifier donor
-DUP
-; colValue
+.loc fakeDepool.sol, 112
 SETGLOB 12
-; end colValue
-;; Remote call IFakeDePoolClient.receiveAnswer
-;; get member sender
+.loc fakeDepool.sol, 113
+PUSHINT 0
+DUP
 GETGLOB 9
 NEWC
 STSLICECONST x62_
 STSLICE
 PUSHSLICE x4075bcd150000000000000000000000000007e213c89_
 STSLICER
-;; errcode
-PUSHINT 0
-STUR 32
-;; comment
-PUSHINT 0
-STUR 64
+STU 32
+STU 64
 ENDC
 PUSHINT 0
 SENDRAWMSG
-; end function setLockDonor
-DROP
+.loc fakeDepool.sol, 0
 
 .macro error
 DROP
-; Decode input parameters
-; Decode code
+GETGLOB 6
+THROWIFNOT 76
+.loc fakeDepool.sol, 116
 LDU 256
 ENDS
-;; param: code
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $error_internal_macro$
 }
 IFREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	error_internal
 .type	error_internal, @function
 CALL $error_internal_macro$
 
 .macro error_internal_macro
-;; param: code
-; function error
-;; push identifier code
-BLKPUSH 2, 0
-LESSINT 2
-PUSHCONT {
-	DROP
-	PUSHINT 100
-}
-IF
-; end function error
+.loc fakeDepool.sol, 117
+PUSHINT 2
+MAX
 THROWANY
+.loc fakeDepool.sol, 0
 
 .macro outOfGas
 DROP
-; Decode input parameters
+GETGLOB 6
+THROWIFNOT 76
+.loc fakeDepool.sol, 120
 ENDS
+.loc fakeDepool.sol, 0
 CALLREF {
 	CALL $outOfGas_internal_macro$
 }
 IFREF {
 	CALL $c7_to_c4$
 }
-TRUE
-SETGLOB 7
+THROW 0
 
 .globl	outOfGas_internal
 .type	outOfGas_internal, @function
 CALL $outOfGas_internal_macro$
 
 .macro outOfGas_internal_macro
-; function outOfGas
+.loc fakeDepool.sol, 121
 NEWDICT
-;; decl: map
+.loc fakeDepool.sol, 122
 PUSHINT 0
-;; decl: k
-; while
+.loc fakeDepool.sol, 123
 PUSHCONT {
-	;; push identifier k
 	DUP
-	;; <=
 	PUSHINT 9999
 	LEQ
 }
 PUSHCONT {
-	; expValue
-	;; push identifier k
-	DUP
-	; end expValue
-	;; push identifier k
-	BLKPUSH 2, 2
-	; colValue
+	.loc fakeDepool.sol, 124
+	PUSH3 S0, S0, S1
+	ROT
 	NEWC
 	STU 256
 	ROTREV
 	PUSHINT 256
 	DICTUSETB
 	POP S2
-	; end colValue
+	.loc fakeDepool.sol, 0
 }
 WHILE
-; end while
 DROP2
-; end function outOfGas
+.loc fakeDepool.sol, 0
 
 .macro c7_to_c4
+GETGLOB 16
+GETGLOB 15
+GETGLOB 14
+GETGLOB 13
+GETGLOB 12
+GETGLOB 11
+GETGLOB 10
+GETGLOB 3
 GETGLOB 2
 NEWC
 STU 256
-GETGLOB 3
-STUR 64
-GETGLOB 6
-STUR 1
-NEWC
-GETGLOB 14
-GETGLOB 16
-XCHG s2
-STU 32
-STU 128
-GETGLOB 10
-GETGLOB 11
-GETGLOB 12
-GETGLOB 13
-GETGLOB 15
-REVERSE 7, 0
-STBREF
+STU 64
+STONE
 STU 64
 STSLICE
+ROLLREV 5
+NEWC
 STSLICE
 STU 32
+STU 32
 STI 1
+STU 128
+STBREFR
 ENDC
-POP C4
+POPROOT
 
 .macro c4_to_c7
 PUSHROOT
-CTOS        ; c4
-LDU 256      ; pubkey c4
-LDU 64      ; pubkey timestamp c4
-LDU 1       ; pubkey [timestamp] constructor_flag memory
-LDREFRTOS
-LDU 32
-PLDU 128
-SETGLOB 16
-SETGLOB 14
+CTOS
+LDU 256 ; pubkey c4
+LDU 64 ; pubkey timestamp c4
+LDU 1 ; ctor flag
+NIP
 LDU 64
 LDMSGADDR
+LDREF
+ENDS
+CTOS
 LDMSGADDR
 LDU 32
-PLDI 1
+LDU 32
+LDI 1
+LDU 128
+ENDS
+SETGLOB 16
 SETGLOB 15
+SETGLOB 14
 SETGLOB 13
 SETGLOB 12
 SETGLOB 11
 SETGLOB 10
-TRUE
-SETGLOB 1   ; pubkey [timestamp] constructor_flag
-SETGLOB 6   ; pubkey [timestamp]
-SETGLOB 3   ; D
+SETGLOB 3
 SETGLOB 2
 
 .macro c4_to_c7_with_init_storage
 PUSHROOT
-CTOS        ; c4
-DUP        ; c4 c4
-SBITS      ; c4 bits
-GTINT 1    ; c4 bits>1
-PUSHCONT {
-	LDU 256      ; pubkey c4
-	LDU 64      ; pubkey timestamp c4
-	LDU 1       ; pubkey [timestamp] constructor_flag memory
-	LDREFRTOS
-	LDU 32
-	PLDU 128
-	SETGLOB 16
-	SETGLOB 14
-	LDU 64
-	LDMSGADDR
-	LDMSGADDR
-	LDU 32
-	PLDI 1
-	SETGLOB 15
-	SETGLOB 13
-	SETGLOB 12
-	SETGLOB 11
-	SETGLOB 10
-	TRUE
-	SETGLOB 1   ; pubkey [timestamp] constructor_flag
-	SETGLOB 6   ; pubkey [timestamp]
-	SETGLOB 3   ; D
-	SETGLOB 2
+CTOS
+SBITS
+GTINT 1
+PUSHREFCONT {
+	CALL $c4_to_c7$
 }
 PUSHCONT {
-	PLDDICT   ; D
-	; init m_stake
+	PUSHINT 0
+	PUSHROOT
+	CTOS
+	PLDDICT ; D
 	PUSHINT 0
 	SETGLOB 10
-	; init m_sender
 	PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
 	SETGLOB 11
-	; init m_receiver
 	PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
 	SETGLOB 12
-	; init m_withdrawal
 	PUSHINT 0
 	SETGLOB 13
-	; init m_total
 	PUSHINT 0
 	SETGLOB 14
-	; init m_reinvest
 	PUSHINT 0
 	SETGLOB 15
-	; init m_value
 	PUSHINT 0
 	SETGLOB 16
-	; set contract pubkey
-	PUSHINT 0
-	SWAP
 	PUSHINT 64
 	DICTUGET
 	THROWIFNOT 61
@@ -1239,50 +974,54 @@ PUSHCONT {
 	SETGLOB 2
 	PUSHINT 0 ; timestamp
 	SETGLOB 3
-	PUSHINT 0 ; constructor_flag
-	SETGLOB 6
-	TRUE
-	SETGLOB 1
 }
 IFELSE
 
 .internal-alias :main_internal, 0
 .internal :main_internal
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Function: main_internal
-;; param: contract_balance
-;; param: msg_balance
-;; param: int_msg_info
-;; param: msg_body_slice
-;; param: transaction_type
+PUSHROOT
+CTOS
+SBITS
+NEQINT 1
+SETGLOB 6
 PUSH S2
 CTOS
-LDU 4       ; bounced tail
-LDMSGADDR   ; bounced src tail
+LDU 4 ; bounced tail
+LDMSGADDR ; bounced src tail
 DROP
 SETGLOB 9
 MODPOW2 1
 IFRET
-PUSH S1    ; body
-SEMPTY     ; isEmpty
-IFRET
-PUSH S1 ; body
-LDU 32  ; funcId body'
-PUSH S1 ; funcId body' funcId
-IFNOTRET
+OVER
+SEMPTY ; isEmpty
+IFJMPREF {
+	GETGLOB 6
+	THROWIFNOT 76
+}
+OVER
+LDUQ 32  ; [funcId] body' ok
+THROWIFNOT 60 ; funcId body'
+OVER
+IFNOTJMPREF {
+	GETGLOB 6
+	THROWIFNOT 76
+}
 SWAP
 CALLREF {
 	CALL $public_function_selector$
 }
-GETGLOB 7
-ISNULL
-THROWIF 60
+THROW 60
 
 .internal-alias :main_external, -1
 .internal :main_external
+PUSHROOT
+CTOS
+SBITS
+NEQINT 1
+SETGLOB 6
 PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
 SETGLOB 9
-PUSH S1
+OVER
 CALLREF {
 	CALL $c4_to_c7_with_init_storage$
 }
@@ -1291,40 +1030,38 @@ SWAP
 PUSHCONT {
 	PUSHINT 512
 	LDSLICEX ; signatureSlice msgSlice
-	DUP      ; signatureSlice msgSlice msgSlice
-	HASHSU   ; signatureSlice msgSlice hashMsgSlice
+	DUP
+	HASHSU ; signatureSlice msgSlice hashMsgSlice
 	ROT
 	GETGLOB 2
-	CHKSIGNU      ; msgSlice isSigned
+	CHKSIGNU ; msgSlice isSigned
 	THROWIFNOT 40 ; msgSlice
 }
 IF
-LDU 64                         ; timestamp msgSlice
-SWAP                           ; msgSlice timestamp
-CALL $replay_protection_macro$ ; msgSlice
-LDU 32  ; expireAt msgSlice
-SWAP    ; msgSlice expireAt
-NOW     ; msgSlice expireAt now
+LDU 64 ; timestamp msgSlice
+SWAP
+CALL $replay_protection_macro$
+LDU 32 ; expireAt msgSlice
+SWAP
+NOW ; msgSlice expireAt now
 GREATER ; msgSlice expireAt>now
 THROWIFNOT 57
-LDU  32 ; funcId body
-SWAP    ; body funcId
+LDU 32 ; funcId body
+SWAP
 CALLREF {
 	CALL $public_function_selector$
 }
-GETGLOB 7
-ISNULL
-THROWIF 60
+THROW 60
 
 .macro public_function_selector
 DUP
-PUSHINT 679516195
+PUSHINT 2073458374
 LEQ
-PUSHCONT {
+IFJMPREF {
 	DUP
-	PUSHINT 179050749
+	PUSHINT 322401098
 	LEQ
-	PUSHCONT {
+	IFJMPREF {
 		DUP
 		PUSHINT 5549867
 		EQUAL
@@ -1337,12 +1074,6 @@ PUSHCONT {
 		IFJMPREF {
 			CALL $addOrdinaryStake$
 		}
-	}
-	IFJMP
-	DUP
-	PUSHINT 322401098
-	LEQ
-	PUSHCONT {
 		DUP
 		PUSHINT 317981552
 		EQUAL
@@ -1356,23 +1087,16 @@ PUSHCONT {
 			CALL $cancelWithdrawal$
 		}
 	}
-	IFJMP
 	DUP
-	PUSHINT 679516195
-	EQUAL
-	IFJMPREF {
-		CALL $ticktock$
-	}
-}
-IFJMP
-DUP
-PUSHINT 1473519816
-LEQ
-PUSHCONT {
-	DUP
-	PUSHINT 1081738786
+	PUSHINT 1236773697
 	LEQ
-	PUSHCONT {
+	IFJMPREF {
+		DUP
+		PUSHINT 679516195
+		EQUAL
+		IFJMPREF {
+			CALL $ticktock$
+		}
 		DUP
 		PUSHINT 991229515
 		EQUAL
@@ -1385,42 +1109,29 @@ PUSHCONT {
 		IFJMPREF {
 			CALL $addLockStake$
 		}
-	}
-	IFJMP
-	DUP
-	PUSHINT 1315323457
-	LEQ
-	PUSHCONT {
 		DUP
 		PUSHINT 1236773697
 		EQUAL
 		IFJMPREF {
 			CALL $setLockDonor$
 		}
+	}
+	DUP
+	PUSHINT 1749338091
+	LEQ
+	IFJMPREF {
 		DUP
 		PUSHINT 1315323457
 		EQUAL
 		IFJMPREF {
 			CALL $outOfGas$
 		}
-	}
-	IFJMP
-	DUP
-	PUSHINT 1473519816
-	EQUAL
-	IFJMPREF {
-		CALL $setVestingDonor$
-	}
-}
-IFJMP
-DUP
-PUSHINT 1961843497
-LEQ
-PUSHCONT {
-	DUP
-	PUSHINT 1749338091
-	LEQ
-	PUSHCONT {
+		DUP
+		PUSHINT 1473519816
+		EQUAL
+		IFJMPREF {
+			CALL $setVestingDonor$
+		}
 		DUP
 		PUSHINT 1745928014
 		EQUAL
@@ -1434,11 +1145,10 @@ PUSHCONT {
 			CALL $receiveFunds$
 		}
 	}
-	IFJMP
 	DUP
-	PUSHINT 1903783592
+	PUSHINT 2073458374
 	LEQ
-	PUSHCONT {
+	IFJMPREF {
 		DUP
 		PUSHINT 1756716863
 		EQUAL
@@ -1451,31 +1161,24 @@ PUSHCONT {
 		IFJMPREF {
 			CALL $addVestingStake$
 		}
-	}
-	IFJMP
-	DUP
-	PUSHINT 1961843497
-	EQUAL
-	IFJMPREF {
-		CALL $withdrawFromPoolingRound$
+		DUP
+		PUSHINT 1961843497
+		EQUAL
+		IFJMPREF {
+			CALL $withdrawFromPoolingRound$
+		}
+		DUP
+		PUSHINT 2073458374
+		EQUAL
+		IFJMPREF {
+			CALL $withdrawPart$
+		}
 	}
 }
-IFJMP
 DUP
 PUSHINT 2142639138
-LEQ
-PUSHCONT {
-	DUP
-	PUSHINT 2073458374
-	EQUAL
-	IFJMPREF {
-		CALL $withdrawPart$
-	}
-	DUP
-	PUSHINT 2142639138
-	EQUAL
-	IFJMPREF {
-		CALL $error$
-	}
+EQUAL
+IFJMPREF {
+	CALL $error$
 }
-IFJMP
+
