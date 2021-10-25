@@ -31,12 +31,13 @@ pub fn convert_amount(amount: &str, decimals: usize) -> Result<String, String> {
         } else {
             result += &"0".repeat(decimals);
         }
+        let result = result.trim_start_matches('0').to_string();
         u64::from_str_radix(&result, 10)
             .map_err(|e| format!("failed to parse amount: {}", e))?;
 
         return Ok(result);
     }
-    Err("Invalid amout value".to_string())
+    Err("Invalid amount value".to_string())
 }
 
 pub fn convert_u64_to_tokens(value: u64) -> String {
