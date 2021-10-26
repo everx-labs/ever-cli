@@ -116,7 +116,7 @@ impl EncryptionBoxInput {
             their_pubkey: String::from(""),
             nonce: nonce,
         })
-        .await?;
+        .await;
         let handle = encryption_box.handle();
         self.handles.write().await.push(encryption_box);
         Ok((answer_id, json!({ "handle": handle.0})))

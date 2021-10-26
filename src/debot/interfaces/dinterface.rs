@@ -1,4 +1,3 @@
-use super::{Menu, AddressInput, AmountInput, ConfirmInput, NumberInput, SigningBoxInput, Terminal, UserInfo};
 use super::echo::Echo;
 use super::stdout::Stdout;
 use super::{
@@ -94,8 +93,7 @@ pub fn decode_bool_arg(args: &Value, name: &str) -> Result<bool, String> {
 }
 
 pub fn decode_string_arg(args: &Value, name: &str) -> Result<String, String> {
-    let bytes = hex::decode(&decode_arg(args, name)?)
-        .map_err(|e| format!("{}", e))?;
+    let bytes = hex::decode(&decode_arg(args, name)?).map_err(|e| format!("{}", e))?;
     std::str::from_utf8(&bytes)
         .map_err(|e| format!("{}", e))
         .map(|x| x.to_string())
@@ -124,17 +122,16 @@ pub fn decode_int256(args: &Value, name: &str) -> Result<BigInt, String> {
         .map_err(|e| format!("failed to decode integer \"{}\": {}", num_str, e))
 }
 
-pub fn decode_array<F, T>(args: &Value, name: &str, validator: F) -> Result<Vec<T>, String> 
-    where F: Fn(&Value) -> Option<T>
+pub fn decode_array<F, T>(args: &Value, name: &str, validator: F) -> Result<Vec<T>, String>
+where
+    F: Fn(&Value) -> Option<T>,
 {
     let array = args[name]
         .as_array()
         .ok_or(format!("\"{}\" is invalid: must be array", name))?;
     let mut strings = vec![];
     for elem in array {
-        strings.push(
-            validator(&elem).ok_or(format!("invalid array element type"))?
-        );
+        strings.push(validator(&elem).ok_or(format!("invalid array element type"))?);
     }
     Ok(strings)
 }
