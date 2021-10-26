@@ -20,6 +20,7 @@ pub mod term_browser;
 mod interfaces;
 pub use interfaces::dinterface::SupportedInterfaces;
 mod term_signing_box;
+mod term_encryption_box;
 
 pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("debot")
