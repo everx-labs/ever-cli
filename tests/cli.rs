@@ -598,7 +598,7 @@ fn test_callex() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#""dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e""#))
-        .stdout(predicate::str::contains(r#""amount":"0200000000""#))
+        .stdout(predicate::str::contains(r#""amount":"200000000""#))
         .stdout(predicate::str::contains("Succeeded"));
 
 
@@ -2293,6 +2293,44 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
         .arg("clear")
         .assert()
         .success();
+
+    Ok(())
+}
+
+#[test]
+fn test_convert() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("convert")
+        .arg("tokens")
+        .arg("0.1234567890")
+        .output()
+        .expect("Error: invalid fractional part");
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("convert")
+        .arg("tokens")
+        .arg("0.123456789")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("123456789"));
+
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("convert")
+        .arg("tokens")
+        .arg("0.01")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("10000000"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("-j")
+        .arg("convert")
+        .arg("tokens")
+        .arg("0.123456789")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#""value": "123456789""#));
 
     Ok(())
 }
