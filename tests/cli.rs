@@ -1972,6 +1972,31 @@ fn test_run_async_call() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_encryption_box_input() -> Result<(), Box<dyn std::error::Error>> {
+    let key_path = "tests/deploy_test.key";
+    let enc_box_test_abi = "tests/samples/EncryptionBoxInputTest.abi.json";
+    let enc_box_test_tvc = "tests/samples/EncryptionBoxInputTest.tvc";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--url")
+        .arg(&*NETWORK)
+        .assert()
+        .success();
+
+    generate_phrase_and_key(key_path)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg("--setkey")
+        .arg(key_path)
+        .arg(enc_box_test_tvc)
+        .arg(enc_box_test_abi)
+        .output()
+        .expect("Failed to generate address.");
+}
+
+#[test]
 fn test_multisig() -> Result<(), Box<dyn std::error::Error>> {
     let key_path = "tests/deploy_test.key";
     let safe_msig_abi = "tests/samples/SafeMultisigWallet.abi.json";

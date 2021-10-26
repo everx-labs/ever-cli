@@ -1,8 +1,8 @@
 use super::echo::Echo;
 use super::stdout::Stdout;
 use super::{
-    AddressInput, AmountInput, ConfirmInput, EncryptionBoxInput, Menu, NumberInput,
-    SigningBoxInput, Terminal, UserInfo,
+    AddressInput, AmountInput, ConfirmInput, Menu, NumberInput,
+    SigningBoxInput, Terminal, UserInfo, EncryptionBoxInput
 };
 use crate::config::Config;
 use crate::helpers::TonClient;
@@ -13,8 +13,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use ton_client::debot::{DebotInterface, DebotInterfaceExecutor};
 use ton_client::encoding::{decode_abi_number, decode_abi_bigint};
-use num_traits::cast::NumCast;
-use num_bigint::BigInt;
 
 pub struct SupportedInterfaces {
     client: TonClient,
@@ -62,7 +60,10 @@ impl SupportedInterfaces {
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(SigningBoxInput::new(client.clone()));
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(UserInfo::new(conf.clone()));
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(EncryptionBoxInput::new(client.clone()));
+        interfaces.insert(iface.get_id(), iface);
+
+        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(UserInfo::new(client.clone(), conf.clone()));
         interfaces.insert(iface.get_id(), iface);
 
         Self { client, interfaces }
