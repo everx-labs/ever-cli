@@ -851,16 +851,31 @@ fn test_account_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_decode_msg() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("--json").arg("decode")
-        .arg("msg").arg("tests/samples/wallet.boc")
-        .arg("--abi").arg("tests/samples/wallet.abi.json");
-    cmd.assert()
+    cmd.arg("--json")
+        .arg("decode")
+        .arg("msg")
+        .arg("tests/samples/wallet.boc")
+        .arg("--abi")
+        .arg("tests/samples/wallet.abi.json")
+        .assert()
         .success()
         .stdout(predicate::str::contains("sendTransaction"))
         .stdout(predicate::str::contains("dest"))
         .stdout(predicate::str::contains("value"))
         .stdout(predicate::str::contains("bounce"));
 
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json")
+        .arg("decode")
+        .arg("msg")
+        .arg("tests/deploy_msg.boc")
+        .arg("--abi")
+        .arg("tests/samples/wallet.abi.json")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Init": {"#))
+        .stdout(predicate::str::contains(r#""StateInit": {"#))
+        .stdout(predicate::str::contains(r#""data": "te6ccgEBAgEAKAABAcABAEPQAZ6jzp01QGBqmSPd8SBPy4vE1I8GSisk4ihjvGiRJP7g""#));
     Ok(())
 }
 
@@ -1543,7 +1558,7 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("decode")
-        .arg("tvc")
+        .arg("stateinit")
         .arg(&depool_addr);
     cmd.assert()
         .success()
@@ -1602,7 +1617,7 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
     let boc_path = "tests/account.boc";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("decode")
-        .arg("tvc")
+        .arg("stateinit")
         .arg("--boc")
         .arg(boc_path)
         .assert()
@@ -1615,7 +1630,7 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
     let tvc_path = "tests/samples/fakeDepool.tvc";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("decode")
-        .arg("tvc")
+        .arg("stateinit")
         .arg("--tvc")
         .arg(tvc_path)
         .assert()
@@ -1675,12 +1690,27 @@ fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
     let boc_path = "tests/depool_acc.boc";
+    let tvc_path = "tests/depool_acc.tvc";
     let abi_path = "tests/samples/fakeDepool.abi.json";
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
         .arg("--boc")
         .arg(boc_path)
+        .arg("getData")
+        .arg("{}")
+        .arg("--abi")
+        .arg(abi_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains("Result: {"))
+        .stdout(predicate::str::contains(r#""reinvest": false,"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("run")
+        .arg("--tvc")
+        .arg(tvc_path)
         .arg("getData")
         .arg("{}")
         .arg("--abi")
@@ -1701,7 +1731,8 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .success();
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("bcconfig")
+    cmd.arg("dump")
+        .arg("config")
         .arg(config_path)
         .assert()
         .success();
@@ -1730,6 +1761,8 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#""reinvest": false,"#));
 
     let boc_path = "tests/account_fift.boc";
+    let tvc_path = "tests/account_fift.tvc";
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("runget")
         .arg("--boc")
@@ -1739,6 +1772,16 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Succeeded."))
         .stdout(predicate::str::contains(r#"Result: [["1633273052",["1633338588",null]]]"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("runget")
+        .arg("--tvc")
+        .arg(tvc_path)
+        .arg("past_election_ids")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains(r#"Result: [["1634489970",["1634555506",null]]]"#));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("runget")
