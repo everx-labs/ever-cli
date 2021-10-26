@@ -228,11 +228,11 @@ impl TerminalEncryptionBox {
                 .handle
             }
         };
-        Self {
+        Ok(Self {
             handle: registered_box,
             box_type: params.box_type,
             client: params.context.clone(),
-        }
+        })
     }
     pub fn handle(&self) -> EncryptionBoxHandle {
         self.handle.clone()

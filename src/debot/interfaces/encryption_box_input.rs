@@ -1,4 +1,4 @@
-use super::dinterface::{decode_answer_id, decode_nonce, decode_prompt, decode_string_arg};
+use super::dinterface::{decode_answer_id, decode_nonce, decode_prompt, decode_string_arg, decode_num_arg};
 use crate::debot::term_encryption_box::{
     EncryptionBoxType, ParamsOfTerminalEncryptionBox, TerminalEncryptionBox,
 };
@@ -100,8 +100,7 @@ impl EncryptionBoxInput {
             box_type: EncryptionBoxType::NaCl,
             their_pubkey: their_pubkey,
             nonce: nonce,
-        })
-        .await;
+        }).await?;
         let handle = encryption_box.handle();
         self.handles.write().await.push(encryption_box);
         Ok((answer_id, json!({ "handle": handle.0})))
@@ -117,7 +116,7 @@ impl EncryptionBoxInput {
             their_pubkey: String::from(""),
             nonce: nonce,
         })
-        .await;
+        .await?;
         let handle = encryption_box.handle();
         self.handles.write().await.push(encryption_box);
         Ok((answer_id, json!({ "handle": handle.0})))
@@ -133,7 +132,7 @@ impl EncryptionBoxInput {
             their_pubkey: String::new(),
             nonce,
         })
-        .await;
+        .await?;
         let handle = encryption_box.handle();
         self.handles.write().await.push(encryption_box);
         Ok((answer_id, json!({ "handle": handle.0})))
@@ -141,11 +140,12 @@ impl EncryptionBoxInput {
     async fn remove_handle(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let handle = decode_num_arg::<u32>(args, "handle")?;
-        let removed: bool = self
-            .handles
+        let initial_size = self.handles.write().await.len();
+        self.handles
             .write()
             .await
             .retain(|value| (*value).handle().0 != handle);
+        let removed: bool = initial_size != self.handles.write().await.len();
         Ok((answer_id, json!({ "removed": removed })))
     }
     async fn get_supported_algorithms(&self, args: &Value) -> InterfaceResult {
