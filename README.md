@@ -1430,6 +1430,7 @@ tonos-cli multisig deploy [--setcode] [--owners <owners_list>] [--confirms <conf
 `--setcode` - flag that changes type of the wallet to the SetcodeMultisigWallet. If not specified, a SafeMultisigWallet is deployed.
 
 `--owners <owners_list>` - option that sets wallet owners. If not specified, the only owner is deploy signed (set with --keys option).
+List of owners must be specified by their public keys in hex format, split by the `,`.
 
 `--confirms <confirms_cnt>` - option that sets required number of confirmations. If not specified, is set to 1.
 
@@ -1452,7 +1453,7 @@ Wallet successfully deployed
 Wallet address: 0:4d892e63989c1c0ad64b0bbe22e8d036b0da271c19b6686d01bd29a99dcbc86d
 
 # deploy with owners
-tonos-cli multisig deploy -l 5000000000 -c 2 -o '["0x8b445b0feab10b9abf4e039d649348ec8662e3673fe9c37b7208c4d9d04c9b3f","0xddc5bc7198c90feb75d9ce09e1b1f25a7e14a252fef31b50fac048c6ac3ee46c"]' -k test.key 
+tonos-cli multisig deploy -l 5000000000 -c 2 -o 8b445b0feab10b9abf4e039d649348ec8662e3673fe9c37b7208c4d9d04c9b3f,ddc5bc7198c90feb75d9ce09e1b1f25a7e14a252fef31b50fac048c6ac3ee46c -k test.key
 ```
 
 # 7. DePool commands

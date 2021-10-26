@@ -824,7 +824,7 @@ async fn main_internal() -> Result <(), String> {
 
     if let Some(m) = matches.subcommand_matches("convert") {
         if let Some(m) = m.subcommand_matches("tokens") {
-            return convert_tokens(m);
+            return convert_tokens(m, conf);
         }
     }
     if let Some(m) = matches.subcommand_matches("callex") {
@@ -957,10 +957,16 @@ async fn main_internal() -> Result <(), String> {
     Err("invalid arguments".to_string())
 }
 
-fn convert_tokens(matches: &ArgMatches) -> Result<(), String> {
+fn convert_tokens(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let amount = matches.value_of("AMOUNT").unwrap();
     let result = convert::convert_token(amount)?;
-    println!("{}", result);
+    if config.is_json {
+        let result = json!({"value": result});
+        println!("{}", serde_json::to_string_pretty(&result)
+            .unwrap_or("Failed to serialize the result".to_string()));
+    } else {
+        println!("{}", result);
+    }
     Ok(())
 }
 

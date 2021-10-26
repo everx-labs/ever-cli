@@ -347,11 +347,21 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
     let keys = load_keypair(&keys)?;
 
     let owners_string = if let Some(owners) = matches.value_of("OWNERS") {
-        owners.to_owned()
+        owners.replace("[", "")
+            .replace("]", "")
+            .replace("\"", "")
+            .replace("\'", "")
+            .replace("0x", "")
+            .split(',')
+            .map(|o|
+                format!("\"0x{}\"", o)
+            )
+            .collect::<Vec<String>>()
+            .join(",")
     } else {
-        format!(r#"["0x{}"]"#, keys.public.clone())
+        format!(r#""0x{}""#, keys.public.clone())
     };
-    let param_str = format!(r#"{{"owners":{},"reqConfirms":{}}}"#,
+    let param_str = format!(r#"{{"owners":[{}],"reqConfirms":{}}}"#,
                             owners_string,
                             matches.value_of("CONFIRMS").unwrap_or("1")
     );
