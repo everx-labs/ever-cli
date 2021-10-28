@@ -89,6 +89,30 @@ fn test_signing_box_interface() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_encryption_box_input() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = deploy_debot("EncryptionBoxInputTest")?;
+    let (_, _, keys) = get_debot_paths("EncryptionBoxInputTest");
+
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.timeout(std::time::Duration::from_secs(2))
+        .write_stdin(format!("y\n{}", keys))
+        .arg("debot")
+        .arg("fetch")
+        .arg(&addr);
+    let _cmd = cmd
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Enter my signing keys:"))
+        .stdout(predicate::str::contains("Signing Box Handle:"))
+        .stdout(predicate::str::contains("test sign hash passed"));
+    // uncomment for debug
+    // let out = cmd.get_output();
+    // std::io::stdout().lock().write_all(&out.stdout)?;
+    Ok(())
+}
+
+#[test]
 fn test_userinfo() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("sample2")?;
     let (_, abi, keys) = get_debot_paths("sample2");
