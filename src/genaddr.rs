@@ -36,7 +36,7 @@ pub async fn generate_address(
 
     let abi = load_abi(&abi_str)?;
 
-    let phrase = if new_keys || (!new_keys && keys_file.is_none()) {
+    let phrase = if new_keys {
         gen_seed_phrase()?
     } else if keys_file.is_some() &&
         keys_file.unwrap().find(' ').is_some() && !new_keys {
@@ -46,9 +46,11 @@ pub async fn generate_address(
     };
 
     let keys = if phrase.len() != 0 {
-        generate_keypair_from_mnemonic(&phrase)?
+        Some(generate_keypair_from_mnemonic(&phrase)?)
+    } else if keys_file.is_some() {
+        Some(read_keys(keys_file.unwrap())?)
     } else {
-        read_keys(keys_file.unwrap())?
+        None
     };
 
 
@@ -60,7 +62,11 @@ pub async fn generate_address(
     let addr = calc_acc_address(
         &contract,
         wc,
-        keys.public.clone(),
+        if keys.is_some() {
+            Some(keys.clone().unwrap().public.clone())
+        } else {
+            None
+        },
         initial_data.clone(),
         abi.clone()
     ).await?;
@@ -73,13 +79,21 @@ pub async fn generate_address(
 
     if update_tvc {
         let initial_data = initial_data.map(|s| s.to_string());
-        let key_bytes = hex::decode(&keys.public)
-            .map_err(|e| format!("failed to decode public key: {}", e))?;
+        let key_bytes = match keys.clone() {
+            Some(ref keys) => {
+                hex::decode(&keys.public)
+                    .map_err(|e| format!("failed to decode public key: {}", e))?
+            }
+            _ => {
+                vec![0; 32]
+            }
+        };
+
         update_contract_state(tvc, &key_bytes, initial_data, &abi_str)?;
     }
 
     if new_keys && keys_file.is_some() {
-        let keys_json = serde_json::to_string_pretty(&keys)
+        let keys_json = serde_json::to_string_pretty(&keys.clone().unwrap())
             .map_err(|e| format!("failed to serialize the keypair: {}", e))?;
         std::fs::write(keys_file.unwrap(), &keys_json)
             .map_err(|e| format!("failed to save the keypair: {}", e))?;

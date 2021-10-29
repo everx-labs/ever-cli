@@ -374,7 +374,9 @@ fn test_genaddr() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("genaddr")
         .arg("tests/samples/wallet.tvc")
-        .arg("tests/samples/wallet.abi.json");
+        .arg("tests/samples/wallet.abi.json")
+        .arg("--genkey")
+        .arg("/dev/null");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Input arguments:"))
@@ -532,6 +534,43 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(addr))
         .stdout(predicate::str::contains("Transaction succeeded."));
 
+    let tvc_path = "tests/samples/fakeDepool.tvc";
+    let tvc_path2 = "tests/samples/fakeDepool.tvc2";
+
+    let _ = std::fs::copy(tvc_path, tvc_path2)?;
+    let abi_path = "tests/samples/fakeDepool.abi.json";
+
+    let time = now_ms();
+    let data_str = format!(r#"{{"m_seed":{}}}"#, time);
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg(tvc_path2)
+        .arg(abi_path)
+        .arg("--data")
+        .arg(data_str)
+        .arg("--save")
+        .output()
+        .expect("Failed to generate address.");
+
+    let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
+    addr.replace_range(..addr.find("0:").unwrap_or(0), "");
+    addr.replace_range(addr.find("TVC file").unwrap_or(addr.len())-1.., "");
+
+    ask_giver(&addr, 1000000000)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("deploy")
+        .arg(tvc_path2)
+        .arg("{}")
+        .arg("--abi")
+        .arg(abi_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(addr))
+        .stdout(predicate::str::contains("Transaction succeeded."));
+
+    let _ = std::fs::remove_file(tvc_path2)?;
     Ok(())
 }
 
@@ -1562,9 +1601,9 @@ fn test_depool_5() -> Result<(), Box<dyn std::error::Error>> {
         .arg(&depool_addr);
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#"version": "sol 0.51.0"#))
+        .stdout(predicate::str::contains(r#"version": "sol 0.52.0"#))
         .stdout(predicate::str::contains(r#"code_depth": "7"#))
-        .stdout(predicate::str::contains(r#"data_depth": "1"#));
+        .stdout(predicate::str::contains(r#"data_depth": "2"#));
 
     Ok(())
 }
@@ -1635,9 +1674,9 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
         .arg(tvc_path)
         .assert()
         .success()
-        .stdout(predicate::str::contains(r#"version": "sol 0.51.0"#))
+        .stdout(predicate::str::contains(r#"version": "sol 0.52.0"#))
         .stdout(predicate::str::contains(r#"code_depth": "7"#))
-        .stdout(predicate::str::contains(r#"data_depth": "1"#));
+        .stdout(predicate::str::contains(r#"data_depth": "2"#));
 
     Ok(())
 }
