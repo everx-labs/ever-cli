@@ -192,7 +192,7 @@ impl TerminalEncryptionBox {
                     params.context.clone(),
                     NaClSecretBox {
                         key: hex::encode(&key),
-                        nonce: hex::encode(&params.nonce),
+                        nonce: params.nonce,
                         client: params.context.clone(),
                     },
                 )
@@ -207,7 +207,7 @@ impl TerminalEncryptionBox {
                     NaClBox {
                         their_pubkey: hex::encode(&padded_pubkey),
                         secret: hex::encode(&key),
-                        nonce: hex::encode(&params.nonce),
+                        nonce: params.nonce,
                         client: params.context.clone(),
                     },
                 )

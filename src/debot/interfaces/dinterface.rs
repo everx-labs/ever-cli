@@ -100,11 +100,11 @@ pub fn decode_string_arg(args: &Value, name: &str) -> Result<String, String> {
     let bytes = hex::decode(&decode_arg(args, name)?).map_err(|e| format!("{}", e))?;
     std::str::from_utf8(&bytes)
         .map_err(|e| format!("{}", e))
-        .map(|x| x.to_string())
+        .map(|x|  x.to_string())
 }
 
 pub fn decode_nonce(args: &Value) -> Result<String, String> {
-    decode_string_arg(args, "nonce")
+    decode_arg(args, "nonce")
 }
 
 pub fn decode_prompt(args: &Value) -> Result<String, String> {

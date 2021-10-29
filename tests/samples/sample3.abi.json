@@ -33,6 +33,15 @@
 			]
 		},
 		{
+			"name": "setEncrypted",
+			"inputs": [
+				{"name":"result","type":"uint32"},
+				{"name":"encrypted","type":"bytes"}
+			],
+			"outputs": [
+			]
+		},
+		{
 			"name": "getDebotInfo",
 			"id": "0xDEB",
 			"inputs": [

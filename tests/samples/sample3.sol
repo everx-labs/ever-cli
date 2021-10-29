@@ -30,19 +30,14 @@ contract EncryptionBoxInputDebot is Debot {
         EncryptionBoxInput.getChaCha20Box(tvm.functionId(naclBoxHandle),"run naclbox",m_nonce);
     }
 
-    function naclBoxHandle(uint32 handle) public {}
-    /*function naclBoxHandle(uint32 handle) public {
+    function naclBoxHandle(uint32 handle) public {
         m_handle = handle;
-        Terminal.print(tvm.functionId(encrypt),format("EncryptionBox handle {}",m_handle));
-    }
-
-
-    function encrypt() public {
         bytes data = "Hello world!";
         Sdk.encrypt(tvm.functionId(setEncrypted), m_handle, data);
     }
 
-    function setEncrypted(uint32 result, bytes encrypted) public {
+    function setEncrypted(uint32 result, bytes encrypted) public {}
+    /*function setEncrypted(uint32 result, bytes encrypted) public {
         Terminal.print(0,format("result {}",result));
         Terminal.print(0,format("encrypted {}",encrypted));
     }*/

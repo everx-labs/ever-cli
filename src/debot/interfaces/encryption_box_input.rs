@@ -124,8 +124,8 @@ impl EncryptionBoxInput {
     }
     async fn get_chacha20_box(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
-        let prompt = decode_prompt(args)?;
         let nonce = decode_nonce(args)?;
+        let prompt = decode_prompt(args)?;
         println!("{}", prompt);
         let encryption_box = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
             context: self.client.clone(),
