@@ -128,3 +128,25 @@ fn test_userinfo() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Public key is valid"));
     Ok(())
 }
+
+#[test]
+fn test_encryptionboxes() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = deploy_debot("sample3")?;
+    let (_, _, keys) = get_debot_paths("sample3");
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.timeout(std::time::Duration::from_secs(2))
+        .write_stdin(format!("y\n{}", keys))
+        .arg("debot")
+        .arg("fetch")
+        .arg(&addr);
+    let _cmd = cmd
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("run EncryptionBoxInput"))
+        .stdout(predicate::str::contains("run naclbox"));
+    // uncomment for debug 
+    // let out = cmd.get_output();
+    // std::io::stdout().lock().write_all(&out.stdout)?;
+    Ok(())
+}
