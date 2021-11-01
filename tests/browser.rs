@@ -144,7 +144,8 @@ fn test_encryptionboxes() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success()
         .stdout(predicate::str::contains("run EncryptionBoxInput"))
-        .stdout(predicate::str::contains("run naclbox"));
+        .stdout(predicate::str::contains("run naclbox"))
+        .stdout(predicate::str::contains("ChaCha works"));
     // uncomment for debug 
     // let out = cmd.get_output();
     // std::io::stdout().lock().write_all(&out.stdout)?;

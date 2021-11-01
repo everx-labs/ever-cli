@@ -104,7 +104,7 @@ impl ton_client::crypto::EncryptionBox for ChaChaBox {
         Ok(chacha20(
             self.client.clone(),
             ParamsOfChaCha20 {
-                data: base64::encode(data),
+                data: data.clone(),
                 key: self.key.clone(),
                 nonce: self.nonce.clone(),
             },
@@ -219,8 +219,8 @@ impl TerminalEncryptionBox {
                 register_encryption_box(
                     params.context.clone(),
                     ChaChaBox {
-                        key: base64::encode(&key),
-                        nonce: hex::encode(&params.nonce),
+                        key: key,
+                        nonce: params.nonce,
                         client: params.context.clone(),
                     },
                 )

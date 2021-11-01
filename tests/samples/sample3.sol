@@ -14,10 +14,12 @@ contract EncryptionBoxInputDebot is Debot {
 
     bytes m_nonce;
     uint32 m_handle;
+    bytes m_data;
 
 
     function start() public override {
-        Sdk.genRandom(tvm.functionId(getRandom), 24);
+        m_data = "Hello world!";
+        Sdk.genRandom(tvm.functionId(getRandom), 12);
     }
 
     function getRandom(bytes buffer) public {
@@ -27,20 +29,23 @@ contract EncryptionBoxInputDebot is Debot {
 
     function runEncryptionBoxInput() public {
         //EncryptionBoxInput.getNaclBox(tvm.functionId(naclBoxHandle),"run naclbox",m_nonce,THEIR_ENC_PUBKEY);
-        EncryptionBoxInput.getChaCha20Box(tvm.functionId(naclBoxHandle),"run naclbox",m_nonce);
+        EncryptionBoxInput.getChaCha20Box(tvm.functionId(chachaBoxHandle),"run naclbox",m_nonce);
     }
 
-    function naclBoxHandle(uint32 handle) public {
+    function chachaBoxHandle(uint32 handle) public {
         m_handle = handle;
-        bytes data = "Hello world!";
-        Sdk.encrypt(tvm.functionId(setEncrypted), m_handle, data);
+        Sdk.encrypt(tvm.functionId(decrypt), m_handle, m_data);
     }
 
-    function setEncrypted(uint32 result, bytes encrypted) public {}
-    /*function setEncrypted(uint32 result, bytes encrypted) public {
-        Terminal.print(0,format("result {}",result));
-        Terminal.print(0,format("encrypted {}",encrypted));
-    }*/
+    function decrypt(uint32 result, bytes encrypted) public {
+        Sdk.decrypt(tvm.functionId(checkResult), m_handle, encrypted);
+    }
+
+    function checkResult(uint32 result, bytes decrypted) public {
+        if(string(decrypted) == string(m_data)) {
+            Terminal.print(0,"ChaCha works");
+        }
+    }
 
     /*
     *  Implementation of DeBot

@@ -25,7 +25,7 @@
 			]
 		},
 		{
-			"name": "naclBoxHandle",
+			"name": "chachaBoxHandle",
 			"inputs": [
 				{"name":"handle","type":"uint32"}
 			],
@@ -33,10 +33,19 @@
 			]
 		},
 		{
-			"name": "setEncrypted",
+			"name": "decrypt",
 			"inputs": [
 				{"name":"result","type":"uint32"},
 				{"name":"encrypted","type":"bytes"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "checkResult",
+			"inputs": [
+				{"name":"result","type":"uint32"},
+				{"name":"decrypted","type":"bytes"}
 			],
 			"outputs": [
 			]
