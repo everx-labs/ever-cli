@@ -520,6 +520,50 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
     ask_giver(&addr, 1000000000)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--balance_in_tons")
+        .arg("true");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg(&addr)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("balance:       1.0 ton"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("-j")
+        .arg("account")
+        .arg(&addr)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"balance\": \"1.0\""));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--balance_in_tons")
+        .arg("false");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("account")
+        .arg(&addr)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("balance:       1000000000 nanoton"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("-j")
+        .arg("account")
+        .arg(&addr)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"balance\": \"1000000000\""));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("deploy")
         .arg(wallet_tvc)
         .arg("{}")
