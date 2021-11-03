@@ -1,7 +1,6 @@
 use super::term_browser::input;
 use crate::crypto::load_keypair;
 use crate::helpers::{TonClient, HD_PATH};
-use base64;
 use std::io::{self};
 use ton_client::crypto::{
     chacha20, nacl_box, nacl_box_open, nacl_secret_box, nacl_secret_box_open,
@@ -167,8 +166,6 @@ impl ton_client::crypto::EncryptionBox for NaClBox {
 
 pub(super) struct TerminalEncryptionBox {
     handle: EncryptionBoxHandle,
-    box_type: EncryptionBoxType,
-    client: TonClient,
 }
 
 impl TerminalEncryptionBox {
@@ -196,11 +193,10 @@ impl TerminalEncryptionBox {
                     },
                 )
                 .await
-                .map_err(|e| e.to_string())?
-                .handle
+                .map(|r| r.handle)
+                .unwrap_or(EncryptionBoxHandle(0))
             }
             EncryptionBoxType::NaCl => {
-                //let padded_pubkey = format!("{:064}",params.their_pubkey);//format!("{:064}", params.their_pubkey);
                 register_encryption_box(
                     params.context.clone(),
                     NaClBox {
@@ -211,8 +207,8 @@ impl TerminalEncryptionBox {
                     },
                 )
                 .await
-                .map_err(|e| e.to_string())?
-                .handle
+                .map(|r| r.handle)
+                .unwrap_or(EncryptionBoxHandle(0))
             }
             EncryptionBoxType::ChaCha20 => {
                 register_encryption_box(
@@ -224,14 +220,12 @@ impl TerminalEncryptionBox {
                     },
                 )
                 .await
-                .map_err(|e| e.to_string())?
-                .handle
+                .map(|r| r.handle)
+                .unwrap_or(EncryptionBoxHandle(0))
             }
         };
         Ok(Self {
             handle: registered_box,
-            box_type: params.box_type,
-            client: params.context.clone(),
         })
     }
     pub fn handle(&self) -> EncryptionBoxHandle {
