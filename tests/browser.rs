@@ -136,7 +136,7 @@ fn test_encryptionboxes() -> Result<(), Box<dyn std::error::Error>> {
     
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
-        .write_stdin(format!("y\n{}", keys))
+        .write_stdin(format!("y\n{}\n{}", keys, keys))
         .arg("debot")
         .arg("fetch")
         .arg(&addr);
@@ -144,8 +144,10 @@ fn test_encryptionboxes() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success()
         .stdout(predicate::str::contains("run EncryptionBoxInput"))
+        .stdout(predicate::str::contains("run chacha"))
+        .stdout(predicate::str::contains("ChaCha works"))
         .stdout(predicate::str::contains("run naclbox"))
-        .stdout(predicate::str::contains("ChaCha works"));
+        .stdout(predicate::str::contains("NaCl works"));
     // uncomment for debug 
     // let out = cmd.get_output();
     // std::io::stdout().lock().write_all(&out.stdout)?;

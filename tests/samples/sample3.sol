@@ -28,8 +28,7 @@ contract EncryptionBoxInputDebot is Debot {
     }
 
     function runEncryptionBoxInput() public {
-        //EncryptionBoxInput.getNaclBox(tvm.functionId(naclBoxHandle),"run naclbox",m_nonce,THEIR_ENC_PUBKEY);
-        EncryptionBoxInput.getChaCha20Box(tvm.functionId(chachaBoxHandle),"run naclbox",m_nonce);
+        EncryptionBoxInput.getChaCha20Box(tvm.functionId(chachaBoxHandle),"run chacha",m_nonce);
     }
 
     function chachaBoxHandle(uint32 handle) public {
@@ -43,7 +42,50 @@ contract EncryptionBoxInputDebot is Debot {
 
     function checkResult(uint32 result, bytes decrypted) public {
         if(string(decrypted) == string(m_data)) {
-            Terminal.print(0,"ChaCha works");
+            Terminal.print(tvm.functionId(regenerate),"ChaCha works");
+        }
+    }
+
+    function regenerate() public {
+        Sdk.genRandom(tvm.functionId(getSecretNaClBox), 24);
+    }
+
+    function getSecretNaClBox(bytes buffer) public {
+        m_nonce = buffer;
+        EncryptionBoxInput.getNaclSecretBox(tvm.functionId(naclSecretBoxHandle),"run naclbox",m_nonce);
+    }
+
+    function naclSecretBoxHandle(uint32 handle) public {
+        m_handle = handle;
+        Sdk.encrypt(tvm.functionId(decryptSecretNaCl), m_handle, m_data);
+    }
+
+    function decryptSecretNaCl(uint32 result, bytes encrypted) public {
+        Sdk.decrypt(tvm.functionId(checkSecretNaClResult), m_handle, encrypted);
+    }
+
+    function checkSecretNaClResult(uint32 result, bytes decrypted) public {
+        if(string(decrypted) == string(m_data)) {
+            Terminal.print(tvm.functionId(getNaClBox),"SecretNaCl works");
+        }
+    }
+
+    function getNaClBox() public {
+        EncryptionBoxInput.getNaclBox(tvm.functionId(naclBoxHandle),"run naclbox",m_nonce,THEIR_ENC_PUBKEY);
+    }
+
+    function naclBoxHandle(uint32 handle) public {
+        m_handle = handle;
+        Sdk.encrypt(tvm.functionId(decryptNaCl), m_handle, m_data);
+    }
+
+    function decryptNaCl(uint32 result, bytes encrypted) public {
+        Sdk.decrypt(tvm.functionId(checkNaClResult), m_handle, encrypted);
+    }
+
+    function checkNaClResult(uint32 result, bytes decrypted) public {
+        if(string(decrypted) == string(m_data)) {
+            Terminal.print(0,"NaCl works");
         }
     }
 

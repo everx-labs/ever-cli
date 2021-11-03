@@ -68,7 +68,7 @@ impl ton_client::crypto::EncryptionBox for NaClSecretBox {
         Ok(nacl_secret_box(
             self.client.clone(),
             ParamsOfNaclSecretBox {
-                decrypted: base64::encode(data),
+                decrypted: data.clone(),
                 key: self.key.clone(),
                 nonce: self.nonce.clone(),
             },
@@ -142,7 +142,7 @@ impl ton_client::crypto::EncryptionBox for NaClBox {
         Ok(nacl_box(
             self.client.clone(),
             ParamsOfNaclBox {
-                decrypted: base64::encode(data),
+                decrypted: data.clone(),
                 nonce: self.nonce.clone(),
                 their_public: self.their_pubkey.clone(),
                 secret: self.secret.clone(),
@@ -191,7 +191,7 @@ impl TerminalEncryptionBox {
                 register_encryption_box(
                     params.context.clone(),
                     NaClSecretBox {
-                        key: hex::encode(&key),
+                        key: key,
                         nonce: params.nonce,
                         client: params.context.clone(),
                     },
@@ -201,12 +201,12 @@ impl TerminalEncryptionBox {
                 .handle
             }
             EncryptionBoxType::NaCl => {
-                let padded_pubkey = format!("{:064}", params.their_pubkey);
+                let padded_pubkey = format!("{:032}",params.their_pubkey);//format!("{:064}", params.their_pubkey);
                 register_encryption_box(
                     params.context.clone(),
                     NaClBox {
                         their_pubkey: hex::encode(&padded_pubkey),
-                        secret: hex::encode(&key),
+                        secret: key,
                         nonce: params.nonce,
                         client: params.context.clone(),
                     },

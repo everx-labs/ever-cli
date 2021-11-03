@@ -51,6 +51,80 @@
 			]
 		},
 		{
+			"name": "regenerate",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "getSecretNaClBox",
+			"inputs": [
+				{"name":"buffer","type":"bytes"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "naclSecretBoxHandle",
+			"inputs": [
+				{"name":"handle","type":"uint32"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "decryptSecretNaCl",
+			"inputs": [
+				{"name":"result","type":"uint32"},
+				{"name":"encrypted","type":"bytes"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "checkSecretNaClResult",
+			"inputs": [
+				{"name":"result","type":"uint32"},
+				{"name":"decrypted","type":"bytes"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "getNaClBox",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "naclBoxHandle",
+			"inputs": [
+				{"name":"handle","type":"uint32"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "decryptNaCl",
+			"inputs": [
+				{"name":"result","type":"uint32"},
+				{"name":"encrypted","type":"bytes"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "checkNaClResult",
+			"inputs": [
+				{"name":"result","type":"uint32"},
+				{"name":"decrypted","type":"bytes"}
+			],
+			"outputs": [
+			]
+		},
+		{
 			"name": "getDebotInfo",
 			"id": "0xDEB",
 			"inputs": [
