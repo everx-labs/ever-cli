@@ -52,7 +52,7 @@ contract EncryptionBoxInputDebot is Debot {
 
     function getSecretNaClBox(bytes buffer) public {
         m_nonce = buffer;
-        EncryptionBoxInput.getNaclSecretBox(tvm.functionId(naclSecretBoxHandle),"run naclbox",m_nonce);
+        EncryptionBoxInput.getNaclSecretBox(tvm.functionId(naclSecretBoxHandle),"run secret naclbox",m_nonce);
     }
 
     function naclSecretBoxHandle(uint32 handle) public {

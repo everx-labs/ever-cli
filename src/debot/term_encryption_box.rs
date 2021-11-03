@@ -1,5 +1,4 @@
 use super::term_browser::input;
-use num_bigint::BigInt;
 use crate::crypto::load_keypair;
 use crate::helpers::{TonClient, HD_PATH};
 use base64;
