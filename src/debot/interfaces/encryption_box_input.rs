@@ -1,5 +1,5 @@
 use num_bigint::{BigInt, Sign};
-use super::dinterface::{decode_answer_id, decode_nonce, decode_prompt, decode_int256, decode_num_arg};
+use super::dinterface::{decode_answer_id, decode_nonce, decode_prompt, decode_arg, decode_num_arg};
 use crate::debot::term_encryption_box::{
     EncryptionBoxType, ParamsOfTerminalEncryptionBox, TerminalEncryptionBox,
 };
@@ -94,7 +94,7 @@ impl EncryptionBoxInput {
         let answer_id = decode_answer_id(args)?;
         let prompt = decode_prompt(args)?;
         let nonce = decode_nonce(args)?;
-        let their_pubkey = decode_int256(args, "theirPubkey")?;
+        let their_pubkey = decode_arg(args, "theirPubkey")?;
         println!("{}", prompt);
         let encryption_box = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
             context: self.client.clone(),
@@ -114,7 +114,7 @@ impl EncryptionBoxInput {
         let encryption_box = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
             context: self.client.clone(),
             box_type: EncryptionBoxType::SecretNaCl,
-            their_pubkey: BigInt::new(Sign::Plus, vec![0]),
+            their_pubkey: String::new(),
             nonce: nonce,
         })
         .await?;
@@ -130,7 +130,7 @@ impl EncryptionBoxInput {
         let encryption_box = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
             context: self.client.clone(),
             box_type: EncryptionBoxType::ChaCha20,
-            their_pubkey: BigInt::new(Sign::Plus, vec![0]),
+            their_pubkey: String::new(),
             nonce,
         })
         .await?;

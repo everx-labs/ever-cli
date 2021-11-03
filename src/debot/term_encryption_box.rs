@@ -20,7 +20,7 @@ pub(crate) enum EncryptionBoxType {
 
 pub(crate) struct ParamsOfTerminalEncryptionBox {
     pub box_type: EncryptionBoxType,
-    pub their_pubkey: BigInt,
+    pub their_pubkey: String,
     pub nonce: String,
     pub context: TonClient,
 }
@@ -201,11 +201,11 @@ impl TerminalEncryptionBox {
                 .handle
             }
             EncryptionBoxType::NaCl => {
-                let padded_pubkey = format!("{:032}",params.their_pubkey);//format!("{:064}", params.their_pubkey);
+                //let padded_pubkey = format!("{:064}",params.their_pubkey);//format!("{:064}", params.their_pubkey);
                 register_encryption_box(
                     params.context.clone(),
                     NaClBox {
-                        their_pubkey: hex::encode(&padded_pubkey),
+                        their_pubkey: params.their_pubkey,
                         secret: key,
                         nonce: params.nonce,
                         client: params.context.clone(),
