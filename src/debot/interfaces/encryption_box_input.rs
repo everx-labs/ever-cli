@@ -2,6 +2,7 @@ use super::dinterface::{decode_answer_id, decode_nonce, decode_prompt, decode_ar
 use crate::debot::term_encryption_box::{
     EncryptionBoxType, ParamsOfTerminalEncryptionBox, TerminalEncryptionBox,
 };
+use ton_client::crypto::EncryptionBoxHandle;
 use crate::helpers::TonClient;
 use serde_json::Value;
 use tokio::sync::RwLock;
@@ -95,57 +96,55 @@ impl EncryptionBoxInput {
         let nonce = decode_nonce(args)?;
         let their_pubkey = decode_arg(args, "theirPubkey")?;
         println!("{}", prompt);
-        let encryption_box = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
+        let result = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
             context: self.client.clone(),
             box_type: EncryptionBoxType::NaCl,
             their_pubkey: their_pubkey,
             nonce: nonce,
-        }).await?;
-        let handle = encryption_box.handle();
-        self.handles.write().await.push(encryption_box);
-        Ok((answer_id, json!({ "handle": handle.0})))
+        }).await;
+        let handle = result.map(|r| r.handle()).unwrap_or(EncryptionBoxHandle(0));
+        self.handles.write().await.push(TerminalEncryptionBox{handle, client: self.client.clone()});
+        Ok((answer_id, json!({ "handle": self.handles.read().await.last().unwrap().handle().0})))
     }
     async fn get_nacl_secret_box(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let prompt = decode_prompt(args)?;
         let nonce = decode_nonce(args)?;
         println!("{}", prompt);
-        let encryption_box = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
+        let result = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
             context: self.client.clone(),
             box_type: EncryptionBoxType::SecretNaCl,
             their_pubkey: String::new(),
             nonce: nonce,
         })
-        .await?;
-        let handle = encryption_box.handle();
-        self.handles.write().await.push(encryption_box);
-        Ok((answer_id, json!({ "handle": handle.0})))
+        .await;
+        let handle = result.map(|r| r.handle()).unwrap_or(EncryptionBoxHandle(0));
+        self.handles.write().await.push(TerminalEncryptionBox{handle, client: self.client.clone()});
+        Ok((answer_id, json!({ "handle": self.handles.read().await.last().unwrap().handle().0})))
     }
     async fn get_chacha20_box(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let nonce = decode_nonce(args)?;
         let prompt = decode_prompt(args)?;
         println!("{}", prompt);
-        let encryption_box = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
+        let result = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
             context: self.client.clone(),
             box_type: EncryptionBoxType::ChaCha20,
             their_pubkey: String::new(),
             nonce,
         })
-        .await?;
-        let handle = encryption_box.handle();
-        self.handles.write().await.push(encryption_box);
-        Ok((answer_id, json!({ "handle": handle.0})))
+        .await;
+        let handle = result.map(|r| r.handle()).unwrap_or(EncryptionBoxHandle(0));
+        self.handles.write().await.push(TerminalEncryptionBox{handle, client: self.client.clone()});
+        Ok((answer_id, json!({ "handle": self.handles.read().await.last().unwrap().handle().0})))
     }
     async fn remove_handle(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let handle = decode_num_arg::<u32>(args, "handle")?;
-        let initial_size = self.handles.write().await.len();
-        self.handles
-            .write()
-            .await
-            .retain(|value| (*value).handle().0 != handle);
-        let removed: bool = initial_size != self.handles.write().await.len();
+        let mut handles = self.handles.write().await;
+        let initial_size = handles.len();
+        handles.retain(|value| (*value).handle().0 != handle);
+        let removed: bool = initial_size != handles.len();
         Ok((answer_id, json!({ "removed": removed })))
     }
     async fn get_supported_algorithms(&self, args: &Value) -> InterfaceResult {

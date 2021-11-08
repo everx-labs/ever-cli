@@ -4,8 +4,8 @@ use crate::helpers::{TonClient, HD_PATH};
 use std::io::{self};
 use ton_client::crypto::{
     chacha20, nacl_box, nacl_box_open, nacl_secret_box, nacl_secret_box_open,
-    register_encryption_box, EncryptionBoxHandle, EncryptionBoxInfo, ParamsOfChaCha20,
-    ParamsOfNaclBox, ParamsOfNaclBoxOpen, ParamsOfNaclSecretBox, ParamsOfNaclSecretBoxOpen,
+    register_encryption_box, remove_encryption_box, EncryptionBoxHandle, EncryptionBoxInfo, ParamsOfChaCha20,
+    ParamsOfNaclBox, ParamsOfNaclBoxOpen, ParamsOfNaclSecretBox, ParamsOfNaclSecretBoxOpen, RegisteredEncryptionBox,
 };
 use ton_client::error::ClientResult;
 
@@ -57,7 +57,7 @@ impl ton_client::crypto::EncryptionBox for NaClSecretBox {
     async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
         Ok(EncryptionBoxInfo {
             hdpath: Some(String::from(HD_PATH)),
-            algorithm: Some("NaclSecretBox".to_string()),
+            algorithm: Some(format!("NaclSecretBox")),
             options: Some(json!({"nonce": self.nonce.clone()})),
             public: None,
         })
@@ -93,7 +93,7 @@ impl ton_client::crypto::EncryptionBox for ChaChaBox {
     async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
         Ok(EncryptionBoxInfo {
             hdpath: Some(String::from(HD_PATH)),
-            algorithm: Some("ChaCha20".to_string()),
+            algorithm: Some(format!("ChaCha20")),
             options: Some(json!({"nonce": self.nonce.clone()})),
             public: None,
         })
@@ -129,7 +129,7 @@ impl ton_client::crypto::EncryptionBox for NaClBox {
     async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
         Ok(EncryptionBoxInfo {
             hdpath: Some(String::from(HD_PATH)),
-            algorithm: Some("NaclBox".to_string()),
+            algorithm: Some(format!("NaclBox")),
             options: Some(json!({
                 "their_public": self.their_pubkey.clone(),
                 "nonce": self.nonce.clone()})),
@@ -165,7 +165,21 @@ impl ton_client::crypto::EncryptionBox for NaClBox {
 }
 
 pub(super) struct TerminalEncryptionBox {
-    handle: EncryptionBoxHandle,
+    pub handle: EncryptionBoxHandle,
+    pub client: TonClient,
+}
+
+impl Drop for TerminalEncryptionBox {
+    fn drop(&mut self) {
+        if self.handle.0 != 0 {
+            let _ = remove_encryption_box(
+                self.client.clone(),
+                RegisteredEncryptionBox {
+                    handle: self.handle(),
+                },
+            );
+        }
+    }
 }
 
 impl TerminalEncryptionBox {
@@ -184,7 +198,7 @@ impl TerminalEncryptionBox {
 
         let registered_box = match params.box_type {
             EncryptionBoxType::SecretNaCl => {
-                register_encryption_box(
+                let result = register_encryption_box(
                     params.context.clone(),
                     NaClSecretBox {
                         key: key,
@@ -192,12 +206,11 @@ impl TerminalEncryptionBox {
                         client: params.context.clone(),
                     },
                 )
-                .await
-                .map(|r| r.handle)
-                .unwrap_or(EncryptionBoxHandle(0))
+                .await;
+                result.map(|r| r.handle).unwrap_or(EncryptionBoxHandle(0))
             }
             EncryptionBoxType::NaCl => {
-                register_encryption_box(
+                let result = register_encryption_box(
                     params.context.clone(),
                     NaClBox {
                         their_pubkey: params.their_pubkey,
@@ -206,12 +219,11 @@ impl TerminalEncryptionBox {
                         client: params.context.clone(),
                     },
                 )
-                .await
-                .map(|r| r.handle)
-                .unwrap_or(EncryptionBoxHandle(0))
+                .await;
+                result.map(|r| r.handle).unwrap_or(EncryptionBoxHandle(0))
             }
             EncryptionBoxType::ChaCha20 => {
-                register_encryption_box(
+                let result = register_encryption_box(
                     params.context.clone(),
                     ChaChaBox {
                         key: key,
@@ -219,13 +231,13 @@ impl TerminalEncryptionBox {
                         client: params.context.clone(),
                     },
                 )
-                .await
-                .map(|r| r.handle)
-                .unwrap_or(EncryptionBoxHandle(0))
+                .await;
+                result.map(|r| r.handle).unwrap_or(EncryptionBoxHandle(0))
             }
         };
         Ok(Self {
             handle: registered_box,
+            client: params.context.clone(),
         })
     }
     pub fn handle(&self) -> EncryptionBoxHandle {
