@@ -79,7 +79,7 @@ pub async fn generate_address(
 
     if update_tvc {
         let initial_data = initial_data.map(|s| s.to_string());
-        let key_bytes = match keys.clone() {
+        let key_bytes = match keys.as_ref() {
             Some(ref keys) => {
                 hex::decode(&keys.public)
                     .map_err(|e| format!("failed to decode public key: {}", e))?

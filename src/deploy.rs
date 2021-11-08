@@ -113,11 +113,7 @@ pub async fn prepare_deploy_message(
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let abi = load_abi(&abi)?;
 
-    let keys = if keys_file.is_some() {
-        Some(load_keypair(&keys_file.unwrap())?)
-    } else {
-        None
-    };
+    let keys = keys_file.map(|k| load_keypair(&k)).transpose()?;
 
     let tvc_bytes = &std::fs::read(tvc)
         .map_err(|e| format!("failed to read smart contract file: {}", e))?;
@@ -139,11 +135,7 @@ pub async fn prepare_deploy_message_params(
     let addr = calc_acc_address(
         &tvc_bytes,
         wc,
-        if keys.is_some() {
-            Some(keys.clone().unwrap().public.clone())
-        } else {
-            None
-        },
+        keys.as_ref().map(|k| k.public.clone()),
         None,
         abi.clone()
     ).await?;
