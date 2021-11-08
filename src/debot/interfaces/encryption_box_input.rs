@@ -102,8 +102,8 @@ impl EncryptionBoxInput {
             their_pubkey: their_pubkey,
             nonce: nonce,
         }).await;
-        let handle = result.map(|r| r.handle()).unwrap_or(EncryptionBoxHandle(0));
-        self.handles.write().await.push(TerminalEncryptionBox{handle, client: self.client.clone()});
+        let encryption_box = result.unwrap_or(TerminalEncryptionBox{handle: EncryptionBoxHandle(0), client: self.client.clone()});
+        self.handles.write().await.push(encryption_box);
         Ok((answer_id, json!({ "handle": self.handles.read().await.last().unwrap().handle().0})))
     }
     async fn get_nacl_secret_box(&self, args: &Value) -> InterfaceResult {
@@ -118,8 +118,8 @@ impl EncryptionBoxInput {
             nonce: nonce,
         })
         .await;
-        let handle = result.map(|r| r.handle()).unwrap_or(EncryptionBoxHandle(0));
-        self.handles.write().await.push(TerminalEncryptionBox{handle, client: self.client.clone()});
+        let encryption_box = result.unwrap_or(TerminalEncryptionBox{handle: EncryptionBoxHandle(0), client: self.client.clone()});
+        self.handles.write().await.push(encryption_box);
         Ok((answer_id, json!({ "handle": self.handles.read().await.last().unwrap().handle().0})))
     }
     async fn get_chacha20_box(&self, args: &Value) -> InterfaceResult {
@@ -134,8 +134,8 @@ impl EncryptionBoxInput {
             nonce,
         })
         .await;
-        let handle = result.map(|r| r.handle()).unwrap_or(EncryptionBoxHandle(0));
-        self.handles.write().await.push(TerminalEncryptionBox{handle, client: self.client.clone()});
+        let encryption_box = result.unwrap_or(TerminalEncryptionBox{handle: EncryptionBoxHandle(0), client: self.client.clone()});
+        self.handles.write().await.push(encryption_box);
         Ok((answer_id, json!({ "handle": self.handles.read().await.last().unwrap().handle().0})))
     }
     async fn remove_handle(&self, args: &Value) -> InterfaceResult {
