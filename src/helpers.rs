@@ -117,7 +117,7 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             max_reconnect_timeout: 1000,
             ..Default::default()
         },
-        boc: Default::default(),
+        ..Default::default()
     };
     let cli =
         ClientContext::new(cli_conf).map_err(|e| format!("failed to create tonclient: {}", e))?;
