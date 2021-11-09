@@ -147,6 +147,7 @@
 		}
 	],
 	"data": [
+		{"key":1,"name":"m_seed","type":"uint256"}
 	],
 	"events": [
 		{
@@ -163,6 +164,7 @@
 		{"name":"_pubkey","type":"uint256"},
 		{"name":"_timestamp","type":"uint64"},
 		{"name":"_constructorFlag","type":"bool"},
+		{"name":"m_seed","type":"uint256"},
 		{"name":"m_stake","type":"uint64"},
 		{"name":"m_sender","type":"address"},
 		{"name":"m_receiver","type":"address"},

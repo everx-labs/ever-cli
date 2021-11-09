@@ -1,4 +1,4 @@
-.version sol 0.51.0
+.version sol 0.52.0
 
 .macro constructor
 DROP
@@ -20,7 +20,7 @@ THROW 0
 DROP
 GETGLOB 6
 THROWIFNOT 76
-.loc fakeDepool.sol, 11
+.loc fakeDepool.sol, 22
 ENDS
 .loc fakeDepool.sol, 0
 CALLREF {
@@ -36,7 +36,7 @@ THROW 0
 CALL $sendAnswer_internal_macro$
 
 .macro sendAnswer_internal_macro
-.loc fakeDepool.sol, 12
+.loc fakeDepool.sol, 23
 PUSHINT 222
 PUSHINT 11
 GETGLOB 9
@@ -61,7 +61,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 25
+.loc fakeDepool.sol, 26
 LDU 64
 ENDS
 .loc fakeDepool.sol, 0
@@ -78,17 +78,17 @@ THROW 0
 CALL $addOrdinaryStake_internal_macro$
 
 .macro addOrdinaryStake_internal_macro
-.loc fakeDepool.sol, 26
-SETGLOB 10
 .loc fakeDepool.sol, 27
-GETGLOB 9
 SETGLOB 11
 .loc fakeDepool.sol, 28
+GETGLOB 9
+SETGLOB 12
+.loc fakeDepool.sol, 29
 DEPTH
 ADDCONST -2
 PICK
-SETGLOB 16
-.loc fakeDepool.sol, 29
+SETGLOB 17
+.loc fakeDepool.sol, 30
 PUSHINT 222
 PUSHINT 11
 GETGLOB 9
@@ -113,7 +113,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 32
+.loc fakeDepool.sol, 33
 LDU 64
 LDMSGADDRQ
 PUSHCONT {
@@ -154,26 +154,26 @@ THROW 0
 CALL $addVestingStake_internal_macro$
 
 .macro addVestingStake_internal_macro
-.loc fakeDepool.sol, 33
-GETGLOB 9
-SETGLOB 11
 .loc fakeDepool.sol, 34
+GETGLOB 9
+SETGLOB 12
+.loc fakeDepool.sol, 35
 DEPTH
 ADDCONST -2
 PICK
-SETGLOB 16
-.loc fakeDepool.sol, 35
-ROLL 3
-SETGLOB 10
+SETGLOB 17
 .loc fakeDepool.sol, 36
-ROT
-SETGLOB 12
+ROLL 3
+SETGLOB 11
 .loc fakeDepool.sol, 37
-SWAP
+ROT
 SETGLOB 13
 .loc fakeDepool.sol, 38
+SWAP
 SETGLOB 14
 .loc fakeDepool.sol, 39
+SETGLOB 15
+.loc fakeDepool.sol, 40
 PUSHINT 0
 DUP
 GETGLOB 9
@@ -198,7 +198,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 42
+.loc fakeDepool.sol, 43
 LDU 64
 LDMSGADDRQ
 PUSHCONT {
@@ -239,26 +239,26 @@ THROW 0
 CALL $addLockStake_internal_macro$
 
 .macro addLockStake_internal_macro
-.loc fakeDepool.sol, 43
-GETGLOB 9
-SETGLOB 11
 .loc fakeDepool.sol, 44
+GETGLOB 9
+SETGLOB 12
+.loc fakeDepool.sol, 45
 DEPTH
 ADDCONST -2
 PICK
-SETGLOB 16
-.loc fakeDepool.sol, 45
-ROLL 3
-SETGLOB 10
+SETGLOB 17
 .loc fakeDepool.sol, 46
-ROT
-SETGLOB 12
+ROLL 3
+SETGLOB 11
 .loc fakeDepool.sol, 47
-SWAP
+ROT
 SETGLOB 13
 .loc fakeDepool.sol, 48
+SWAP
 SETGLOB 14
 .loc fakeDepool.sol, 49
+SETGLOB 15
+.loc fakeDepool.sol, 50
 PUSHINT 0
 DUP
 GETGLOB 9
@@ -283,7 +283,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 52
+.loc fakeDepool.sol, 53
 LDU 64
 ENDS
 .loc fakeDepool.sol, 0
@@ -300,17 +300,17 @@ THROW 0
 CALL $withdrawFromPoolingRound_internal_macro$
 
 .macro withdrawFromPoolingRound_internal_macro
-.loc fakeDepool.sol, 53
-GETGLOB 9
-SETGLOB 11
 .loc fakeDepool.sol, 54
+GETGLOB 9
+SETGLOB 12
+.loc fakeDepool.sol, 55
 DEPTH
 ADDCONST -2
 PICK
-SETGLOB 16
-.loc fakeDepool.sol, 55
-SETGLOB 10
+SETGLOB 17
 .loc fakeDepool.sol, 56
+SETGLOB 11
+.loc fakeDepool.sol, 57
 PUSHINT 0
 DUP
 GETGLOB 9
@@ -335,7 +335,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 59
+.loc fakeDepool.sol, 60
 LDU 64
 ENDS
 .loc fakeDepool.sol, 0
@@ -352,17 +352,17 @@ THROW 0
 CALL $withdrawPart_internal_macro$
 
 .macro withdrawPart_internal_macro
-.loc fakeDepool.sol, 60
-GETGLOB 9
-SETGLOB 11
 .loc fakeDepool.sol, 61
+GETGLOB 9
+SETGLOB 12
+.loc fakeDepool.sol, 62
 DEPTH
 ADDCONST -2
 PICK
-SETGLOB 16
-.loc fakeDepool.sol, 62
-SETGLOB 10
+SETGLOB 17
 .loc fakeDepool.sol, 63
+SETGLOB 11
+.loc fakeDepool.sol, 64
 PUSHINT 0
 DUP
 GETGLOB 9
@@ -387,7 +387,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 66
+.loc fakeDepool.sol, 67
 ENDS
 .loc fakeDepool.sol, 0
 CALLREF {
@@ -403,18 +403,18 @@ THROW 0
 CALL $withdrawAll_internal_macro$
 
 .macro withdrawAll_internal_macro
-.loc fakeDepool.sol, 67
-GETGLOB 9
-SETGLOB 11
 .loc fakeDepool.sol, 68
+GETGLOB 9
+SETGLOB 12
+.loc fakeDepool.sol, 69
 DEPTH
 ADDCONST -2
 PICK
-SETGLOB 16
-.loc fakeDepool.sol, 69
-FALSE
-SETGLOB 15
+SETGLOB 17
 .loc fakeDepool.sol, 70
+FALSE
+SETGLOB 16
+.loc fakeDepool.sol, 71
 PUSHINT 0
 DUP
 GETGLOB 9
@@ -439,7 +439,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 73
+.loc fakeDepool.sol, 74
 ENDS
 .loc fakeDepool.sol, 0
 CALLREF {
@@ -455,18 +455,18 @@ THROW 0
 CALL $cancelWithdrawal_internal_macro$
 
 .macro cancelWithdrawal_internal_macro
-.loc fakeDepool.sol, 74
-GETGLOB 9
-SETGLOB 11
 .loc fakeDepool.sol, 75
+GETGLOB 9
+SETGLOB 12
+.loc fakeDepool.sol, 76
 DEPTH
 ADDCONST -2
 PICK
-SETGLOB 16
-.loc fakeDepool.sol, 76
-TRUE
-SETGLOB 15
+SETGLOB 17
 .loc fakeDepool.sol, 77
+TRUE
+SETGLOB 16
+.loc fakeDepool.sol, 78
 PUSHINT 0
 DUP
 GETGLOB 9
@@ -491,7 +491,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 80
+.loc fakeDepool.sol, 81
 LDMSGADDRQ
 PUSHCONT {
 	LDREF
@@ -523,19 +523,19 @@ THROW 0
 CALL $transferStake_internal_macro$
 
 .macro transferStake_internal_macro
-.loc fakeDepool.sol, 81
-GETGLOB 9
-SETGLOB 11
 .loc fakeDepool.sol, 82
+GETGLOB 9
+SETGLOB 12
+.loc fakeDepool.sol, 83
 DEPTH
 ADDCONST -2
 PICK
-SETGLOB 16
-.loc fakeDepool.sol, 83
-SETGLOB 10
+SETGLOB 17
 .loc fakeDepool.sol, 84
-SETGLOB 12
+SETGLOB 11
 .loc fakeDepool.sol, 85
+SETGLOB 13
+.loc fakeDepool.sol, 86
 PUSHINT 0
 DUP
 GETGLOB 9
@@ -560,7 +560,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 88
+.loc fakeDepool.sol, 89
 ENDS
 .loc fakeDepool.sol, 0
 CALLREF {
@@ -576,15 +576,15 @@ THROW 0
 CALL $ticktock_internal_macro$
 
 .macro ticktock_internal_macro
-.loc fakeDepool.sol, 89
-GETGLOB 9
-SETGLOB 11
 .loc fakeDepool.sol, 90
+GETGLOB 9
+SETGLOB 12
+.loc fakeDepool.sol, 91
 DEPTH
 ADDCONST -2
 PICK
-SETGLOB 16
-.loc fakeDepool.sol, 91
+SETGLOB 17
+.loc fakeDepool.sol, 92
 GETGLOB 9
 NEWC
 STSLICECONST x62_
@@ -594,7 +594,7 @@ STSLICER
 ENDC
 PUSHINT 1
 SENDRAWMSG
-.loc fakeDepool.sol, 93
+.loc fakeDepool.sol, 94
 PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000005_
 PUSHSLICE xc00000000000000000000000004516371200000001
 NEWC
@@ -614,7 +614,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 96
+.loc fakeDepool.sol, 97
 ENDS
 .loc fakeDepool.sol, 0
 CALLREF {
@@ -630,14 +630,14 @@ THROW 0
 CALL $receiveFunds_internal_macro$
 
 .macro receiveFunds_internal_macro
-.loc fakeDepool.sol, 97
-GETGLOB 9
-SETGLOB 11
 .loc fakeDepool.sol, 98
+GETGLOB 9
+SETGLOB 12
+.loc fakeDepool.sol, 99
 DEPTH
 ADDCONST -2
 PICK
-SETGLOB 16
+SETGLOB 17
 .loc fakeDepool.sol, 0
 
 .macro getData
@@ -649,7 +649,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 101
+.loc fakeDepool.sol, 102
 ENDS
 .loc fakeDepool.sol, 0
 CALLREF {
@@ -700,14 +700,14 @@ THROW 0
 CALL $getData_internal_macro$
 
 .macro getData_internal_macro
-.loc fakeDepool.sol, 103
-GETGLOB 10
+.loc fakeDepool.sol, 104
 GETGLOB 11
 GETGLOB 12
 GETGLOB 13
 GETGLOB 14
 GETGLOB 15
 GETGLOB 16
+GETGLOB 17
 .loc fakeDepool.sol, 0
 
 .macro setVestingDonor
@@ -719,7 +719,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 106
+.loc fakeDepool.sol, 107
 LDMSGADDRQ
 PUSHCONT {
 	LDREF
@@ -743,9 +743,9 @@ THROW 0
 CALL $setVestingDonor_internal_macro$
 
 .macro setVestingDonor_internal_macro
-.loc fakeDepool.sol, 107
-SETGLOB 12
 .loc fakeDepool.sol, 108
+SETGLOB 13
+.loc fakeDepool.sol, 109
 PUSHINT 0
 DUP
 GETGLOB 9
@@ -770,7 +770,7 @@ ISNULL
 IFREF {
 	CALL $c4_to_c7$
 }
-.loc fakeDepool.sol, 111
+.loc fakeDepool.sol, 112
 LDMSGADDRQ
 PUSHCONT {
 	LDREF
@@ -794,9 +794,9 @@ THROW 0
 CALL $setLockDonor_internal_macro$
 
 .macro setLockDonor_internal_macro
-.loc fakeDepool.sol, 112
-SETGLOB 12
 .loc fakeDepool.sol, 113
+SETGLOB 13
+.loc fakeDepool.sol, 114
 PUSHINT 0
 DUP
 GETGLOB 9
@@ -816,7 +816,7 @@ SENDRAWMSG
 DROP
 GETGLOB 6
 THROWIFNOT 76
-.loc fakeDepool.sol, 116
+.loc fakeDepool.sol, 117
 LDU 256
 ENDS
 .loc fakeDepool.sol, 0
@@ -833,7 +833,7 @@ THROW 0
 CALL $error_internal_macro$
 
 .macro error_internal_macro
-.loc fakeDepool.sol, 117
+.loc fakeDepool.sol, 118
 PUSHINT 2
 MAX
 THROWANY
@@ -843,7 +843,7 @@ THROWANY
 DROP
 GETGLOB 6
 THROWIFNOT 76
-.loc fakeDepool.sol, 120
+.loc fakeDepool.sol, 121
 ENDS
 .loc fakeDepool.sol, 0
 CALLREF {
@@ -859,20 +859,19 @@ THROW 0
 CALL $outOfGas_internal_macro$
 
 .macro outOfGas_internal_macro
-.loc fakeDepool.sol, 121
-NEWDICT
 .loc fakeDepool.sol, 122
-PUSHINT 0
+NEWDICT
 .loc fakeDepool.sol, 123
+PUSHINT 0
+.loc fakeDepool.sol, 124
 PUSHCONT {
 	DUP
 	PUSHINT 9999
 	LEQ
 }
 PUSHCONT {
-	.loc fakeDepool.sol, 124
-	PUSH3 S0, S0, S1
-	ROT
+	.loc fakeDepool.sol, 125
+	PUSH3 S0, S1, S0
 	NEWC
 	STU 256
 	ROTREV
@@ -886,6 +885,7 @@ DROP2
 .loc fakeDepool.sol, 0
 
 .macro c7_to_c4
+GETGLOB 17
 GETGLOB 16
 GETGLOB 15
 GETGLOB 14
@@ -899,7 +899,10 @@ NEWC
 STU 256
 STU 64
 STONE
+STU 256
 STU 64
+ROLLREV 6
+NEWC
 STSLICE
 ROLLREV 5
 NEWC
@@ -908,6 +911,7 @@ STU 32
 STU 32
 STI 1
 STU 128
+STBREFR
 STBREFR
 ENDC
 POPROOT
@@ -919,7 +923,11 @@ LDU 256 ; pubkey c4
 LDU 64 ; pubkey timestamp c4
 LDU 1 ; ctor flag
 NIP
+LDU 256
 LDU 64
+LDREF
+ENDS
+CTOS
 LDMSGADDR
 LDREF
 ENDS
@@ -930,6 +938,7 @@ LDU 32
 LDI 1
 LDU 128
 ENDS
+SETGLOB 17
 SETGLOB 16
 SETGLOB 15
 SETGLOB 14
@@ -953,13 +962,23 @@ PUSHCONT {
 	PUSHROOT
 	CTOS
 	PLDDICT ; D
-	PUSHINT 0
+	PUSHINT 1
+	OVER
+	PUSHINT 64
+	DICTUGET
+	PUSHCONT {
+		PLDU 256
+	}
+	PUSHCONT {
+		PUSHINT 0
+	}
+	IFELSE
 	SETGLOB 10
-	PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
+	PUSHINT 0
 	SETGLOB 11
 	PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
 	SETGLOB 12
-	PUSHINT 0
+	PUSHSLICE x8000000000000000000000000000000000000000000000000000000000000000001_
 	SETGLOB 13
 	PUSHINT 0
 	SETGLOB 14
@@ -967,6 +986,8 @@ PUSHCONT {
 	SETGLOB 15
 	PUSHINT 0
 	SETGLOB 16
+	PUSHINT 0
+	SETGLOB 17
 	PUSHINT 64
 	DICTUGET
 	THROWIFNOT 61

@@ -366,7 +366,7 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
                             matches.value_of("CONFIRMS").unwrap_or("1")
     );
 
-    let (msg, address) = prepare_deploy_message_params(&tvc_bytes.to_vec(), abi, &param_str, keys, config.wc).await?;
+    let (msg, address) = prepare_deploy_message_params(&tvc_bytes.to_vec(), abi, &param_str, Some(keys), config.wc).await?;
 
     if !config.is_json {
         println!("Wallet address: {}", address);
