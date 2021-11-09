@@ -22,7 +22,7 @@ use ton_types::{HashmapE, UInt256, serialize_toc};
 
 use crate::config::Config;
 
-static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
+pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
 static ELECTOR_ADDR: &str = "-1:3333333333333333333333333333333333333333333333333333333333333333";
 
 fn construct_blockchain_config(config_account: &Account) -> Result<BlockchainConfig, String> {
@@ -33,7 +33,7 @@ fn construct_blockchain_config(config_account: &Account) -> Result<BlockchainCon
     BlockchainConfig::with_config(config_params).map_err(|e| format!("Failed to construct config: {}", e))
 }
 
-async fn fetch(server_address: &str, account_address: &str, filename: &str) -> Result<(), String> {
+pub async fn fetch(server_address: &str, account_address: &str, filename: &str, fast_stop: bool) -> Result<(), String> {
     let context = Arc::new(
         ClientContext::new(ClientConfig {
             network: NetworkConfig {
@@ -149,6 +149,9 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) -> R
         let last = transactions.result.last().ok_or(format!("Failed to get last txn"))?;
         lt = last["lt"].as_str().ok_or(format!("Failed to parse value"))?.to_owned();
         count += transactions.result.len() as u64;
+        if count > 0 && fast_stop {
+            break;
+        }
         pb.set_position(std::cmp::min(count, tr_count));
     }
     Ok(())
@@ -399,8 +402,16 @@ impl log::Log for TrivialLogger {
     fn flush(&self) {}
 }
 
-async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
-    trace_execution: bool, track_elector_unfreeze: bool, track_config_param_34: bool) -> Result<(), String> {
+pub async fn replay(
+    input_filename: &str,
+    config_filename: &str,
+    txnid: &str,
+    trace_execution: bool,
+    track_elector_unfreeze: bool,
+    track_config_param_34: bool,
+    trace_last_transaction: bool,
+    init_trace_last_logger: impl Fn() -> Result<(), String>,
+) -> Result<(), String> {
     let mut account_state = State::new(input_filename)?;
     let mut config_state = State::new(config_filename)?;
     assert_eq!(config_state.account_addr, CONFIG_ADDR);
@@ -460,7 +471,7 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
                 account_old_hash_local.to_hex_string());
             exit(1);
         }
-        if tr.id == txnid {
+        if tr.id == txnid && !trace_last_transaction {
             account_root.write_to_file(format!("{}-{}.boc", state.account_addr, txnid).as_str());
 
             let account = config_account.serialize()
@@ -499,13 +510,18 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
 
         let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c)
             .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
+
+        let trace_last = trace_last_transaction && tr.id == txnid;
+        if trace_last {
+            init_trace_last_logger()?;
+        }
         let params = ExecuteParams {
             state_libs: HashmapE::default(),
             block_unixtime: tr.tr.now,
             block_lt: tr.tr.lt,
             last_tr_lt: Arc::new(AtomicU64::new(tr.tr.lt)),
             seed_block: UInt256::default(),
-            debug: trace_execution,
+            debug: trace_execution || trace_last,
         };
         let tr_local = executor.execute_with_libs_and_params(
             msg.as_ref(),
@@ -551,7 +567,7 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
 pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     fetch(config.url.as_str(),
         m.value_of("ADDRESS").ok_or("Missing account address")?,
-        m.value_of("OUTPUT").ok_or("Missing output filename")?).await?;
+        m.value_of("OUTPUT").ok_or("Missing output filename")?, false).await?;
     Ok(())
 }
 
@@ -559,6 +575,6 @@ pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
     replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
         m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, false, false).await?;
+        false, false, false, false, ||{Ok(())}).await?;
     Ok(())
 }
