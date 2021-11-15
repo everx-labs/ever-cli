@@ -198,7 +198,7 @@ impl TerminalEncryptionBox {
 
         let registered_box = match params.box_type {
             EncryptionBoxType::SecretNaCl => {
-                let result = register_encryption_box(
+                register_encryption_box(
                     params.context.clone(),
                     NaClSecretBox {
                         key: key,
@@ -206,11 +206,10 @@ impl TerminalEncryptionBox {
                         client: params.context.clone(),
                     },
                 )
-                .await;
-                result.map(|r| r.handle).unwrap_or(EncryptionBoxHandle(0))
-            }
+                .await.map_err(|e| e.to_string())?.handle
+            },
             EncryptionBoxType::NaCl => {
-                let result = register_encryption_box(
+                register_encryption_box(
                     params.context.clone(),
                     NaClBox {
                         their_pubkey: params.their_pubkey,
@@ -219,11 +218,10 @@ impl TerminalEncryptionBox {
                         client: params.context.clone(),
                     },
                 )
-                .await;
-                result.map(|r| r.handle).unwrap_or(EncryptionBoxHandle(0))
-            }
+                .await.map_err(|e| e.to_string())?.handle
+            },
             EncryptionBoxType::ChaCha20 => {
-                let result = register_encryption_box(
+                register_encryption_box(
                     params.context.clone(),
                     ChaChaBox {
                         key: key,
@@ -231,9 +229,8 @@ impl TerminalEncryptionBox {
                         client: params.context.clone(),
                     },
                 )
-                .await;
-                result.map(|r| r.handle).unwrap_or(EncryptionBoxHandle(0))
-            }
+                .await.map_err(|e| e.to_string())?.handle
+            },
         };
         Ok(Self {
             handle: registered_box,
