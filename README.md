@@ -2213,22 +2213,88 @@ Debug commands allow user to replay transaction locally or execute a function ca
 tonos-cli debug transaction [--empty_config] [-c <config_path>] [-o <log_path>] [-t <contract_path>] <address> <tx_id>
 ```
 
-This command allows user to replay 
-
-
 FLAGS:
 --empty-config    Replay transaction without full dump of the config contract.
--h, --help            Prints help information
--V, --version         Prints version information
 
 OPTIONS:
--c, --config <CONFIG_PATH>        Path to the file with saved config contract transactions. If not set transactions
-will be fetched to file "config.txns".
--t, --contract <CONTRACT_PATH>    Path to the file with saved target contract transactions. If not set transactions
-will be fetched to file "contract.txns".
--o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
-be removed.
+-c, --config <config_path>        Path to the file with saved config contract transactions. If not set transactions
+                                  will be fetched to file "config.txns".
+-t, --contract <contract_path>    Path to the file with saved target contract transactions. If not set transactions
+                                  will be fetched to file "contract.txns".
+-o, --output <log_path>           Path where to store the trace. Default path is "./trace.log". Note: old file will
+                                  be removed.
 
-ARGS:
-<ADDRESS>    Contract address.
-<TX_ID>      ID of the transaction that should be replayed.
+ARGUMENTS:
+<address>    Contract address.
+<tx_id>      ID of the transaction that should be replayed.
+
+This command allows user to replay remote transaction locally and obtain TVM trace.
+Full replay requires transactions dump of the debugged contract and of the config contract.
+This command fetches them automatically, but config contract may have too many transactions and full dump of them can
+take a very long time, that's why user can use option `--empty-config` to limit number of the queried transactions and
+speed up the execution if the debugged contract doesn't check network configuration parameters. Another way to speed up
+execution if the contract needs config is to reuse dump of config transactions by passing the file with
+`--config <CONFIG_PATH>` option.
+
+Example:
+
+```bash
+$ tonos-cli debug transaction -o tvm_trace.log 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78  74acbd354e605519d799c7e1e90e52030e8f9e781453e48ecad18bb035fe1586 --empty-config
+Config: /home/user/TONLabs/sol2tvm/scripts/tonos-cli.conf.json
+Input arguments:
+ address: 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78
+   tx_id: 74acbd354e605519d799c7e1e90e52030e8f9e781453e48ecad18bb035fe1586
+trace_path: tvm_trace.log
+config_path: None
+contract_path: None
+Fetching config contract transactions...
+Fetching contract transactions...
+Replaying the last transactions...
+DONE
+Log saved to tvm_trace.log.
+```
+
+## 11.2. Debug call
+
+```bash
+tonos-cli debug call [--boc] [--tvc] [--abi <abi_path>] [--address <tvc_address>] [-o <log_path>] [--now <timestamp>] [--sign <path_to_keyfile>] <address> <method> <params>
+```
+
+FLAGS:
+--boc        Flag that changes behavior of the command to work with the saved account state (account BOC).
+--tvc        Flag that changes behavior of the command to work with the saved contract state (stateInit TVC).
+
+OPTIONS:
+--abi <abi_path>                    Path to the contract ABI file. Can be specified in the config file.
+--address <tvc_address>             Account address for account constructed from TVC.
+-o, --output <log_path>             Path where to store the trace. Default path is "./trace.log". Note: old file will
+                                    be removed.
+--now <timestamp>                   Now timestamp (in milliseconds) for execution. If not set it is equal to current
+                                    timestamp.
+--sign <path_to_keyfile>            Seed phrase or path to the file with keypair used to sign the message. Can be
+                                    specified in the config.
+
+ARGUMENTS:
+<address>    Contract address or path the file with saved contract state if corresponding flag is used.
+<method>     Name of the function being called.
+<params>     Function arguments. Can be specified with a filename, which contains json data.
+
+This command allows user locally emulate contract call and obtain TVM trace.
+Command can work with contract in the network by querying its boc and running message on it or with saved account state
+in format of account BOC or pure StateInit TVC. If contract is passed via TVC file, contract address can be specified
+with `--address <tvc_address>` option. Also, execution timestamp can be specified with option `--now <timestamp>`.
+
+```bash
+$ tonos-cli debug call --abi ../samples/1_Accumulator.abi.jso
+n --sign keys/key0 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78 add2 '{"value":1}'
+Config: /home/user/TONLabs/sol2tvm/scripts/tonos-cli.conf.json
+Input arguments:
+   input: 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78
+  method: add2
+  params: {"value":1}
+    sign: keys/key0
+     abi: ../samples/1_Accumulator.abi.json
+  output: ./trace.log
+Execution finished.
+Log saved to ./trace.log
+```

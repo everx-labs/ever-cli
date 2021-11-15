@@ -376,7 +376,7 @@ pub fn construct_account_from_tvc(tvc_path: &str, address: Option<&str>, balance
             _ => MsgAddressInt::default()
         },
         match balance {
-            Some(balance) => CurrencyCollection::with_grams(u64::MAX),
+            Some(balance) => CurrencyCollection::with_grams(balance),
             _ => CurrencyCollection::default()
         },
         0,

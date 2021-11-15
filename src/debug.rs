@@ -13,10 +13,10 @@
 use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use crate::helpers::{load_ton_address, create_client, load_abi, now, now_ms, construct_account_from_tvc};
+use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc};
 use crate::replay::{fetch, CONFIG_ADDR, replay};
 use std::io::Write;
-use crate::call::{query_account_boc, load_account};
+use crate::call::{query_account_boc};
 use ton_block::{Message, Account, Serializable, Deserializable};
 use ton_types::{UInt256, HashmapE};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
