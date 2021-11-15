@@ -22,7 +22,8 @@ use ton_client::crypto::{CryptoConfig, KeyPair};
 use ton_client::error::ClientError;
 use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection};
 use ton_client::{ClientConfig, ClientContext};
-
+use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit};
+use std::str::FromStr;
 const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
 const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
 
@@ -59,13 +60,12 @@ pub fn read_keys(filename: &str) -> Result<KeyPair, String> {
 }
 
 pub fn load_ton_address(addr: &str, conf: &Config) -> Result<String, String> {
-    use std::str::FromStr;
     let addr = if addr.find(':').is_none() {
         format!("{}:{}", conf.wc, addr)
     } else {
         addr.to_owned()
     };
-    let _ = ton_block::MsgAddressInt::from_str(&addr)
+    let _ = MsgAddressInt::from_str(&addr)
         .map_err(|e| format!("Address is specified in the wrong format. Error description: {}", e))?;
     Ok(addr)
 }
@@ -366,4 +366,22 @@ pub fn print_account(
             println!("state_init: {}", state_init.unwrap());
         }
     }
+}
+
+pub fn construct_account_from_tvc(tvc_path: &str, address: Option<&str>, balance: Option<u64>) -> Result<Account, String> {
+    Ok(Account::active_by_init_code_hash(
+        match address {
+            Some(address) => MsgAddressInt::from_str(address)
+                .map_err(|e| format!("Failed to set address: {}", e))?,
+            _ => MsgAddressInt::default()
+        },
+        match balance {
+            Some(balance) => CurrencyCollection::with_grams(u64::MAX),
+            _ => CurrencyCollection::default()
+        },
+        0,
+        StateInit::construct_from_file(tvc_path)
+            .map_err(|e| format!(" failed to load TVC from the file {}: {}", tvc_path, e))?,
+        true
+    ).map_err(|e| format!(" failed to create account with the stateInit: {}",e))?)
 }

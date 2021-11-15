@@ -1290,7 +1290,7 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: D
     let wc = wc_from_matches_or_config(matches, config.clone())?;
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let keys = matches.value_of("SIGN")
             .map(|s| s.to_string())
             .or(config.keys_path.clone());

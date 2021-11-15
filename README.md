@@ -88,6 +88,7 @@ tonos-cli <subcommand> -h
   - [9.3. NodeID](#93-nodeid)
   - [9.4. Dump blockchain config](#94-dump-blockchain-config)
 - [10. Fetch and replay commands](#10-fetch-and-replay)
+  - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 
 # 1. Installation
 
@@ -2159,7 +2160,7 @@ Note 1: last command generates 3 files. The file with the longest name in the fo
 
 Note 2: to get StateInit (tvc) from Account state use `tonos-cli decode account boc` command with `--dumptvc` option.
 
-### 10.1 How to unfreeze account
+### 10.1. How to unfreeze account
 
 - 1) Dump Account state before transaction in which account changed state from Active to Frozen.
 
@@ -2202,4 +2203,32 @@ Deployer.abi.json:
 }
 ```
 
+# 11. Debug commands
 
+Debug commands allow user to replay transaction locally or execute a function call locally and obtain TVM trace.
+
+## 11.1. Debug transaction
+
+```bash
+tonos-cli debug transaction [--empty_config] [-c <config_path>] [-o <log_path>] [-t <contract_path>] <address> <tx_id>
+```
+
+This command allows user to replay 
+
+
+FLAGS:
+--empty-config    Replay transaction without full dump of the config contract.
+-h, --help            Prints help information
+-V, --version         Prints version information
+
+OPTIONS:
+-c, --config <CONFIG_PATH>        Path to the file with saved config contract transactions. If not set transactions
+will be fetched to file "config.txns".
+-t, --contract <CONTRACT_PATH>    Path to the file with saved target contract transactions. If not set transactions
+will be fetched to file "contract.txns".
+-o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
+be removed.
+
+ARGS:
+<ADDRESS>    Contract address.
+<TX_ID>      ID of the transaction that should be replayed.

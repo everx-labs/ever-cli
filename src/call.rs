@@ -13,16 +13,7 @@
 use crate::config::Config;
 use crate::crypto::load_keypair;
 use crate::convert;
-use crate::helpers::{
-    TonClient,
-    now,
-    now_ms,
-    create_client_verbose,
-    create_client_local,
-    query,
-    load_ton_address,
-    load_abi,
-};
+use crate::helpers::{TonClient, now, now_ms, create_client_verbose, create_client_local, query, load_ton_address, load_abi, construct_account_from_tvc};
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
 use hex;
@@ -44,8 +35,24 @@ use ton_client::processing::{
     wait_for_transaction,
     send_message,
 };
-use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet, run_executor, ParamsOfRunExecutor, AccountForExecutor, ExecutionOptions};
-use ton_block::{Account, Serializable, Deserializable, MsgAddressInt, CurrencyCollection, StateInit};
+use ton_client::tvm::{
+    run_tvm,
+    run_get,
+    ParamsOfRunTvm,
+    ParamsOfRunGet,
+    run_executor,
+    ParamsOfRunExecutor,
+    AccountForExecutor,
+    ExecutionOptions
+};
+use ton_block::{
+    Account,
+    Serializable,
+    Deserializable,
+    MsgAddressInt,
+    CurrencyCollection,
+    StateInit
+};
 use std::str::FromStr;
 use serde_json::{Value, Map};
 
@@ -332,16 +339,9 @@ pub async fn emulate_locally(
     Ok(())
 }
 
-fn load_account(path: &str, from_tvc: bool) -> Result<Account, String> {
+pub fn load_account(path: &str, from_tvc: bool) -> Result<Account, String> {
     Ok(if from_tvc {
-        Account::active_by_init_code_hash(
-            MsgAddressInt::default(),
-            CurrencyCollection::default(),
-            0,
-            StateInit::construct_from_file(path)
-                .map_err(|e| format!(" failed to load TVC from the file {}: {}", path, e))?,
-            true
-        ).map_err(|e| format!(" failed to create account with the stateInit: {}",e))?
+        construct_account_from_tvc(path, None, None)?
     } else {
         Account::construct_from_file(path)
             .map_err(|e| format!(" failed to load account from the file {}: {}", path, e))?

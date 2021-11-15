@@ -10,14 +10,19 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE};
+use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use crate::helpers::{
-    load_ton_address,
-};
+use crate::helpers::{load_ton_address, create_client, load_abi, now, now_ms, construct_account_from_tvc};
 use crate::replay::{fetch, CONFIG_ADDR, replay};
 use std::io::Write;
+use crate::call::{query_account_boc, load_account};
+use ton_block::{Message, Account, Serializable, Deserializable};
+use ton_types::{UInt256, HashmapE};
+use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
+use ton_executor::{ExecuteParams, OrdinaryTransactionExecutor, BlockchainConfig, TransactionExecutor};
+use std::sync::{Arc, atomic::AtomicU64};
+use crate::crypto::load_keypair;
 
 const DEFAULT_TRACE_PATH: &'static str = "./trace.log";
 const DEFAULT_CONFIG_PATH: &'static str = "config.txns";
@@ -80,6 +85,37 @@ impl log::Log for DebugLogger {
 }
 
 pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
+    let output_arg = Arg::with_name("LOG_PATH")
+        .help("Path where to store the trace. Default path is \"./trace.log\". Note: old file will be removed.")
+        .takes_value(true)
+        .long("--output")
+        .short("-o");
+
+    let address_arg = Arg::with_name("ADDRESS")
+        .required(true)
+        .takes_value(true)
+        .help("Contract address.");
+
+    let method_arg = Arg::with_name("METHOD")
+        .required(true)
+        .takes_value(true)
+        .help("Name of the function being called.");
+
+    let params_arg = Arg::with_name("PARAMS")
+        .required(true)
+        .takes_value(true)
+        .help("Function arguments. Can be specified with a filename, which contains json data.");
+
+    let sign_arg = Arg::with_name("SIGN")
+        .long("--sign")
+        .takes_value(true)
+        .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.");
+
+    let abi_arg = Arg::with_name("ABI")
+        .long("--abi")
+        .takes_value(true)
+        .help("Path to the contract ABI file. Can be specified in the config file.");
+
     SubCommand::with_name("debug")
         .about("Debug commands.")
         .subcommand(SubCommand::with_name("transaction")
@@ -97,27 +133,46 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
                 .long("--contract")
                 .short("-t")
                 .takes_value(true))
-            // .arg(Arg::with_name("LOCAL")
-            //     .long("--local")
-            //     .help("Flag that changes behavior of the command to work with the saved account state (account BOC)."))
-            .arg(Arg::with_name("LOG_PATH")
-                .help("Path where to store the trace. Default path is \"./trace.log\". Note: old file will be removed.")
-                .takes_value(true)
-                .long("--output")
-                .short("-o"))
-            .arg(Arg::with_name("ADDRESS")
-                .required(true)
-                .takes_value(true)
-                .help("Contract address or path to the saved account state if --local flag is specified."))
+            .arg(output_arg.clone())
+            .arg(address_arg.clone())
             .arg(Arg::with_name("TX_ID")
                 .required(true)
                 .takes_value(true)
                 .help("ID of the transaction that should be replayed.")))
+        .subcommand(SubCommand::with_name("call")
+            .about("Play call locally with trace")
+            .arg(output_arg.clone())
+            .arg(address_arg.clone()
+                .help("Contract address or path the file with saved contract state if corresponding flag is used."))
+            .arg(method_arg.clone())
+            .arg(params_arg.clone())
+            .arg(abi_arg.clone())
+            .arg(sign_arg.clone())
+            .arg(Arg::with_name("BOC")
+                .long("--boc")
+                .conflicts_with("TVC")
+                .help("Flag that changes behavior of the command to work with the saved account state (account BOC)."))
+            .arg(Arg::with_name("TVC")
+                .long("--tvc")
+                .conflicts_with("BOC")
+                .help("Flag that changes behavior of the command to work with the saved contract state (stateInit TVC)."))
+            .arg(Arg::with_name("ACCOUNT_ADDRESS")
+                .takes_value(true)
+                .long("--address")
+                .help("Account address for account constructed from TVC.")
+                .requires("TVC"))
+            .arg(Arg::with_name("NOW")
+                .takes_value(true)
+                .long("--now")
+                .help("Now timestamp (in milliseconds) for execution. If not set it is equal to current timestamp.")))
 }
 
 pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     if let Some(matches) = matches.subcommand_matches("transaction") {
         return debug_transaction_command(matches, config).await;
+    }
+    if let Some(matches) = matches.subcommand_matches("call") {
+        return debug_call_command(matches, config).await;
     }
     Err("unknown command".to_owned())
 }
@@ -169,6 +224,117 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config) -> 
     println!("Replaying the last transactions...");
     replay(contract_path, config_path, &tx_id.unwrap(),false, false, false, true, init_logger).await?;
     println!("Log saved to {}.", trace_path);
+    Ok(())
+}
+
+async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let input = matches.value_of("ADDRESS");
+    let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
+    let method = matches.value_of("METHOD");
+    let params = matches.value_of("PARAMS");
+    let sign = matches.value_of("SIGN")
+        .map(|s| s.to_string())
+        .or(config.keys_path.clone());
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let is_boc = matches.is_present("BOC");
+    let is_tvc = matches.is_present("TVC");
+    let params = Some(load_params(params.unwrap())?);
+
+    if !config.is_json {
+        print_args!(input, method, params, sign, abi, output);
+    }
+
+    let ton_client = create_client(&config)?;
+    let input = input.unwrap();
+    let account = if is_tvc {
+        construct_account_from_tvc(input,
+                                   matches.value_of("ACCOUNT_ADDRESS"),
+                                   Some(u64::MAX))?
+    } else if is_boc {
+        Account::construct_from_file(input)
+            .map_err(|e| format!(" failed to load account from the file {}: {}", input, e))?
+    } else {
+        let address = load_ton_address(input, &config)?;
+        let account = query_account_boc(ton_client.clone(), &address).await?;
+        Account::construct_from_base64(&account)
+            .map_err(|e| format!("Failed to construct account: {}", e))?
+    };
+
+    let abi = std::fs::read_to_string(&abi.unwrap())
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+    let abi = load_abi(&abi)?;
+    let params = serde_json::from_str(&params.unwrap())
+        .map_err(|e| format!("params are not in json format: {}", e))?;
+
+    let keys = sign.map(|k| load_keypair(&k)).transpose()?;
+
+    let now = match matches.value_of("NOW") {
+        Some(now) => u64::from_str_radix(now, 10)
+            .map_err(|e| format!("Failed to convert now to u64: {}", e))?,
+        _ => now_ms()
+    };
+
+    let header = FunctionHeader { // TODO: add options or now + config.lifetime
+        expire: Some((now / 1000) as u32 + config.lifetime),
+        time: Some(now),
+        ..Default::default()
+    };
+    let call_set = CallSet {
+        function_name: method.unwrap().to_string(),
+        input: Some(params),
+        header: Some(header)
+    };
+    let msg_params = ParamsOfEncodeMessage {
+        abi,
+        address: Some(format!("0:{}", std::iter::repeat("0").take(64).collect::<String>())),  // TODO: add option or get from input
+        call_set: Some(call_set),
+        signer: if keys.is_some() {
+            Signer::Keys { keys: keys.unwrap() }
+        } else {
+            Signer::None
+        },
+        ..Default::default()
+    };
+
+    let message = encode_message(
+        ton_client,
+        msg_params
+    ).await
+        .map_err(|e| format!("Failed to encode message: {}", e))?;
+
+    let message = Message::construct_from_base64(&message.message)
+        .map_err(|e| format!("Failed to construct message: {}", e))?;
+
+    let params = ExecuteParams {
+        state_libs: HashmapE::default(),
+        block_unixtime: (now / 1000) as u32,
+        block_lt: now,
+        last_tr_lt: Arc::new(AtomicU64::new(now)),
+        seed_block: UInt256::default(),
+        debug: true,
+    };
+
+    let config = BlockchainConfig::default();
+    let executor = Box::new(OrdinaryTransactionExecutor::new(config));
+
+    let mut acc_root = account.serialize()
+        .map_err(|e| format!("Failed to serialize account: {}", e))?;
+
+    let trace_path = output.unwrap().to_string();
+
+    log::set_max_level(log::LevelFilter::Trace);
+    log::set_boxed_logger(
+        Box::new(DebugLogger::new(trace_path.clone()))
+    ).map_err(|e| format!("Failed to set logger: {}", e))?;
+
+    let _ = executor.execute_with_libs_and_params(
+        Some(&message),
+        &mut acc_root,
+        params,
+    );
+
+    println!("Execution finished.");
+    println!("Log saved to {}", trace_path);
     Ok(())
 }
 

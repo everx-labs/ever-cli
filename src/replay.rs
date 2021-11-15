@@ -492,7 +492,7 @@ pub async fn replay(
         }
         let executor: Box<dyn TransactionExecutor> =
             match tr.tr.read_description()
-                .map_err(|e| format!("failed to raed transaction: {}", e))? {
+                .map_err(|e| format!("failed to read transaction: {}", e))? {
                 TransactionDescr::TickTock(desc) => {
                     Box::new(TickTockTransactionExecutor::new(config.clone(), desc.tt))
                 }
