@@ -117,7 +117,7 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             max_reconnect_timeout: 1000,
             ..Default::default()
         },
-        boc: Default::default(),
+        ..Default::default()
     };
     let cli =
         ClientContext::new(cli_conf).map_err(|e| format!("failed to create tonclient: {}", e))?;
@@ -207,7 +207,7 @@ pub fn load_abi(abi: &str) -> Result<Abi, String> {
 pub async fn calc_acc_address(
     tvc: &[u8],
     wc: i32,
-    pubkey: String,
+    pubkey: Option<String>,
     init_data: Option<&str>,
     abi: Abi,
 ) -> Result<String, String> {
@@ -229,8 +229,12 @@ pub async fn calc_acc_address(
         ParamsOfEncodeMessage {
             abi,
             deploy_set: Some(dset),
-            signer: Signer::External {
-                public_key: pubkey,
+            signer: if pubkey.is_some() {
+                Signer::External {
+                    public_key: pubkey.unwrap(),
+                }
+            } else {
+                Signer::None
             },
             ..Default::default()
         },

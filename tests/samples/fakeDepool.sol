@@ -8,10 +8,7 @@ interface IFakeDePoolClient {
 
 contract FakeDePool {
 
-    function sendAnswer() public pure {
-        IFakeDePoolClient(msg.sender).receiveAnswer(11, 222);
-    }
-
+    uint static m_seed;
     uint64 m_stake;
     address m_sender;
     address m_receiver;
@@ -21,6 +18,10 @@ contract FakeDePool {
     uint128 m_value;
 
     event StakeSigningRequested(uint32 electionId, address proxy);
+
+    function sendAnswer() public pure {
+        IFakeDePoolClient(msg.sender).receiveAnswer(11, 222);
+    }
 
     function addOrdinaryStake(uint64 stake) public {
         m_stake = stake;

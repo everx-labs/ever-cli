@@ -1284,21 +1284,19 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: D
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
     let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
-    let keys = Some(
-        matches.value_of("SIGN")
+    let keys = matches.value_of("SIGN")
             .map(|s| s.to_string())
-            .or(config.keys_path.clone())
-            .ok_or("keypair file is not defined. Supply it in the config file or command line.".to_string())?
-    );
+            .or(config.keys_path.clone());
+
     let params = Some(load_params(params.unwrap())?);
     if !config.is_json {
         let opt_wc = Some(format!("{}", wc));
         print_args!(tvc, params, abi, keys, opt_wc);
     }
     match deploy_type {
-        DeployType::Full => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc, false).await,
-        DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc, raw, output).await,
-        DeployType::Fee => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc, true).await,
+        DeployType::Full => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false).await,
+        DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, raw, output).await,
+        DeployType::Fee => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, true).await,
     }
 }
 
@@ -1313,16 +1311,15 @@ async fn deployx_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
         &loaded_abi,
         "constructor"
     )?;
-    let keys = Some(matches.value_of("KEYS")
+    let keys = matches.value_of("KEYS")
         .map(|s| s.to_string())
-        .or(config.keys_path.clone())
-        .ok_or("keypair file is not defined. Supply it in the config file or command line.".to_string())?);
+        .or(config.keys_path.clone());
 
     if !config.is_json {
         let opt_wc = Some(format!("{}", wc));
         print_args!(tvc, params, abi, keys, opt_wc);
     }
-    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), &keys.unwrap(), wc, false).await
+    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false).await
 }
 
 fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> Result<(), String> {
