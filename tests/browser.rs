@@ -133,13 +133,14 @@ fn test_userinfo() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_pipechain_inputs() -> Result<(), Box<dyn std::error::Error>> {
     let path_to_pipechain = "tests/PipechainTest1.chain";
+    let path_to_pipechain_tmp = "tests/PipechainTest1.chain_tmp";
     let addr = deploy_debot("PipechainTest")?;
     let (_, _, _) = get_debot_paths("PipechainTest");
     let chain = std::fs::read_to_string(path_to_pipechain)?;
     let mut val: serde_json::Value = serde_json::from_str(&chain)?;
     val["debotAddress"] = json!(addr);
     let return_value = val["initArgs"]["arg7"].clone();
-    std::fs::write(path_to_pipechain, serde_json::to_string_pretty(&val).unwrap())?;
+    std::fs::write(path_to_pipechain_tmp, serde_json::to_string_pretty(&val).unwrap())?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
@@ -148,10 +149,12 @@ fn test_pipechain_inputs() -> Result<(), Box<dyn std::error::Error>> {
         .arg("start")
         .arg(&addr)
         .arg("--pipechain")
-        .arg(path_to_pipechain);
+        .arg(path_to_pipechain_tmp);
     let assert = cmd
         .assert()
         .success();
+
+    let _ = std::fs::remove_file(path_to_pipechain_tmp)?;
 
     let out_value: serde_json::Value = serde_json::from_slice(&assert.get_output().stdout).unwrap();
     let eq = predicate::eq(return_value);
