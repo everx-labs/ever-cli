@@ -55,10 +55,13 @@ tonos-cli <subcommand> -h
     - [4.8.3. Decode account commands](#483-decode-account-commands)
       - [4.8.3.1. Decode account data fields](#4831-decode-account-data-fields)
       - [4.8.3.2. Decode data from the account BOC file](#4832-decode-data-from-the-account-boc-file)
+    - [4.8.4. Decode TVC fields](#484-decode-tvc-fields)
   - [4.9. Generate payload for internal function call](#49-generate-payload-for-internal-function-call)
+  - [4.10. Alternative syntax for call, deploy and run commands](#410-alternative-syntax-for-call-deploy-and-run-commands)
 - [5. DeBot commands](#5-debot-commands)
 - [6. Multisig commands](#6-multisig-commands)
   - [6.1. Send tokens](#61-send-tokens)
+  - [6.2. Deploy wallet](#62-deploy-wallet)
 - [7. DePool commands](#7-depool-commands)
   - [7.1. Configure TONOS-CLI for DePool operations](#71-configure-tonos-cli-for-depool-operations)
   - [7.2. Deposit stakes](#72-deposit-stakes)
@@ -83,6 +86,7 @@ tonos-cli <subcommand> -h
   - [9.1. Convert tokens to nanotokens](#91-convert-tokens-to-nanotokens)
   - [9.2. Get global config](#92-get-global-config)
   - [9.3. NodeID](#93-nodeid)
+  - [9.4. Dump blockchain config](#94-dump-blockchain-config)
 - [10. Fetch and replay commands](#10-fetch-and-replay)
 
 # 1. Installation
@@ -662,7 +666,7 @@ Succeeded.
 You may use the following command to check the current status of a contract:
 
 ```bash
-tonos-cli account <address> [--dumptvc <tvc_path>]
+tonos-cli account <address> [--dumptvc <tvc_path>] [--dumpboc <boc_path>]
 ```
 
 `<address>` - contract [address](#41-generate-contract-address).
@@ -745,6 +749,8 @@ Result: {
 ```bash
 tonos-cli callex <method> [<address>] [<contract.abi.json>] [<seed_or_keyfile>] params...
 ```
+
+**Note:** this command is deprecated, use [`callx`](#410-alternative-syntax-for-call-deploy-and-run-commands) instead.
 
 `<method>` - the method being called.
 
@@ -851,14 +857,20 @@ Result: {
 ### 4.4.4. Run funC get-method
 
 ```bash
-tonos-cli runget <address> <method> [<params>...]
+tonos-cli runget [--boc] [--tvc] <address> <method> [<params>...] [--bc_config <config_path>]
 ```
 
-`<address>` - contract [address](#41-generate-contract-address).
+`<address>` - contract [address](#41-generate-contract-address) or path to the file with:
+* account boc (It can be obtained from the TON Live) if `--boc` option is used;
+* account state init if flag `--tvc` is used.
 
 `<method>` - the method being called.
 
 `<params>` - parameters of the called method. Can have multiple values: one for each function parameter.
+Parameters should be specified separately without json wrap and argument names.
+
+`--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config 
+BOC. It can be obtained with [dump blockchain config](#94-dump-blockchain-config) command.
 
 Example:
 
@@ -873,26 +885,73 @@ Connecting to net.ton.dev
 Running get-method...
 Succeded.
 Result: ["1619901678"]
+
+$ tonos-cli runget --boc acc.boc compute_returned_stake 0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+ address: acc.boc
+  method: compute_returned_stake
+  params: ["0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587"]
+Connecting to main.ton.dev
+Running get-method...
+Succeeded.
+Result: ["125387107580525"]
+
+$ tonos-cli runget --tvc acc.tvc compute_returned_stake 0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+ address: acc.boc
+  method: compute_returned_stake
+  params: ["0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587"]
+Connecting to main.ton.dev
+Running get-method...
+Succeeded.
+Result: ["125387107580525"]
 ```
 
-### 4.4.5. Run contract method locally for saved account state
+
+
+### 4.4.5. Run contract method locally for saved account BOC
 
 ```bash
-tonos-cli run --boc [--abi <contract.abi.json>] <account> <method> <params>
+tonos-cli run [--boc] [--tvc] [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>]
 ```
 
 `<contract.abi.json>` - contract interface file.
 
-`<account>` - path to the file with account boc (It can be obtained from the TON Live). 
+`<account>` - path to the file with account boc for flag `--boc` or account state init for flag `--tvc`
+(they can be obtained from the network with `account` command). 
 
 `<method>` - the method being called.
 
 `<params>` - parameters of the called method.
 
+`--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config
+BOC. It can be obtained with [dump blockchain config](#94-dump-blockchain-config) command.
+
 Example:
 
 ```bash
 $ tonos-cli run --boc tests/depool_acc.boc getData '{}' --abi tests/samples/fakeDepool.abi.json 
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+ account: tests/depool_acc.boc
+  method: getData
+  params: {}
+     abi: tests/samples/fakeDepool.abi.json
+Generating external inbound message...
+Succeeded.
+Result: {
+  "stake": "65535",
+  "sender": "0:1e0739795a20263747ba659785a791fc2761295593a694f53116ab53439cc0a4",
+  "receiver": "0:0123456789012345012345678901234501234567890123450123456789012346",
+  "withdrawal": "172800",
+  "total": "172800",
+  "reinvest": false,
+  "value": "1000000000"
+}
+
+$ tonos-cli run --tvc tests/depool_acc.tvc getData '{}' --abi tests/samples/fakeDepool.abi.json 
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
  account: tests/depool_acc.boc
@@ -1168,6 +1227,76 @@ state_init:
 
 ```
 
+### 4.8.4. Decode stateInit fields
+
+StateInit can be decoded for network account or file with account BOC or TVC.
+
+```bash
+tonos-cli decode stateinit [--tvc] [--boc] <input>
+```
+
+`<input>` - depending on the flags this parameter should contain:
+- path to the file with account BOC if `--boc` flag is specified;
+- path to the TVC file if `--tvc` flag is specified;
+- contract network address otherwise.
+
+```bash
+$ tonos-cli decode stateinit --boc account.boc 
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+   input: account.boc
+Decoded data:
+{
+  "split_depth": "None",
+  "special": "None",
+  "data": "te6ccgEBAgEAkQABowWvkA5qHmFvsIUxqyOHGegsw+mhvvuZc5taNDPm+bI8AAABfFtnzLOAAAAAAAAAAEAMpbXqnWxVq2MH9mu2c3ABPAlgHxYzBcVVGea3KTKb6UgBAHOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAO5rKAI",
+  "code": "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",
+  "code_hash": "82236b6062da156069b3cbf5020daf1a17b76869d676df216177fca950ab37df",
+  "data_hash": "7197d8544363ac2b2718240a84448584a675727ec8d42efd3726e82a4c8a3853",
+  "code_depth": "7",
+  "data_depth": "1",
+  "version": "sol 0.51.0",
+  "lib":  ""
+}
+
+$ tonos-cli decode stateinit --tvc fakeDepool.tvc 
+Config: default
+Input arguments:
+   input: fakeDepool.tvc
+Decoded data:
+{
+  "split_depth": "None",
+  "special": "None",
+  "data": "te6ccgEBAgEAKAABAcABAEPQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAg",
+  "code": "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",
+  "code_hash": "82236b6062da156069b3cbf5020daf1a17b76869d676df216177fca950ab37df",
+  "data_hash": "55a703465a160dce20481375de2e5b830c841c2787303835eb5821d62d65ca9d",
+  "code_depth": "7",
+  "data_depth": "1",
+  "version": "sol 0.51.0",
+  "lib":  ""
+}
+
+$ tonos-cli decode stateinit 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+   input: 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
+Connecting to http://127.0.0.1/
+Decoded data:
+{
+  "split_depth": "None",
+  "special": "None",
+  "data": "te6ccgEBAQEASwAAkWOlCuhADbJ3v+8vaQu9RUczWADX7uP05UFjmpt/sOAVAAABfF7iC8SAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMsA=",
+  "code": "te6ccgECDwEAAakABCSK7VMg4wMgwP/jAiDA/uMC8gsMAgEOApztRNDXScMB+GYh2zzTAAGOEoECANcYIPkBWPhCIPhl+RDyqN7TPwH4QyG58rQg+COBA+iogggbd0CgufK0+GPTHwH4I7zyudMfAds88jwFAwNK7UTQ10nDAfhmItDXCwOpOADcIccA4wIh1w0f8rwh4wMB2zzyPAsLAwM8IIIQJe+yCLrjAiCCEETv7Oy64wIgghBotV8/uuMCBwYEAkgw+EJu4wD4RvJz0fhC8uBl+EUgbpIwcN74Qrry4Gb4ANs88gAFCAFK7UTQ10nCAYqOGnDtRND0BXD4aoBA9A7yvdcL//hicPhjcPhq4goBUDDR2zz4SiGOHI0EcAAAAAAAAAAAAAAAADE7+zsgyM7L/8lw+wDe8gAKAygw+Eby4Ez4Qm7jANP/0ds82zzyAAoJCAAk+Er4Q/hCyMv/yz/Pg8v/ye1UACr4RSBukjBw3vhCuvLgZvgA+Eqg+GoAJu1E0NP/0z/TADHT/9H4avhj+GIACvhG8uBMAgr0pCD0oQ4NABRzb2wgMC41MS4wAAA=",
+  "code_hash": "d840258803b9d7472f2d959a5db7bb42d246f5e8f0dc6a94bb459ebb730a0e01",
+  "data_hash": "0ea45bfc864790ee1d66301059fa2cbdaba7a75e9e4f4bc1d2fbffd8401ee798",
+  "code_depth": "5",
+  "data_depth": "0",
+  "version": "sol 0.51.0",
+  "lib":  ""
+}
+```
+
 ## 4.9. Generate payload for internal function call
 
 Use the following command to generate payload for internal function call:
@@ -1193,6 +1322,26 @@ Input arguments:
      abi: SetcodeMultisigWallet.abi.json
   output: None
 Message body: te6ccgEBAgEAOwABaxMdgs2f4YuqQqYv2R3eNwmIeX4QpHhn7SzubLvRH8ey1BZjazjAAAAAAAAAAAAAAAABvlHQBAEAAA==
+```
+
+## 4.10. Alternative syntax for call, deploy and run commands
+
+To facilitate usage of tonos-cli use commands `callx`, `runx` and `deployx` instead of `call`, `run` and `deploy`.
+These alternative syntax commands have almost the same syntax as classic, but allow to specify address, abi and keys
+options in the config file. Also, this commands allow to skip params option if command doesn't need it.  
+Examples:
+
+```bash
+# specify options manually
+tonos-cli callx --keys giver.key --abi giver.abi.json --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
+
+# options are taken from the config
+tonos-cli config --abi giver.abi.json --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --keys giver.key
+tonos-cli callx sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
+
+# if contract function or constructor doesn't take arguments, parameters can be skipped
+tonos-cli deployx contract.tvc
+tonos-cli runx getParameters
 ```
 
 # 5. DeBot commands
@@ -1233,7 +1382,7 @@ Further input depends on the DeBot, which usually explains any actions it offers
 
 # 6. Multisig commands
 
-Multisig commands allow you to work with any existing Multisig wallets <link to repo> in a more convenient way and without the need for ABI files.
+Multisig commands allow you to work with any existing Multisig wallets <link to repo> in a more convenient way and with no need of ABI files.
 
 ## 6.1. Send tokens
 
@@ -1249,7 +1398,7 @@ tonos-cli multisig send --addr <sender_address> --dest <recipient_address> --pur
 
 `<"text_in_quotes">` - accompanying message. Only the recipient will be able to decrypt and read it.
 
-`<path_to_keys_or_seed_phrase>` - path to sender wallet key file of the corresponding seed phrase in quotes.
+`<path_to_keys_or_seed_phrase>` - path to sender wallet key file or the corresponding seed phrase in quotes.
 
 `--value *number*` - value to be transferred (in tokens).
 
@@ -1268,6 +1417,43 @@ Succeeded.
 Result: {
   "transId": "0"
 }.
+```
+
+# 6.2. Deploy wallet
+
+Use the following command to deploy a multisignature wallet:
+
+```bash
+tonos-cli multisig deploy [--setcode] [--owners <owners_list>] [--confirms <confirms_cnt>] [--local <local_giver_value>] --keys <path_to_keys_or_seed_phrase>
+```
+
+`--setcode` - flag that changes type of the wallet to the SetcodeMultisigWallet. If not specified, a SafeMultisigWallet is deployed.
+
+`--owners <owners_list>` - option that sets wallet owners. If not specified, the only owner is deploy signed (set with --keys option).
+List of owners must be specified by their public keys in hex format, split by the `,`.
+
+`--confirms <confirms_cnt>` - option that sets required number of confirmations. If not specified, is set to 1.
+
+`--local <local_giver_value>` - value that should be transferred from the local giver if wallet is deployed onto the Node SE (in nanotons).
+
+`--keys <path_to_keys_or_seed_phrase>` - path to the wallet key file or the corresponding seed phrase in quotes.
+
+
+Example:
+
+```bash
+$ tonos-cli multisig deploy -k "young tell target alter sport dignity enforce improve pottery fashion alert genuine" --local 1_000_000_000
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Wallet address: 0:4d892e63989c1c0ad64b0bbe22e8d036b0da271c19b6686d01bd29a99dcbc86d
+Connecting to http://127.0.0.1/
+Expire at: Mon, 13 Sep 2021 14:55:29 +0300
+MessageId: 3c3537e36e2a4a4018b7463db2bf57efad5dc0dc0233b040c2f5e165cb43e887
+MessageId: 8102067efc190b2e728d91d632c985634fc4717b7ae1137a4bbcf756c4cf8705
+Wallet successfully deployed
+Wallet address: 0:4d892e63989c1c0ad64b0bbe22e8d036b0da271c19b6686d01bd29a99dcbc86d
+
+# deploy with owners
+tonos-cli multisig deploy -l 5000000000 -c 2 -o 8b445b0feab10b9abf4e039d649348ec8662e3673fe9c37b7208c4d9d04c9b3f,ddc5bc7198c90feb75d9ce09e1b1f25a7e14a252fef31b50fac048c6ac3ee46c -k test.key
 ```
 
 # 7. DePool commands
@@ -1925,14 +2111,95 @@ Input arguments:
 50232655f2ad44f026b03ec1834ae8316bfa1f3533732da1e19b3b31c0f04143
 ```
 
-## 10. Fetch and replay
+## 9.4. Dump blockchain config
 
-These two commands are commonly used in pairs to recover a state of account at a specific point before a given transaction.
+```bash
+tonos-cli dump config <path>
+```
+
+`<path>` - path where to save the blockchain config dump.
 
 Example:
 
 ```bash
+$ tonos-cli dump config config.boc
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+    path: config.boc
+Connecting to main.ton.dev
+Config successfully saved to config.boc
+```
+
+## 10. Fetch and replay
+
+These two commands are commonly used in pairs to recover a state of the account at the specific point before a given transaction.
+
+Example:
+
+1) Dump blockchain config history to the file.
+
+```bash
 $ tonos-cli fetch -- -1:5555555555555555555555555555555555555555555555555555555555555555 config.txns
+```
+
+2) Dump account transactions from the network to the file.
+
+```bash
 $ tonos-cli fetch 0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d 570ddeb8.txns
+```
+where `0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d` is an example of account address, `570ddeb8.txns` - name of the output file.
+
+```bash
 $ tonos-cli replay config.txns 570ddeb8.txns 197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270
 ```
+
+where `197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270` is a txn id before which account state should be restored.
+
+Note 1: last command generates 3 files. The file with the longest name in the form of `<addr>-<txn_id>.boc` is a replayed and serialized Account state.
+
+Note 2: to get StateInit (tvc) from Account state use `tonos-cli decode account boc` command with `--dumptvc` option.
+
+### 10.1 How to unfreeze account
+
+- 1) Dump Account state before transaction in which account changed state from Active to Frozen.
+
+- 2) Extract tvc from the generated Account state.
+
+1) Use contract deployer (address in mainnet: `0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64`) to deploy the extracted tvc to the frozen account. Send 1 ton to its address and then run its `deploy` method.
+
+    Example: 
+    `tonos-cli --url main.ton.dev call 0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64 deploy --abi deployer.abi.json "{\"stateInit\":\"$(cat state.tvc | base64 -w 0)\",\"value\":500000000,\"dest\":\"-1:618272d6b15fd8f1eaa3cdb61ab9d77ae47ebbfcf7f28d495c727d0e98d523eb\"}"`
+    where `dest` - an address of frozen account, `state.tvc` - extracted account StateInit in step 2. 
+
+Deployer.abi.json:
+```json
+{
+	"ABI version": 2,
+	"header": ["time", "expire"],
+	"functions": [
+		{
+			"name": "deploy",
+			"inputs": [
+				{"name":"stateInit","type":"cell"},
+				{"name":"value","type":"uint128"},
+				{"name":"dest","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "constructor",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		}
+	],
+	"data": [
+	],
+	"events": [
+	]
+}
+```
+
+

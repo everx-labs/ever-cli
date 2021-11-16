@@ -44,18 +44,10 @@ use ton_client::processing::{
     wait_for_transaction,
     send_message,
 };
-use ton_client::tvm::{
-    run_tvm,
-    run_get,
-    ParamsOfRunTvm,
-    ParamsOfRunGet,
-    run_executor,
-    ParamsOfRunExecutor,
-    AccountForExecutor,
-};
-use ton_block::{Account, Serializable, Deserializable};
+use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet, run_executor, ParamsOfRunExecutor, AccountForExecutor, ExecutionOptions};
+use ton_block::{Account, Serializable, Deserializable, MsgAddressInt, CurrencyCollection, StateInit};
 use std::str::FromStr;
-use serde_json::Value;
+use serde_json::{Value, Map};
 
 pub struct EncodedMessage {
     pub message_id: String,
@@ -340,12 +332,30 @@ pub async fn emulate_locally(
     Ok(())
 }
 
+fn load_account(path: &str, from_tvc: bool) -> Result<Account, String> {
+    Ok(if from_tvc {
+        Account::active_by_init_code_hash(
+            MsgAddressInt::default(),
+            CurrencyCollection::default(),
+            0,
+            StateInit::construct_from_file(path)
+                .map_err(|e| format!(" failed to load TVC from the file {}: {}", path, e))?,
+            true
+        ).map_err(|e| format!(" failed to create account with the stateInit: {}",e))?
+    } else {
+        Account::construct_from_file(path)
+            .map_err(|e| format!(" failed to load account from the file {}: {}", path, e))?
+    })
+}
+
 pub async fn run_local_for_account(
     conf: Config,
     account: &str,
     abi: String,
     method: &str,
     params: &str,
+    bc_config: Option<&str>,
+    is_tvc: bool,
 ) -> Result<(), String> {
 
     if !conf.is_json {
@@ -355,8 +365,7 @@ pub async fn run_local_for_account(
     let ton = create_client_local()?;
     let abi = load_abi(&abi)?;
 
-    let acc = Account::construct_from_file(account)
-        .map_err(|e| format!(" failed to load account from the file {}: {}", account, e))?;
+    let acc = load_account(account, is_tvc)?;
 
     let acc_bytes = acc.write_to_bytes()
         .map_err(|e| format!("failed to load data from the account: {}", e))?;
@@ -388,7 +397,8 @@ pub async fn run_local_for_account(
         ton,
         abi,
         msg.message,
-        acc_boc
+        acc_boc,
+        bc_config
     ).await?;
 
     if !conf.is_json {
@@ -399,14 +409,28 @@ pub async fn run_local_for_account(
     Ok(())
 }
 
+fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<ExecutionOptions>, String> {
+    if let Some(config) = bc_config {
+        let bytes = std::fs::read(config)
+            .map_err(|e| format!("Failed to read data from file {}: {}", config, e))?;
+        let config_boc = base64::encode(&bytes);
+        let ex_opt = ExecutionOptions{
+            blockchain_config: Some(config_boc),
+            ..Default::default()
+        };
+        return Ok(Some(ex_opt));
+    }
+    Ok(None)
+}
 
 async fn run_local(
     ton: TonClient,
     abi: Abi,
     msg: String,
     acc_boc: String,
+    bc_config: Option<&str>,
 ) -> Result<serde_json::Value, String> {
-
+    let execution_options = prepare_execution_options(bc_config)?;
     let result = run_tvm(
         ton.clone(),
         ParamsOfRunTvm {
@@ -414,6 +438,7 @@ async fn run_local(
             account: acc_boc,
             abi: Some(abi.clone()),
             return_updated_account: Some(true),
+            execution_options,
             ..Default::default()
         },
     ).await
@@ -423,9 +448,9 @@ async fn run_local(
     Ok(res)
 }
 
-async fn send_message_and_wait(
+pub async fn send_message_and_wait(
     ton: TonClient,
-    abi: Abi,
+    abi: Option<Abi>,
     msg: String,
     conf: Config,
 ) -> Result<serde_json::Value, String> {
@@ -440,7 +465,7 @@ async fn send_message_and_wait(
         ton.clone(),
         ParamsOfSendMessage {
             message: msg.clone(),
-            abi: Some(abi.clone()),
+            abi: abi.clone(),
             send_events: false,
             ..Default::default()
         },
@@ -452,7 +477,7 @@ async fn send_message_and_wait(
         let result = wait_for_transaction(
             ton.clone(),
             ParamsOfWaitForTransaction {
-                abi: Some(abi.clone()),
+                abi,
                 message: msg.clone(),
                 shard_block_id: result.shard_block_id,
                 send_events: true,
@@ -502,6 +527,20 @@ pub async fn call_contract_with_result(
     is_fee: bool,
 ) -> Result<serde_json::Value, String> {
     let ton = create_client_verbose(&conf)?;
+    call_contract_with_client(ton, conf, addr, abi, method, params, keys, local, is_fee).await
+}
+
+pub async fn call_contract_with_client(
+    ton: TonClient,
+    conf: Config,
+    addr: &str,
+    abi: String,
+    method: &str,
+    params: &str,
+    keys: Option<String>,
+    local: bool,
+    is_fee: bool,
+) -> Result<serde_json::Value, String> {
     let abi = load_abi(&abi)?;
 
     let expire_at = conf.lifetime + now()?;
@@ -534,7 +573,7 @@ pub async fn call_contract_with_result(
                 println!("Running get-method...");
             }
             let acc_boc = query_account_boc(ton.clone(), addr).await?;
-            return run_local(ton.clone(), abi, msg.message.clone(), acc_boc).await;
+            return run_local(ton.clone(), abi, msg.message.clone(), acc_boc, None).await;
         }
         if conf.local_run || is_fee {
             emulate_locally(ton.clone(), addr, msg.message.clone(), is_fee).await?;
@@ -544,7 +583,7 @@ pub async fn call_contract_with_result(
         }
         if conf.async_call {
             return send_message_and_wait(ton,
-                                         abi,
+                                         Some(abi),
                                          msg.message,
                                          conf).await;
         }
@@ -663,7 +702,7 @@ pub async fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) 
     println!("{}", params.1);
     println!("Processing... ");
 
-    let result = send_message_and_wait(ton, abi, msg.message,  conf).await?;
+    let result = send_message_and_wait(ton, Some(abi), msg.message,  conf).await?;
 
     println!("Succeeded.");
     if !result.is_null() {
@@ -682,32 +721,64 @@ pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<St
     }
 }
 
-pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>, is_local: bool, is_tvc: bool, bc_config: Option<&str>) -> Result<(), String> {
+    let ton = if !is_local {
+        create_client_verbose(&conf)?
+    } else {
+        create_client_local()?
+    };
 
-    let addr = load_ton_address(addr, &conf)
-        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
-
-    let acc_boc = query_account_boc(ton.clone(), addr.as_str()).await?;
+    let acc_boc = if is_local {
+        let acc = load_account(addr, is_tvc)?;
+        let acc_bytes = acc.write_to_bytes()
+            .map_err(|e| format!("failed to load data from the account: {}", e))?;
+        base64::encode(&acc_bytes)
+    } else {
+        let addr = load_ton_address(addr, &conf)
+            .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
+        query_account_boc(ton.clone(), addr.as_str()).await?
+    };
 
     let params = params.map(|p| serde_json::from_str(&p))
         .transpose()
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
 
-    println!("Running get-method...");
+    if !conf.is_json {
+        println!("Running get-method...");
+    }
+    let execution_options = prepare_execution_options(bc_config)?;
     let result = run_get(
         ton,
         ParamsOfRunGet {
             account: acc_boc,
             function_name: method.to_owned(),
             input: params,
+            execution_options,
             ..Default::default()
         },
     ).await
     .map_err(|e| format!("run failed: {}", e.to_string()))?
     .output;
 
-    println!("Succeeded.");
-    println!("Result: {}", result);
+    if !conf.is_json {
+        println!("Succeeded.");
+        println!("Result: {}", result);
+    } else {
+        let mut res = Map::new();
+        match result {
+            Value::Array(array) => {
+                let mut i = 0;
+                for val in array.iter() {
+                    res.insert(format!("value{}", i), val.to_owned());
+                    i = 1 + i;
+                }
+            },
+            _ => {
+                res.insert("value0".to_owned(), result);
+            }
+        }
+        let res = Value::Object(res);
+        println!("{}", serde_json::to_string_pretty(&res).unwrap_or("Undefined".to_string()));
+    }
     Ok(())
 }

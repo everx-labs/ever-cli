@@ -117,7 +117,7 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             max_reconnect_timeout: 1000,
             ..Default::default()
         },
-        boc: Default::default(),
+        ..Default::default()
     };
     let cli =
         ClientContext::new(cli_conf).map_err(|e| format!("failed to create tonclient: {}", e))?;
@@ -144,12 +144,13 @@ pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
     create_client(conf)
 }
 
-pub async fn query(
+pub async fn query_with_limit(
     ton: TonClient,
     collection: &str,
     filter: serde_json::Value,
     result: &str,
     order: Option<Vec<OrderBy>>,
+    limit: Option<u32>,
 ) -> Result<Vec<serde_json::Value>, ClientError> {
     query_collection(
         ton,
@@ -158,11 +159,22 @@ pub async fn query(
             filter: Some(filter),
             result: result.to_owned(),
             order,
+            limit,
             ..Default::default()
         },
     )
-    .await
-    .map(|r| r.result)
+        .await
+        .map(|r| r.result)
+}
+
+pub async fn query(
+    ton: TonClient,
+    collection: &str,
+    filter: serde_json::Value,
+    result: &str,
+    order: Option<Vec<OrderBy>>,
+) -> Result<Vec<serde_json::Value>, ClientError> {
+    query_with_limit(ton, collection, filter, result, order, None).await
 }
 
 pub async fn decode_msg_body(
@@ -195,7 +207,7 @@ pub fn load_abi(abi: &str) -> Result<Abi, String> {
 pub async fn calc_acc_address(
     tvc: &[u8],
     wc: i32,
-    pubkey: String,
+    pubkey: Option<String>,
     init_data: Option<&str>,
     abi: Abi,
 ) -> Result<String, String> {
@@ -217,8 +229,12 @@ pub async fn calc_acc_address(
         ParamsOfEncodeMessage {
             abi,
             deploy_set: Some(dset),
-            signer: Signer::External {
-                public_key: pubkey,
+            signer: if pubkey.is_some() {
+                Signer::External {
+                    public_key: pubkey.unwrap(),
+                }
+            } else {
+                Signer::None
             },
             ..Default::default()
         },

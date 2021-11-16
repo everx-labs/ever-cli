@@ -10,7 +10,7 @@ readme = "README.md"
 license = "Apache-2.0"
 keywords = ["TON", "SDK", "smart contract", "tonlabs", "solidity"]
 edition = "2018"
-version = "0.18.20"
+version = "0.22.31"
 
 [dependencies]
 async-trait = "0.1.42"
@@ -27,6 +27,7 @@ num-bigint = "0.2.2"
 num-traits = "0.2"
 qr2term = "0.2.0"
 regex = "1.5.4"
+reqwest = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_derive = "1.0.91"
 serde_json = "1.0"
@@ -35,12 +36,12 @@ simplelog = "0.8.0"
 tokio = { version = "0.2", features = ["full"], default-features = false }
 tokio-retry = "0.3"
 
-ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git" }
-ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git' }
-ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git' }
-ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git" }
-ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git" }
-ton_executor = { git = "https://github.com/tonlabs/ton-labs-executor.git" }
+ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git", tag = '2.1.1' }
+ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.24.0' }
+ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.24.0' }
+ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git", tag = '1.10.10' }
+ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git", tag = '1.7.27' }
+ton_executor = { git = "https://github.com/tonlabs/ton-labs-executor.git", tag = '1.15.31' }
 
 [dev-dependencies]
 assert_cmd = "1.0.3"

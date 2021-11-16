@@ -1,7 +1,7 @@
 use super::term_browser::input;
 use crate::crypto::load_keypair;
-use crate::helpers::TonClient;
-use std::io::{self, BufRead, Read, Write, BufReader};
+use crate::helpers::{read_keys, TonClient};
+use std::io::{self, BufRead, Write, Read};
 use ton_client::crypto::{
     get_signing_box, remove_signing_box, KeyPair, RegisteredSigningBox, SigningBoxHandle,
 };
@@ -25,6 +25,16 @@ impl TerminalSigningBox {
                 input_keys(None, possible_keys, &mut reader, &mut writer, 3)?
             }
         };
+        let handle = get_signing_box(client.clone(), keys)
+            .await
+            .map(|r| r.handle)
+            .map_err(|e| e.to_string())?;
+
+        Ok(Self { handle, client })
+    }
+
+    pub async fn new_with_keypath(client: TonClient, keys_path: String) -> Result<Self, String> {
+        let keys = read_keys(&keys_path).unwrap_or_default();
         let handle = get_signing_box(client.clone(), keys)
             .await
             .map(|r| r.handle)

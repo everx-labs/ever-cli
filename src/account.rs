@@ -59,27 +59,34 @@ pub async fn get_account(conf: Config, addr: &str, dumpfile: Option<&str>, dumpb
             let balance =
             if bal.is_some() {
                 let bal = bal.unwrap();
-                if !conf.is_json {
-                    if conf.balance_in_tons {
-                        let bal = u64::from_str_radix(bal, 10)
-                            .map_err(|e| format!("failed to decode balance: {}", e))?;
-                        let int_bal = bal as f64 / 1e9;
-                        let frac_balance = (bal as f64 / 1e6 + 0.5) as u64 % 1000;
-                        let balance_str = format!("{}", int_bal as u64);
-                        format!("{}.{} ton", balance_str.chars()
-                            .collect::<Vec<char>>()
-                            .rchunks(3)
-                            .map(|c| c.iter().collect::<String>())
-                            .rev()
-                            .collect::<Vec<String>>()
-                            .join(" "),
-                                frac_balance
-                        )
-                    } else {
-                        format!("{} {}", bal, "nanoton")
-                    }
+                if conf.balance_in_tons {
+                    let bal = u64::from_str_radix(bal, 10)
+                        .map_err(|e| format!("failed to decode balance: {}", e))?;
+                    let int_bal = bal as f64 / 1e9;
+                    let frac_balance = (bal as f64 / 1e6 + 0.5) as u64 % 1000;
+                    let balance_str = format!("{}", int_bal as u64);
+                    format!("{}.{}{}", balance_str.chars()
+                        .collect::<Vec<char>>()
+                        .rchunks(3)
+                        .map(|c| c.iter().collect::<String>())
+                        .rev()
+                        .collect::<Vec<String>>()
+                        .join(" "),
+                        frac_balance,
+                        if conf.is_json {
+                            ""
+                        } else {
+                            " ton"
+                        }
+                    )
                 } else {
-                    bal.to_owned()
+                    format!("{}{}", bal,
+                        if conf.is_json {
+                            ""
+                        } else {
+                            " nanoton"
+                        }
+                    )
                 }
             } else {
                 "Undefined".to_owned()

@@ -163,6 +163,33 @@ fn test_pipechain_inputs() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_encryptionboxes() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = deploy_debot("sample3")?;
+    let (_, _, keys) = get_debot_paths("sample3");
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.timeout(std::time::Duration::from_secs(2))
+        .write_stdin(format!("y\n{}\n{}\n{}", keys, keys, keys))
+        .arg("debot")
+        .arg("fetch")
+        .arg(&addr);
+    let _cmd = cmd
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("run EncryptionBoxInput"))
+        .stdout(predicate::str::contains("run chacha"))
+        .stdout(predicate::str::contains("ChaCha works"))
+        .stdout(predicate::str::contains("run secret naclbox"))
+        .stdout(predicate::str::contains("SecretNaCl works"))
+        .stdout(predicate::str::contains("run naclbox"))
+        .stdout(predicate::str::contains("NaCl works"));
+    // uncomment for debug 
+    // let out = cmd.get_output();
+    // std::io::stdout().lock().write_all(&out.stdout)?;
+    Ok(())
+}
+
+#[test]
 fn test_pipechain_signing() -> Result<(), Box<dyn std::error::Error>> {
     let path_to_pipechain = "tests/PipechainTest2.chain";
     let addr = deploy_debot("PipechainTest")?;

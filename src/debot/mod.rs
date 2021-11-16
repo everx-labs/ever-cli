@@ -15,6 +15,7 @@ mod interfaces;
 mod pipechain;
 mod processor;
 mod term_signing_box;
+mod term_encryption_box;
 pub mod term_browser;
 
 use crate::config::Config;
