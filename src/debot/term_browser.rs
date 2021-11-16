@@ -68,7 +68,9 @@ impl TerminalBrowser {
             exit_arg: None,
         };
         browser.fetch_debot(addr, start, !interactive).await?;
-        let abi = browser.bots.get(addr).unwrap().abi.clone();
+        let abi = browser.bots.get(addr)
+            .ok_or(format!("DeBot not found: address {}", addr))?
+            .abi.clone();
 
         if !start && init_message.is_none() {
             init_message = Some(
@@ -324,10 +326,10 @@ pub async fn run_debot_browser(
             .parsed;
 
             let msg_dest = parsed["dst"].as_str()
-                .ok_or(format!("invalid message in queue: no dst address"))?;
+                .ok_or(format!("invalid message in the queue: no dst address"))?;
 
             let msg_src = parsed["src"].as_str()
-                .ok_or(format!("invalid message in queue: no src address"))?;
+                .ok_or(format!("invalid message in the queue: no src address"))?;
 
             let wc_and_addr: Vec<_> = msg_dest.split(':').collect();
             let id = wc_and_addr[1].to_string();

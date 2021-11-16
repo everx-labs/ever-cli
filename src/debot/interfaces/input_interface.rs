@@ -45,13 +45,6 @@ impl DebotInterface for InputInterface {
         match result {
             Err(ProcessorError::InterfaceCallNeeded) => {
                 let res = self.inner_interface.call(func, args).await?;
-                /*let dbg = serde_json::to_string_pretty(&json!({
-                    "type": "Input",
-                    "interface": self.get_id(),
-                    "method": func,
-                    "params": res.1,
-                })).unwrap();
-                println!("{}", dbg);*/
                 Ok(res)
             },
             Err(e) => Err(format!("{:?}", e))?,
@@ -66,14 +59,18 @@ impl DebotInterface for InputInterface {
                     processor.print(&prompt);
                 }
                 let params = params.unwrap_or(json!({}));
-                for arg in params.as_object().unwrap() {
-                    processor.print(&format!("{}", arg.1));
+                if let Some(args) = params.as_object() {
+                    for arg in args {
+                        processor.print(&format!("{}", arg.1));
+                    }
                 }
                 let answer_id = if self.get_id() == MENU_ID {
-                    let n = params["index"].as_u64().unwrap();
-                    let menu_items: Vec<MenuItem> = serde_json::from_value(args["items"].clone()).unwrap();
+                    let n = params["index"].as_u64()
+                        .ok_or(format!("invalid arguments for menu callback"))?;
+                    let menu_items: Vec<MenuItem> = serde_json::from_value(args["items"].clone())
+                        .map_err(|e| e.to_string())?;
                     let menu = menu_items.get(n as usize);
-                    menu.unwrap().handler_id
+                    menu.ok_or(format!("menu index is out of range"))?.handler_id
                 } else {
                     decode_answer_id(args)?
                 };

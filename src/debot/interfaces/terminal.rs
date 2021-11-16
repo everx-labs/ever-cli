@@ -175,7 +175,7 @@ impl Terminal {
     pub async fn print(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let message = decode_string_arg(args, "message")?;
-		self.printer.print(&format!("{}", message)).await;
+		self.printer.print(&message).await;
 		Ok((answer_id, json!({})))
     }
 }

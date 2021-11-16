@@ -136,9 +136,6 @@ impl BrowserCallbacks for Callbacks {
 
     /// Debot asks to run action of another debot
     async fn invoke_debot(&self, _debot: String, _action: DAction) -> Result<(), String> {
-        //debug!("fetching debot {} action {}", &debot, action.name);
-        //println!("Invoking debot {}", &debot);
-        //run_debot_browser(&debot, self.config.clone(), false, None).await
         Ok(())
     }
 
@@ -173,7 +170,7 @@ impl BrowserCallbacks for Callbacks {
                     convert_u64_to_tokens(fee)
                 );
                 if out.len() > 0 {
-                    info += "  Outgoing transfers from account:\n";
+                    info += "  Outgoing transfers from the account:\n";
                     for spending in out {
                         info += &format!(
                             "    recipient: {}, amount: {} tokens\n",
@@ -182,12 +179,12 @@ impl BrowserCallbacks for Callbacks {
                         );
                     }
                 } else {
-                    info += "  No outgoing transfers from account.\n";
+                    info += "  No outgoing transfers from the account.\n";
                 }
                 info += &format!("  Message signer public key: {}\n", signkey);
                 if setcode {
                     info +=
-                        "  Warning: the transaction will change the account smart contract code\n";
+                        "  Warning: the transaction will change the account's code\n";
                 }
                 prompt = "Confirm the transaction (y/n)?";
             }

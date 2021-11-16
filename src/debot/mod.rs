@@ -56,7 +56,7 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                         .short("m")
                         .long("pipechain")
                         .takes_value(true)
-                        .help("Path to DeBot Manifest."),
+                        .help("Path to the DeBot Manifest."),
                 )
                 .arg(
                     Arg::with_name("SIGNKEY")
@@ -151,10 +151,9 @@ async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String>
 
 async fn invoke_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
-    let _addr = load_ton_address(addr.unwrap(), &config)?;
+    load_ton_address(addr.unwrap(), &config)?;
     let message = m.value_of("MESSAGE").unwrap().to_owned();
     let mut pipechain = PipeChain::default();
     pipechain.init_msg = Some(message);
-    //run_debot_browser(addr.as_str(), config, false, Some(message)).await
     Ok(())
 }
