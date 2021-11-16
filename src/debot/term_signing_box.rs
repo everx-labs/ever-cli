@@ -1,7 +1,7 @@
 use super::term_browser::input;
 use crate::crypto::load_keypair;
 use crate::helpers::{read_keys, TonClient};
-use std::io::{self, BufRead, Write, Read};
+use std::io::{self, BufRead, Write, Read, BufReader};
 use ton_client::crypto::{
     get_signing_box, remove_signing_box, KeyPair, RegisteredSigningBox, SigningBoxHandle,
 };

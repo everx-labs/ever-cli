@@ -16,3 +16,5 @@ tests/deploy_test.key
 
 debot_err.log
 tests/sample2.keys.json
+
+tests/PipechainTest1.chain
