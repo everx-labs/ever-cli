@@ -1,7 +1,7 @@
 use super::echo::Echo;
 use super::stdout::Stdout;
 use super::{
-    AddressInput, AmountInput, ConfirmInput, Menu, NumberInput, SigningBoxInput, Terminal, UserInfo,
+    AddressInput, AmountInput, ConfirmInput, Menu, NumberInput, SigningBoxInput, EncryptionBoxInput, Terminal, UserInfo,
 };
 use crate::config::Config;
 use crate::helpers::TonClient;
@@ -58,6 +58,10 @@ impl SupportedInterfaces {
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> =
+            Arc::new(EncryptionBoxInput::new(client.clone()));
+        interfaces.insert(iface.get_id(), iface);
+
+        let iface: Arc<dyn DebotInterface + Send + Sync> =
             Arc::new(SigningBoxInput::new(client.clone()));
         interfaces.insert(iface.get_id(), iface);
 
@@ -97,6 +101,10 @@ pub fn decode_string_arg(args: &Value, name: &str) -> Result<String, String> {
     std::str::from_utf8(&bytes)
         .map_err(|e| format!("{}", e))
         .map(|x| x.to_string())
+}
+
+pub fn decode_nonce(args: &Value) -> Result<String, String> {
+    decode_arg(args, "nonce")
 }
 
 pub fn decode_prompt(args: &Value) -> Result<String, String> {
