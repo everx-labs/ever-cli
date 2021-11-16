@@ -15,4 +15,6 @@ tests/deploy_test.key
 .idea/*
 
 debot_err.log
-tests/sample2.keys.json
+*.keys.json
+
+tests/PipechainTest1.chain

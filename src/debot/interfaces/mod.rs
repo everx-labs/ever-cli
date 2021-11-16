@@ -21,15 +21,16 @@ pub mod number_input;
 pub mod signing_box_input;
 pub mod encryption_box_input;
 pub mod stdout;
+pub mod input_interface;
 pub mod terminal;
 pub mod userinfo;
-
 pub use address_input::AddressInput;
 pub use amount_input::AmountInput;
 pub use confirm_input::ConfirmInput;
 pub use menu::Menu;
 pub use number_input::NumberInput;
 pub use signing_box_input::SigningBoxInput;
+pub use input_interface::InputInterface;
 pub use encryption_box_input::EncryptionBoxInput;
 pub use terminal::Terminal;
 pub use userinfo::UserInfo;

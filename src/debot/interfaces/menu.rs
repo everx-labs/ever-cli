@@ -8,7 +8,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 use ton_client::encoding::decode_abi_number;
 
-const ID: &'static str = "ac1a4d3ecea232e49783df4a23a81823cdca3205dc58cd20c4db259c25605b48";
+pub(super) const ID: &'static str = "ac1a4d3ecea232e49783df4a23a81823cdca3205dc58cd20c4db259c25605b48";
 
 const ABI: &str = r#"
 {
@@ -43,13 +43,13 @@ const ABI: &str = r#"
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct MenuItem {
+pub struct MenuItem {
     #[serde(deserialize_with = "from_hex_to_utf8_str")]
     title: String,
     #[serde(deserialize_with = "from_hex_to_utf8_str")]
     description: String,
     #[serde(deserialize_with = "from_abi_num")]
-    handler_id: u32,
+    pub handler_id: u32,
 }
 
 fn str_hex_to_utf8(s: &str) -> Option<String> {
