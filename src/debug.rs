@@ -20,9 +20,10 @@ use crate::call::{query_account_boc};
 use ton_block::{Message, Account, Serializable, Deserializable};
 use ton_types::{UInt256, HashmapE};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
-use ton_executor::{ExecuteParams, OrdinaryTransactionExecutor, BlockchainConfig, TransactionExecutor};
+use ton_executor::{ExecuteParams, BlockchainConfig, TransactionExecutor};
 use std::sync::{Arc, atomic::AtomicU64};
 use crate::crypto::load_keypair;
+use crate::debug_executor::{DebugTransactionExecutor, TraceLevel};
 
 const DEFAULT_TRACE_PATH: &'static str = "./trace.log";
 const DEFAULT_CONFIG_PATH: &'static str = "config.txns";
@@ -91,6 +92,12 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .long("--output")
         .short("-o");
 
+    let dbg_info_arg = Arg::with_name("DBG_INFO")
+        .help("Path to the file with debug info.")
+        .takes_value(true)
+        .long("--dbg_info")
+        .short("-d");
+
     let address_arg = Arg::with_name("ADDRESS")
         .required(true)
         .takes_value(true)
@@ -116,13 +123,18 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .help("Path to the contract ABI file. Can be specified in the config file.");
 
+    let min_trace_arg = Arg::with_name("MIN_TRACE")
+        .long("--min_trace")
+        .help("Flag that changes trace to minimal version.");
+
     SubCommand::with_name("debug")
         .about("Debug commands.")
         .subcommand(SubCommand::with_name("transaction")
             .about("Replay transaction with specified ID.")
             .arg(Arg::with_name("EMPTY_CONFIG")
                 .help("Replay transaction without full dump of the config contract.")
-                .long("--empty-config"))
+                .long("--empty_config")
+                .short("-e"))
             .arg(Arg::with_name("CONFIG_PATH")
                 .help("Path to the file with saved config contract transactions. If not set transactions will be fetched to file \"config.txns\".")
                 .long("--config")
@@ -134,7 +146,9 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
                 .short("-t")
                 .takes_value(true))
             .arg(output_arg.clone())
+            .arg(dbg_info_arg.clone())
             .arg(address_arg.clone())
+            .arg(min_trace_arg.clone())
             .arg(Arg::with_name("TX_ID")
                 .required(true)
                 .takes_value(true)
@@ -142,12 +156,14 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(SubCommand::with_name("call")
             .about("Play call locally with trace")
             .arg(output_arg.clone())
+            .arg(dbg_info_arg.clone())
             .arg(address_arg.clone()
                 .help("Contract address or path the file with saved contract state if corresponding flag is used."))
             .arg(method_arg.clone())
             .arg(params_arg.clone())
             .arg(abi_arg.clone())
             .arg(sign_arg.clone())
+            .arg(min_trace_arg.clone())
             .arg(Arg::with_name("BOC")
                 .long("--boc")
                 .conflicts_with("TVC")
@@ -158,13 +174,13 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
                 .help("Flag that changes behavior of the command to work with the saved contract state (stateInit TVC)."))
             .arg(Arg::with_name("ACCOUNT_ADDRESS")
                 .takes_value(true)
-                .long("--address")
+                .long("--tvc_address")
                 .help("Account address for account constructed from TVC.")
                 .requires("TVC"))
             .arg(Arg::with_name("NOW")
                 .takes_value(true)
                 .long("--now")
-                .help("Now timestamp (in milliseconds) for execution. If not set it is equal to current timestamp.")))
+                .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.")))
 }
 
 pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -181,6 +197,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config) -> 
     let address = matches.value_of("ADDRESS");
     let tx_id = matches.value_of("TX_ID");
     let trace_path = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
+    let debug_info = Some(matches.value_of("DBG_INFO").unwrap_or(""));
     let config_path = matches.value_of("CONFIG_PATH");
     let contract_path = matches.value_of("CONTRACT_PATH");
     if !config.is_json {
@@ -221,8 +238,14 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config) -> 
         Ok(())
     };
 
+    let trace_level = if matches.is_present("MIN_TRACE") {
+        TraceLevel::Minimal
+    } else {
+        TraceLevel::Full
+    };
+
     println!("Replaying the last transactions...");
-    replay(contract_path, config_path, &tx_id.unwrap(),false, false, false, true, init_logger).await?;
+    replay(contract_path, config_path, &tx_id.unwrap(),false, false, false, trace_level, init_logger, debug_info.unwrap().to_string()).await?;
     println!("Log saved to {}.", trace_path);
     Ok(())
 }
@@ -230,6 +253,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config) -> 
 async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let input = matches.value_of("ADDRESS");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
+    let debug_info = Some(matches.value_of("DBG_INFO").unwrap_or(""));
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
     let sign = matches.value_of("SIGN")
@@ -241,9 +265,10 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
     let params = Some(load_params(params.unwrap())?);
 
     if !config.is_json {
-        print_args!(input, method, params, sign, abi, output);
+        print_args!(input, method, params, sign, abi, output, debug_info);
     }
 
+    let is_min_trace = matches.is_present("MIN_TRACE");
     let ton_client = create_client(&config)?;
     let input = input.unwrap();
     let account = if is_tvc {
@@ -315,7 +340,18 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
     };
 
     let config = BlockchainConfig::default();
-    let executor = Box::new(OrdinaryTransactionExecutor::new(config));
+    let executor =
+        Box::new(
+            DebugTransactionExecutor::new(
+                config,
+                debug_info.unwrap().to_string(),
+                if is_min_trace {
+                    TraceLevel::Minimal
+                } else {
+                    TraceLevel::Full
+                }
+            )
+        );
 
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
@@ -330,11 +366,10 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
     let _ = executor.execute_with_libs_and_params(
         Some(&message),
         &mut acc_root,
-        params,
+        params
     );
 
     println!("Execution finished.");
     println!("Log saved to {}", trace_path);
     Ok(())
 }
-

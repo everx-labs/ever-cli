@@ -21,6 +21,7 @@ use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor,
 use ton_types::{HashmapE, UInt256, serialize_toc};
 
 use crate::config::Config;
+use crate::debug_executor::{TraceLevel, DebugTransactionExecutor};
 
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
 static ELECTOR_ADDR: &str = "-1:3333333333333333333333333333333333333333333333333333333333333333";
@@ -409,8 +410,9 @@ pub async fn replay(
     trace_execution: bool,
     track_elector_unfreeze: bool,
     track_config_param_34: bool,
-    trace_last_transaction: bool,
+    trace_last_transaction: TraceLevel,
     init_trace_last_logger: impl Fn() -> Result<(), String>,
+    debug_info: String,
 ) -> Result<(), String> {
     let mut account_state = State::new(input_filename)?;
     let mut config_state = State::new(config_filename)?;
@@ -471,7 +473,7 @@ pub async fn replay(
                 account_old_hash_local.to_hex_string());
             exit(1);
         }
-        if tr.id == txnid && !trace_last_transaction {
+        if tr.id == txnid && (trace_last_transaction == TraceLevel::None) {
             account_root.write_to_file(format!("{}-{}.boc", state.account_addr, txnid).as_str());
 
             let account = config_account.serialize()
@@ -490,6 +492,10 @@ pub async fn replay(
             cfg.into_cell().map_err(|e| format!("Failed to finalize builder: {}", e))?
                 .write_to_file(format!("config-{}-test.boc", txnid).as_str());
         }
+        let trace_last = (trace_last_transaction != TraceLevel::None) && tr.id == txnid;
+        if trace_last {
+            init_trace_last_logger()?;
+        }
         let executor: Box<dyn TransactionExecutor> =
             match tr.tr.read_description()
                 .map_err(|e| format!("failed to read transaction: {}", e))? {
@@ -497,7 +503,11 @@ pub async fn replay(
                     Box::new(TickTockTransactionExecutor::new(config.clone(), desc.tt))
                 }
                 TransactionDescr::Ordinary(_) => {
-                    Box::new(OrdinaryTransactionExecutor::new(config.clone()))
+                    if trace_last {
+                        Box::new(DebugTransactionExecutor::new(config.clone(), debug_info.clone(), trace_last_transaction.clone()))
+                    } else {
+                        Box::new(OrdinaryTransactionExecutor::new(config.clone()))
+                    }
                 }
                 _ => {
                     panic!("Unknown transaction type");
@@ -511,10 +521,6 @@ pub async fn replay(
         let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c)
             .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
 
-        let trace_last = trace_last_transaction && tr.id == txnid;
-        if trace_last {
-            init_trace_last_logger()?;
-        }
         let params = ExecuteParams {
             state_libs: HashmapE::default(),
             block_unixtime: tr.tr.now,
@@ -557,11 +563,11 @@ pub async fn replay(
 
         if tr.id == txnid {
             println!("DONE");
-            break;            
+            return Ok(());
         }
         state.tr = None;
     }
-    Ok(())
+    Err("Specified transaction was not found.".to_string())
 }
 
 pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -575,6 +581,6 @@ pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
     replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
         m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, false, false, false, ||{Ok(())}).await?;
+        false, false, false, TraceLevel::None, ||{Ok(())}, "".to_string()).await?;
     Ok(())
 }

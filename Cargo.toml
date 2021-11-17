@@ -19,6 +19,7 @@ chrono = "0.4"
 clap = "2.32"
 crc16 = "0.4.0"
 ed25519-dalek = "1.0.0-pre.3"
+failure = "0.1.6"
 hex = "0.3.2"
 indicatif = "0.16"
 lazy_static = "1.4.0"
@@ -42,6 +43,8 @@ ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.24.0' }
 ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git", tag = '1.10.10' }
 ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git", tag = '1.7.27' }
 ton_executor = { git = "https://github.com/tonlabs/ton-labs-executor.git", tag = '1.15.31' }
+ton_vm = { git = "https://github.com/tonlabs/ton-labs-vm.git", tag = '1.8.19' }
+ton_labs_assembler = { git = "https://github.com/tonlabs/ton-labs-assembler.git", tag = '1.2.24' }
 
 [dev-dependencies]
 assert_cmd = "1.0.3"
