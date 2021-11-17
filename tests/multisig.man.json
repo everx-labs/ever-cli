@@ -1,0 +1,42 @@
+{
+    "version": 0,
+    "debotAddress": "0:09403116d2d04f3d86ab2de138b390f6ec1b0bc02363dbf006953946e807051e",
+    "quiet": true,
+    "autoApprove": ["ApproveOnChainCall"],
+    "chain": [
+    {
+        "type": "Input",
+        "interface": "d7ed1bd8e6230871116f4522e58df0a93c5520c56f4ade23ef3d8919a984653b",
+        "method": "get",
+        "params": { "value": "0:66e01d6df5a8d7677d9ab2daf7f258f1e2a7fe73da5320300395f99e01dc3b5f" }
+    },
+    {
+        "type":"Input",
+        "interface": "ac1a4d3ecea232e49783df4a23a81823cdca3205dc58cd20c4db259c25605b48",
+        "method": "select",
+        "params": { "index": 0 }
+    },
+    { 
+        "type": "Input",
+        "interface": "d7ed1bd8e6230871116f4522e58df0a93c5520c56f4ade23ef3d8919a984653b",
+        "method": "get",
+        "params": { "value": "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94"}
+    },
+    {
+        "type":"Input",
+        "interface": "a1d347099e29c1624c8890619daf207bde18e92df5220a54bcc6d858309ece84",
+        "method": "get",
+        "params": { "value": "1500000000" }
+    },
+    {
+        "type": "Input",
+        "interface": "16653eaf34c921467120f2685d425ff963db5cbb5aa676a62a2e33bfc3f6828a",
+        "method": "get",
+        "params": { "value": true }
+    },
+    {
+        "type": "SigningBox",
+        "handle": 0
+    }
+  ]
+}

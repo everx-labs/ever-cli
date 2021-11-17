@@ -10,16 +10,23 @@
 * See the License for the specific TON DEV software governing permissions and
 * limitations under the License.
 */
+mod callbacks;
+mod interfaces;
+mod pipechain;
+mod processor;
+mod term_signing_box;
+mod term_encryption_box;
+pub mod term_browser;
+
 use crate::config::Config;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use simplelog::*;
-use term_browser::run_debot_browser;
+use term_browser::{run_debot_browser, terminal_input, input, action_input};
 use crate::helpers::load_ton_address;
-
-pub mod term_browser;
-mod interfaces;
+use callbacks::Callbacks;
+use processor::{ChainProcessor, ProcessorError};
+use pipechain::{ApproveKind, PipeChain, ChainLink};
 pub use interfaces::dinterface::SupportedInterfaces;
-mod term_signing_box;
 
 pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("debot")
@@ -44,6 +51,20 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                     Arg::with_name("ADDRESS")
                         .required(true)
                         .help("DeBot TON address."),
+                )
+                .arg(
+                    Arg::with_name("PIPECHAIN")
+                        .short("m")
+                        .long("pipechain")
+                        .takes_value(true)
+                        .help("Path to the DeBot Manifest."),
+                )
+                .arg(
+                    Arg::with_name("SIGNKEY")
+                        .short("s")
+                        .long("signkey")
+                        .takes_value(true)
+                        .help("Define keypair to auto sign transactions."),
                 )
         )
         .subcommand(
@@ -103,13 +124,37 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 
 async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
+    let pipechain = m.value_of("PIPECHAIN");
+    let signkey_path = m.value_of("SIGNKEY")
+        .map(|x| x.to_owned())
+        .or(config.keys_path.clone());
+    let is_json = config.is_json;
+    let pipechain = if let Some(filename) = pipechain {
+        let manifest_raw = std::fs::read_to_string(filename)
+            .map_err(|e| format!("failed to read pipechain: {}", e))?;
+        serde_json::from_str(&manifest_raw)
+            .map_err(|e| format!("failed to parse pipechain: {}", e))?
+    } else {
+        PipeChain::new()
+    };
     let addr = load_ton_address(addr.unwrap(), &config)?;
-    run_debot_browser(addr.as_str(), config, true, None).await
+    let result = run_debot_browser(addr.as_str(), config, pipechain, signkey_path).await;
+    match result {
+        Err(ref err) if err.contains("NoMoreChainlinks") => Ok(()),
+        Ok(arg) if arg.is_some() => {
+            if !is_json { println!("Returned value:"); }
+            println!("{}", serde_json::to_string_pretty(&arg.unwrap()).unwrap_or_default());
+            Ok(())
+        },
+        _ => result.map(|_| ()),
+    }
 }
 
 async fn invoke_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
-    let addr = load_ton_address(addr.unwrap(), &config)?;
+    load_ton_address(addr.unwrap(), &config)?;
     let message = m.value_of("MESSAGE").unwrap().to_owned();
-    run_debot_browser(addr.as_str(), config, false, Some(message)).await
+    let mut pipechain = PipeChain::default();
+    pipechain.init_msg = Some(message);
+    Ok(())
 }

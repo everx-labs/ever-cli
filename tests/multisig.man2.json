@@ -1,0 +1,25 @@
+{
+    "version": 0,
+    "debotAddress": "0:09403116d2d04f3d86ab2de138b390f6ec1b0bc02363dbf006953946e807051e",
+    "initMethod": "invokeTransaction",
+    "initArgs": {
+        "sender": "0:66e01d6df5a8d7677d9ab2daf7f258f1e2a7fe73da5320300395f99e01dc3b5f",
+        "recipient": "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94",
+        "amount": "1500000000",
+        "bounce": true,
+        "payload": ""
+    },
+    "quiet": false,
+    "autoApprove": ["ApproveOnChainCall"],
+    "chain": [
+    {
+        "type": "Input",
+        "interface": "16653eaf34c921467120f2685d425ff963db5cbb5aa676a62a2e33bfc3f6828a",
+        "method": "get",
+        "params": { "value": true }
+    },
+    {
+        "type": "SigningBox",
+        "handle": 0
+    }]
+}

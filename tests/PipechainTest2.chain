@@ -1,0 +1,12 @@
+{
+    "version": 0,
+    "debotAddress": "",
+    "autoApprove": ["ApproveOnChainCall"],
+    "quiet": true,
+    "chain": [
+        {
+            "type": "SigningBox",
+            "handle": 0
+        }
+    ]
+}
