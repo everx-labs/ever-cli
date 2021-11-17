@@ -126,7 +126,7 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
                         "lt": { "gt": lt },
                     })),
                     result: "id lt block { start_lt } boc".to_owned(),
-                    limit: None,
+                    limit: if fast_stop { Some(1) } else { None },
                     order: Some(vec![
                         OrderBy { path: "lt".to_owned(), direction: SortDirection::ASC }
                     ]),
@@ -573,7 +573,9 @@ pub async fn replay(
 pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     fetch(config.url.as_str(),
         m.value_of("ADDRESS").ok_or("Missing account address")?,
-        m.value_of("OUTPUT").ok_or("Missing output filename")?, false).await?;
+        m.value_of("OUTPUT").ok_or("Missing output filename")?,
+        false
+    ).await?;
     Ok(())
 }
 
