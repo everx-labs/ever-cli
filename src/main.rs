@@ -289,7 +289,7 @@ async fn main_internal() -> Result <(), String> {
             .help("Seed phrase (12 words). Should be specified in quotes."));
 
     let getkeypair_cmd = SubCommand::with_name("getkeypair")
-        .about("Generates a keypair from the seed phrase and saves it to the file.")
+        .about("Generates a keypair from the seed phrase or private key and saves it to the file.")
         .author("TONLabs")
         .arg(Arg::with_name("KEY_FILE")
             .takes_value(true)
@@ -298,7 +298,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("PHRASE")
             .takes_value(true)
             .required(true)
-            .help("Seed phrase (12 words). Should be specified in quotes."));
+            .help("Seed phrase (12 words) or secret (private) key. Seed phrase should be specified in quotes, secret key as 64 chars of hex."));
 
     let genaddr_cmd = SubCommand::with_name("genaddr")
         .setting(AppSettings::AllowNegativeNumbers)
