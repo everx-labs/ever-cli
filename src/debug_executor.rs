@@ -282,7 +282,8 @@ impl TransactionExecutor for DebugTransactionExecutor {
 }
 
 impl DebugTransactionExecutor {
-    pub fn new(config: BlockchainConfig, dbg_info: String, trace_level: TraceLevel) -> Self {
+    pub fn new(config: BlockchainConfig, dbg_info:  &str, trace_level: TraceLevel) -> Self {
+        let dbg_info = dbg_info.to_string();
         Self {
             config,
             dbg_info,

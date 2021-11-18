@@ -89,6 +89,9 @@ tonos-cli <subcommand> -h
   - [9.4. Dump blockchain config](#94-dump-blockchain-config)
 - [10. Fetch and replay commands](#10-fetch-and-replay)
   - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
+- [11. Debug commands](#11-debug-commands)
+  - [11.1. Debug transaction](#111-debug-transaction)
+  - [11.2. Debug call](#112-debug-call)
 
 # 1. Installation
 
@@ -2210,18 +2213,22 @@ Debug commands allow user to replay transaction locally or execute a function ca
 ## 11.1. Debug transaction
 
 ```bash
-tonos-cli debug transaction [--empty_config] [-c <config_path>] [-o <log_path>] [-t <contract_path>] <address> <tx_id>
+tonos-cli debug transaction [FLAGS] [OPTIONS] <address> <tx_id>
 ```
 
 FLAGS:
---empty-config    Replay transaction without full dump of the config contract.
+--dump_config           Dump the replayed config contract account state.
+--dump_contract         Dump the replayed target contract account state.
+-e, --empty_config      Replay transaction without full dump of the config contract.
+--min_trace             Flag that changes trace to minimal version.
 
 OPTIONS:
--c, --config <config_path>        Path to the file with saved config contract transactions. If not set transactions
+-c, --config <CONFIG_PATH>        Path to the file with saved config contract transactions. If not set transactions
                                   will be fetched to file "config.txns".
--t, --contract <contract_path>    Path to the file with saved target contract transactions. If not set transactions
+-t, --contract <CONTRACT_PATH>    Path to the file with saved target contract transactions. If not set transactions
                                   will be fetched to file "contract.txns".
--o, --output <log_path>           Path where to store the trace. Default path is "./trace.log". Note: old file will
+-d, --dbg_info <DBG_INFO>         Path to the file with debug info.
+-o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
                                   be removed.
 
 ARGUMENTS:
@@ -2257,22 +2264,25 @@ Log saved to tvm_trace.log.
 ## 11.2. Debug call
 
 ```bash
-tonos-cli debug call [--boc] [--tvc] [--abi <abi_path>] [--address <tvc_address>] [-o <log_path>] [--now <timestamp>] [--sign <path_to_keyfile>] <address> <method> <params>
+tonos-cli debug call [FLAGS] [OPTIONS] <address> <method> <params>
 ```
 
 FLAGS:
---boc        Flag that changes behavior of the command to work with the saved account state (account BOC).
---tvc        Flag that changes behavior of the command to work with the saved contract state (stateInit TVC).
+--boc          Flag that changes behavior of the command to work with the saved account state (account BOC).
+--min_trace    Flag that changes trace to minimal version.
+--tvc          Flag that changes behavior of the command to work with the saved contract state (stateInit TVC).
 
 OPTIONS:
---abi <abi_path>                    Path to the contract ABI file. Can be specified in the config file.
---address <tvc_address>             Account address for account constructed from TVC.
--o, --output <log_path>             Path where to store the trace. Default path is "./trace.log". Note: old file will
-                                    be removed.
---now <timestamp>                   Now timestamp (in milliseconds) for execution. If not set it is equal to current
-                                    timestamp.
---sign <path_to_keyfile>            Seed phrase or path to the file with keypair used to sign the message. Can be
-                                    specified in the config.
+--abi <ABI>                             Path to the contract ABI file. Can be specified in the config file.
+--tvc_address <ACCOUNT_ADDRESS>         Account address for account constructed from TVC.
+-c, --config <CONFIG_PATH>              Path to the file with saved config contract state.
+-d, --dbg_info <DBG_INFO>               Path to the file with debug info.
+-o, --output <LOG_PATH>                 Path where to store the trace. Default path is "./trace.log". Note: old file
+                                        will be removed.
+--now <NOW>                             Now timestamp (in milliseconds) for execution. If not set it is equal to the
+                                        current timestamp.
+--sign <SIGN>                           Seed phrase or path to the file with keypair used to sign the message. Can be
+                                        specified in the config.
 
 ARGUMENTS:
 <address>    Contract address or path the file with saved contract state if corresponding flag is used.

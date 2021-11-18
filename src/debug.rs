@@ -14,7 +14,7 @@ use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc};
-use crate::replay::{fetch, CONFIG_ADDR, replay};
+use crate::replay::{fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config};
 use std::io::Write;
 use crate::call::{query_account_boc};
 use ton_block::{Message, Account, Serializable, Deserializable};
@@ -152,7 +152,13 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(Arg::with_name("TX_ID")
                 .required(true)
                 .takes_value(true)
-                .help("ID of the transaction that should be replayed.")))
+                .help("ID of the transaction that should be replayed."))
+            .arg(Arg::with_name("DUMP_CONFIG")
+                .help("Dump the replayed config contract account state.")
+                .long("--dump_config"))
+            .arg(Arg::with_name("DUMP_CONTRACT")
+                .help("Dump the replayed target contract account state.")
+                .long("--dump_contract")))
         .subcommand(SubCommand::with_name("call")
             .about("Play call locally with trace")
             .arg(output_arg.clone())
@@ -180,7 +186,12 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(Arg::with_name("NOW")
                 .takes_value(true)
                 .long("--now")
-                .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.")))
+                .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp."))
+            .arg(Arg::with_name("CONFIG_PATH")
+                .help("Path to the file with saved config contract state.")
+                .long("--config")
+                .short("-c")
+                .takes_value(true)))
 }
 
 pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -244,8 +255,15 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config) -> 
         TraceLevel::Full
     };
 
+    let mut dump_mask = DUMP_NONE;
+    if matches.is_present("DUMP_CONFIG") {
+        dump_mask |= DUMP_CONFIG;
+    }
+    if matches.is_present("DUMP_CONTRACT") {
+        dump_mask |= DUMP_ACCOUNT;
+    }
     println!("Replaying the last transactions...");
-    replay(contract_path, config_path, &tx_id.unwrap(),false, false, false, trace_level, init_logger, debug_info.unwrap().to_string()).await?;
+    replay(contract_path, config_path, &tx_id.unwrap(),false, false, false, trace_level, init_logger, debug_info.unwrap(), dump_mask).await?;
     println!("Log saved to {}.", trace_path);
     Ok(())
 }
@@ -339,12 +357,20 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
         debug: true,
     };
 
-    let config = BlockchainConfig::default();
+    let config = match matches.value_of("CONFIG_PATH") {
+        Some(config) => {
+            let account = Account::construct_from_file(config)
+                .map_err(|e| format!("Failed to construct config account: {}", e))?;
+            construct_blockchain_config(&account)?
+        }
+        _ => { BlockchainConfig::default() }
+    };
+
     let executor =
         Box::new(
             DebugTransactionExecutor::new(
                 config,
-                debug_info.unwrap().to_string(),
+                debug_info.unwrap(),
                 if is_min_trace {
                     TraceLevel::Minimal
                 } else {

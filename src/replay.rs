@@ -26,7 +26,13 @@ use crate::debug_executor::{TraceLevel, DebugTransactionExecutor};
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
 static ELECTOR_ADDR: &str = "-1:3333333333333333333333333333333333333333333333333333333333333333";
 
-fn construct_blockchain_config(config_account: &Account) -> Result<BlockchainConfig, String> {
+pub const DUMP_NONE:  u8 = 0x00;
+pub const DUMP_ACCOUNT:  u8 = 0x01;
+pub const DUMP_CONFIG:   u8 = 0x02;
+pub const DUMP_EXECUTOR_CONFIG: u8 = 0x04;
+pub const DUMP_ALL:   u8 = 0xFF;
+
+pub fn construct_blockchain_config(config_account: &Account) -> Result<BlockchainConfig, String> {
     let config_cell = config_account.get_data().ok_or(
         format!("Failed to get account's data"))?.reference(0).ok();
     let config_params = ConfigParams::with_address_and_params(
@@ -412,7 +418,8 @@ pub async fn replay(
     track_config_param_34: bool,
     trace_last_transaction: TraceLevel,
     init_trace_last_logger: impl Fn() -> Result<(), String>,
-    debug_info: String,
+    debug_info:  &str,
+    dump_mask: u8,
 ) -> Result<(), String> {
     let mut account_state = State::new(input_filename)?;
     let mut config_state = State::new(config_filename)?;
@@ -437,7 +444,6 @@ pub async fn replay(
     } else {
         None
     };
-
     loop {
         if account_state.tr.is_none() {
             account_state.next_transaction();
@@ -473,24 +479,34 @@ pub async fn replay(
                 account_old_hash_local.to_hex_string());
             exit(1);
         }
-        if tr.id == txnid && (trace_last_transaction == TraceLevel::None) {
-            account_root.write_to_file(format!("{}-{}.boc", state.account_addr, txnid).as_str());
-
-            let account = config_account.serialize()
-                .map_err(|e| format!("Failed to serialize config account: {}", e))?;
-            account.write_to_file(format!("config-{}.boc", txnid).as_str());
-
-            // config.boc suitable for creating ton-labs-executor tests
-            let mut config_data = ton_types::SliceData::from(config_account.get_data()
-                .ok_or("Failed to get config data")?);
-            let mut cfg = ton_types::BuilderData::new();
-            cfg.append_raw(&config_data.get_next_bytes(32)
-                .map_err(|e| format!("Failed to read config data: {}", e))?, 256)
-                .map_err(|e| format!("Failed to append config data: {}", e))?;
-            cfg.append_reference_cell(config_data.reference(0)
-                .map_err(|e| format!("Failed to get config zero reference: {}", e))?);
-            cfg.into_cell().map_err(|e| format!("Failed to finalize builder: {}", e))?
-                .write_to_file(format!("config-{}-test.boc", txnid).as_str());
+        if tr.id == txnid {
+            if dump_mask & DUMP_ACCOUNT != 0 {
+                let path = format!("{}-{}.boc", state.account_addr, txnid);
+                account_root.write_to_file(&path);
+                println!("Contract account was dumped to {}", path);
+            }
+            if dump_mask & DUMP_CONFIG != 0 {
+                let path = format!("config-{}.boc", txnid);
+                let account = config_account.serialize()
+                    .map_err(|e| format!("Failed to serialize config account: {}", e))?;
+                account.write_to_file(&path);
+                println!("Config account was dumped to {}", path);
+            }
+            if dump_mask & DUMP_EXECUTOR_CONFIG != 0 {
+                // config.boc suitable for creating ton-labs-executor tests
+                let mut config_data = ton_types::SliceData::from(config_account.get_data()
+                    .ok_or("Failed to get config data")?);
+                let mut cfg = ton_types::BuilderData::new();
+                cfg.append_raw(&config_data.get_next_bytes(32)
+                    .map_err(|e| format!("Failed to read config data: {}", e))?, 256)
+                    .map_err(|e| format!("Failed to append config data: {}", e))?;
+                cfg.append_reference_cell(config_data.reference(0)
+                    .map_err(|e| format!("Failed to get config zero reference: {}", e))?);
+                let path = format!("config-{}-test.boc", txnid);
+                cfg.into_cell().map_err(|e| format!("Failed to finalize builder: {}", e))?
+                    .write_to_file(&path);
+                println!("Config for executor was dumped to {}", path);
+            }
         }
         let trace_last = (trace_last_transaction != TraceLevel::None) && tr.id == txnid;
         if trace_last {
@@ -504,7 +520,7 @@ pub async fn replay(
                 }
                 TransactionDescr::Ordinary(_) => {
                     if trace_last {
-                        Box::new(DebugTransactionExecutor::new(config.clone(), debug_info.clone(), trace_last_transaction.clone()))
+                        Box::new(DebugTransactionExecutor::new(config.clone(), debug_info, trace_last_transaction.clone()))
                     } else {
                         Box::new(OrdinaryTransactionExecutor::new(config.clone()))
                     }
@@ -527,7 +543,7 @@ pub async fn replay(
             block_lt: tr.tr.lt,
             last_tr_lt: Arc::new(AtomicU64::new(tr.tr.lt)),
             seed_block: UInt256::default(),
-            debug: trace_execution || trace_last,
+            debug: trace_execution,
         };
         let tr_local = executor.execute_with_libs_and_params(
             msg.as_ref(),
@@ -550,8 +566,6 @@ pub async fn replay(
                 .map_err(|e| format!("failed to read description: {}", e))?);
             exit(2);
         }
-
-        //println!("SUCCESS");
 
         if track_config_param_34 && state.account_addr == CONFIG_ADDR {
             cfg_tracker.as_mut().unwrap().track(&state.account).await?;
@@ -583,6 +597,7 @@ pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
     replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
         m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, false, false, TraceLevel::None, ||{Ok(())}, "".to_string()).await?;
+        false, false, false, TraceLevel::None, ||{Ok(())}, "", DUMP_ALL
+    ).await?;
     Ok(())
 }
