@@ -12,14 +12,16 @@ const ID: &'static str = "5b5f76b54d976d72f1ada3063d1af2e5352edaf1ba86b3b311170d
 
 const ABI: &str = r#"
 {
-	"ABI version": 2,
-	"header": ["time"],
-	"functions": [
+    "ABI version": 2,
+    "version": "2.2",
+    "header": ["time"],
+    "functions": [
         {
             "name": "getNaclBox",
+            "id": "0x6d19198c",
             "inputs": [
                 {"name":"answerId","type":"uint32"},
-                {"name":"prompt","type":"bytes"},
+                {"name":"prompt","type":"string"},
                 {"name":"nonce","type":"bytes"},
                 {"name":"theirPubkey","type":"uint256"}
             ],
@@ -29,9 +31,10 @@ const ABI: &str = r#"
         },
         {
             "name": "getNaclSecretBox",
+            "id": "0x537251c8",
             "inputs": [
                 {"name":"answerId","type":"uint32"},
-                {"name":"prompt","type":"bytes"},
+                {"name":"prompt","type":"string"},
                 {"name":"nonce","type":"bytes"}
             ],
             "outputs": [
@@ -40,9 +43,10 @@ const ABI: &str = r#"
         },
         {
             "name": "getChaCha20Box",
+            "id": "0x7a9e536a",
             "inputs": [
                 {"name":"answerId","type":"uint32"},
-                {"name":"prompt","type":"bytes"},
+                {"name":"prompt","type":"string"},
                 {"name":"nonce","type":"bytes"}
             ],
             "outputs": [
@@ -51,6 +55,7 @@ const ABI: &str = r#"
         },
         {
             "name": "remove",
+            "id": "0x542f817e",
             "inputs": [
                 {"name":"answerId","type":"uint32"},
                 {"name":"handle","type":"uint32"}
@@ -61,18 +66,32 @@ const ABI: &str = r#"
         },
         {
             "name": "getSupportedAlgorithms",
+            "id": "0x3f9d909f",
             "inputs": [
                 {"name":"answerId","type":"uint32"}
             ],
             "outputs": [
-                {"name":"names","type":"bytes[]"}
+                {"name":"names","type":"string[]"}
+            ]
+        },
+        {
+            "name": "constructor",
+            "id": "0x68b55f3f",
+            "inputs": [
+            ],
+            "outputs": [
             ]
         }
     ],
-	"data": [
-	],
-	"events": [
-	]
+    "data": [
+    ],
+    "events": [
+    ],
+    "fields": [
+        {"name":"_pubkey","type":"uint256"},
+        {"name":"_timestamp","type":"uint64"},
+        {"name":"_constructorFlag","type":"bool"}
+    ]
 }
 "#;
 

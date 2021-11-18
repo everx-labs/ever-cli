@@ -12,32 +12,40 @@ pub(super) const ID: &'static str = "ac1a4d3ecea232e49783df4a23a81823cdca3205dc5
 
 const ABI: &str = r#"
 {
-	"ABI version": 2,
-	"header": ["time"],
-	"functions": [
-		{
-			"name": "select",
-			"inputs": [
-				{"name":"title","type":"bytes"},
-				{"name":"description","type":"bytes"},
-				{"components":[{"name":"title","type":"bytes"},{"name":"description","type":"bytes"},{"name":"handlerId","type":"uint32"}],"name":"items","type":"tuple[]"}
-			],
-			"outputs": [
-				{"name":"index","type":"uint32"}
-			]
-		},
-		{
-			"name": "constructor",
-			"inputs": [
-			],
-			"outputs": [
-			]
-		}
-	],
-	"data": [
-	],
-	"events": [
-	]
+    "ABI version": 2,
+    "version": "2.2",
+    "header": ["time"],
+    "functions": [
+        {
+            "name": "select",
+            "id": "0x69814639",
+            "inputs": [
+                {"name":"title","type":"string"},
+                {"name":"description","type":"string"},
+                {"components":[{"name":"title","type":"string"},{"name":"description","type":"string"},{"name":"handlerId","type":"uint32"}],"name":"items","type":"tuple[]"}
+            ],
+            "outputs": [
+                {"name":"index","type":"uint32"}
+            ]
+        },
+        {
+            "name": "constructor",
+            "id": "0x68b55f3f",
+            "inputs": [
+            ],
+            "outputs": [
+            ]
+        }
+    ],
+    "data": [
+    ],
+    "events": [
+    ],
+    "fields": [
+        {"name":"_pubkey","type":"uint256"},
+        {"name":"_timestamp","type":"uint64"},
+        {"name":"_constructorFlag","type":"bool"}
+    ]
 }
 "#;
 

@@ -10,41 +10,58 @@ const ID: &'static str = "a56115147709ed3437efb89460b94a120b7fe94379c795d1ebb043
 
 const ABI: &str = r#"
 {
-	"ABI version": 2,
-	"header": ["time"],
-	"functions": [
-		{
-			"name": "getAccount",
-			"inputs": [
-				{"name":"answerId","type":"uint32"}
-			],
-			"outputs": [
-				{"name":"value","type":"address"}
-			]
-		},
-		{
-			"name": "getPublicKey",
-			"inputs": [
-				{"name":"answerId","type":"uint32"}
-			],
-			"outputs": [
-				{"name":"value","type":"uint256"}
-			]
-		},
+    "ABI version": 2,
+    "version": "2.2",
+    "header": ["time"],
+    "functions": [
         {
-			"name": "getSigningBox",
-			"inputs": [
-				{"name":"answerId","type":"uint32"}
-			],
-			"outputs": [
-				{"name":"handle","type":"uint32"}
-			]
-		}
-	],
-	"data": [
-	],
-	"events": [
-	]
+            "name": "getAccount",
+            "id": "0x2e4fec08",
+            "inputs": [
+                {"name":"answerId","type":"uint32"}
+            ],
+            "outputs": [
+                {"name":"value","type":"address"}
+            ]
+        },
+        {
+            "name": "getPublicKey",
+            "id": "0x2c5b2088",
+            "inputs": [
+                {"name":"answerId","type":"uint32"}
+            ],
+            "outputs": [
+                {"name":"value","type":"uint256"}
+            ]
+        },
+        {
+            "name": "getSigningBox",
+            "id": "0x11f1f7db",
+            "inputs": [
+                {"name":"answerId","type":"uint32"}
+            ],
+            "outputs": [
+                {"name":"handle","type":"uint32"}
+            ]
+        },
+        {
+            "name": "constructor",
+            "id": "0x68b55f3f",
+            "inputs": [
+            ],
+            "outputs": [
+            ]
+        }
+    ],
+    "data": [
+    ],
+    "events": [
+    ],
+    "fields": [
+        {"name":"_pubkey","type":"uint256"},
+        {"name":"_timestamp","type":"uint64"},
+        {"name":"_constructorFlag","type":"bool"}
+    ]
 }
 "#;
 
