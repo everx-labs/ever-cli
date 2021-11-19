@@ -94,6 +94,24 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     Ok(keypair)
 }
 
+pub fn generate_keypair_from_secret(secret: String) -> Result<KeyPair, String> {
+    let client = create_client_local()?;
+    let mut keypair: KeyPair = nacl_sign_keypair_from_secret_key(
+        client.clone(),
+        ParamsOfNaclSignKeyPairFromSecret {
+            secret,
+            ..Default::default()
+        },
+    ).map_err(|e| format!("failed to get KeyPair from secret key: {}", e))?;
+    // special case if secret contains public key too.
+    let secret = hex::decode(&keypair.secret)
+        .map_err(|e| format!("failed to decode the keypair: {}", e))?;
+    if secret.len() > 32 {
+        keypair.secret = hex::encode(&secret[..32]);
+    }
+    Ok(keypair)
+}
+
 pub fn generate_mnemonic() -> Result<(), String> {
     let mnemonic = gen_seed_phrase()?;
     println!("Succeeded.");
@@ -113,7 +131,11 @@ pub fn extract_pubkey(mnemonic: &str) -> Result<(), String> {
 }
 
 pub fn generate_keypair(keys_path: &str, mnemonic: &str) -> Result<(), String> {
-    let keys = generate_keypair_from_mnemonic(mnemonic)?;
+    let keys = if mnemonic.contains(" ") {
+        generate_keypair_from_mnemonic(mnemonic)?
+    } else {
+        generate_keypair_from_secret(mnemonic.to_string())?
+    };
     let keys_json = serde_json::to_string_pretty(&keys)
         .map_err(|e| format!("failed to serialize the keypair: {}", e))?;
     std::fs::write(keys_path, &keys_json)
