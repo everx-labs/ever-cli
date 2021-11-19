@@ -36,12 +36,12 @@ simplelog = "0.8.0"
 tokio = { version = "0.2", features = ["full"], default-features = false }
 tokio-retry = "0.3"
 
-ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git", tag = '2.1.1' }
+ton_abi = { git = "https://github.com/tonlabs/ton-labs-abi.git", tag = '2.1.4' }
 ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', branch = 'support-abi22' }
 ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', branch = 'support-abi22' }
-ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git", tag = '1.10.10' }
-ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git", tag = '1.7.27' }
-ton_executor = { git = "https://github.com/tonlabs/ton-labs-executor.git", tag = '1.15.31' }
+ton_types = { git = "https://github.com/tonlabs/ton-labs-types.git", tag = '1.10.11' }
+ton_block = { git = "https://github.com/tonlabs/ton-labs-block.git", tag = '1.7.28' }
+ton_executor = { git = "https://github.com/tonlabs/ton-labs-executor.git", tag = '1.15.33' }
 
 [dev-dependencies]
 assert_cmd = "1.0.3"
