@@ -4,8 +4,6 @@ use serde_json::Value;
 use serde::{de, Deserialize, Deserializer};
 use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
-use std::fmt::Display;
-use std::str::FromStr;
 use ton_client::encoding::decode_abi_number;
 
 pub(super) const ID: &'static str = "ac1a4d3ecea232e49783df4a23a81823cdca3205dc58cd20c4db259c25605b48";
@@ -52,28 +50,10 @@ const ABI: &str = r#"
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuItem {
-    #[serde(deserialize_with = "from_hex_to_utf8_str")]
     title: String,
-    #[serde(deserialize_with = "from_hex_to_utf8_str")]
     description: String,
     #[serde(deserialize_with = "from_abi_num")]
     pub handler_id: u32,
-}
-
-fn str_hex_to_utf8(s: &str) -> Option<String> {
-    String::from_utf8(hex::decode(s).ok()?).ok()
-}
-
-fn from_hex_to_utf8_str<'de, S, D>(des: D) -> Result<S, D::Error>
-where
-    S: FromStr,
-    S::Err: Display,
-    D: Deserializer<'de>
-{
-    let s: String = Deserialize::deserialize(des)?;
-    let s = str_hex_to_utf8(&s)
-        .ok_or(format!("failed to convert bytes to utf8 string")).unwrap();
-    S::from_str(&s).map_err(de::Error::custom)
 }
 
 fn from_abi_num<'de, D>(des: D) -> Result<u32, D::Error>

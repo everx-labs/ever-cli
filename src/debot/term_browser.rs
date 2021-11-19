@@ -28,6 +28,7 @@ struct DebotEntry {
     abi: Abi,
     dengine: DEngine,
     callbacks: Arc<Callbacks>,
+    info: DebotInfo,
 }
 
 /// Top level object. Created only once.
@@ -44,7 +45,6 @@ struct TerminalBrowser {
     processor: Arc<tokio::sync::RwLock<ChainProcessor>>,
     /// Indicates if Browser will interact with the user or not.
     interactive: bool,
-    abi_version: Box<String>,
     /// Browser exit argument. Initialized only if DeBot sends message to the DeBot Browser address.
     pub exit_arg: Option<serde_json::Value>,
 }
@@ -66,10 +66,9 @@ impl TerminalBrowser {
             conf,
             processor,
             interactive,
-            abi_version: Box::new(String::new()),
             exit_arg: None,
         };
-        browser.fetch_debot(addr, start, !interactive).await?;
+        let _ = browser.fetch_debot(addr, start, !interactive).await?;
         let abi = browser.bots.get(addr)
             .ok_or(format!("DeBot not found: address {}", addr))?
             .abi.clone();
@@ -100,7 +99,7 @@ impl TerminalBrowser {
         Ok(browser)
     }
 
-    async fn fetch_debot(&mut self, addr: &str, call_start: bool, autorun: bool) -> Result<(), String> {
+    async fn fetch_debot(&mut self, addr: &str, call_start: bool, autorun: bool) -> Result<String, String> {
         let debot_addr = load_ton_address(addr, &self.conf)?;
         let callbacks = Arc::new(
             Callbacks::new(self.client.clone(), self.conf.clone(), self.processor.clone())
@@ -113,11 +112,11 @@ impl TerminalBrowser {
             callbacks
         );
         let info: DebotInfo = dengine.init().await?.into();
-        self.abi_version = Box::new(String::from(info.target_abi.clone()));
+        let abi_version = info.target_abi.clone();
         let abi_ref = info.dabi.as_ref();
         let abi = load_abi(&abi_ref.ok_or(format!("DeBot ABI is not defined"))?)?;
         if !autorun {
-            Self::print_info(info);
+            Self::print_info(&info);
         }
         let mut run_debot = autorun;
         if !run_debot {
@@ -144,9 +143,10 @@ impl TerminalBrowser {
                 abi,
                 dengine,
                 callbacks: callbacks_ref,
+                info,
             }
         );
-        Ok(())
+        Ok(abi_version)
     }
 
     async fn call_interface(
@@ -157,7 +157,7 @@ impl TerminalBrowser {
     ) -> Result<(), String> {
         let debot = self.bots.get_mut(debot_addr)
             .ok_or_else(|| "Internal browser error: debot not found".to_owned())?;
-        if let Some(result) = self.interfaces.try_execute(&msg, interface_id, &*(self.abi_version)).await {
+        if let Some(result) = self.interfaces.try_execute(&msg, interface_id, &debot.info.target_abi).await {
             let (func_id, return_args) = result?;
             debug!("response: {} ({})", func_id, return_args);
             let call_set = match func_id {
@@ -198,15 +198,18 @@ impl TerminalBrowser {
         Ok(())
     }
 
-    fn print_info(info: DebotInfo) {
+    fn print_info(info: &DebotInfo) {
         println!("DeBot Info:");
-        println!("Name   : {}", info.name.unwrap_or_else(|| format!("None")));
-        println!("Version: {}", info.version.unwrap_or_else(|| format!("None")));
-        println!("Author : {}", info.author.unwrap_or_else(|| format!("None")));
-        println!("Publisher: {}", info.publisher.unwrap_or_else(|| format!("None")));
-        println!("Support: {}", info.support.unwrap_or_else(|| format!("None")));
-        println!("Description: {}", info.caption.unwrap_or_else(|| format!("None")));
-        println!("{}", info.hello.unwrap_or_else(|| format!("None")));
+        fn print<'a>(field: &'a Option<String>) -> &'a str {
+            field.as_ref().map(|v| v.as_str()).unwrap_or("None")
+        } 
+        println!("Name   : {}", print(&info.name));
+        println!("Version: {}", print(&info.version));
+        println!("Author : {}", print(&info.author));
+        println!("Publisher: {}", print(&info.publisher));
+        println!("Support: {}", print(&info.support));
+        println!("Description: {}", print(&info.caption));
+        println!("{}", print(&info.hello));
     }
 
     async fn set_exit_arg(&mut self, message: String, _debot_addr: &str) -> Result<(), String> {

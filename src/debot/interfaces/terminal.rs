@@ -95,7 +95,7 @@ impl Terminal {
         } else {
             value = terminal_input(&prompt, |_val| Ok(()));
         }
-        Ok((answer_id, json!({ "value": hex::encode(value.as_bytes()) })))
+        Ok((answer_id, json!({ "value": value })))
     }
 
     fn input_int(&self, args: &Value) -> InterfaceResult {
