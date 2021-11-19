@@ -44,6 +44,7 @@ struct TerminalBrowser {
     processor: Arc<tokio::sync::RwLock<ChainProcessor>>,
     /// Indicates if Browser will interact with the user or not.
     interactive: bool,
+    abi_version: Box<String>,
     /// Browser exit argument. Initialized only if DeBot sends message to the DeBot Browser address.
     pub exit_arg: Option<serde_json::Value>,
 }
@@ -65,6 +66,7 @@ impl TerminalBrowser {
             conf,
             processor,
             interactive,
+            abi_version: Box::new(String::new()),
             exit_arg: None,
         };
         browser.fetch_debot(addr, start, !interactive).await?;
@@ -111,6 +113,7 @@ impl TerminalBrowser {
             callbacks
         );
         let info: DebotInfo = dengine.init().await?.into();
+        self.abi_version = Box::new(String::from(info.target_abi.clone()));
         let abi_ref = info.dabi.as_ref();
         let abi = load_abi(&abi_ref.ok_or(format!("DeBot ABI is not defined"))?)?;
         if !autorun {
@@ -154,7 +157,7 @@ impl TerminalBrowser {
     ) -> Result<(), String> {
         let debot = self.bots.get_mut(debot_addr)
             .ok_or_else(|| "Internal browser error: debot not found".to_owned())?;
-        if let Some(result) = self.interfaces.try_execute(&msg, interface_id).await {
+        if let Some(result) = self.interfaces.try_execute(&msg, interface_id, &*(self.abi_version)).await {
             let (func_id, return_args) = result?;
             debug!("response: {} ({})", func_id, return_args);
             let call_set = match func_id {
