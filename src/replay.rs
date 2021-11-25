@@ -405,8 +405,8 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
     let mut config_state = State::new(config_filename)?;
     assert_eq!(config_state.account_addr, CONFIG_ADDR);
 
-    let mut config = BlockchainConfig::default();
-    let mut cur_block_lt = 0u64;
+    let config_account = config_state.account.clone();
+    let config = construct_blockchain_config(&config_account)?;
 
     if trace_execution {
         log::set_max_level(log::LevelFilter::Trace);
@@ -436,17 +436,10 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             config_state.next_transaction();
         }
 
-        let config_account = config_state.account.clone();
         let state = choose(&mut account_state, &mut config_state);
         let tr = state.tr.as_ref().ok_or("failed to obtain state transaction")?;
 
         //print!("lt {: >26} {: >16x}, txn for {}, ", tr.tr.lt, tr.tr.lt, &state.account_addr[..8]);
-
-        if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
-            assert!(tr.block_lt > cur_block_lt);
-            cur_block_lt = tr.block_lt;
-            config = construct_blockchain_config(&config_account)?;
-        }
 
         let mut account_root = state.account.serialize()
             .map_err(|e| format!("Failed to serialize: {}", e))?;

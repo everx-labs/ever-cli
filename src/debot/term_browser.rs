@@ -149,7 +149,7 @@ impl TerminalBrowser {
     async fn call_interface(
         &mut self,
         msg: String,
-        interface_id: &String,
+        interface_id: &str,
         debot_addr: &str,
     ) -> Result<(), String> {
         let debot = self.bots.get_mut(debot_addr)
@@ -251,7 +251,7 @@ where
 
 pub(crate) fn terminal_input<F>(prompt: &str, mut validator: F) -> String
 where
-    F: FnMut(&String) -> Result<(), String>
+    F: FnMut(&str) -> Result<(), String>
 {
     let stdio = io::stdin();
     let mut reader = stdio.lock();
