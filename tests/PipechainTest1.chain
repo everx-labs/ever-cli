@@ -61,7 +61,7 @@
       "interface": "8796536366ee21852db56dccb60bc564598b618c865fc50c8b1ab740bba128e3",
       "method": "input",
       "params": {
-        "value": "68656c6c6f20776f726c6421"
+        "value": "hello world!"
       }
     },
     {

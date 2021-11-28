@@ -9,28 +9,42 @@ const ID: &'static str = "c5a9558b2664aed7dc3e6123436d544f13ffe69ab0e259412f48c6
 
 pub const ABI: &str = r#"
 {
-	"ABI version": 2,
-	"header": ["time"],
-	"functions": [
-		{
-			"name": "get",
-			"inputs": [
-				{"name":"answerId","type":"uint32"},
-				{"name":"prompt","type":"bytes"},
-				{"name":"min","type":"int256"},
-				{"name":"max","type":"int256"}
-			],
-			"outputs": [
-				{"name":"value","type":"int256"}
-			]
-		}
-	],
-	"data": [
-	],
-	"events": [
-	]
+    "ABI version": 2,
+    "version": "2.2",
+    "header": ["time"],
+    "functions": [
+        {
+            "name": "get",
+            "id": "0x40f7a1ce",
+            "inputs": [
+                {"name":"answerId","type":"uint32"},
+                {"name":"prompt","type":"string"},
+                {"name":"min","type":"int256"},
+                {"name":"max","type":"int256"}
+            ],
+            "outputs": [
+                {"name":"value","type":"int256"}
+            ]
+        },
+        {
+            "name": "constructor",
+            "id": "0x68b55f3f",
+            "inputs": [
+            ],
+            "outputs": [
+            ]
+        }
+    ],
+    "data": [
+    ],
+    "events": [
+    ],
+    "fields": [
+        {"name":"_pubkey","type":"uint256"},
+        {"name":"_timestamp","type":"uint64"},
+        {"name":"_constructorFlag","type":"bool"}
+    ]
 }
-
 "#;
 
 pub struct NumberInput {}

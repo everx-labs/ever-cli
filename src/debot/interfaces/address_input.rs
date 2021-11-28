@@ -10,33 +10,39 @@ const ID: &'static str = "d7ed1bd8e6230871116f4522e58df0a93c5520c56f4ade23ef3d89
 
 pub const ABI: &str = r#"
 {
-	"ABI version": 2,
-	"header": ["time"],
-	"functions": [
-		{
-			"name": "get",
-			"inputs": [
-				{"name":"answerId","type":"uint32"},
-				{"name":"prompt","type":"bytes"}
-			],
-			"outputs": [
-				{"name":"value","type":"address"}
-			]
-		},
+    "ABI version": 2,
+    "version": "2.2",
+    "header": ["time"],
+    "functions": [
         {
-			"name": "select",
-			"inputs": [
-				{"name":"answerId","type":"uint32"}
-			],
-			"outputs": [
-				{"name":"value","type":"address"}
-			]
-		}
-	],
-	"data": [
-	],
-	"events": [
-	]
+            "name": "get",
+            "id": "0x210da005",
+            "inputs": [
+                {"name":"answerId","type":"uint32"},
+                {"name":"prompt","type":"string"}
+            ],
+            "outputs": [
+                {"name":"value","type":"address"}
+            ]
+        },
+        {
+            "name": "constructor",
+            "id": "0x68b55f3f",
+            "inputs": [
+            ],
+            "outputs": [
+            ]
+        }
+    ],
+    "data": [
+    ],
+    "events": [
+    ],
+    "fields": [
+        {"name":"_pubkey","type":"uint256"},
+        {"name":"_timestamp","type":"uint64"},
+        {"name":"_constructorFlag","type":"bool"}
+    ]
 }
 "#;
 
