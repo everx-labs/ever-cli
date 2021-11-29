@@ -10,27 +10,42 @@ const ID: &'static str = "a1d347099e29c1624c8890619daf207bde18e92df5220a54bcc6d8
 
 pub const ABI: &str = r#"
 {
-	"ABI version": 2,
-	"header": ["time"],
-	"functions": [
-		{
-			"name": "get",
-			"inputs": [
-				{"name":"answerId","type":"uint32"},
-				{"name":"prompt","type":"bytes"},
-				{"name":"decimals","type":"uint8"},
-				{"name":"min","type":"uint128"},
-				{"name":"max","type":"uint128"}
-			],
-			"outputs": [
-				{"name":"value","type":"uint128"}
-			]
-		}
-	],
-	"data": [
-	],
-	"events": [
-	]
+    "ABI version": 2,
+    "version": "2.2",
+    "header": ["time"],
+    "functions": [
+        {
+            "name": "get",
+            "id": "0x16740bd3",
+            "inputs": [
+                {"name":"answerId","type":"uint32"},
+                {"name":"prompt","type":"string"},
+                {"name":"decimals","type":"uint8"},
+                {"name":"min","type":"uint128"},
+                {"name":"max","type":"uint128"}
+            ],
+            "outputs": [
+                {"name":"value","type":"uint128"}
+            ]
+        },
+        {
+            "name": "constructor",
+            "id": "0x68b55f3f",
+            "inputs": [
+            ],
+            "outputs": [
+            ]
+        }
+    ],
+    "data": [
+    ],
+    "events": [
+    ],
+    "fields": [
+        {"name":"_pubkey","type":"uint256"},
+        {"name":"_timestamp","type":"uint64"},
+        {"name":"_constructorFlag","type":"bool"}
+    ]
 }
 "#;
 

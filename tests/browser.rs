@@ -193,6 +193,97 @@ fn test_encryptionboxes() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_address_input() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = deploy_debot("AddressInput")?;
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.timeout(std::time::Duration::from_secs(2))
+        .write_stdin(format!("y\n{}", "0:ea5be6a13f20fcdfddc2c2b0d317dfeab56718249b090767e5940137b7af89f1"))
+        .arg("debot")
+        .arg("fetch")
+        .arg(&addr);
+    let _cmd = cmd
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Enter Address:"))
+        .stdout(predicate::str::contains("AddressInput tests completed!"));
+    Ok(())
+}
+
+#[test]
+fn test_amount_input() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = deploy_debot("AmountInput")?;
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.timeout(std::time::Duration::from_secs(2))
+        .write_stdin(format!("y\n{}", "99.456654321"))
+        .arg("debot")
+        .arg("fetch")
+        .arg(&addr);
+    let _cmd = cmd
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Enter amount of tons with decimals:"))
+        .stdout(predicate::str::contains("(>= 0.000000000 and <= 100.000000000)"))
+        .stdout(predicate::str::contains("AmountInput tests completed!"));
+    Ok(())
+}
+
+#[test]
+fn test_confirm_input() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = deploy_debot("ConfirmInput")?;
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.timeout(std::time::Duration::from_secs(2))
+        .write_stdin(format!("y\n{}", "y"))
+        .arg("debot")
+        .arg("fetch")
+        .arg(&addr);
+    let _cmd = cmd
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Select: (y/n)"))
+        .stdout(predicate::str::contains("ConfirmInput tests completed!"));
+    Ok(())
+}
+
+#[test]
+fn test_number_input() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = deploy_debot("NumberInput")?;
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.timeout(std::time::Duration::from_secs(2))
+        .write_stdin(format!("y\n{}", "79"))
+        .arg("debot")
+        .arg("fetch")
+        .arg(&addr);
+    let _cmd = cmd
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Enter number:"))
+        .stdout(predicate::str::contains("NumberInput tests completed!"));
+    Ok(())
+}
+
+#[test]
+fn test_terminal() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = deploy_debot("Terminal")?;
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.timeout(std::time::Duration::from_secs(2))
+        .write_stdin(format!("y\n{}", "Test value"))
+        .arg("debot")
+        .arg("fetch")
+        .arg(&addr);
+    let _cmd = cmd
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Enter text"))
+        .stdout(predicate::str::contains("Terminal tests completed!"));
+    Ok(())
+}
+
+#[test]
 fn test_pipechain_signing() -> Result<(), Box<dyn std::error::Error>> {
     let path_to_pipechain = "tests/PipechainTest2.chain";
     let addr = deploy_debot("PipechainTest")?;

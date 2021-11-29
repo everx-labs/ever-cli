@@ -12,81 +12,45 @@ pub(super) const ID: &'static str = "8796536366ee21852db56dccb60bc564598b618c865
 const ABI: &str = r#"
 {
 	"ABI version": 2,
+	"version": "2.2",
 	"header": ["time"],
 	"functions": [
-        {
+		{
 			"name": "input",
+            "id": "0x3955f72f",
 			"inputs": [
 				{"name":"answerId","type":"uint32"},
-				{"name":"prompt","type":"bytes"},
+				{"name":"prompt","type":"string"},
 				{"name":"multiline","type":"bool"}
 			],
 			"outputs": [
-				{"name":"value","type":"bytes"}
-			]
-		},
-		{
-			"name": "inputStr",
-			"inputs": [
-				{"name":"answerId","type":"uint32"},
-                {"name":"prompt","type":"bytes"},
-                {"name":"multiline","type":"bool"}
-			],
-			"outputs": [
-				{"name":"value","type":"bytes"}
-			]
-		},
-		{
-			"name": "inputInt",
-			"inputs": [
-				{"name":"answerId","type":"uint32"},
-				{"name":"prompt","type":"bytes"}
-			],
-			"outputs": [
-				{"name":"value","type":"int256"}
-			]
-		},
-		{
-			"name": "inputUint",
-			"inputs": [
-				{"name":"answerId","type":"uint32"},
-				{"name":"prompt","type":"bytes"}
-			],
-			"outputs": [
-				{"name":"value","type":"uint256"}
-			]
-		},
-		{
-			"name": "inputTons",
-			"inputs": [
-				{"name":"answerId","type":"uint32"},
-				{"name":"prompt","type":"bytes"}
-			],
-			"outputs": [
-				{"name":"value","type":"uint128"}
-			]
-		},
-		{
-			"name": "inputBoolean",
-			"inputs": [
-				{"name":"answerId","type":"uint32"},
-				{"name":"prompt","type":"bytes"}
-			],
-			"outputs": [
-				{"name":"value","type":"bool"}
+				{"name":"value","type":"string"}
 			]
 		},
 		{
 			"name": "print",
+            "id": "0x0ce649c2",
 			"inputs": [
 				{"name":"answerId","type":"uint32"},
-				{"name":"message","type":"bytes"}
+				{"name":"message","type":"string"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "printf",
+            "id": "0x36a926ce",
+			"inputs": [
+				{"name":"answerId","type":"uint32"},
+				{"name":"fmt","type":"string"},
+				{"name":"fargs","type":"cell"}
 			],
 			"outputs": [
 			]
 		},
 		{
 			"name": "constructor",
+            "id": "0x68b55f3f",
 			"inputs": [
 			],
 			"outputs": [
@@ -96,6 +60,11 @@ const ABI: &str = r#"
 	"data": [
 	],
 	"events": [
+	],
+	"fields": [
+		{"name":"_pubkey","type":"uint256"},
+		{"name":"_timestamp","type":"uint64"},
+		{"name":"_constructorFlag","type":"bool"}
 	]
 }
 "#;
@@ -126,7 +95,7 @@ impl Terminal {
         } else {
             value = terminal_input(&prompt, |_val| Ok(()));
         }
-        Ok((answer_id, json!({ "value": hex::encode(value.as_bytes()) })))
+        Ok((answer_id, json!({ "value": value })))
     }
 
     fn input_int(&self, args: &Value) -> InterfaceResult {
