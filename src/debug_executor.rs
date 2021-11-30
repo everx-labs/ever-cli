@@ -124,7 +124,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
         }
 
         if description.credit_first && !is_ext_msg {
-            description.credit_ph = self.credit_phase(&msg_balance, &mut acc_balance);
+            description.credit_ph = self.credit_phase(account, &mut tr, &mut msg_balance, &mut acc_balance);
         }
         description.storage_ph = self.storage_phase(
             account,
@@ -133,20 +133,24 @@ impl TransactionExecutor for DebugTransactionExecutor {
             is_masterchain,
             is_special
         );
+
+        if description.credit_first && msg_balance.grams.0 > acc_balance.grams.0 {
+            msg_balance.grams.0 = acc_balance.grams.0;
+        }
+
         log::debug!(target: "executor",
             "storage_phase: {}", if description.storage_ph.is_some() {"present"} else {"none"});
         let mut original_acc_balance = account.balance().cloned().unwrap_or_default();
         original_acc_balance.sub(tr.total_fees())?;
 
         if !description.credit_first && !is_ext_msg {
-            description.credit_ph = self.credit_phase(&msg_balance, &mut acc_balance);
+            description.credit_ph = self.credit_phase(account, &mut tr, &mut msg_balance, &mut acc_balance);
         }
         log::debug!(target: "executor",
             "credit_phase: {}", if description.credit_ph.is_some() {"present"} else {"none"});
 
-        if !is_special {
-            account.set_last_paid(params.block_unixtime);
-        }
+        account.set_last_paid(params.block_unixtime);
+
         // TODO: check here
         // if bounce && (msg_balance.grams > acc_balance.grams) {
         //     msg_balance.grams = acc_balance.grams.clone();
@@ -173,18 +177,30 @@ impl TransactionExecutor for DebugTransactionExecutor {
             is_special,
             params.debug
         )?;
-        let gas_fees;
         let mut out_msgs = vec![];
+        let mut action_phase_processed = false;
+        let mut compute_phase_gas_fees = Grams(0);
         description.compute_ph = compute_ph;
         description.action = match &description.compute_ph {
             TrComputePhase::Vm(phase) => {
-                msg_balance.grams.sub(&phase.gas_fees)?;
+                compute_phase_gas_fees = phase.gas_fees.clone();
                 tr.add_fee_grams(&phase.gas_fees)?;
                 if phase.success {
                     log::debug!(target: "executor", "compute_phase: success");
                     log::debug!(target: "executor", "action_phase: lt={}", lt);
-                    gas_fees = None;
-                    match self.action_phase(&mut tr, account, &original_acc_balance, &mut acc_balance, &mut msg_balance, actions.unwrap_or_default(), new_data, is_special) {
+                    action_phase_processed = true;
+                    // since the balance is not used anywhere else if we have reached this point, then we can change it here
+                    match self.action_phase(
+                        &mut tr,
+                        account,
+                        &original_acc_balance,
+                        &mut acc_balance,
+                        &mut msg_balance,
+                        &phase.gas_fees,
+                        actions.unwrap_or_default(),
+                        new_data,
+                        is_special
+                    ) {
                         Some((action_ph, msgs)) => {
                             out_msgs = msgs;
                             Some(action_ph)
@@ -193,7 +209,6 @@ impl TransactionExecutor for DebugTransactionExecutor {
                     }
                 } else {
                     log::debug!(target: "executor", "compute_phase: failed");
-                    gas_fees = Some(phase.gas_fees.clone());
                     None
                 }
             }
@@ -202,7 +217,6 @@ impl TransactionExecutor for DebugTransactionExecutor {
                 if is_ext_msg {
                     fail!(ExecutorError::ExtMsgComputeSkipped(skipped.reason.clone()))
                 }
-                gas_fees = Some(Grams::default());
                 None
             }
         };
@@ -213,7 +227,6 @@ impl TransactionExecutor for DebugTransactionExecutor {
                     "action_phase: present: success={}, err_code={}", phase.success, phase.result_code);
                 match phase.status_change {
                     AccStatusChange::Deleted => *account = Account::default(),
-                    AccStatusChange::Frozen => account.try_freeze()?,
                     _ => ()
                 }
                 !phase.success
@@ -227,12 +240,12 @@ impl TransactionExecutor for DebugTransactionExecutor {
         log::debug!(target: "executor", "Desciption.aborted {}", description.aborted);
         tr.set_end_status(account.status());
         if description.aborted && !is_ext_msg && bounce {
-            if let Some(gas_fees) = gas_fees {
+            if !action_phase_processed {
                 log::debug!(target: "executor", "bounce_phase");
                 let my_addr = account.get_addr().unwrap_or(&in_msg.dst().ok_or_else(|| ExecutorError::TrExecutorError(
                     format!("Or account address or in_msg dst address should be present")
                 ))?).clone();
-                description.bounce = match self.bounce_phase(in_msg, &mut tr, gas_fees, &my_addr) {
+                description.bounce = match self.bounce_phase(msg_balance.clone(), &compute_phase_gas_fees, in_msg, &mut tr, &my_addr) {
                     Some((bounce_ph, Some(bounce_msg))) => {
                         out_msgs.push(bounce_msg);
                         Some(bounce_ph)
@@ -246,6 +259,13 @@ impl TransactionExecutor for DebugTransactionExecutor {
             if let Some(TrBouncePhase::Ok(_)) = description.bounce {
                 log::debug!(target: "executor", "restore balance {} => {}", acc_balance.grams, original_acc_balance.grams);
                 acc_balance = original_acc_balance;
+            } else {
+                if account.is_none() {
+                    // if bounced message was not created, then we must burn money because there is nowhere else to put them
+                    let mut tr_fee = tr.total_fees().clone();
+                    tr_fee.add(&msg_balance)?;
+                    tr.set_total_fees(tr_fee);
+                }
             }
         }
         log::debug!(target: "executor", "set balance {}", acc_balance.grams);

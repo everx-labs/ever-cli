@@ -42,8 +42,8 @@ ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.26.0' }
 ton_executor = { git = 'https://github.com/tonlabs/ton-labs-executor.git', tag = '1.15.33' }
 ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.26.0' }
 ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.10.11' }
-ton_labs_assembler = { git = "https://github.com/tonlabs/ton-labs-assembler.git", tag = '1.2.24' }
-ton_vm = { git = "https://github.com/tonlabs/ton-labs-vm.git", tag = '1.8.19' }
+ton_labs_assembler = { git = "https://github.com/tonlabs/ton-labs-assembler.git", tag = '1.2.25' }
+ton_vm = { git = "https://github.com/tonlabs/ton-labs-vm.git", tag = '1.8.20' }
 
 [dev-dependencies]
 assert_cmd = '1.0.3'
