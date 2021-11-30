@@ -13,11 +13,15 @@
 use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc};
-use crate::replay::{fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config};
-use std::io::Write;
+use crate::helpers::{
+    load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc
+};
+use crate::replay::{
+    fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
+};
+use std::io::{Write};
 use crate::call::{query_account_boc};
-use ton_block::{Message, Account, Serializable, Deserializable};
+use ton_block::{Message, Account, Serializable, Deserializable, OutMessages};
 use ton_types::{UInt256, HashmapE};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
 use ton_executor::{ExecuteParams, BlockchainConfig, TransactionExecutor};
@@ -149,6 +153,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(dbg_info_arg.clone())
             .arg(address_arg.clone())
             .arg(min_trace_arg.clone())
+            .arg(abi_arg.clone())
             .arg(Arg::with_name("TX_ID")
                 .required(true)
                 .takes_value(true)
@@ -263,7 +268,13 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config) -> 
         dump_mask |= DUMP_ACCOUNT;
     }
     println!("Replaying the last transactions...");
-    replay(contract_path, config_path, &tx_id.unwrap(),false, false, false, trace_level, init_logger, debug_info.unwrap(), dump_mask).await?;
+    let tr = replay(contract_path, config_path, &tx_id.unwrap(),false, false, false, trace_level, init_logger, debug_info.unwrap(), dump_mask).await?;
+
+    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let abi = opt_abi.map(|f| std::fs::read_to_string(f))
+        .transpose()
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+    decode_messages(tr.out_msgs, abi.clone()).await?;
     println!("Log saved to {}.", trace_path);
     Ok(())
 }
@@ -277,13 +288,13 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
     let sign = matches.value_of("SIGN")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
-    let abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
     let params = Some(load_params(params.unwrap())?);
 
     if !config.is_json {
-        print_args!(input, method, params, sign, abi, output, debug_info);
+        print_args!(input, method, params, sign, opt_abi, output, debug_info);
     }
 
     let is_min_trace = matches.is_present("MIN_TRACE");
@@ -303,7 +314,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };
 
-    let abi = std::fs::read_to_string(&abi.unwrap())
+    let abi = std::fs::read_to_string(&opt_abi.clone().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let abi = load_abi(&abi)?;
     let params = serde_json::from_str(&params.unwrap())
@@ -389,13 +400,33 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
         Box::new(DebugLogger::new(trace_path.clone()))
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
-    let _ = executor.execute_with_libs_and_params(
+    let aa = executor.execute_with_libs_and_params(
         Some(&message),
         &mut acc_root,
         params
-    );
-
+    )
+        .map_err(|e| format!("Failed to execute the transaction: {}", e))?;
+    decode_messages(aa.out_msgs, opt_abi.clone()).await?;
     println!("Execution finished.");
     println!("Log saved to {}", trace_path);
+    Ok(())
+}
+
+use crate::decode::msg_printer::serialize_msg;
+
+async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<(), String> {
+    if !msgs.is_empty() {
+        log::debug!(target: "executor", "Output messages:\n----------------");
+    }
+    let msgs = msgs.export_vector()
+        .map_err(|e| format!("Failed to parse out messages: {}", e))?;
+
+    for msg in msgs {
+
+        let ser_msg = serialize_msg(&msg.0, abi.clone()).await
+            .map_err(|e| format!("Failed to serialize message: {}", e))?;
+        log::debug!(target: "executor", "\n{}\n", serde_json::to_string_pretty(&ser_msg)
+            .map_err(|e| format!("Failed to serialize json: {}", e))?);
+    }
     Ok(())
 }

@@ -11,30 +11,19 @@
  * limitations under the License.
  */
 
-use ton_executor::{BlockchainConfig, CalcMsgFwdFees, ExecutorError, TransactionExecutor, ExecuteParams, VMSetup};
+use ton_executor::{
+    BlockchainConfig, CalcMsgFwdFees, ExecutorError, TransactionExecutor, ExecuteParams, VMSetup
+};
 
 use std::sync::{atomic::Ordering, Arc};
 use ton_block::{
-    AddSub,
-    Grams,
-    Serializable,
-    Account,
-    AccStatusChange,
-    CommonMsgInfo,
-    Message,
-    Transaction,
-    TransactionDescrOrdinary,
-    TransactionDescr,
-    TrComputePhase,
-    TrBouncePhase,
-    CurrencyCollection,
-    GlobalCapabilities,
-    ComputeSkipReason,
-    TrComputePhaseVm,
-    AccountStatus,
-    GasLimitsPrices
+    AddSub, Grams, Serializable, Account, AccStatusChange, CommonMsgInfo, Message, Transaction,
+    TransactionDescrOrdinary, TransactionDescr, TrComputePhase, TrBouncePhase, CurrencyCollection,
+    GlobalCapabilities, ComputeSkipReason, TrComputePhaseVm, AccountStatus, GasLimitsPrices,
 };
-use ton_types::{error, fail, Result, HashmapE, Cell, ExceptionCode};
+use ton_types::{
+    error, fail, Result, HashmapE, Cell, ExceptionCode
+};
 use ton_vm::{boolean, int, stack::{Stack, StackItem, integer::IntegerData}, SmartContractInfo};
 use ton_vm::error::tvm_exception;
 use ton_vm::executor::gas::gas_state::Gas;
@@ -489,6 +478,7 @@ impl DebugTransactionExecutor {
         };
 
         *acc = result_acc;
+
         Ok((TrComputePhase::Vm(vm_phase), out_actions, new_data))
     }
 }

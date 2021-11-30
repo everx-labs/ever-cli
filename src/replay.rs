@@ -420,7 +420,7 @@ pub async fn replay(
     init_trace_last_logger: impl Fn() -> Result<(), String>,
     debug_info:  &str,
     dump_mask: u8,
-) -> Result<(), String> {
+) -> Result<Transaction, String> {
     let mut account_state = State::new(input_filename)?;
     let mut config_state = State::new(config_filename)?;
     assert_eq!(config_state.account_addr, CONFIG_ADDR);
@@ -577,7 +577,7 @@ pub async fn replay(
 
         if tr.id == txnid {
             println!("DONE");
-            return Ok(());
+            return Ok(tr_local);
         }
         state.tr = None;
     }
@@ -594,7 +594,7 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 }
 
 pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
-    replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
+    let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
         m.value_of("TXNID").ok_or("Missing final txn id")?,
         false, false, false, TraceLevel::None, ||{Ok(())}, "", DUMP_ALL

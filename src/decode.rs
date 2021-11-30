@@ -402,7 +402,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     Ok(())
 }
 
-mod msg_printer {
+pub mod msg_printer {
     use serde_json::Value;
     use ton_block::{CurrencyCollection, StateInit, Message, CommonMsgInfo, Grams};
     use ton_types::cells_serialization::serialize_tree_of_cells;
@@ -550,7 +550,13 @@ mod msg_printer {
             let mut body_vec = Vec::new();
             serialize_tree_of_cells(&msg.body().unwrap().into_cell(), &mut body_vec)
                 .map_err(|e| format!("failed to serialize body: {}", e))?;
-            res["BodyCall"] = serialize_body(body_vec, &abi, ton).await?;
+            res["BodyCall"] =  match serialize_body(body_vec, &abi, ton).await {
+                Ok(res) => res,
+                Err(e) => {
+                    println!("Warning: {}", e);
+                    json!("Undefined")
+                }
+            };
         }
         Ok(res)
     }
