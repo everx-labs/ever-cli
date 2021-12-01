@@ -72,13 +72,13 @@ impl CountryInput {
         let mut result = String::new();
         let _ = terminal_input(&format!("{}", prompt),|val| {
         	result = val.to_string();
-            if !banned.is_empty() && banned.contains(val) {
+            if !banned.is_empty() && banned.contains(&val) {
             	Err(format!("Invalid enter, no such country permitted"))?;
             };
-            if !permitted.is_empty() && !permitted.contains(val) {
+            if !permitted.is_empty() && !permitted.contains(&val) {
             	Err(format!("Invalid enter, no such country permitted"))?;
             }
-            if ALL_COUNTRIES.contains(&val.as_str()) {
+            if !ALL_COUNTRIES.contains(&val.as_str()) {
             	Err(format!("Invalid enter, no such country"))?;
             }
             Ok(())
