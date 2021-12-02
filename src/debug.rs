@@ -24,7 +24,7 @@ use crate::call::{query_account_boc};
 use ton_block::{Message, Account, Serializable, Deserializable, OutMessages};
 use ton_types::{UInt256, HashmapE};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
-use ton_executor::{ExecuteParams, BlockchainConfig, TransactionExecutor};
+use ton_executor::{ExecuteParams, TransactionExecutor};
 use std::sync::{Arc, atomic::AtomicU64};
 use crate::crypto::load_keypair;
 use crate::debug_executor::{DebugTransactionExecutor, TraceLevel};
@@ -127,6 +127,11 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .help("Path to the contract ABI file. Can be specified in the config file.");
 
+    let decode_abi_arg = Arg::with_name("DECODE_ABI")
+        .long("--decode_abi")
+        .takes_value(true)
+        .help("Path to the ABI file used to decode output messages. Can be specified in the config file.");
+
     let min_trace_arg = Arg::with_name("MIN_TRACE")
         .long("--min_trace")
         .help("Flag that changes trace to minimal version.");
@@ -153,7 +158,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(dbg_info_arg.clone())
             .arg(address_arg.clone())
             .arg(min_trace_arg.clone())
-            .arg(abi_arg.clone())
+            .arg(decode_abi_arg.clone())
             .arg(Arg::with_name("TX_ID")
                 .required(true)
                 .takes_value(true)
@@ -175,6 +180,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(abi_arg.clone())
             .arg(sign_arg.clone())
             .arg(min_trace_arg.clone())
+            .arg(decode_abi_arg.clone())
             .arg(Arg::with_name("BOC")
                 .long("--boc")
                 .conflicts_with("TVC")
@@ -270,13 +276,25 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config) -> 
     println!("Replaying the last transactions...");
     let tr = replay(contract_path, config_path, &tx_id.unwrap(),false, false, false, trace_level, init_logger, debug_info.unwrap(), dump_mask).await?;
 
-    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
-    let abi = opt_abi.map(|f| std::fs::read_to_string(f))
-        .transpose()
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-    decode_messages(tr.out_msgs, abi.clone()).await?;
+    decode_messages(tr.out_msgs, load_decode_abi(matches, config)).await?;
     println!("Log saved to {}.", trace_path);
     Ok(())
+}
+
+fn load_decode_abi(matches: &ArgMatches<'_>, config: Config) -> Option<String> {
+    let abi = matches.value_of("DECODE_ABI")
+        .map(|s| s.to_owned())
+        .or(abi_from_matches_or_config(matches, &config).ok());
+    match abi {
+        Some(path) => match std::fs::read_to_string(path) {
+            Ok(res) => Some(res),
+            Err(e) => {
+                println!("Failed to read abi: {}", e);
+                None
+            }
+        }
+        _ => None
+    }
 }
 
 async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -351,7 +369,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
     };
 
     let message = encode_message(
-        ton_client,
+        ton_client.clone(),
         msg_params
     ).await
         .map_err(|e| format!("Failed to encode message: {}", e))?;
@@ -368,19 +386,23 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
         debug: true,
     };
 
-    let config = match matches.value_of("CONFIG_PATH") {
-        Some(config) => {
-            let account = Account::construct_from_file(config)
-                .map_err(|e| format!("Failed to construct config account: {}", e))?;
-            construct_blockchain_config(&account)?
+    let config_account = match matches.value_of("CONFIG_PATH") {
+        Some(bc_config) => {
+            Account::construct_from_file(bc_config)
         }
-        _ => { BlockchainConfig::default() }
-    };
+        _ => { let acc = query_account_boc(
+                ton_client.clone(),
+                CONFIG_ADDR
+            ).await?;
+            Account::construct_from_base64(&acc)
+        }
+    }.map_err(|e| format!("Failed to construct config account: {}", e))?;
+    let bc_config = construct_blockchain_config(&config_account)?;
 
     let executor =
         Box::new(
             DebugTransactionExecutor::new(
-                config,
+                bc_config.clone(),
                 debug_info.unwrap(),
                 if is_min_trace {
                     TraceLevel::Minimal
@@ -400,13 +422,14 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
         Box::new(DebugLogger::new(trace_path.clone()))
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
-    let aa = executor.execute_with_libs_and_params(
+    let trans = executor.execute_with_libs_and_params(
         Some(&message),
         &mut acc_root,
         params
     )
         .map_err(|e| format!("Failed to execute the transaction: {}", e))?;
-    decode_messages(aa.out_msgs, opt_abi.clone()).await?;
+
+    decode_messages(trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
     println!("Execution finished.");
     println!("Log saved to {}", trace_path);
     Ok(())
