@@ -306,6 +306,33 @@ fn test_country_input() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_datetime_input() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = deploy_debot("DateTimeInput")?;
+    
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.timeout(std::time::Duration::from_secs(2))
+        .write_stdin(format!("y\n{}\n{}\n{}", "1234568800", "60000", "1234567890"))
+        .arg("debot")
+        .arg("fetch")
+        .arg(&addr);
+    let _cmd = cmd
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(""))
+        .stdout(predicate::str::contains(""))
+        .stdout(predicate::str::contains(""))
+        .stdout(predicate::str::contains(""))
+        .stdout(predicate::str::contains(""))
+        .stdout(predicate::str::contains(""))
+        .stdout(predicate::str::contains(""))
+        .stdout(predicate::str::contains(""))
+        .stdout(predicate::str::contains(""))
+        .stdout(predicate::str::contains(""))
+        .stdout(predicate::str::contains(""));
+    Ok(())
+}
+
+#[test]
 fn test_pipechain_signing() -> Result<(), Box<dyn std::error::Error>> {
     let path_to_pipechain = "tests/PipechainTest2.chain";
     let addr = deploy_debot("PipechainTest")?;
