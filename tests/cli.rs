@@ -533,7 +533,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
         .arg(&addr)
         .assert()
         .success()
-        .stdout(predicate::str::contains("balance:       1.0 ton"));
+        .stdout(predicate::str::contains(" ton"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("-j")
@@ -541,7 +541,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
         .arg(&addr)
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"balance\": \"1.0\""));
+        .stdout(predicate::str::contains("\"balance\": \""));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
@@ -555,7 +555,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
         .arg(&addr)
         .assert()
         .success()
-        .stdout(predicate::str::contains("balance:       1000000000 nanoton"));
+        .stdout(predicate::str::contains(" nanoton"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("-j")
@@ -563,7 +563,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
         .arg(&addr)
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"balance\": \"1000000000\""));
+        .stdout(predicate::str::contains("\"balance\": \""));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("deploy")
