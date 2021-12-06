@@ -112,7 +112,9 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
                 .map_err(|e| format!("failed to serialize account: {}", e))?));
         writer.write_all(data.as_bytes()).map_err(|e| format!("Failed to write to file: {}", e))?;
     }
-
+    if fast_stop {
+        return Ok(());
+    }
     let retry_strategy =
         tokio_retry::strategy::ExponentialBackoff::from_millis(10).take(5);
 
@@ -132,7 +134,7 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
                         "lt": { "gt": lt },
                     })),
                     result: "id lt block { start_lt } boc".to_owned(),
-                    limit: if fast_stop { Some(1) } else { None },
+                    limit: None,
                     order: Some(vec![
                         OrderBy { path: "lt".to_owned(), direction: SortDirection::ASC }
                     ]),
@@ -156,9 +158,6 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
         let last = transactions.result.last().ok_or(format!("Failed to get last txn"))?;
         lt = last["lt"].as_str().ok_or(format!("Failed to parse value"))?.to_owned();
         count += transactions.result.len() as u64;
-        if count > 0 && fast_stop {
-            break;
-        }
         pb.set_position(std::cmp::min(count, tr_count));
     }
     Ok(())
