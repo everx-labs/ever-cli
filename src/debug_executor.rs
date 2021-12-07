@@ -41,7 +41,7 @@ pub enum TraceLevel {
 
 pub struct DebugTransactionExecutor {
     config: BlockchainConfig,
-    dbg_info: String,
+    dbg_info: Option<String>,
     trace_level: TraceLevel,
 }
 
@@ -291,8 +291,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
 }
 
 impl DebugTransactionExecutor {
-    pub fn new(config: BlockchainConfig, dbg_info:  &str, trace_level: TraceLevel) -> Self {
-        let dbg_info = dbg_info.to_string();
+    pub fn new(config: BlockchainConfig, dbg_info: Option<String>, trace_level: TraceLevel) -> Self {
         Self {
             config,
             dbg_info,
@@ -385,23 +384,28 @@ impl DebugTransactionExecutor {
         match self.trace_level {
             TraceLevel::None => {},
             _ => {
-                let dbg_info = match File::open(self.dbg_info.clone()) {
-                    Ok(file ) => match serde_json::from_reader(file) {
-                        Ok(info) => Some(info),
-                        Err(e) => {
-                            println!("serde failed: {}", e);
-                            None
-                        },
+                match self.dbg_info.clone() {
+                    Some(dbg_info) => {
+                        let dbg_info = match File::open(dbg_info) {
+                            Ok(file ) => match serde_json::from_reader(file) {
+                                Ok(info) => Some(info),
+                                Err(e) => {
+                                    println!("serde failed: {}", e);
+                                    None
+                                },
+                            },
+                            Err(e) =>  {
+                                println!("open failed: {}", e);
+                                None
+                            }
+                        };
+                        if self.trace_level == TraceLevel::Minimal {
+                            vm.set_trace_callback(move |_, info| { trace_callback_minimal(info, &dbg_info); });
+                        } else {
+                            vm.set_trace_callback(move |_, info| { trace_callback(info, &dbg_info); });
+                        }
                     },
-                    Err(e) =>  {
-                        println!("open failed: {}", e);
-                        None
-                    }
-                };
-                if self.trace_level == TraceLevel::Minimal {
-                    vm.set_trace_callback(move |_, info| { trace_callback_minimal(info, &dbg_info); });
-                } else {
-                    vm.set_trace_callback(move |_, info| { trace_callback(info, &dbg_info); });
+                    _ => {}
                 }
             }
         };

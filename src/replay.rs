@@ -417,7 +417,7 @@ pub async fn replay(
     track_config_param_34: bool,
     trace_last_transaction: TraceLevel,
     init_trace_last_logger: impl Fn() -> Result<(), String>,
-    debug_info:  &str,
+    debug_info:  Option<String>,
     dump_mask: u8,
 ) -> Result<Transaction, String> {
     let mut account_state = State::new(input_filename)?;
@@ -519,7 +519,7 @@ pub async fn replay(
                 }
                 TransactionDescr::Ordinary(_) => {
                     if trace_last {
-                        Box::new(DebugTransactionExecutor::new(config.clone(), debug_info, trace_last_transaction.clone()))
+                        Box::new(DebugTransactionExecutor::new(config.clone(), debug_info.clone(), trace_last_transaction.clone()))
                     } else {
                         Box::new(OrdinaryTransactionExecutor::new(config.clone()))
                     }
@@ -596,7 +596,7 @@ pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
     let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
         m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, false, false, TraceLevel::None, ||{Ok(())}, "", DUMP_ALL
+        false, false, false, TraceLevel::None, ||{Ok(())}, None, DUMP_ALL
     ).await?;
     Ok(())
 }
