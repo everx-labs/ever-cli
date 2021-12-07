@@ -45,7 +45,7 @@ tonos-cli <subcommand> -h
     - [4.4.2. Alternative command to call contract in the blockchain](#442-alternative-command-to-call-contract-in-the-blockchain)
     - [4.4.3. Run contract method locally](#443-run-contract-method-locally)
     - [4.4.4. Run funC get-method](#444-run-func-get-method)
-    - [4.4.5. Run contract method locally for saved account state](#445-run-contract-method-locally-for-saved-account-state)
+    - [4.4.5. Run contract method locally for saved account state](#445-run-contract-method-locally-for-saved-account-boc)
   - [4.5. Generate encrypted message offline](#45-generate-encrypted-message-offline)
   - [4.6. Broadcast previously generated message](#46-broadcast-previously-generated-message)
   - [4.7. Broadcast previously generated message from a file](#47-broadcast-previously-generated-message-from-a-file)
@@ -92,6 +92,7 @@ tonos-cli <subcommand> -h
 - [11. Debug commands](#11-debug-commands)
   - [11.1. Debug transaction](#111-debug-transaction)
   - [11.2. Debug call](#112-debug-call)
+  - [11.3. Debug replay transaction on the saved account state](#113-debug-replay-transaction-on-the-saved-account-state)
 
 # 1. Installation
 
@@ -2228,6 +2229,7 @@ OPTIONS:
 -t, --contract <CONTRACT_PATH>    Path to the file with saved target contract transactions. If not set transactions
                                   will be fetched to file "contract.txns".
 -d, --dbg_info <DBG_INFO>         Path to the file with debug info.
+--decode_abi <DECODE_ABI>         Path to the ABI file used to decode output messages.
 -o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
                                   be removed.
 
@@ -2277,6 +2279,7 @@ OPTIONS:
 --tvc_address <ACCOUNT_ADDRESS>         Account address for account constructed from TVC.
 -c, --config <CONFIG_PATH>              Path to the file with saved config contract state.
 -d, --dbg_info <DBG_INFO>               Path to the file with debug info.
+--decode_abi <DECODE_ABI>               Path to the ABI file used to decode output messages.
 -o, --output <LOG_PATH>                 Path where to store the trace. Default path is "./trace.log". Note: old file
                                         will be removed.
 --now <NOW>                             Now timestamp (in milliseconds) for execution. If not set it is equal to the
@@ -2307,4 +2310,42 @@ Input arguments:
   output: ./trace.log
 Execution finished.
 Log saved to ./trace.log
+```
+
+## 11.3. Debug replay transaction on the saved account state
+
+```bash
+    tonos-cli debug replay [FLAGS] [OPTIONS] <TX_ID> <INPUT>
+```
+
+FLAGS:
+--min_trace       Flag that changes trace to minimal version.
+--update_state    Update state of the contract.
+
+OPTIONS:
+-c, --config <CONFIG_PATH>       Path to the file with saved config contract state.
+-d, --dbg_info <DBG_INFO>        Path to the file with debug info.
+--decode_abi <DECODE_ABI>        Path to the ABI file used to decode output messages.file.
+-o, --output <LOG_PATH>          Path where to store the trace. Default path is "./trace.log". Note: old file will
+                                 be removed.
+
+ARGS:
+<TX_ID>    ID of the transaction that should be replayed.
+<INPUT>    Path to the saved account state.
+
+This command allows replay transaction on the saved account state. This can be useful if user wants to check
+transaction execution on the contract state, whose code was replaced to a new one using TVM_LINKER.
+
+```bash
+$ tonos-cli debug replay --min_trace --update_state -d 2_StorageClient.dbg.json2 --decode_abi 2_UintStorage.abi.json -o trace2.log 82733d3ddf7cae1d3fa07ec5ce288b7febf3bffd9d229a8e538f62fac10eec3e contract.boc 
+Config: default
+Input arguments:
+   input: contract.boc
+   tx_id: 82733d3ddf7cae1d3fa07ec5ce288b7febf3bffd9d229a8e538f62fac10eec3e
+  output: trace2.log
+config_path: None
+debug_info: 2_StorageClient.dbg.json2
+Contract state was updated.
+Execution finished.
+Log saved to trace2.log
 ```
