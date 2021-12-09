@@ -570,7 +570,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("LIFETIME")
             .long("--lifetime")
             .takes_value(true)
-            .help("Period of time in seconds while message is valid. Change of this parameter may affect \"out_of_sync\" parameter, because \"lifetime\" should be "))
+            .help("Period of time in seconds while message is valid. Change of this parameter may affect \"out_of_sync\" parameter, because \"lifetime\" should be at least 2 times greater than \"out_of_sync\"."))
         .arg(Arg::with_name("NO_ANSWER")
             .long("--no-answer")
             .takes_value(true)
