@@ -36,6 +36,8 @@ fn default_timeout() -> u32 {
     60000
 }
 
+fn default_out_of_sync() -> u32 { 15 }
+
 fn default_false() -> bool {
     false
 }
@@ -65,6 +67,8 @@ pub struct Config {
     pub retries: u8,
     #[serde(default = "default_timeout")]
     pub timeout: u32,
+    #[serde(default = "default_out_of_sync")]
+    pub out_of_sync_threshold: u32,
     #[serde(default = "default_false")]
     pub is_json: bool,
     #[serde(default = "default_depool_fee")]
@@ -111,6 +115,7 @@ impl Config {
             local_run: default_false(),
             async_call: default_false(),
             endpoints,
+            out_of_sync_threshold: default_out_of_sync(),
         }
     }
 
@@ -325,6 +330,7 @@ pub fn set_config(
     balance_in_tons: Option<&str>,
     local_run: Option<&str>,
     async_call: Option<&str>,
+    out_of_sync_threshold: Option<&str>,
 ) -> Result<(), String> {
     if let Some(s) = url {
         let resolved_url = resolve_net_name(s).unwrap_or(s.to_owned());
@@ -354,6 +360,9 @@ pub fn set_config(
     if let Some(lifetime) = lifetime {
         conf.lifetime = u32::from_str_radix(lifetime, 10)
             .map_err(|e| format!(r#"failed to parse "lifetime": {}"#, e))?;
+        if conf.lifetime < 2 * conf.out_of_sync_threshold {
+            conf.out_of_sync_threshold = conf.lifetime >> 1;
+        }
     }
     if let Some(timeout) = timeout {
         conf.timeout = u32::from_str_radix(timeout, 10)
@@ -385,6 +394,14 @@ pub fn set_config(
     if let Some(async_call) = async_call {
         conf.async_call = async_call.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "async_call": {}"#, e))?;
+    }
+    if let Some(out_of_sync_threshold) = out_of_sync_threshold {
+        let time = u32::from_str_radix(out_of_sync_threshold, 10)
+            .map_err(|e| format!(r#"failed to parse "out_of_sync_threshold": {}"#, e))?;
+        if time * 2 > conf.lifetime {
+            return  Err("\"out_of_sync\" should not exceed 0.5 * \"lifetime\".".to_string());
+        }
+        conf.out_of_sync_threshold = time;
     }
 
     Config::to_file(path, &conf)?;

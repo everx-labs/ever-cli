@@ -561,7 +561,7 @@ async fn main_internal() -> Result <(), String> {
             .help("Contract call timeout in ms."))
         .arg(Arg::with_name("LIST")
             .long("--list")
-            .conflicts_with_all(&["NO_ANSWER", "ASYNC_CALL", "LOCAL_RUN", "BALANCE_IN_TONS", "LIFETIME", "DEPOOL_FEE", "PUBKEY", "URL", "ABI", "KEYS", "ADDR", "RETRIES", "TIMEOUT", "WC", "WALLET"])
+            .conflicts_with_all(&["OUT_OF_SYNC","NO_ANSWER", "ASYNC_CALL", "LOCAL_RUN", "BALANCE_IN_TONS", "LIFETIME", "DEPOOL_FEE", "PUBKEY", "URL", "ABI", "KEYS", "ADDR", "RETRIES", "TIMEOUT", "WC", "WALLET"])
             .help("Prints all config parameters."))
         .arg(Arg::with_name("DEPOOL_FEE")
             .long("--depool_fee")
@@ -570,7 +570,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("LIFETIME")
             .long("--lifetime")
             .takes_value(true)
-            .help("Period of time in seconds while message is valid."))
+            .help("Period of time in seconds while message is valid. Change of this parameter may affect \"out_of_sync\" parameter, because \"lifetime\" should be "))
         .arg(Arg::with_name("NO_ANSWER")
             .long("--no-answer")
             .takes_value(true)
@@ -587,6 +587,10 @@ async fn main_internal() -> Result <(), String> {
             .long("--async_call")
             .takes_value(true)
             .help("Disables wait for transaction to appear in the network after call command."))
+        .arg(Arg::with_name("OUT_OF_SYNC")
+            .long("--out_of_sync")
+            .takes_value(true)
+            .help("Network connection \"out_of_sync_threshold\" parameter in seconds. Mind that it cant exceed half of the \"lifetime\" parameter."))
         .subcommand(config_clear_cmd)
         .subcommand(config_endpoint_cmd);
 
@@ -1369,7 +1373,8 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let balance_in_tons = matches.value_of("BALANCE_IN_TONS");
             let local_run = matches.value_of("LOCAL_RUN");
             let async_call = matches.value_of("ASYNC_CALL");
-            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, async_call);
+            let out_of_sync = matches.value_of("OUT_OF_SYNC");
+            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, async_call, out_of_sync);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {
