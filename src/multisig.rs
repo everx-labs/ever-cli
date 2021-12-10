@@ -389,7 +389,7 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
         ).await?;
     }
 
-    let res = call::process_message(ton.clone(), msg).await;
+    let res = call::process_message(ton.clone(), msg, config.is_json).await;
 
     if res.is_err() {
         if res.clone().err().unwrap().contains("Account does not exist.") {

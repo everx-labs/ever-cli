@@ -495,6 +495,7 @@ pub async fn send_message_and_wait(
 pub async fn process_message(
     ton: TonClient,
     msg: ParamsOfEncodeMessage,
+    is_json: bool,
 ) -> Result<serde_json::Value, String> {
     let callback = |event| { async move {
         match event {
@@ -502,16 +503,29 @@ pub async fn process_message(
             _ => (),
         }
     }};
-    let res = ton_client::processing::process_message(
-        ton,
-        ParamsOfProcessMessage {
-            message_encode_params: msg,
-            send_events: true,
-            ..Default::default()
-        },
-        callback,
-    ).await
-        .map_err(|e| format!("Failed: {:#}", e))?;
+    let res = if !is_json {
+        ton_client::processing::process_message(
+            ton,
+            ParamsOfProcessMessage {
+                message_encode_params: msg,
+                send_events: true,
+                ..Default::default()
+            },
+            callback,
+        ).await
+            .map_err(|e| format!("Failed: {:#}", e))?
+    } else {
+        ton_client::processing::process_message(
+            ton,
+            ParamsOfProcessMessage {
+                message_encode_params: msg,
+                send_events: true,
+                ..Default::default()
+            },
+            |_| { async move {} },
+        ).await
+            .map_err(|e| format!("Failed: {:#}", e))?
+    };
 
     Ok(res.decoded.and_then(|d| d.output).unwrap_or(json!({})))
 }
@@ -594,7 +608,7 @@ pub async fn call_contract_with_client(
         let expire_at = Local.timestamp(expire_at as i64 , 0);
         println!("{}", expire_at.to_rfc2822());
     }
-    process_message(ton.clone(), msg_params).await
+    process_message(ton.clone(), msg_params, conf.is_json).await
 }
 
 fn print_json_result(result: Value, conf: Config) {
