@@ -1401,7 +1401,9 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
     let update_tvc = matches.is_present("SAVE");
     let abi = matches.value_of("ABI");
     let is_update_tvc = if update_tvc { Some("true") } else { None };
-    print_args!(tvc, wc, keys, init_data, is_update_tvc);
+    if !config.is_json {
+        print_args!(tvc, wc, keys, init_data, is_update_tvc);
+    }
     generate_address(config, tvc.unwrap(), abi.unwrap(), wc, keys, new_keys, init_data, update_tvc).await
 }
 

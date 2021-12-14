@@ -120,7 +120,7 @@ pub fn generate_mnemonic(keypath: Option<&str>, config: Config) -> Result<(), St
         println!(r#"Seed phrase: "{}""#, mnemonic);
     } else {
         println!("{{");
-        println!("  \"phrase\":\"{}\"", mnemonic);
+        println!("  \"phrase\": \"{}\"", mnemonic);
         println!("}}");
     }
     match keypath {
