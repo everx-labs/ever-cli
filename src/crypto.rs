@@ -119,6 +119,7 @@ pub fn generate_mnemonic(keypath: Option<&str>) -> Result<(), String> {
     match keypath {
         Some(path) => {
             generate_keypair(path, &mnemonic)?;
+            println!("Keypair saved to {}", path);
         }
         _ => {}
     }
@@ -144,6 +145,13 @@ pub fn generate_keypair(keys_path: &str, mnemonic: &str) -> Result<(), String> {
     };
     let keys_json = serde_json::to_string_pretty(&keys)
         .map_err(|e| format!("failed to serialize the keypair: {}", e))?;
+    let folder_path = keys_path
+        .trim_end_matches(|c| c != '/')
+        .trim_end_matches(|c| c == '/');
+    if !std::path::Path::new(folder_path).exists() {
+        std::fs::create_dir(folder_path)
+            .map_err(|e| format!("Failed to create folder: {}", e))?;
+    }
     std::fs::write(keys_path, &keys_json)
         .map_err(|e| format!("failed to create file with keys: {}", e))?;
     println!("Succeeded.");
