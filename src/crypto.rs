@@ -112,10 +112,16 @@ pub fn generate_keypair_from_secret(secret: String) -> Result<KeyPair, String> {
     Ok(keypair)
 }
 
-pub fn generate_mnemonic() -> Result<(), String> {
+pub fn generate_mnemonic(keypath: Option<&str>) -> Result<(), String> {
     let mnemonic = gen_seed_phrase()?;
     println!("Succeeded.");
     println!(r#"Seed phrase: "{}""#, mnemonic);
+    match keypath {
+        Some(path) => {
+            generate_keypair(path, &mnemonic)?;
+        }
+        _ => {}
+    }
     Ok(())
 }
 

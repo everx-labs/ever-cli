@@ -278,7 +278,11 @@ async fn main_internal() -> Result <(), String> {
 
     let genphrase_cmd = SubCommand::with_name("genphrase")
         .about("Generates a seed phrase for keypair.")
-        .author("TONLabs");
+        .author("TONLabs")
+        .arg(Arg::with_name("DUMP_KEYPAIR")
+            .long("--dump")
+            .takes_value(true)
+            .help("Path where to dump keypair generated from the phrase"));
 
     let genpubkey_cmd = SubCommand::with_name("genpubkey")
         .about("Generates a public key from the seed phrase.")
@@ -970,8 +974,8 @@ fn convert_tokens(matches: &ArgMatches, config: Config) -> Result<(), String> {
     Ok(())
 }
 
-fn genphrase_command(_matches: &ArgMatches, _config: Config) -> Result<(), String> {
-    generate_mnemonic()
+fn genphrase_command(matches: &ArgMatches, _config: Config) -> Result<(), String> {
+    generate_mnemonic(matches.value_of("DUMP_KEYPAIR"))
 }
 
 fn genpubkey_command(matches: &ArgMatches, _config: Config) -> Result<(), String> {
