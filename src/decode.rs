@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE};
+use crate::{load_ton_address, print_args, VERBOSE_MODE};
 use crate::config::Config;
 use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query, TonClient};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
@@ -279,8 +279,8 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(),
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
     let ton = create_client_verbose(&config)?;
-
-    let data = query_account(ton.clone(), &address.unwrap(), "data").await?;
+    let address = load_ton_address(address.unwrap(), &config)?;
+    let data = query_account(ton.clone(), &address, "data").await?;
 
     let res = decode_account_data(
         ton,
@@ -291,7 +291,10 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(),
         )
         .await
         .map_err(|e| format!("failed to decode data: {}", e))?;
-    println!("Account fields:\n{}", serde_json::to_string_pretty(&res.data)
+    if !config.is_json {
+        println!("Account fields:");
+    }
+    println!("{}", serde_json::to_string_pretty(&res.data)
         .map_err(|e| format!("failed to serialize the result: {}", e))?);
     Ok(())
 }
