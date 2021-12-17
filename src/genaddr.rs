@@ -84,6 +84,9 @@ pub async fn generate_address(
         };
 
         update_contract_state(tvc, &key_bytes, initial_data, &abi_str)?;
+        if !conf.is_json {
+            println!("TVC file updated");
+        }
     }
 
     if new_keys && keys_file.is_some() {
@@ -163,7 +166,6 @@ fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, ab
         .map_err(|e| format!("failed to access the tvc file: {}", e))?;
     state_init.write_all(&vec_bytes)
         .map_err(|e| format!("failed to update the tvc file: {}", e))?;
-    println!("TVC file updated");
 
     Ok(())
 }
