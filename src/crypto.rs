@@ -24,6 +24,7 @@ use ton_client::crypto::{
     ParamsOfNaclSignKeyPairFromSecret,
     ParamsOfMnemonicFromRandom
 };
+use crate::Config;
 
 pub fn load_keypair(keys: &str) -> Result<KeyPair, String> {
     if keys.find(' ').is_none() {
@@ -112,10 +113,25 @@ pub fn generate_keypair_from_secret(secret: String) -> Result<KeyPair, String> {
     Ok(keypair)
 }
 
-pub fn generate_mnemonic() -> Result<(), String> {
+pub fn generate_mnemonic(keypath: Option<&str>, config: Config) -> Result<(), String> {
     let mnemonic = gen_seed_phrase()?;
-    println!("Succeeded.");
-    println!(r#"Seed phrase: "{}""#, mnemonic);
+    if !config.is_json {
+        println!("Succeeded.");
+        println!(r#"Seed phrase: "{}""#, mnemonic);
+    } else {
+        println!("{{");
+        println!("  \"phrase\": \"{}\"", mnemonic);
+        println!("}}");
+    }
+    match keypath {
+        Some(path) => {
+            generate_keypair(path, &mnemonic, config.clone())?;
+            if !config.is_json {
+                println!("Keypair saved to {}", path);
+            }
+        }
+        _ => {}
+    }
     Ok(())
 }
 
@@ -130,7 +146,7 @@ pub fn extract_pubkey(mnemonic: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn generate_keypair(keys_path: &str, mnemonic: &str) -> Result<(), String> {
+pub fn generate_keypair(keys_path: &str, mnemonic: &str, config: Config) -> Result<(), String> {
     let keys = if mnemonic.contains(" ") {
         generate_keypair_from_mnemonic(mnemonic)?
     } else {
@@ -138,9 +154,18 @@ pub fn generate_keypair(keys_path: &str, mnemonic: &str) -> Result<(), String> {
     };
     let keys_json = serde_json::to_string_pretty(&keys)
         .map_err(|e| format!("failed to serialize the keypair: {}", e))?;
+    let folder_path = keys_path
+        .trim_end_matches(|c| c != '/')
+        .trim_end_matches(|c| c == '/');
+    if !folder_path.is_empty() && !std::path::Path::new(folder_path).exists() {
+        std::fs::create_dir(folder_path)
+            .map_err(|e| format!("Failed to create folder: {}", e))?;
+    }
     std::fs::write(keys_path, &keys_json)
         .map_err(|e| format!("failed to create file with keys: {}", e))?;
-    println!("Succeeded.");
+    if !config.is_json {
+        println!("Succeeded.");
+    }
     Ok(())
 }
 

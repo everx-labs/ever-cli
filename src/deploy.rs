@@ -61,7 +61,7 @@ pub async fn deploy_contract(
                               enc_msg.message,
                               conf.clone()).await?;
     } else {
-        process_message(ton.clone(), msg).await?;
+        process_message(ton.clone(), msg, conf.is_json).await?;
     }
 
     if !conf.is_json {

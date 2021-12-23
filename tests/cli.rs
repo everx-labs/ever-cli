@@ -599,7 +599,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut addr = String::from_utf8_lossy(&out.stdout).to_string();
     addr.replace_range(..addr.find("0:").unwrap_or(0), "");
-    addr.replace_range(addr.find("TVC file").unwrap_or(addr.len())-1.., "");
+    addr.replace_range(addr.find("testnet").unwrap_or(addr.len())-1.., "");
 
     ask_giver(&addr, 1000000000)?;
 
