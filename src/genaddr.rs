@@ -71,12 +71,6 @@ pub async fn generate_address(
         abi.clone()
     ).await?;
 
-    println!();
-    if phrase.len() != 0 {
-        println!(r#"Seed phrase: "{}""#, phrase);
-    }
-    println!("Raw address: {}", addr);
-
     if update_tvc {
         let initial_data = initial_data.map(|s| s.to_string());
         let key_bytes = match keys.as_ref() {
@@ -90,6 +84,9 @@ pub async fn generate_address(
         };
 
         update_contract_state(tvc, &key_bytes, initial_data, &abi_str)?;
+        if !conf.is_json {
+            println!("TVC file updated");
+        }
     }
 
     if new_keys && keys_file.is_some() {
@@ -99,15 +96,37 @@ pub async fn generate_address(
             .map_err(|e| format!("failed to save the keypair: {}", e))?;
     }
 
+    if !conf.is_json {
+        println!();
+        if phrase.len() != 0 {
+            println!(r#"Seed phrase: "{}""#, phrase);
+        }
+        println!("Raw address: {}", addr);
+        println!("testnet:");
+        println!("Non-bounceable address (for init): {}", calc_userfriendly_address(&addr, false, true)?);
+        println!("Bounceable address (for later access): {}", calc_userfriendly_address(&addr, true, true)?);
+        println!("mainnet:");
+        println!("Non-bounceable address (for init): {}", calc_userfriendly_address(&addr, false, false)?);
+        println!("Bounceable address (for later access): {}", calc_userfriendly_address(&addr, true, false)?);
 
-    println!("testnet:");
-    println!("Non-bounceable address (for init): {}", calc_userfriendly_address(&addr, false, true)?);
-    println!("Bounceable address (for later access): {}", calc_userfriendly_address(&addr, true, true)?);
-    println!("mainnet:");
-    println!("Non-bounceable address (for init): {}", calc_userfriendly_address(&addr, false, false)?);
-    println!("Bounceable address (for later access): {}", calc_userfriendly_address(&addr, true, false)?);
-
-    println!("Succeeded");
+        println!("Succeeded");
+    } else {
+        let mut res = json!({});
+        if phrase.len() != 0 {
+            res["seed_phrase"] = json!(phrase);
+        }
+        res["raw_address"] = json!(addr);
+        res["testnet"] = json!({
+            "non-bounceable": calc_userfriendly_address(&addr, false, true)?,
+            "bounceable": calc_userfriendly_address(&addr, true, true)?
+        });
+        res["mainnet"] = json!({
+            "non-bounceable": calc_userfriendly_address(&addr, false, false)?,
+            "bounceable": calc_userfriendly_address(&addr, true, false)?
+        });
+        println!("{}", serde_json::to_string_pretty(&res)
+            .map_err(|e| format!("Failed to serialize result: {}", e))?);
+    }
     Ok(())
 }
 
@@ -147,7 +166,6 @@ fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, ab
         .map_err(|e| format!("failed to access the tvc file: {}", e))?;
     state_init.write_all(&vec_bytes)
         .map_err(|e| format!("failed to update the tvc file: {}", e))?;
-    println!("TVC file updated");
 
     Ok(())
 }

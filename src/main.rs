@@ -278,7 +278,11 @@ async fn main_internal() -> Result <(), String> {
 
     let genphrase_cmd = SubCommand::with_name("genphrase")
         .about("Generates a seed phrase for keypair.")
-        .author("TONLabs");
+        .author("TONLabs")
+        .arg(Arg::with_name("DUMP_KEYPAIR")
+            .long("--dump")
+            .takes_value(true)
+            .help("Path where to dump keypair generated from the phrase"));
 
     let genpubkey_cmd = SubCommand::with_name("genpubkey")
         .about("Generates a public key from the seed phrase.")
@@ -974,8 +978,8 @@ fn convert_tokens(matches: &ArgMatches, config: Config) -> Result<(), String> {
     Ok(())
 }
 
-fn genphrase_command(_matches: &ArgMatches, _config: Config) -> Result<(), String> {
-    generate_mnemonic()
+fn genphrase_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+    generate_mnemonic(matches.value_of("DUMP_KEYPAIR"), config)
 }
 
 fn genpubkey_command(matches: &ArgMatches, _config: Config) -> Result<(), String> {
@@ -983,11 +987,11 @@ fn genpubkey_command(matches: &ArgMatches, _config: Config) -> Result<(), String
     extract_pubkey(mnemonic)
 }
 
-fn getkeypair_command(matches: &ArgMatches, _config: Config) -> Result<(), String> {
+fn getkeypair_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let key_file = matches.value_of("KEY_FILE");
     let phrase = matches.value_of("PHRASE");
     print_args!(key_file, phrase);
-    generate_keypair(key_file.unwrap(), phrase.unwrap())
+    generate_keypair(key_file.unwrap(), phrase.unwrap(), config)
 }
 
 async fn send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -1402,7 +1406,9 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
     let update_tvc = matches.is_present("SAVE");
     let abi = matches.value_of("ABI");
     let is_update_tvc = if update_tvc { Some("true") } else { None };
-    print_args!(tvc, wc, keys, init_data, is_update_tvc);
+    if !config.is_json {
+        print_args!(tvc, wc, keys, init_data, is_update_tvc);
+    }
     generate_address(config, tvc.unwrap(), abi.unwrap(), wc, keys, new_keys, init_data, update_tvc).await
 }
 
