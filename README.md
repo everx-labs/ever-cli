@@ -93,6 +93,7 @@ tonos-cli <subcommand> -h
   - [11.1. Debug transaction](#111-debug-transaction)
   - [11.2. Debug call](#112-debug-call)
   - [11.3. Debug replay transaction on the saved account state](#113-debug-replay-transaction-on-the-saved-account-state)
+  - [11.4. HOWTO debug a contract with tonos-cli](#114-howto-debug-a-contract-with-tonos-cli)
 
 # 1. Installation
 
@@ -2348,4 +2349,50 @@ debug_info: 2_StorageClient.dbg.json2
 Contract state was updated.
 Execution finished.
 Log saved to trace2.log
+```
+
+## 11.4. HOWTO debug a contract with tonos-cli
+
+1) Call a function that fails.
+2) Explore the error message, look for these strings:
+
+```
+Error: Failed: {
+...
+    "account_address": "0:8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa",
+...
+    "transaction_id": "69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88"
+```
+
+3) Run the tonos-cli debug transaction command with the obtained values to get TVM trace:
+
+```
+tonos-cli debug transaction --dump_contract -e --min_trace -d <contract>.dbg.json -o trace_old_code.log 8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88
+```
+
+4) Explore the output for contract dump:
+
+```
+...
+Contract account was dumped to 0:8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa-69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88.boc
+...
+```
+
+5) Rewrite your contract to fix the error and compile a new version of the contract.
+6) Replace code in the account dump using tvm_linker:
+
+```
+tvm_linker replace_code -a <new_contract>.abi.json --debug-map <new_contract>.dbg.json -o contract.boc <new_contract>.code "0:8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa-69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88.boc"
+```
+
+7.1) Run debug replay to replay the transaction on the modified account state:
+
+```
+tonos-cli debug replay --update_state -d <new_contract>.dbg.json -o new_trace.log 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 contract.boc"
+```
+
+7.2) Run debug call locally on the new account to test new version of the contract on a new generated call message:
+
+```
+tonos-cli debug call --boc --abi <new_contract>.abi.json -d <new_contract>.dbg.json -o new_trace.log --sign <key> contract.boc <function> <params>
 ```
