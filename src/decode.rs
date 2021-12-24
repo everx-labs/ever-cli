@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{load_ton_address, print_args, VERBOSE_MODE};
+use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_ton_address};
 use crate::config::Config;
 use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query, TonClient};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
@@ -20,12 +20,6 @@ use std::fmt::Write;
 use ton_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData, Abi};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
-
-fn match_abi_path(matches: &ArgMatches, config: &Config) -> Option<String> {
-    matches.value_of("ABI")
-        .map(|s| s.to_string())
-        .or(config.abi_path.clone())
-}
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
     let tvc_cmd = SubCommand::with_name("stateinit")
@@ -69,6 +63,7 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(SubCommand::with_name("account")
             .about("Top level command of account decode commands.")
             .subcommand(SubCommand::with_name("data")
+                .setting(AppSettings::AllowLeadingHyphen)
                 .about("Decodes data fields from the contract state.")
                 .arg(Arg::with_name("TVC")
                     .long("--tvc")
@@ -131,10 +126,7 @@ async fn decode_data_command(m: &ArgMatches<'_>, config: Config) -> Result<(), S
 
 async fn decode_body_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let body = m.value_of("BODY");
-    let abi = Some(
-        match_abi_path(m, &config)
-            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
-    );
+    let abi = Some(abi_from_matches_or_config(m, &config)?);
     if !config.is_json {
         print_args!(body, abi);
     }
@@ -222,10 +214,7 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
 
 async fn decode_message_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let msg = m.value_of("MSG");
-    let abi = Some(
-        match_abi_path(m, &config)
-            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
-    );
+    let abi = Some(abi_from_matches_or_config(m, &config)?);
     if !config.is_json {
         print_args!(msg, abi);
     }
@@ -239,10 +228,7 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: Config) -> Result<()
 
 async fn decode_tvc_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let tvc = m.value_of("TVC");
-    let abi = Some(
-        match_abi_path(m, &config)
-            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
-    );
+    let abi = Some(abi_from_matches_or_config(m, &config)?);
     if !config.is_json {
         print_args!(tvc, abi);
     }
@@ -268,10 +254,7 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 
 async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = m.value_of("ADDRESS");
-    let abi = Some(
-        match_abi_path(m, &config)
-            .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
-    );
+    let abi = Some(abi_from_matches_or_config(m, &config)?);
     if !config.is_json {
         print_args!(address, abi);
     }
@@ -422,7 +405,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     Ok(())
 }
 
-mod msg_printer {
+pub mod msg_printer {
     use serde_json::Value;
     use ton_block::{CurrencyCollection, StateInit, Message, CommonMsgInfo, Grams};
     use ton_types::cells_serialization::serialize_tree_of_cells;
@@ -570,7 +553,13 @@ mod msg_printer {
             let mut body_vec = Vec::new();
             serialize_tree_of_cells(&msg.body().unwrap().into_cell(), &mut body_vec)
                 .map_err(|e| format!("failed to serialize body: {}", e))?;
-            res["BodyCall"] = serialize_body(body_vec, &abi, ton).await?;
+            res["BodyCall"] =  match serialize_body(body_vec, &abi, ton).await {
+                Ok(res) => res,
+                Err(e) => {
+                    println!("Warning: {}", e);
+                    json!("Undefined")
+                }
+            };
         }
         Ok(res)
     }
