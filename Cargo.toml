@@ -12,6 +12,7 @@ readme = 'README.md'
 repository = 'https://github.com/tonlabs/tonos-cli'
 version = '0.23.29'
 
+
 [dependencies]
 async-trait = '0.1.42'
 base64 = '0.10.1'
