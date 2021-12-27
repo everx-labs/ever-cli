@@ -31,6 +31,8 @@ mod multisig;
 mod sendfile;
 mod voting;
 mod replay;
+mod debug;
+mod debug_executor;
 
 use account::{get_account, calc_storage};
 use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method, run_local_for_account};
@@ -39,6 +41,7 @@ use config::{Config, set_config, clear_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use debot::{create_debot_command, debot_command};
 use decode::{create_decode_command, decode_command};
+use debug::{create_debug_command, debug_command};
 use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
 use helpers::{load_ton_address, load_abi, create_client_local};
@@ -94,7 +97,7 @@ fn default_config_name() -> Result<String, String> {
         })
 }
 
-fn abi_from_matches_or_config(matches: &ArgMatches<'_>, config: Config) -> Result<String, String> {
+pub fn abi_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> Result<String, String> {
     Ok(matches.value_of("ABI")
         .map(|s| s.to_string())
         .or(config.abi_path.clone())
@@ -629,7 +632,7 @@ async fn main_internal() -> Result <(), String> {
                 .long("--period")
                 .short("-p")
                 .takes_value(true)
-                .help("Time period in seconds (default value is 1 day).")))
+                .help("Time period in seconds (default value is 1 year).")))
         .subcommand(deploy_cmd.clone()
             .about("Executes deploy locally, calculates fees and prints table of fees in nanotons."))
         .subcommand(call_cmd.clone()
@@ -726,6 +729,7 @@ async fn main_internal() -> Result <(), String> {
 
     let fetch_cmd = SubCommand::with_name("fetch")
         .about("Fetches account's zerostate and transactions.")
+        .setting(AppSettings::AllowLeadingHyphen)
         .arg(address_arg.clone().help("Account address to fetch zerostate and txns for."))
         .arg(Arg::with_name("OUTPUT")
             .required(true)
@@ -794,6 +798,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(create_depool_command())
         .subcommand(create_decode_command())
         .subcommand(create_debot_command())
+        .subcommand(create_debug_command())
         .subcommand(getconfig_cmd)
         .subcommand(bcconfig_cmd)
         .subcommand(nodeid_cmd)
@@ -942,6 +947,9 @@ async fn main_internal() -> Result <(), String> {
     if let Some(m) = matches.subcommand_matches("decode") {
         return decode_command(m, conf).await;
     }
+    if let Some(m) = matches.subcommand_matches("debug") {
+        return debug_command(m, conf).await;
+    }
     if let Some(m) = matches.subcommand_matches("debot") {
         return debot_command(m, conf).await;
     }
@@ -996,7 +1004,7 @@ fn getkeypair_command(matches: &ArgMatches, config: Config) -> Result<(), String
 
 async fn send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let message = matches.value_of("MESSAGE");
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
 
     print_args!(message, abi);
 
@@ -1019,7 +1027,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
     let output = matches.value_of("OUTPUT");
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let params = Some(load_params(params.unwrap())?);
     print_args!(method, params, abi, output);
 
@@ -1061,7 +1069,7 @@ fn unpack_alternative_params(matches: &ArgMatches<'_>, abi: &str, method: &str) 
 async fn runx_account(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let account = matches.value_of("ADDRESS");
     let method = matches.value_of("METHOD");
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
 
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
@@ -1091,7 +1099,7 @@ async fn run_account(matches: &ArgMatches<'_>, config: Config) -> Result<(), Str
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
 
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
 
     let params = Some(load_params(params.unwrap())?);
     if !config.is_json {
@@ -1120,7 +1128,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
 
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
 
     let keys = match call {
         CallType::Call | CallType::Msg | CallType::Fee => {
@@ -1183,7 +1191,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
 async fn callx_command(matches: &ArgMatches<'_>, config: Config, call_type: CallType) -> Result<(), String> {
     let method = matches.value_of("METHOD");
     let address = Some(address_from_matches_or_config(matches, config.clone())?);
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
 
@@ -1227,7 +1235,7 @@ async fn callex_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
             .or(config.addr.clone())
             .ok_or("ADDRESS is not defined. Supply it in the config file or in command line.".to_string())?
     );
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
     let params = matches.values_of("PARAMS").ok_or("PARAMS is not defined")?;
@@ -1291,7 +1299,7 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: D
     let wc = wc_from_matches_or_config(matches, config.clone())?;
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let keys = matches.value_of("SIGN")
             .map(|s| s.to_string())
             .or(config.keys_path.clone());
@@ -1311,7 +1319,7 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: D
 async fn deployx_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let tvc = matches.value_of("TVC");
     let wc = wc_from_matches_or_config(matches, config.clone())?;
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
     let params = unpack_alternative_params(
