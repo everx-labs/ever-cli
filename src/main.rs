@@ -606,19 +606,23 @@ async fn main_internal() -> Result <(), String> {
         .about("Obtains and prints account information.")
         .version(&*version_string)
         .author("TONLabs")
-        .arg(address_arg.clone())
+        .arg(Arg::with_name("ADDRESS")
+            .required(true)
+            .takes_value(true)
+            .help("List of addresses.")
+            .multiple(true))
         .arg(Arg::with_name("DUMPTVC")
             .long("--dumptvc")
             .short("-d")
             .takes_value(true)
             .conflicts_with("DUMPBOC")
-            .help("Dumps account StateInit to the specified tvc file."))
+            .help("Dumps account StateInit to the specified tvc file. Works only if one address was given."))
         .arg(Arg::with_name("DUMPBOC")
             .long("--dumpboc")
             .short("-b")
             .takes_value(true)
             .conflicts_with("DUMPTVC")
-            .help("Dumps the whole account state boc to the specified file."));
+            .help("Dumps the whole account state boc to the specified file. Works only if one address was given."));
 
     let fee_cmd = SubCommand::with_name("fee")
         .about("Calculates fees for executing message or account storage fee.")
@@ -1421,14 +1425,20 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
 }
 
 async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    let address = matches.value_of("ADDRESS");
+    // let address = matches.value_of("ADDRESS");
+    let addresses_list = matches.values_of("ADDRESS").unwrap().collect::<Vec<_>>();
+    let mut formatted_list = vec![];
+    for address in addresses_list.iter() {
+        let formatted = load_ton_address(address, &config)?;
+        formatted_list.push(formatted);
+    }
     let tvcname = matches.value_of("DUMPTVC");
     let bocname = matches.value_of("DUMPBOC");
+    let addresses = Some(formatted_list.join(", "));
     if !config.is_json {
-        print_args!(address);
+        print_args!(addresses);
     }
-    let address = load_ton_address(address.unwrap(), &config)?;
-    get_account(config, address.as_str(), tvcname, bocname).await
+    get_account(config, formatted_list, tvcname, bocname).await
 }
 
 async fn storage_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
