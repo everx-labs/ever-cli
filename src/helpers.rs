@@ -94,7 +94,7 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
     let cli_conf = ClientConfig {
         abi: AbiConfig {
             workchain: conf.wc,
-            message_expiration_timeout: conf.timeout,
+            message_expiration_timeout: conf.lifetime * 1000,
             message_expiration_timeout_grow_factor: 1.3,
         },
         crypto: CryptoConfig {
@@ -113,7 +113,7 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             message_retries_count: conf.retries as i8,
             message_processing_timeout: 30000,
             wait_for_timeout: 30000,
-            out_of_sync_threshold: (conf.timeout / 2),
+            out_of_sync_threshold: conf.out_of_sync_threshold * 1000,
             max_reconnect_timeout: 1000,
             ..Default::default()
         },
