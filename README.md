@@ -2164,6 +2164,36 @@ Connecting to main.ton.dev
 Config successfully saved to config.boc
 ```
 
+## 9.5. Dump several account states
+
+Dumps the list of accounts. Files will have address without workchain id as a name.
+
+```bash
+tonos-cli dump account <list_of_addresses> [--path <dir_path>]
+```
+
+<list_of_addresses> - list of account addresses. Addresses should be specified separately with space delimiter.
+Example: `0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 3333333333333333333333333333333333333333333333333333333333333333`.
+
+<dir_path> - path to the directory where to save dumps. Defaults to current directory.
+
+Example:
+
+```bash
+$ tonos-cli dump account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 3333333333333333333333333333333333333333333333333333333333333333
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13, 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566, 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12, 0:3333333333333333333333333333333333333333333333333333333333333333
+    path: None
+Connecting to net.ton.dev
+Processing...
+./2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13.boc successfully dumped.
+./14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566.boc successfully dumped.
+0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 was not found.
+0:3333333333333333333333333333333333333333333333333333333333333333 was not found.
+Succeeded.
+```
+
 ## 10. Fetch and replay
 
 These two commands are commonly used in pairs to recover a state of the account at the specific point before a given transaction.

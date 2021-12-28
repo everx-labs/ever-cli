@@ -52,6 +52,7 @@ use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
 use replay::{fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
+use crate::account::dump_accounts;
 use crate::config::FullConfig;
 
 pub const VERBOSE_MODE: bool = true;
@@ -622,7 +623,7 @@ async fn main_internal() -> Result <(), String> {
             .short("-b")
             .takes_value(true)
             .conflicts_with("DUMPTVC")
-            .help("Dumps the whole account state boc to the specified file. Works only if one address was given."));
+            .help("Dumps the whole account state boc to the specified file. Works only if one address was given. Use 'tonos-cli dump account` to dump several accounts."));
 
     let fee_cmd = SubCommand::with_name("fee")
         .about("Calculates fees for executing message or account storage fee.")
@@ -706,12 +707,28 @@ async fn main_internal() -> Result <(), String> {
             .help("Parameter index."));
 
     let bcconfig_cmd = SubCommand::with_name("dump")
+        .about("Commands to dump network entities.")
+        .version(&*version_string)
+        .author("TONLabs")
         .subcommand(SubCommand::with_name("config")
             .about("Dumps the blockchain config for the last key block.")
             .arg(Arg::with_name("PATH")
                 .required(true)
                 .takes_value(true)
-                .help("Path to the file where to save the blockchain config.")));
+                .help("Path to the file where to save the blockchain config.")))
+        .subcommand(SubCommand::with_name("account")
+            .about("Dumps state of given accounts.")
+            .setting(AppSettings::AllowLeadingHyphen)
+            .arg(Arg::with_name("ADDRESS")
+                .required(true)
+                .takes_value(true)
+                .help("List of addresses.")
+                .multiple(true))
+            .arg(Arg::with_name("PATH")
+                .takes_value(true)
+                .long("--path")
+                .short("-p")
+                .help("Path to folder where to store the dumped accounts. Default value is \".\".")));
 
     let nodeid_cmd = SubCommand::with_name("nodeid")
         .about("Calculates node ID from the validator public key")
@@ -940,6 +957,9 @@ async fn main_internal() -> Result <(), String> {
     if let Some(matches) = matches.subcommand_matches("dump") {
         if let Some(m) = matches.subcommand_matches("config") {
             return dump_bc_config_command(m, conf).await;
+        }
+        if let Some(m) = matches.subcommand_matches("account") {
+            return dump_accounts_command(m, conf).await;
         }
     }
     if let Some(m) = matches.subcommand_matches("nodeid") {
@@ -1425,7 +1445,6 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
 }
 
 async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    // let address = matches.value_of("ADDRESS");
     let addresses_list = matches.values_of("ADDRESS").unwrap().collect::<Vec<_>>();
     let mut formatted_list = vec![];
     for address in addresses_list.iter() {
@@ -1439,6 +1458,21 @@ async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
         print_args!(addresses);
     }
     get_account(config, formatted_list, tvcname, bocname).await
+}
+
+async fn dump_accounts_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let addresses_list = matches.values_of("ADDRESS").unwrap().collect::<Vec<_>>();
+    let mut formatted_list = vec![];
+    for address in addresses_list.iter() {
+        let formatted = load_ton_address(address, &config)?;
+        formatted_list.push(formatted);
+    }
+    let path = matches.value_of("PATH");
+    let addresses = Some(formatted_list.join(", "));
+    if !config.is_json {
+        print_args!(addresses, path);
+    }
+    dump_accounts(config, formatted_list, path).await
 }
 
 async fn storage_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {

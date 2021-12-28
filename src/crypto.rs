@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::{create_client_local, read_keys, WORD_COUNT, HD_PATH};
+use crate::helpers::{create_client_local, read_keys, WORD_COUNT, HD_PATH, check_dir};
 use ton_client::crypto::{
     KeyPair,
     mnemonic_from_random,
@@ -157,10 +157,7 @@ pub fn generate_keypair(keys_path: &str, mnemonic: &str, config: Config) -> Resu
     let folder_path = keys_path
         .trim_end_matches(|c| c != '/')
         .trim_end_matches(|c| c == '/');
-    if !folder_path.is_empty() && !std::path::Path::new(folder_path).exists() {
-        std::fs::create_dir(folder_path)
-            .map_err(|e| format!("Failed to create folder: {}", e))?;
-    }
+    check_dir(folder_path)?;
     std::fs::write(keys_path, &keys_json)
         .map_err(|e| format!("failed to create file with keys: {}", e))?;
     if !config.is_json {
