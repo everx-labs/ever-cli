@@ -39,24 +39,33 @@ async fn query_accounts(conf: Config, addresses: Vec<String>, fields: &str) -> R
         println!("Processing...");
     }
 
-    let mut filter = json!({ "id": { "eq": addresses[0] } });
-    for i in 1..addresses.len() {
-        filter = json!({ "id": { "eq": addresses[i] },
-            "OR": filter
-        });
+    let mut res = vec![];
+    let mut it = 0;
+    loop {
+        if it >= addresses.len() {
+            break;
+        }
+        let mut filter = json!({ "id": { "eq": addresses[it] } });
+        it += 1;
+        for i in it..usize::min(addresses.len(), it + 49) {
+            it += 1;
+            filter = json!({ "id": { "eq": addresses[i] },
+                "OR": filter
+            });
+        }
+        let mut query_result = query_collection(
+            ton.clone(),
+            ParamsOfQueryCollection {
+                collection: "accounts".to_owned(),
+                filter: Some(filter),
+                result: fields.to_string(),
+                limit: None,
+                ..Default::default()
+            },
+        ).await.map_err(|e| format!("failed to query account info: {}", e))?;
+        res.append(query_result.result.as_mut());
     }
-    let query_result = query_collection(
-        ton.clone(),
-        ParamsOfQueryCollection {
-            collection: "accounts".to_owned(),
-            filter: Some(filter),
-            result: fields.to_string(),
-            limit: None,
-            ..Default::default()
-        },
-    ).await.map_err(|e| format!("failed to query account info: {}", e))?;
-
-    Ok(query_result.result)
+    Ok(res)
 }
 
 pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<&str>, dumpboc: Option<&str>) -> Result<(), String> {
