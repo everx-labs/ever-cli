@@ -411,3 +411,11 @@ pub fn construct_account_from_tvc(tvc_path: &str, address: Option<&str>, balance
         true
     ).map_err(|e| format!(" failed to create account with the stateInit: {}",e))?)
 }
+
+pub fn check_dir(path: &str) -> Result<(), String> {
+    if !path.is_empty() && !std::path::Path::new(path).exists() {
+        std::fs::create_dir(path)
+            .map_err(|e| format!("Failed to create folder {}: {}", path, e))?;
+    }
+    Ok(())
+}

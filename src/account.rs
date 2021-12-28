@@ -10,9 +10,9 @@
 * See the License for the specific TON DEV software governing permissions and
 * limitations under the License.
 */
-use crate::helpers::{create_client_verbose, json_account, print_account};
+use crate::helpers::{check_dir, create_client_verbose, json_account, print_account};
 use crate::config::Config;
-use serde_json::json;
+use serde_json::{json, Value};
 use ton_client::net::{ParamsOfQueryCollection, query_collection};
 use ton_client::utils::{calc_storage_fee, ParamsOfCalcStorageFee};
 use ton_block::{Account, Deserializable, Serializable};
@@ -30,31 +30,37 @@ const ACCOUNT_FIELDS: &str = r#"
     code_hash
 "#;
 
-pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<&str>, dumpboc: Option<&str>) -> Result<(), String> {
+const DEFAULT_PATH: &str = ".";
+
+async fn query_accounts(conf: Config, addresses: Vec<String>, fields: &str) -> Result<Vec<Value>, String> {
     let ton = create_client_verbose(&conf)?;
 
     if !conf.is_json {
         println!("Processing...");
     }
-    // Some(json!({ "id": { "eq": addr } }))
+
     let mut filter = json!({ "id": { "eq": addresses[0] } });
     for i in 1..addresses.len() {
         filter = json!({ "id": { "eq": addresses[i] },
             "OR": filter
         });
     }
-
     let query_result = query_collection(
         ton.clone(),
         ParamsOfQueryCollection {
             collection: "accounts".to_owned(),
             filter: Some(filter),
-            result: ACCOUNT_FIELDS.to_string(),
+            result: fields.to_string(),
             limit: None,
             ..Default::default()
         },
     ).await.map_err(|e| format!("failed to query account info: {}", e))?;
-    let accounts = query_result.result;
+
+    Ok(query_result.result)
+}
+
+pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<&str>, dumpboc: Option<&str>) -> Result<(), String> {
+    let accounts = query_accounts(conf.clone(), addresses.clone(), ACCOUNT_FIELDS).await?;
     if !conf.is_json {
         println!("Succeeded.");
     }
@@ -173,8 +179,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
     if dumpfile.is_some() || dumpboc.is_some() && addresses.len() == 1 && accounts.len() == 1 {
         let acc = &accounts[0];
         let boc = acc["boc"].as_str()
-            .ok_or("failed to get boc of the account")
-            .map_err(|e| format!("{}", e))?;
+            .ok_or("failed to get boc of the account".to_owned())?;
         let account = Account::construct_from_base64(boc)
             .map_err(|e| format!("failed to load account from the boc: {}", e))?;
         if dumpfile.is_some() {
@@ -227,6 +232,43 @@ pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), S
         println!("  \"storage_fee\": \"{}\",", res.fee);
         println!("  \"period\": \"{}\"", period);
         println!("}}");
+    }
+    Ok(())
+}
+
+pub async fn dump_accounts(conf:Config, addresses: Vec<String>, path: Option<&str>) -> Result<(), String> {
+    let accounts = query_accounts(conf.clone(), addresses.clone(), "id boc").await?;
+    let mut addresses = addresses.clone();
+    check_dir(path.unwrap_or(""))?;
+    for account in accounts.iter() {
+        let mut address = account["id"].as_str()
+            .ok_or("Failed to parse address in the query result".to_owned())?
+            .to_owned();
+        match addresses.iter().position(|el| el == &address) {
+            Some(index) => { addresses.remove(index) },
+            None => { return Err("Query contains an unexpected address.".to_string()); }
+        };
+
+        address.replace_range(..address.find(":").unwrap_or(0) + 1, "");
+        let path = format!("{}/{}.boc", path.unwrap_or(DEFAULT_PATH), address);
+        let boc = account["boc"].as_str()
+            .ok_or("Failed to parse boc in the query result".to_owned())?;
+        Account::construct_from_base64(boc)
+            .map_err(|e| format!("Failed to load account from the boc: {}", e))?
+            .write_to_file(path.clone())
+            .map_err(|e| format!("Failed to write data to the file {}: {}", path.clone(), e))?;
+        if !conf.is_json {
+            println!("{} successfully dumped.", path);
+        }
+    }
+
+    if !conf.is_json {
+        if !addresses.is_empty() {
+            for address in addresses.iter() {
+                println!("{} was not found.", address);
+            }
+        }
+        println!("Succeeded.");
     }
     Ok(())
 }
