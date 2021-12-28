@@ -24,6 +24,8 @@ use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection};
 use ton_client::{ClientConfig, ClientContext};
 use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit};
 use std::str::FromStr;
+use serde_json::Value;
+
 const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
 const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
 
@@ -298,6 +300,45 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
     return Ok(("".to_owned(), "".to_owned()));
 }
 
+pub fn json_account(
+    acc_type: Option<String>,
+    address: Option<String>,
+    balance: Option<String>,
+    last_paid: Option<String>,
+    last_trans_lt: Option<String>,
+    data: Option<String>,
+    code_hash: Option<String>,
+    state_init: Option<String>,
+) -> Value {
+    let mut res = json!({ });
+    if acc_type.is_some() {
+        res["acc_type"] = json!(acc_type.unwrap());
+    }
+    if address.is_some() {
+        res["address"] = json!(address.unwrap());
+    }
+    if balance.is_some() {
+        res["balance"] = json!(balance.unwrap());
+    }
+    if last_paid.is_some() {
+        res["last_paid"] = json!(last_paid.unwrap());
+    }
+    if last_trans_lt.is_some() {
+        res["last_trans_lt"] = json!(last_trans_lt.unwrap());
+    }
+    if data.is_some() {
+        res["data(boc)"] = json!(data.unwrap());
+    }
+    if code_hash.is_some() {
+        res["code_hash"] = json!(code_hash.unwrap());
+    }
+    if state_init.is_some() {
+        res["state_init"] = json!(state_init.unwrap());
+    }
+    res
+}
+
+
 pub fn print_account(
     config: &Config,
     acc_type: Option<String>,
@@ -310,32 +351,17 @@ pub fn print_account(
     state_init: Option<String>,
 ) {
     if config.is_json {
-        println!("{{");
-        if acc_type.is_some() {
-            print!("  \"acc_type\": \"{}\"", acc_type.unwrap());
-        }
-        if address.is_some() {
-            print!(",\n  \"address\": \"{}\"", address.unwrap());
-        }
-        if balance.is_some() {
-            print!(",\n  \"balance\": \"{}\"", balance.unwrap());
-        }
-        if last_paid.is_some() {
-            print!(",\n  \"last_paid\": \"{}\"", last_paid.unwrap());
-        }
-        if last_trans_lt.is_some() {
-            print!(",\n  \"last_trans_lt\": \"{}\"", last_trans_lt.unwrap());
-        }
-        if data.is_some() {
-            print!(",\n  \"data(boc)\": \"{}\"", data.unwrap());
-        }
-        if code_hash.is_some() {
-            print!(",\n  \"code_hash\": \"{}\"", code_hash.unwrap());
-        }
-        if state_init.is_some() {
-            print!(",\n  \"state_init\": {}", state_init.unwrap());
-        }
-        println!("\n}}");
+        let acc = json_account(
+            acc_type,
+            address,
+            balance,
+            last_paid,
+            last_trans_lt,
+            data,
+            code_hash,
+            state_init,
+        );
+        println!("{}", serde_json::to_string_pretty(&acc).unwrap_or("Undefined".to_string()));
     } else {
         if acc_type.is_some() && acc_type.clone().unwrap() == "NonExist" {
             println!("Account does not exist.");
