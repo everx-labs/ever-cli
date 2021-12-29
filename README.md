@@ -12,9 +12,11 @@ tonos-cli <subcommand> -h
 ```
 
 # Table of contents
+- [TONOS-CLI](#tonos-cli)
+- [Table of contents](#table-of-contents)
 - [1. Installation](#1-installation)
   - [Install compiled executable](#install-compiled-executable)
-  - [Install through TONDEV](#install-through-tondev)
+  - [Install through EVERDEV](#install-through-everdev)
   - [Build from source](#build-from-source)
     - [Prerequisites](#prerequisites)
     - [Build from source on Linux and Mac OS](#build-from-source-on-linux-and-mac-os)
@@ -45,7 +47,7 @@ tonos-cli <subcommand> -h
     - [4.4.2. Alternative command to call contract in the blockchain](#442-alternative-command-to-call-contract-in-the-blockchain)
     - [4.4.3. Run contract method locally](#443-run-contract-method-locally)
     - [4.4.4. Run funC get-method](#444-run-func-get-method)
-    - [4.4.5. Run contract method locally for saved account state](#445-run-contract-method-locally-for-saved-account-boc)
+    - [4.4.5. Run contract method locally for saved account BOC](#445-run-contract-method-locally-for-saved-account-boc)
   - [4.5. Generate encrypted message offline](#45-generate-encrypted-message-offline)
   - [4.6. Broadcast previously generated message](#46-broadcast-previously-generated-message)
   - [4.7. Broadcast previously generated message from a file](#47-broadcast-previously-generated-message-from-a-file)
@@ -55,13 +57,13 @@ tonos-cli <subcommand> -h
     - [4.8.3. Decode account commands](#483-decode-account-commands)
       - [4.8.3.1. Decode account data fields](#4831-decode-account-data-fields)
       - [4.8.3.2. Decode data from the account BOC file](#4832-decode-data-from-the-account-boc-file)
-    - [4.8.4. Decode TVC fields](#484-decode-tvc-fields)
+    - [4.8.4. Decode stateInit fields](#484-decode-stateinit-fields)
   - [4.9. Generate payload for internal function call](#49-generate-payload-for-internal-function-call)
   - [4.10. Alternative syntax for call, deploy and run commands](#410-alternative-syntax-for-call-deploy-and-run-commands)
 - [5. DeBot commands](#5-debot-commands)
 - [6. Multisig commands](#6-multisig-commands)
   - [6.1. Send tokens](#61-send-tokens)
-  - [6.2. Deploy wallet](#62-deploy-wallet)
+- [6.2. Deploy wallet](#62-deploy-wallet)
 - [7. DePool commands](#7-depool-commands)
   - [7.1. Configure TONOS-CLI for DePool operations](#71-configure-tonos-cli-for-depool-operations)
   - [7.2. Deposit stakes](#72-deposit-stakes)
@@ -87,8 +89,9 @@ tonos-cli <subcommand> -h
   - [9.2. Get global config](#92-get-global-config)
   - [9.3. NodeID](#93-nodeid)
   - [9.4. Dump blockchain config](#94-dump-blockchain-config)
-- [10. Fetch and replay commands](#10-fetch-and-replay)
-  - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
+  - [9.5. Dump several account states](#95-dump-several-account-states)
+  - [10. Fetch and replay](#10-fetch-and-replay)
+    - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 - [11. Debug commands](#11-debug-commands)
   - [11.1. Debug transaction](#111-debug-transaction)
   - [11.2. Debug call](#112-debug-call)
@@ -101,26 +104,26 @@ tonos-cli <subcommand> -h
 
 Create a folder. Download the `.zip` file from the latest release from here: [https://github.com/tonlabs/tonos-cli/releases](https://github.com/tonlabs/tonos-cli/releases) to this folder. Extract it.
 
-## Install through TONDEV
+## Install through EVERDEV
 
-You can use [TONDEV](https://github.com/tonlabs/tondev) to install the latest version of TONOS-CLI.
+You can use [EVERDEV](https://github.com/tonlabs/everdev) to install the latest version of TONOS-CLI.
 
 ```bash
-tondev tonos-cli install
+everdev tonos-cli install
 ```
 
-The installer requires [NPM](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) to be installed, so it can install packages globally without using sudo. In case of error, manually set environment variable `PATH=$PATH:$HOME./tondev/solidity`
+The installer requires [NPM](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) to be installed, so it can install packages globally without using sudo. In case of error, manually set environment variable `PATH=$PATH:$HOME./everdev/solidity`
 
-This command updates TONOS-CLI installed through TONDEV to the latest version:
+This command updates TONOS-CLI installed through EVERDEV to the latest version:
 
 ```bash
-tondev tonos-cli update
+everdev tonos-cli update
 ```
 
 This command specifies TONOS-CLI version to use and downloads it if needed:
 
 ```bash
-tondev tonos-cli set --version 0.8.0
+everdev tonos-cli set --version 0.8.0
 ```
 
 ## Build from source
@@ -181,7 +184,7 @@ Optional, Linux/Mac OS. Use the following command to put the utility into system
 export PATH="<tonos_folder_path>:$PATH"
 ```
 
-This step can be skipped, if TONOS-CLI was installed through TONDEV. Otherwise, if you skip this step, make sure you always run the utility from folder containing the utility:
+This step can be skipped, if TONOS-CLI was installed through EVERDEV. Otherwise, if you skip this step, make sure you always run the utility from folder containing the utility:
 
 ```bash
 ./tonos-cli <command> <options>
