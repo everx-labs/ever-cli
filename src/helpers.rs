@@ -169,15 +169,27 @@ pub async fn query_with_limit(
         .map(|r| r.result)
 }
 
-pub async fn query(
-    ton: TonClient,
-    collection: &str,
-    filter: serde_json::Value,
-    result: &str,
-    order: Option<Vec<OrderBy>>,
-) -> Result<Vec<serde_json::Value>, ClientError> {
-    query_with_limit(ton, collection, filter, result, order, None).await
+pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> Result<String, String> {
+    let accounts = query_with_limit(
+        ton.clone(),
+        "accounts",
+        json!({ "id": { "eq": address } }),
+        field,
+        None,
+        Some(1),
+    ).await
+        .map_err(|e| format!("failed to query account data: {}", e))?;
+
+    if accounts.len() == 0 {
+        return Err(format!("account not found"));
+    }
+    let data = accounts[0][field].as_str();
+    if data.is_none() {
+        return Err(format!("account doesn't contain {}", field));
+    }
+    Ok(data.unwrap().to_string())
 }
+
 
 pub async fn decode_msg_body(
     ton: TonClient,

@@ -86,7 +86,7 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
             collection: "zerostates".to_owned(),
             filter: None,
             result: "accounts { id boc }".to_owned(),
-            limit: None,
+            limit: Some(1),
             order: None,
         },
     )
