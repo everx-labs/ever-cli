@@ -33,7 +33,7 @@ fn default_depool_fee() -> f32 {
 }
 
 fn default_timeout() -> u32 {
-    60000
+    40000
 }
 
 fn default_out_of_sync() -> u32 { 15 }
@@ -67,6 +67,8 @@ pub struct Config {
     pub retries: u8,
     #[serde(default = "default_timeout")]
     pub timeout: u32,
+    #[serde(default = "default_timeout")]
+    pub message_processing_timeout: u32,
     #[serde(default = "default_out_of_sync")]
     pub out_of_sync_threshold: u32,
     #[serde(default = "default_false")]
@@ -107,6 +109,7 @@ impl Config {
             keys_path: None,
             retries: default_retries(),
             timeout: default_timeout(),
+            message_processing_timeout: default_timeout(),
             is_json: default_false(),
             depool_fee: default_depool_fee(),
             lifetime: default_lifetime(),
@@ -324,6 +327,7 @@ pub fn set_config(
     wc: Option<&str>,
     retries: Option<&str>,
     timeout: Option<&str>,
+    message_processing_timeout: Option<&str>,
     depool_fee: Option<&str>,
     lifetime:  Option<&str>,
     no_answer:  Option<&str>,
@@ -367,6 +371,10 @@ pub fn set_config(
     if let Some(timeout) = timeout {
         conf.timeout = u32::from_str_radix(timeout, 10)
             .map_err(|e| format!(r#"failed to parse "timeout": {}"#, e))?;
+    }
+    if let Some(message_processing_timeout) = message_processing_timeout {
+        conf.message_processing_timeout = u32::from_str_radix(message_processing_timeout, 10)
+            .map_err(|e| format!(r#"failed to parse "message_processing_timeout": {}"#, e))?;
     }
     if let Some(wc) = wc {
         conf.wc = i32::from_str_radix(wc, 10)
