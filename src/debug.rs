@@ -13,7 +13,7 @@
 use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient};
+use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_with_limit};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
@@ -171,7 +171,6 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
                 .takes_value(true))
             .arg(output_arg.clone())
             .arg(dbg_info_arg.clone())
-            .arg(address_arg.clone())
             .arg(min_trace_arg.clone())
             .arg(decode_abi_arg.clone())
             .arg(tx_id_arg.clone())
@@ -222,6 +221,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
                 .long("--now")
                 .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp."))
             .arg(config_path_arg.clone()))
+
 }
 
 pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -238,20 +238,18 @@ pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
 }
 
 async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    let address = matches.value_of("ADDRESS");
     let tx_id = matches.value_of("TX_ID");
     let trace_path = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
     let config_path = matches.value_of("CONFIG_PATH");
     let contract_path = matches.value_of("CONTRACT_PATH");
     if !config.is_json {
-        print_args!(address, tx_id, trace_path, config_path, contract_path);
+        print_args!(tx_id, trace_path, config_path, contract_path);
     }
 
     let is_empty_config = matches.is_present("EMPTY_CONFIG");
 
-    let address = load_ton_address(address.unwrap(), &config)?;
-
+    let address = query_address(tx_id.clone().unwrap(), &config).await?;
     let config_path = match config_path {
         Some(config_path) => {
             config_path
@@ -581,4 +579,29 @@ async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<(), S
             .map_err(|e| format!("Failed to serialize json: {}", e))?);
     }
     Ok(())
+}
+
+async fn query_address(tr_id: &str, config: &Config) -> Result<String, String> {
+    let ton_client = create_client(config)?;
+    let query_result = query_with_limit(
+        ton_client,
+        "transactions",
+        json!({
+            "id": {
+                "eq": tr_id
+            }
+        }),
+        "account_addr",
+        None,
+        Some(1)
+    ).await
+        .map_err(|e| format!("Failed to query address: {}", e))?;
+    match query_result.len() {
+        0 => Err("Transaction was not found".to_string()),
+        _ => Ok(query_result[0]["account_addr"]
+            .to_string()
+            .trim_start_matches(|c| c == '"')
+            .trim_end_matches(|c| c == '"')
+            .to_string())
+    }
 }
