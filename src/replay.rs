@@ -519,7 +519,7 @@ pub async fn replay(
                 }
                 TransactionDescr::Ordinary(_) => {
                     if trace_last {
-                        Box::new(DebugTransactionExecutor::new(config.clone(), debug_info.clone(), trace_last_transaction.clone()))
+                        Box::new(DebugTransactionExecutor::new(config.clone(), debug_info.clone(), trace_last_transaction.clone(), false))
                     } else {
                         Box::new(OrdinaryTransactionExecutor::new(config.clone()))
                     }

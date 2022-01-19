@@ -178,6 +178,36 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .help("Dump the replayed target contract account state.")
         .long("--dump_contract");
 
+    let run_cmd = SubCommand::with_name("run")
+        .about("Play getter locally with trace")
+        .arg(output_arg.clone())
+        .arg(dbg_info_arg.clone())
+        .arg(address_arg.clone())
+        .arg(method_arg.clone())
+        .arg(params_arg.clone())
+        .arg(abi_arg.clone())
+        .arg(min_trace_arg.clone())
+        .arg(decode_abi_arg.clone())
+        .arg(boc_arg.clone())
+        .arg(Arg::with_name("TVC")
+            .long("--tvc")
+            .conflicts_with("BOC")
+            .help("Flag that changes behavior of the command to work with the saved contract state (stateInit TVC)."))
+        .arg(Arg::with_name("ACCOUNT_ADDRESS")
+            .takes_value(true)
+            .long("--tvc_address")
+            .help("Account address for account constructed from TVC.")
+            .requires("TVC"))
+        .arg(Arg::with_name("NOW")
+            .takes_value(true)
+            .long("--now")
+            .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp."))
+        .arg(config_path_arg.clone());
+
+    let call_cmd = run_cmd.clone().name("call")
+        .about("Play call locally with trace")
+        .arg(sign_arg.clone());
+
     SubCommand::with_name("debug")
         .about("Debug commands.")
         .subcommand(SubCommand::with_name("transaction")
@@ -219,33 +249,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
                 .help("Path to the saved account state.")
                 .required(true)
                 .takes_value(true)))
-        .subcommand(SubCommand::with_name("call")
-            .about("Play call locally with trace")
-            .arg(output_arg.clone())
-            .arg(dbg_info_arg.clone())
-            .arg(address_arg.clone())
-            .arg(method_arg.clone())
-            .arg(params_arg.clone())
-            .arg(abi_arg.clone())
-            .arg(sign_arg.clone())
-            .arg(min_trace_arg.clone())
-            .arg(decode_abi_arg.clone())
-            .arg(boc_arg.clone())
-            .arg(Arg::with_name("TVC")
-                .long("--tvc")
-                .conflicts_with("BOC")
-                .help("Flag that changes behavior of the command to work with the saved contract state (stateInit TVC)."))
-            .arg(Arg::with_name("ACCOUNT_ADDRESS")
-                .takes_value(true)
-                .long("--tvc_address")
-                .help("Account address for account constructed from TVC.")
-                .requires("TVC"))
-            .arg(Arg::with_name("NOW")
-                .takes_value(true)
-                .long("--now")
-                .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp."))
-            .arg(config_path_arg.clone()))
-
+        .subcommand(call_cmd)
+        .subcommand(run_cmd)
 }
 
 pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
@@ -256,7 +261,10 @@ pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
         return debug_transaction_command(matches, config, true).await;
     }
     if let Some(matches) = matches.subcommand_matches("call") {
-        return debug_call_command(matches, config).await;
+        return debug_call_command(matches, config, false).await;
+    }
+    if let Some(matches) = matches.subcommand_matches("run") {
+        return debug_call_command(matches, config, true).await;
     }
     if let Some(matches) = matches.subcommand_matches("replay") {
         return replay_transaction_command(matches, config).await;
@@ -340,7 +348,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
     Ok(())
 }
 
-async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: TonClient, debug_info: Option<String>, is_min_trace: bool) -> Result<Box<DebugTransactionExecutor>, String> {
+async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: TonClient, debug_info: Option<String>, is_min_trace: bool, is_getter: bool) -> Result<Box<DebugTransactionExecutor>, String> {
     let config_account = match matches.value_of("CONFIG_PATH") {
         Some(bc_config) => {
             Account::construct_from_file(bc_config)
@@ -354,6 +362,7 @@ async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: 
     }.map_err(|e| format!("Failed to construct config account: {}", e))?;
     let bc_config = construct_blockchain_config(&config_account)?;
 
+
     Ok(Box::new(
         DebugTransactionExecutor::new(
             bc_config.clone(),
@@ -362,7 +371,8 @@ async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: 
                 TraceLevel::Minimal
             } else {
                 TraceLevel::Full
-            }
+            },
+            is_getter
         )
     ))
 }
@@ -413,7 +423,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
     let trans = Transaction::construct_from_base64(boc)
         .map_err(|e| format!("Failed to parse transaction: {}", e))?;
 
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace).await?;
+    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, false).await?;
 
     let mut account = Account::construct_from_file(input.unwrap())
         .map_err(|e| format!("Failed to construct account from the file: {}", e))?
@@ -480,7 +490,7 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: Config) -> Option<String> {
     }
 }
 
-async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter: bool) -> Result<(), String> {
     let input = matches.value_of("ADDRESS");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
@@ -569,7 +579,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
         debug: true,
     };
 
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace).await?;
+    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, is_getter).await?;
 
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;

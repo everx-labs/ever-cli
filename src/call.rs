@@ -274,9 +274,8 @@ pub async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, Str
             None,
         ).await
     .map_err(|e| format!("failed to query account: {}", e))?;
-
     if accounts.len() == 0 {
-        return Err(format!("account not found"));
+        return Err(format!("account {} not found", addr));
     }
     let boc = accounts[0]["boc"].as_str();
     if boc.is_none() {
