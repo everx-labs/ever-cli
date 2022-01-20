@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::{create_client_verbose, query, query_with_limit};
+use crate::helpers::{create_client_verbose, query_with_limit};
 use crate::config::Config;
 use serde_json::{json};
 use ton_client::net::{OrderBy, SortDirection};
@@ -233,19 +233,20 @@ pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String
     
     let config_name = format!("p{}", index);
 
-    let last_key_block_query = query(
+    let last_key_block_query = query_with_limit(
         ton.clone(),
         "blocks",
         json!({ "workchain_id": { "eq":-1 } }),
         "id prev_key_block_seqno",
         Some(vec![OrderBy{ path: "seq_no".to_owned(), direction: SortDirection::DESC }]),
+        Some(1),
     ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
 
     if last_key_block_query.len() == 0 {
         Err("Key block not found".to_string())?;
     }
 
-    let config_query = query(
+    let config_query = query_with_limit(
         ton.clone(),
         "blocks",
         json!({
@@ -259,6 +260,7 @@ pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String
         }),
         QUERY_FIELDS,
         None,
+        Some(1),
     ).await.map_err(|e| format!("failed to query master block config: {}", e))?;
 
     if config_query.len() == 0 {
