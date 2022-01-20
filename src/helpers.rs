@@ -111,12 +111,12 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
                 } else {
                     Some(conf.endpoints.to_owned())
                 },
-            network_retries_count: 3,
+            // network_retries_count: 3,
             message_retries_count: conf.retries as i8,
             message_processing_timeout: 30000,
-            wait_for_timeout: 30000,
+            wait_for_timeout: conf.timeout,
             out_of_sync_threshold: conf.out_of_sync_threshold * 1000,
-            max_reconnect_timeout: 1000,
+            // max_reconnect_timeout: 1000,
             ..Default::default()
         },
         ..Default::default()
