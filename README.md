@@ -249,26 +249,25 @@ All other TONOS-CLI commands will indicate the configuration file currently used
 List of available options:
 
 ```bash
---abi <ABI>                            File with contract ABI.
---addr <ADDR>                          Contract address.
---async_call <ASYNC_CALL>              Disables wait for transaction to appear in the network after call
-                                       command.
---balance_in_tons <BALANCE_IN_TONS>    Print balance for account command in tons. If false balance is printed in
-                                       nanotons.
---depool_fee <DEPOOL_FEE>              Value added to message sent to depool to cover it's fees (change will be
-                                       returned).
---keys <KEYS>                          File with keypair.
---lifetime <LIFETIME>                  Period of time in seconds while message is valid.
---local_run <LOCAL_RUN>                Enable preliminary local run before deploy and call commands.
---no-answer <NO_ANSWER>                FLag whether to wait for depool answer when calling a depool function.
---pubkey <PUBKEY>                      User public key. Used by DeBot Browser.
---retries <RETRIES>                    Number of attempts to call smart contract function if previous attempt
-                                       was unsuccessful.
---timeout <TIMEOUT>                    Contract call timeout in ms.
---url <URL>                            Url to connect.
---wallet <WALLET>                      Multisig wallet address. Used in commands which send internal messages
-                                       through multisig wallets.
---wc <WC>                              Workchain id.
+--abi <ABI>                                   Path to the contract ABI file.
+--addr <ADDR>                                 Contract address.
+--async_call <ASYNC_CALL>                     Disables wait for transaction to appear in the network after call command.
+--balance_in_tons <BALANCE_IN_TONS>           Print balance for account command in tons. If false balance is printed in nanotons.
+--depool_fee <DEPOOL_FEE>                     Value added to the message sent to depool to cover it's fees (change will be returned).
+--keys <KEYS>                                 Path to the file with keypair.
+--lifetime <LIFETIME>                         Period of time in seconds while message is valid. Change of this parameter may affect "out_of_sync"
+                                              parameter, because "lifetime" should be at least 2 times greater than "out_of_sync".
+--local_run <LOCAL_RUN>                       Enable preliminary local run before deploy and call commands.
+--message_processing_timeout <MSG_TIMEOUT>    Network message processing timeout in ms.
+--no-answer <NO_ANSWER>                       Flag whether to wait for depool answer when calling a depool function.
+--out_of_sync <OUT_OF_SYNC>                   Network connection "out_of_sync_threshold" parameter in seconds. Mind that it cant exceed half of the
+                                              "lifetime" parameter.
+--pubkey <PUBKEY>                             User public key. Used by DeBot Browser.
+--retries <RETRIES>                           Number of attempts to call smart contract function if previous attempt was unsuccessful.
+--timeout <TIMEOUT>                           Network `wait_for` timeout in ms.
+--url <URL>                                   Url to connect.
+--wallet <WALLET>                             Multisig wallet address.
+--wc <WC>                                     Workchain id.
 ```
 
 Example:
@@ -278,28 +277,31 @@ $ tonos-cli config --url https://main.ton.dev --wc -1 --keys key.json --abi Safe
 Config: /home/user/tonos-cli.conf.json
 Succeeded.
 {
-  "url": "https://main.ton.dev",
-  "wc": -1,
-  "addr": null,
-  "wallet": null,
-  "abi_path": "SafeMultisigWallet.abi.json",
-  "keys_path": "key.json",
-  "retries": 3,
-  "timeout": 600,
+  "url": "main.ton.dev",
+  "wc": 0,
+  "addr": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13",
+  "wallet": "0:0fd085c2457e0f284a96ddbcb746d157d3e796a6b4d6dd3224f38699faf5b8d8",
+  "pubkey": null,
+  "abi_path": "tests/samples/wallet.abi.json",
+  "keys_path": null,
+  "retries": 5,
+  "timeout": 40000,
+  "message_processing_timeout": 40000,
+  "out_of_sync_threshold": 15,
   "is_json": false,
-  "depool_fee": 0.5,
-  "lifetime": 3600,
-  "no_answer": false,
-  "use_delimiters": true,
-  "local_run": true,
+  "depool_fee": 0.8,
+  "lifetime": 60,
+  "no_answer": true,
+  "balance_in_tons": false,
+  "local_run": false,
   "async_call": false,
   "endpoints": [
     "https://main2.ton.dev",
-    "https://main4.ton.dev",
-    "https://main3.ton.dev"
+    "https://main3.ton.dev",
+    "https://main4.ton.dev"
   ]
-
 }
+
 ```
 
 Some of the frequently used networks:

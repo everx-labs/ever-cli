@@ -120,7 +120,7 @@ fn parse_lifetime(lifetime: Option<&str>, config: Config) -> Result<u32, String>
             .map_err(|e| format!("failed to parse lifetime: {}", e))
     })
         .transpose()?
-        .unwrap_or(config.timeout))
+        .unwrap_or(config.lifetime))
 }
 
 #[tokio::main]
@@ -486,7 +486,7 @@ async fn main_internal() -> Result <(), String> {
             .help("Number of attempts to call smart contract function if previous attempt was unsuccessful."))
         .arg(Arg::with_name("TIMEOUT")
             .long("--timeout")
-            .help("Contract call timeout in ms."))
+            .help("Network `wait_for` timeout in ms."))
         .arg(Arg::with_name("DEPOOL_FEE")
             .long("--depool_fee")
             .help("Value added to the message sent to depool to cover it's fees (change will be returned)."))
@@ -566,7 +566,11 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("TIMEOUT")
             .long("--timeout")
             .takes_value(true)
-            .help("Contract call timeout in ms."))
+            .help("Network `wait_for` timeout in ms."))
+        .arg(Arg::with_name("MSG_TIMEOUT")
+            .long("--message_processing_timeout")
+            .takes_value(true)
+            .help("Network message processing timeout in ms."))
         .arg(Arg::with_name("LIST")
             .long("--list")
             .conflicts_with_all(&["OUT_OF_SYNC","NO_ANSWER", "ASYNC_CALL", "LOCAL_RUN", "BALANCE_IN_TONS", "LIFETIME", "DEPOOL_FEE", "PUBKEY", "URL", "ABI", "KEYS", "ADDR", "RETRIES", "TIMEOUT", "WC", "WALLET"])
@@ -1403,6 +1407,7 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let wc = matches.value_of("WC");
             let retries = matches.value_of("RETRIES");
             let timeout = matches.value_of("TIMEOUT");
+            let msg_timeout = matches.value_of("MSG_TIMEOUT");
             let depool_fee = matches.value_of("DEPOOL_FEE");
             let lifetime = matches.value_of("LIFETIME");
             let no_answer = matches.value_of("NO_ANSWER");
@@ -1410,7 +1415,7 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let local_run = matches.value_of("LOCAL_RUN");
             let async_call = matches.value_of("ASYNC_CALL");
             let out_of_sync = matches.value_of("OUT_OF_SYNC");
-            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, async_call, out_of_sync);
+            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, msg_timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, async_call, out_of_sync);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {
