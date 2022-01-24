@@ -12,7 +12,7 @@
  */
 use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_ton_address};
 use crate::config::Config;
-use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query, TonClient};
+use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query_account_field};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::Cell;
@@ -263,7 +263,7 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(),
 
     let ton = create_client_verbose(&config)?;
     let address = load_ton_address(address.unwrap(), &config)?;
-    let data = query_account(ton.clone(), &address, "data").await?;
+    let data = query_account_field(ton.clone(), &address, "data").await?;
 
     let res = decode_account_data(
         ton,
@@ -348,26 +348,6 @@ fn load_state_init(m: &ArgMatches<'_>) -> Result<StateInit, String> {
     Ok(stat_init)
 }
 
-async fn query_account(ton: TonClient, address: &str, field: &str) -> Result<String, String> {
-    let accounts = query(
-        ton.clone(),
-        "accounts",
-        json!({ "id": { "eq": address } }),
-        field,
-        None,
-    ).await
-        .map_err(|e| format!("failed to query account data: {}", e))?;
-
-    if accounts.len() == 0 {
-        return Err(format!("account not found"));
-    }
-    let data = accounts[0][field].as_str();
-    if data.is_none() {
-        return Err(format!("account doesn't contain {}", field));
-    }
-    Ok(data.unwrap().to_string())
-}
-
 async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let input = m.value_of("INPUT");
     if !config.is_json {
@@ -389,7 +369,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
         } else {
             format!("{}:{}", config.wc, input)
         };
-        let boc = query_account(ton.clone(), &input, "boc").await?;
+        let boc = query_account_field(ton.clone(), &input, "boc").await?;
         let account = Account::construct_from_base64(&boc)
             .map_err(|e| format!("Failed to query account BOC: {}", e))?;
         account.state_init().ok_or("Failed to load stateInit from the BOC.")?.to_owned()

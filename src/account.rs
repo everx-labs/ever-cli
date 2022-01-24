@@ -10,14 +10,12 @@
 * See the License for the specific TON DEV software governing permissions and
 * limitations under the License.
 */
-use crate::helpers::{check_dir, create_client_verbose, json_account, print_account};
+use crate::helpers::{check_dir, create_client_verbose, json_account, print_account, query_account_field};
 use crate::config::Config;
 use serde_json::{json, Value};
 use ton_client::net::{ParamsOfQueryCollection, query_collection};
 use ton_client::utils::{calc_storage_fee, ParamsOfCalcStorageFee};
 use ton_block::{Account, Deserializable, Serializable};
-
-use crate::call::query_account_boc;
 
 const ACCOUNT_FIELDS: &str = r#"
     id
@@ -46,20 +44,21 @@ async fn query_accounts(conf: Config, addresses: Vec<String>, fields: &str) -> R
             break;
         }
         let mut filter = json!({ "id": { "eq": addresses[it] } });
-        it += 1;
+        let mut cnt = 1;
         for i in it..usize::min(addresses.len(), it + 49) {
-            it += 1;
+            cnt += 1;
             filter = json!({ "id": { "eq": addresses[i] },
                 "OR": filter
             });
         }
+        it += cnt;
         let mut query_result = query_collection(
             ton.clone(),
             ParamsOfQueryCollection {
                 collection: "accounts".to_owned(),
                 filter: Some(filter),
                 result: fields.to_string(),
-                limit: None,
+                limit: Some(cnt as u32),
                 ..Default::default()
             },
         ).await.map_err(|e| format!("failed to query account info: {}", e))?;
@@ -221,9 +220,10 @@ pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), S
         println!("Processing...");
     }
 
-    let boc = query_account_boc(
+    let boc = query_account_field(
         ton.clone(),
-        addr
+        addr,
+        "boc",
     ).await.map_err(|e| format!("{}", e))?;
 
     let res = calc_storage_fee(

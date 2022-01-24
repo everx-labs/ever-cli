@@ -111,12 +111,12 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
                 } else {
                     Some(conf.endpoints.to_owned())
                 },
-            network_retries_count: 3,
+            // network_retries_count: 3,
             message_retries_count: conf.retries as i8,
             message_processing_timeout: 30000,
-            wait_for_timeout: 30000,
+            wait_for_timeout: conf.timeout,
             out_of_sync_threshold: conf.out_of_sync_threshold * 1000,
-            max_reconnect_timeout: 1000,
+            // max_reconnect_timeout: 1000,
             ..Default::default()
         },
         ..Default::default()
@@ -169,15 +169,27 @@ pub async fn query_with_limit(
         .map(|r| r.result)
 }
 
-pub async fn query(
-    ton: TonClient,
-    collection: &str,
-    filter: serde_json::Value,
-    result: &str,
-    order: Option<Vec<OrderBy>>,
-) -> Result<Vec<serde_json::Value>, ClientError> {
-    query_with_limit(ton, collection, filter, result, order, None).await
+pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> Result<String, String> {
+    let accounts = query_with_limit(
+        ton.clone(),
+        "accounts",
+        json!({ "id": { "eq": address } }),
+        field,
+        None,
+        Some(1),
+    ).await
+        .map_err(|e| format!("failed to query account data: {}", e))?;
+
+    if accounts.len() == 0 {
+        return Err(format!("account not found"));
+    }
+    let data = accounts[0][field].as_str();
+    if data.is_none() {
+        return Err(format!("account doesn't contain {}", field));
+    }
+    Ok(data.unwrap().to_string())
 }
+
 
 pub async fn decode_msg_body(
     ton: TonClient,

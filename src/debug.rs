@@ -13,12 +13,11 @@
 use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_with_limit};
+use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
 use std::io::{Write};
-use crate::call::{query_account_boc};
 use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction};
 use ton_types::{UInt256, HashmapE};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
@@ -353,9 +352,10 @@ async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: 
         Some(bc_config) => {
             Account::construct_from_file(bc_config)
         }
-        _ => { let acc = query_account_boc(
+        _ => { let acc = query_account_field(
                 ton_client.clone(),
-                CONFIG_ADDR
+                CONFIG_ADDR,
+                "boc",
             ).await?;
             Account::construct_from_base64(&acc)
         }
@@ -520,7 +520,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
             .map_err(|e| format!(" failed to load account from the file {}: {}", input, e))?
     } else {
         let address = load_ton_address(input, &config)?;
-        let account = query_account_boc(ton_client.clone(), &address).await?;
+        let account = query_account_field(ton_client.clone(), &address, "boc").await?;
         Account::construct_from_base64(&account)
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };

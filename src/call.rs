@@ -13,17 +13,7 @@
 use crate::config::Config;
 use crate::crypto::load_keypair;
 use crate::convert;
-use crate::helpers::{
-    TonClient,
-    now,
-    now_ms,
-    create_client_verbose,
-    create_client_local,
-    query,
-    load_ton_address,
-    load_abi,
-    construct_account_from_tvc
-};
+use crate::helpers::{TonClient, now, now_ms, create_client_verbose, create_client_local, load_ton_address, load_abi, construct_account_from_tvc, query_account_field};
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
 use hex;
@@ -265,25 +255,6 @@ fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Res
     serde_json::to_string(&params_json).map_err(|e| format!("{}", e))
 }
 
-pub async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, String> {
-    let accounts = query(
-        ton,
-            "accounts",
-            json!({ "id": { "eq": addr } }),
-            "boc",
-            None,
-        ).await
-    .map_err(|e| format!("failed to query account: {}", e))?;
-    if accounts.len() == 0 {
-        return Err(format!("account {} not found", addr));
-    }
-    let boc = accounts[0]["boc"].as_str();
-    if boc.is_none() {
-        return Err(format!("account doesn't contain data"));
-    }
-    Ok(boc.unwrap().to_owned())
-}
-
 pub async fn emulate_locally(
     ton: TonClient,
     addr: &str,
@@ -291,7 +262,7 @@ pub async fn emulate_locally(
     is_fee: bool,
 ) -> Result<(), String> {
     let state: String;
-    let state_boc = query_account_boc(ton.clone(), addr).await;
+    let state_boc = query_account_field(ton.clone(), addr, "boc").await;
     if state_boc.is_err() {
         if is_fee {
             let addr = ton_block::MsgAddressInt::from_str(addr)
@@ -592,7 +563,7 @@ pub async fn call_contract_with_client(
             if !conf.is_json {
                 println!("Running get-method...");
             }
-            let acc_boc = query_account_boc(ton.clone(), addr).await?;
+            let acc_boc = query_account_field(ton.clone(), addr, "boc").await?;
             return run_local(ton.clone(), abi, msg.message.clone(), acc_boc, None).await;
         }
         if conf.local_run || is_fee {
@@ -756,7 +727,7 @@ pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Opti
     } else {
         let addr = load_ton_address(addr, &conf)
             .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
-        query_account_boc(ton.clone(), addr.as_str()).await?
+        query_account_field(ton.clone(), addr.as_str(), "boc").await?
     };
 
     let params = params.map(|p| serde_json::from_str(&p))
