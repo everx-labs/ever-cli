@@ -13,7 +13,7 @@
 use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field};
+use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field, query_with_limit};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
