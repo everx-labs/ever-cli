@@ -21,11 +21,18 @@ use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor,
 use ton_types::{HashmapE, UInt256, serialize_toc};
 
 use crate::config::Config;
+use crate::debug_executor::{TraceLevel, DebugTransactionExecutor};
 
-static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
+pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
 static ELECTOR_ADDR: &str = "-1:3333333333333333333333333333333333333333333333333333333333333333";
 
-fn construct_blockchain_config(config_account: &Account) -> Result<BlockchainConfig, String> {
+pub const DUMP_NONE:  u8 = 0x00;
+pub const DUMP_ACCOUNT:  u8 = 0x01;
+pub const DUMP_CONFIG:   u8 = 0x02;
+pub const DUMP_EXECUTOR_CONFIG: u8 = 0x04;
+pub const DUMP_ALL:   u8 = 0xFF;
+
+pub fn construct_blockchain_config(config_account: &Account) -> Result<BlockchainConfig, String> {
     let config_cell = config_account.get_data().ok_or(
         format!("Failed to get account's data"))?.reference(0).ok();
     let config_params = ConfigParams::with_address_and_params(
@@ -33,7 +40,7 @@ fn construct_blockchain_config(config_account: &Account) -> Result<BlockchainCon
     BlockchainConfig::with_config(config_params).map_err(|e| format!("Failed to construct config: {}", e))
 }
 
-async fn fetch(server_address: &str, account_address: &str, filename: &str) -> Result<(), String> {
+pub async fn fetch(server_address: &str, account_address: &str, filename: &str, fast_stop: bool) -> Result<(), String> {
     let context = Arc::new(
         ClientContext::new(ClientConfig {
             network: NetworkConfig {
@@ -79,7 +86,7 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) -> R
             collection: "zerostates".to_owned(),
             filter: None,
             result: "accounts { id boc }".to_owned(),
-            limit: None,
+            limit: Some(1),
             order: None,
         },
     )
@@ -105,7 +112,9 @@ async fn fetch(server_address: &str, account_address: &str, filename: &str) -> R
                 .map_err(|e| format!("failed to serialize account: {}", e))?));
         writer.write_all(data.as_bytes()).map_err(|e| format!("Failed to write to file: {}", e))?;
     }
-
+    if fast_stop {
+        return Ok(());
+    }
     let retry_strategy =
         tokio_retry::strategy::ExponentialBackoff::from_millis(10).take(5);
 
@@ -399,8 +408,18 @@ impl log::Log for TrivialLogger {
     fn flush(&self) {}
 }
 
-async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
-    trace_execution: bool, track_elector_unfreeze: bool, track_config_param_34: bool) -> Result<(), String> {
+pub async fn replay(
+    input_filename: &str,
+    config_filename: &str,
+    txnid: &str,
+    trace_execution: bool,
+    track_elector_unfreeze: bool,
+    track_config_param_34: bool,
+    trace_last_transaction: TraceLevel,
+    init_trace_last_logger: impl Fn() -> Result<(), String>,
+    debug_info:  Option<String>,
+    dump_mask: u8,
+) -> Result<Transaction, String> {
     let mut account_state = State::new(input_filename)?;
     let mut config_state = State::new(config_filename)?;
     assert_eq!(config_state.account_addr, CONFIG_ADDR);
@@ -424,7 +443,6 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
     } else {
         None
     };
-
     loop {
         if account_state.tr.is_none() {
             account_state.next_transaction();
@@ -454,32 +472,50 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             exit(1);
         }
         if tr.id == txnid {
-            account_root.write_to_file(format!("{}-{}.boc", state.account_addr, txnid).as_str());
-
-            let account = config_account.serialize()
-                .map_err(|e| format!("Failed to serialize config account: {}", e))?;
-            account.write_to_file(format!("config-{}.boc", txnid).as_str());
-
-            // config.boc suitable for creating ton-labs-executor tests
-            let mut config_data = ton_types::SliceData::from(config_account.get_data()
-                .ok_or("Failed to get config data")?);
-            let mut cfg = ton_types::BuilderData::new();
-            cfg.append_raw(&config_data.get_next_bytes(32)
-                .map_err(|e| format!("Failed to read config data: {}", e))?, 256)
-                .map_err(|e| format!("Failed to append config data: {}", e))?;
-            cfg.append_reference_cell(config_data.reference(0)
-                .map_err(|e| format!("Failed to get config zero reference: {}", e))?);
-            cfg.into_cell().map_err(|e| format!("Failed to finalize builder: {}", e))?
-                .write_to_file(format!("config-{}-test.boc", txnid).as_str());
+            if dump_mask & DUMP_ACCOUNT != 0 {
+                let path = format!("{}-{}.boc", state.account_addr, txnid);
+                account_root.write_to_file(&path);
+                println!("Contract account was dumped to {}", path);
+            }
+            if dump_mask & DUMP_CONFIG != 0 {
+                let path = format!("config-{}.boc", txnid);
+                let account = config_account.serialize()
+                    .map_err(|e| format!("Failed to serialize config account: {}", e))?;
+                account.write_to_file(&path);
+                println!("Config account was dumped to {}", path);
+            }
+            if dump_mask & DUMP_EXECUTOR_CONFIG != 0 {
+                // config.boc suitable for creating ton-labs-executor tests
+                let mut config_data = ton_types::SliceData::from(config_account.get_data()
+                    .ok_or("Failed to get config data")?);
+                let mut cfg = ton_types::BuilderData::new();
+                cfg.append_raw(&config_data.get_next_bytes(32)
+                    .map_err(|e| format!("Failed to read config data: {}", e))?, 256)
+                    .map_err(|e| format!("Failed to append config data: {}", e))?;
+                cfg.append_reference_cell(config_data.reference(0)
+                    .map_err(|e| format!("Failed to get config zero reference: {}", e))?);
+                let path = format!("config-{}-test.boc", txnid);
+                cfg.into_cell().map_err(|e| format!("Failed to finalize builder: {}", e))?
+                    .write_to_file(&path);
+                println!("Config for executor was dumped to {}", path);
+            }
+        }
+        let trace_last = (trace_last_transaction != TraceLevel::None) && tr.id == txnid;
+        if trace_last {
+            init_trace_last_logger()?;
         }
         let executor: Box<dyn TransactionExecutor> =
             match tr.tr.read_description()
-                .map_err(|e| format!("failed to raed transaction: {}", e))? {
+                .map_err(|e| format!("failed to read transaction: {}", e))? {
                 TransactionDescr::TickTock(desc) => {
                     Box::new(TickTockTransactionExecutor::new(config.clone(), desc.tt))
                 }
                 TransactionDescr::Ordinary(_) => {
-                    Box::new(OrdinaryTransactionExecutor::new(config.clone()))
+                    if trace_last {
+                        Box::new(DebugTransactionExecutor::new(config.clone(), debug_info.clone(), trace_last_transaction.clone()))
+                    } else {
+                        Box::new(OrdinaryTransactionExecutor::new(config.clone()))
+                    }
                 }
                 _ => {
                     panic!("Unknown transaction type");
@@ -492,6 +528,7 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
 
         let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c)
             .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
+
         let params = ExecuteParams {
             state_libs: HashmapE::default(),
             block_unixtime: tr.tr.now,
@@ -522,8 +559,6 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
             exit(2);
         }
 
-        //println!("SUCCESS");
-
         if track_config_param_34 && state.account_addr == CONFIG_ADDR {
             cfg_tracker.as_mut().unwrap().track(&state.account).await?;
         }
@@ -534,24 +569,27 @@ async fn replay(input_filename: &str, config_filename: &str, txnid: &str,
 
         if tr.id == txnid {
             println!("DONE");
-            break;            
+            return Ok(tr_local);
         }
         state.tr = None;
     }
-    Ok(())
+    Err("Specified transaction was not found.".to_string())
 }
 
 pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     fetch(config.url.as_str(),
         m.value_of("ADDRESS").ok_or("Missing account address")?,
-        m.value_of("OUTPUT").ok_or("Missing output filename")?).await?;
+        m.value_of("OUTPUT").ok_or("Missing output filename")?,
+        false
+    ).await?;
     Ok(())
 }
 
 pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
-    replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
+    let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
         m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, false, false).await?;
+        false, false, false, TraceLevel::None, ||{Ok(())}, None, DUMP_ALL
+    ).await?;
     Ok(())
 }

@@ -13,16 +13,7 @@
 use crate::config::Config;
 use crate::crypto::load_keypair;
 use crate::convert;
-use crate::helpers::{
-    TonClient,
-    now,
-    now_ms,
-    create_client_verbose,
-    create_client_local,
-    query,
-    load_ton_address,
-    load_abi,
-};
+use crate::helpers::{TonClient, now, now_ms, create_client_verbose, create_client_local, load_ton_address, load_abi, construct_account_from_tvc, query_account_field};
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
 use hex;
@@ -44,8 +35,21 @@ use ton_client::processing::{
     wait_for_transaction,
     send_message,
 };
-use ton_client::tvm::{run_tvm, run_get, ParamsOfRunTvm, ParamsOfRunGet, run_executor, ParamsOfRunExecutor, AccountForExecutor, ExecutionOptions};
-use ton_block::{Account, Serializable, Deserializable, MsgAddressInt, CurrencyCollection, StateInit};
+use ton_client::tvm::{
+    run_tvm,
+    run_get,
+    ParamsOfRunTvm,
+    ParamsOfRunGet,
+    run_executor,
+    ParamsOfRunExecutor,
+    AccountForExecutor,
+    ExecutionOptions
+};
+use ton_block::{
+    Account,
+    Serializable,
+    Deserializable,
+};
 use std::str::FromStr;
 use serde_json::{Value, Map};
 
@@ -251,26 +255,6 @@ fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Res
     serde_json::to_string(&params_json).map_err(|e| format!("{}", e))
 }
 
-pub async fn query_account_boc(ton: TonClient, addr: &str) -> Result<String, String> {
-    let accounts = query(
-        ton,
-            "accounts",
-            json!({ "id": { "eq": addr } }),
-            "boc",
-            None,
-        ).await
-    .map_err(|e| format!("failed to query account: {}", e))?;
-
-    if accounts.len() == 0 {
-        return Err(format!("account not found"));
-    }
-    let boc = accounts[0]["boc"].as_str();
-    if boc.is_none() {
-        return Err(format!("account doesn't contain data"));
-    }
-    Ok(boc.unwrap().to_owned())
-}
-
 pub async fn emulate_locally(
     ton: TonClient,
     addr: &str,
@@ -278,7 +262,7 @@ pub async fn emulate_locally(
     is_fee: bool,
 ) -> Result<(), String> {
     let state: String;
-    let state_boc = query_account_boc(ton.clone(), addr).await;
+    let state_boc = query_account_field(ton.clone(), addr, "boc").await;
     if state_boc.is_err() {
         if is_fee {
             let addr = ton_block::MsgAddressInt::from_str(addr)
@@ -332,16 +316,9 @@ pub async fn emulate_locally(
     Ok(())
 }
 
-fn load_account(path: &str, from_tvc: bool) -> Result<Account, String> {
+pub fn load_account(path: &str, from_tvc: bool) -> Result<Account, String> {
     Ok(if from_tvc {
-        Account::active_by_init_code_hash(
-            MsgAddressInt::default(),
-            CurrencyCollection::default(),
-            0,
-            StateInit::construct_from_file(path)
-                .map_err(|e| format!(" failed to load TVC from the file {}: {}", path, e))?,
-            true
-        ).map_err(|e| format!(" failed to create account with the stateInit: {}",e))?
+        construct_account_from_tvc(path, None, None)?
     } else {
         Account::construct_from_file(path)
             .map_err(|e| format!(" failed to load account from the file {}: {}", path, e))?
@@ -495,6 +472,7 @@ pub async fn send_message_and_wait(
 pub async fn process_message(
     ton: TonClient,
     msg: ParamsOfEncodeMessage,
+    is_json: bool,
 ) -> Result<serde_json::Value, String> {
     let callback = |event| { async move {
         match event {
@@ -502,16 +480,29 @@ pub async fn process_message(
             _ => (),
         }
     }};
-    let res = ton_client::processing::process_message(
-        ton,
-        ParamsOfProcessMessage {
-            message_encode_params: msg,
-            send_events: true,
-            ..Default::default()
-        },
-        callback,
-    ).await
-        .map_err(|e| format!("Failed: {:#}", e))?;
+    let res = if !is_json {
+        ton_client::processing::process_message(
+            ton,
+            ParamsOfProcessMessage {
+                message_encode_params: msg,
+                send_events: true,
+                ..Default::default()
+            },
+            callback,
+        ).await
+            .map_err(|e| format!("Failed: {:#}", e))?
+    } else {
+        ton_client::processing::process_message(
+            ton,
+            ParamsOfProcessMessage {
+                message_encode_params: msg,
+                send_events: true,
+                ..Default::default()
+            },
+            |_| { async move {} },
+        ).await
+            .map_err(|e| format!("Failed: {:#}", e))?
+    };
 
     Ok(res.decoded.and_then(|d| d.output).unwrap_or(json!({})))
 }
@@ -572,7 +563,7 @@ pub async fn call_contract_with_client(
             if !conf.is_json {
                 println!("Running get-method...");
             }
-            let acc_boc = query_account_boc(ton.clone(), addr).await?;
+            let acc_boc = query_account_field(ton.clone(), addr, "boc").await?;
             return run_local(ton.clone(), abi, msg.message.clone(), acc_boc, None).await;
         }
         if conf.local_run || is_fee {
@@ -594,7 +585,7 @@ pub async fn call_contract_with_client(
         let expire_at = Local.timestamp(expire_at as i64 , 0);
         println!("{}", expire_at.to_rfc2822());
     }
-    process_message(ton.clone(), msg_params).await
+    process_message(ton.clone(), msg_params, conf.is_json).await
 }
 
 fn print_json_result(result: Value, conf: Config) {
@@ -736,7 +727,7 @@ pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Opti
     } else {
         let addr = load_ton_address(addr, &conf)
             .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
-        query_account_boc(ton.clone(), addr.as_str()).await?
+        query_account_field(ton.clone(), addr.as_str(), "boc").await?
     };
 
     let params = params.map(|p| serde_json::from_str(&p))

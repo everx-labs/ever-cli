@@ -12,9 +12,11 @@ tonos-cli <subcommand> -h
 ```
 
 # Table of contents
+- [TONOS-CLI](#tonos-cli)
+- [Table of contents](#table-of-contents)
 - [1. Installation](#1-installation)
   - [Install compiled executable](#install-compiled-executable)
-  - [Install through TONDEV](#install-through-tondev)
+  - [Install through EVERDEV](#install-through-everdev)
   - [Build from source](#build-from-source)
     - [Prerequisites](#prerequisites)
     - [Build from source on Linux and Mac OS](#build-from-source-on-linux-and-mac-os)
@@ -45,7 +47,7 @@ tonos-cli <subcommand> -h
     - [4.4.2. Alternative command to call contract in the blockchain](#442-alternative-command-to-call-contract-in-the-blockchain)
     - [4.4.3. Run contract method locally](#443-run-contract-method-locally)
     - [4.4.4. Run funC get-method](#444-run-func-get-method)
-    - [4.4.5. Run contract method locally for saved account state](#445-run-contract-method-locally-for-saved-account-state)
+    - [4.4.5. Run contract method locally for saved account BOC](#445-run-contract-method-locally-for-saved-account-boc)
   - [4.5. Generate encrypted message offline](#45-generate-encrypted-message-offline)
   - [4.6. Broadcast previously generated message](#46-broadcast-previously-generated-message)
   - [4.7. Broadcast previously generated message from a file](#47-broadcast-previously-generated-message-from-a-file)
@@ -55,13 +57,13 @@ tonos-cli <subcommand> -h
     - [4.8.3. Decode account commands](#483-decode-account-commands)
       - [4.8.3.1. Decode account data fields](#4831-decode-account-data-fields)
       - [4.8.3.2. Decode data from the account BOC file](#4832-decode-data-from-the-account-boc-file)
-    - [4.8.4. Decode TVC fields](#484-decode-tvc-fields)
+    - [4.8.4. Decode stateInit fields](#484-decode-stateinit-fields)
   - [4.9. Generate payload for internal function call](#49-generate-payload-for-internal-function-call)
   - [4.10. Alternative syntax for call, deploy and run commands](#410-alternative-syntax-for-call-deploy-and-run-commands)
 - [5. DeBot commands](#5-debot-commands)
 - [6. Multisig commands](#6-multisig-commands)
   - [6.1. Send tokens](#61-send-tokens)
-  - [6.2. Deploy wallet](#62-deploy-wallet)
+- [6.2. Deploy wallet](#62-deploy-wallet)
 - [7. DePool commands](#7-depool-commands)
   - [7.1. Configure TONOS-CLI for DePool operations](#71-configure-tonos-cli-for-depool-operations)
   - [7.2. Deposit stakes](#72-deposit-stakes)
@@ -87,7 +89,14 @@ tonos-cli <subcommand> -h
   - [9.2. Get global config](#92-get-global-config)
   - [9.3. NodeID](#93-nodeid)
   - [9.4. Dump blockchain config](#94-dump-blockchain-config)
-- [10. Fetch and replay commands](#10-fetch-and-replay)
+  - [9.5. Dump several account states](#95-dump-several-account-states)
+  - [10. Fetch and replay](#10-fetch-and-replay)
+    - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
+- [11. Debug commands](#11-debug-commands)
+  - [11.1. Debug transaction](#111-debug-transaction)
+  - [11.2. Debug call](#112-debug-call)
+  - [11.3. Debug replay transaction on the saved account state](#113-debug-replay-transaction-on-the-saved-account-state)
+  - [11.4. HOWTO debug a contract with tonos-cli](#114-howto-debug-a-contract-with-tonos-cli)
 
 # 1. Installation
 
@@ -95,26 +104,26 @@ tonos-cli <subcommand> -h
 
 Create a folder. Download the `.zip` file from the latest release from here: [https://github.com/tonlabs/tonos-cli/releases](https://github.com/tonlabs/tonos-cli/releases) to this folder. Extract it.
 
-## Install through TONDEV
+## Install through EVERDEV
 
-You can use [TONDEV](https://github.com/tonlabs/tondev) to install the latest version of TONOS-CLI.
+You can use [EVERDEV](https://github.com/tonlabs/everdev) to install the latest version of TONOS-CLI.
 
 ```bash
-tondev tonos-cli install
+everdev tonos-cli install
 ```
 
-The installer requires [NPM](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) to be installed, so it can install packages globally without using sudo. In case of error, manually set environment variable `PATH=$PATH:$HOME./tondev/solidity`
+The installer requires [NPM](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) to be installed, so it can install packages globally without using sudo. In case of error, manually set environment variable `PATH=$PATH:$HOME./everdev/solidity`
 
-This command updates TONOS-CLI installed through TONDEV to the latest version:
+This command updates TONOS-CLI installed through EVERDEV to the latest version:
 
 ```bash
-tondev tonos-cli update
+everdev tonos-cli update
 ```
 
 This command specifies TONOS-CLI version to use and downloads it if needed:
 
 ```bash
-tondev tonos-cli set --version 0.8.0
+everdev tonos-cli set --version 0.8.0
 ```
 
 ## Build from source
@@ -175,7 +184,7 @@ Optional, Linux/Mac OS. Use the following command to put the utility into system
 export PATH="<tonos_folder_path>:$PATH"
 ```
 
-This step can be skipped, if TONOS-CLI was installed through TONDEV. Otherwise, if you skip this step, make sure you always run the utility from folder containing the utility:
+This step can be skipped, if TONOS-CLI was installed through EVERDEV. Otherwise, if you skip this step, make sure you always run the utility from folder containing the utility:
 
 ```bash
 ./tonos-cli <command> <options>
@@ -240,26 +249,25 @@ All other TONOS-CLI commands will indicate the configuration file currently used
 List of available options:
 
 ```bash
---abi <ABI>                            File with contract ABI.
---addr <ADDR>                          Contract address.
---async_call <ASYNC_CALL>              Disables wait for transaction to appear in the network after call
-                                       command.
---balance_in_tons <BALANCE_IN_TONS>    Print balance for account command in tons. If false balance is printed in
-                                       nanotons.
---depool_fee <DEPOOL_FEE>              Value added to message sent to depool to cover it's fees (change will be
-                                       returned).
---keys <KEYS>                          File with keypair.
---lifetime <LIFETIME>                  Period of time in seconds while message is valid.
---local_run <LOCAL_RUN>                Enable preliminary local run before deploy and call commands.
---no-answer <NO_ANSWER>                FLag whether to wait for depool answer when calling a depool function.
---pubkey <PUBKEY>                      User public key. Used by DeBot Browser.
---retries <RETRIES>                    Number of attempts to call smart contract function if previous attempt
-                                       was unsuccessful.
---timeout <TIMEOUT>                    Contract call timeout in ms.
---url <URL>                            Url to connect.
---wallet <WALLET>                      Multisig wallet address. Used in commands which send internal messages
-                                       through multisig wallets.
---wc <WC>                              Workchain id.
+--abi <ABI>                                   Path to the contract ABI file.
+--addr <ADDR>                                 Contract address.
+--async_call <ASYNC_CALL>                     Disables wait for transaction to appear in the network after call command.
+--balance_in_tons <BALANCE_IN_TONS>           Print balance for account command in tons. If false balance is printed in nanotons.
+--depool_fee <DEPOOL_FEE>                     Value added to the message sent to depool to cover it's fees (change will be returned).
+--keys <KEYS>                                 Path to the file with keypair.
+--lifetime <LIFETIME>                         Period of time in seconds while message is valid. Change of this parameter may affect "out_of_sync"
+                                              parameter, because "lifetime" should be at least 2 times greater than "out_of_sync".
+--local_run <LOCAL_RUN>                       Enable preliminary local run before deploy and call commands.
+--message_processing_timeout <MSG_TIMEOUT>    Network message processing timeout in ms.
+--no-answer <NO_ANSWER>                       Flag whether to wait for depool answer when calling a depool function.
+--out_of_sync <OUT_OF_SYNC>                   Network connection "out_of_sync_threshold" parameter in seconds. Mind that it cant exceed half of the
+                                              "lifetime" parameter.
+--pubkey <PUBKEY>                             User public key. Used by DeBot Browser.
+--retries <RETRIES>                           Number of attempts to call smart contract function if previous attempt was unsuccessful.
+--timeout <TIMEOUT>                           Network `wait_for` timeout in ms.
+--url <URL>                                   Url to connect.
+--wallet <WALLET>                             Multisig wallet address.
+--wc <WC>                                     Workchain id.
 ```
 
 Example:
@@ -269,28 +277,31 @@ $ tonos-cli config --url https://main.ton.dev --wc -1 --keys key.json --abi Safe
 Config: /home/user/tonos-cli.conf.json
 Succeeded.
 {
-  "url": "https://main.ton.dev",
-  "wc": -1,
-  "addr": null,
-  "wallet": null,
-  "abi_path": "SafeMultisigWallet.abi.json",
-  "keys_path": "key.json",
-  "retries": 3,
-  "timeout": 600,
+  "url": "main.ton.dev",
+  "wc": 0,
+  "addr": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13",
+  "wallet": "0:0fd085c2457e0f284a96ddbcb746d157d3e796a6b4d6dd3224f38699faf5b8d8",
+  "pubkey": null,
+  "abi_path": "tests/samples/wallet.abi.json",
+  "keys_path": null,
+  "retries": 5,
+  "timeout": 40000,
+  "message_processing_timeout": 40000,
+  "out_of_sync_threshold": 15,
   "is_json": false,
-  "depool_fee": 0.5,
-  "lifetime": 3600,
-  "no_answer": false,
-  "use_delimiters": true,
-  "local_run": true,
+  "depool_fee": 0.8,
+  "lifetime": 60,
+  "no_answer": true,
+  "balance_in_tons": false,
+  "local_run": false,
   "async_call": false,
   "endpoints": [
     "https://main2.ton.dev",
-    "https://main4.ton.dev",
-    "https://main3.ton.dev"
+    "https://main3.ton.dev",
+    "https://main4.ton.dev"
   ]
-
 }
+
 ```
 
 Some of the frequently used networks:
@@ -666,29 +677,57 @@ Succeeded.
 You may use the following command to check the current status of a contract:
 
 ```bash
-tonos-cli account <address> [--dumptvc <tvc_path>] [--dumpboc <boc_path>]
+tonos-cli account <list_of_addresses> [--dumptvc <tvc_path>] [--dumpboc <boc_path>]
 ```
 
-`<address>` - contract [address](#41-generate-contract-address).
+`<list_of_addresses>` - contract [addresses](#41-generate-contract-address).
 `--dumptvc <tvc_path>` - this flag can be specified to dump account StateInit to the <tvc_path> file.
 `--dumpboc <boc_path>` - this flag can be specified to dump account boc to the <boc_path> file.
 
 Example:
 
 ```bash
-$ tonos-cli account 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
-Config: /home/user/tonos-cli.conf.json
+$ tonos-cli  account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
- address: 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
-Connecting to https://net.ton.dev
+addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13, 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566, 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12
+Connecting to net.ton.dev
 Processing...
 Succeeded.
+address:       0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
 acc_type:      Active
-balance:       99196914225
-last_paid:     1620910749
-last_trans_lt: 0x4833a56e482
-data(boc): b5ee9c720101020100980001df8534c46f7a135058773fa1298cb3a299a5ddd40dafe41cb06c64f274da360bfb0000017965cef0e9c29a6237bd09a82c3b9fd094c659d14cd2eeea06d7f20e583632793a6d1b05fd80000000000000000000000000000000000000000000000000000000000000002020000000001018010045a010a6988def426a0b0ee7f4253196745334bbba81b5fc83960d8c9e4e9b46c17f6010
-code_hash: 207dc560c5956de1a2c1479356f8f3ee70a59767db2bf4788b1d61ad42cdad82
+balance:       11466383488239689 nanoton
+last_paid:     1640619135
+last_trans_lt: 0x530197a143
+data(boc):     b5ee9c720101060100b000014195c06aa743d1f9000dd64b75498f106af4b7e7444234d7de67ea26988f6181dfe001020120050202012004030052bf874da2f56d034e11773c58331900e0e1e91a137e1b4c2ca15607634c2d63e1af0000000061c9dca50052bfbddf9156dc04cca88cf25d9c766b1bd2f1ab7d0878c4d761862fc524758767f10000000061c9dc820053bfd627d55f960de2235b3f1537884d5968e5e486c58c581bc9ea4068c8da164ce18000000030e4ee49c0
+code_hash:     ccbfc821853aa641af3813ebd477e26818b51e4ca23e5f6d34509215aa7123d9
+
+address:       0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566
+acc_type:      Active
+balance:       2082745497066 nanoton
+last_paid:     1640619517
+last_trans_lt: 0x530a3c2782
+data(boc):     b5ee9c7201020c0100022e000373000000befe45557e0000000000000000000000000002faf04e577e5cf5b28c2a81afc5ae534a0f3f494cc4ee62ef675ca8e36af911a3c8767a400b0a010183801f13b28d6b697140de03b841b9dde6195ff089aa50b57d514435a6e6181e7baba318b50f6f18c9d307d500216c80d6ecd77d13e437bdfcaf0b4fa6b9204b7847500203a1c00b620939e214cadb7481682034e58a853a77874f473c69cc7d3b1ad9da7f0bafa0000000280000000c0000000bddcfa66622a7b9c955271c779b92448cff442b8efead77d43bd7f50b07a45f380030010706030203cca005040045b41bda168cd2322b5dcd28989176a9eae590288db4d548f2b6948d214de0c9bdb372700045b6554f714ca768f21ad18cff20c7af62091e9fc2d40c06d32d1ace7495f5dd1605781000bda90017d76e405363a8a494a3a8d8c38fcadd4f2c7fb550244fd6d2a77ac12eb029bce000000000000255400000000000000000000000000000034c3babc06000000000000000000000000000000000000000000000000000000000000000100201200908009bbfe85a3348c8ad7734a26245daa7ab9640a236d35523cada523485378326f6cdc9800000000000106f0000000000000000000000000002035ac0000000000000000000000000000000187c4b00e0007bbffdc5329da3c86b4633fc831ebd88247a7f0b50301b4cb46b39d257d7745815e0000000000000095500000000000000000000000002f8eb24987c490760000454310010546f6b656e202331
+code_hash:     eee7d3331153dce4aa938e3bcdc922467fa215c77f56bbea1debfa8583d22f9c
+
+0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 not found
+
+
+$ tonos-cli  account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
+Connecting to net.ton.dev
+Processing...
+Succeeded.
+address:       0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
+acc_type:      Active
+balance:       11463682795615708 nanoton
+last_paid:     1640624439
+last_trans_lt: 0x5379939282
+data(boc):     b5ee9c7201010401008100014195c06aa743d1f9000dd64b75498f106af4b7e7444234d7de67ea26988f6181dfe00102012003020053bfde8d98393e5db0ea2f609ed9266cf61a7487759d679ea9792adbdcfc137f6caf8000000030e4f89dc00053bfc8658b6b027767d9addd720a0bf8b157379a9b0e9208bab53ad4ee54358c6ce98000000030e4f89dc0
+code_hash:     ccbfc821853aa641af3813ebd477e26818b51e4ca23e5f6d34509215aa7123d9
+
 ```
 
 ## 4.4. Call method
@@ -2130,6 +2169,36 @@ Connecting to main.ton.dev
 Config successfully saved to config.boc
 ```
 
+## 9.5. Dump several account states
+
+Dumps the list of accounts. Files will have address without workchain id as a name.
+
+```bash
+tonos-cli dump account <list_of_addresses> [--path <dir_path>]
+```
+
+<list_of_addresses> - list of account addresses. Addresses should be specified separately with space delimiter.
+Example: `0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 3333333333333333333333333333333333333333333333333333333333333333`.
+
+<dir_path> - path to the directory where to save dumps. Defaults to current directory.
+
+Example:
+
+```bash
+$ tonos-cli dump account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 3333333333333333333333333333333333333333333333333333333333333333
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13, 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566, 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12, 0:3333333333333333333333333333333333333333333333333333333333333333
+    path: None
+Connecting to net.ton.dev
+Processing...
+./2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13.boc successfully dumped.
+./14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566.boc successfully dumped.
+0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 was not found.
+0:3333333333333333333333333333333333333333333333333333333333333333 was not found.
+Succeeded.
+```
+
 ## 10. Fetch and replay
 
 These two commands are commonly used in pairs to recover a state of the account at the specific point before a given transaction.
@@ -2159,7 +2228,7 @@ Note 1: last command generates 3 files. The file with the longest name in the fo
 
 Note 2: to get StateInit (tvc) from Account state use `tonos-cli decode account boc` command with `--dumptvc` option.
 
-### 10.1 How to unfreeze account
+### 10.1. How to unfreeze account
 
 - 1) Dump Account state before transaction in which account changed state from Active to Frozen.
 
@@ -2202,4 +2271,191 @@ Deployer.abi.json:
 }
 ```
 
+# 11. Debug commands
 
+Debug commands allow user to replay transaction locally or execute a function call locally and obtain TVM trace.
+
+## 11.1. Debug transaction
+
+```bash
+tonos-cli debug transaction [FLAGS] [OPTIONS] <address> <tx_id>
+```
+
+FLAGS:
+--dump_config           Dump the replayed config contract account state.
+--dump_contract         Dump the replayed target contract account state.
+-e, --empty_config      Replay transaction without full dump of the config contract.
+--min_trace             Flag that changes trace to minimal version.
+
+OPTIONS:
+-c, --config <CONFIG_PATH>        Path to the file with saved config contract transactions. If not set transactions
+                                  will be fetched to file "config.txns".
+-t, --contract <CONTRACT_PATH>    Path to the file with saved target contract transactions. If not set transactions
+                                  will be fetched to file "contract.txns".
+-d, --dbg_info <DBG_INFO>         Path to the file with debug info.
+--decode_abi <DECODE_ABI>         Path to the ABI file used to decode output messages.
+-o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
+                                  be removed.
+
+ARGUMENTS:
+<address>    Contract address.
+<tx_id>      ID of the transaction that should be replayed.
+
+This command allows user to replay remote transaction locally and obtain TVM trace.
+Full replay requires transactions dump of the debugged contract and of the config contract.
+This command fetches them automatically, but config contract may have too many transactions and full dump of them can
+take a very long time, that's why user can use option `--empty-config` to limit number of the queried transactions and
+speed up the execution if the debugged contract doesn't check network configuration parameters. Another way to speed up
+execution if the contract needs config is to reuse dump of config transactions by passing the file with
+`--config <CONFIG_PATH>` option.
+
+Example:
+
+```bash
+$ tonos-cli debug transaction -o tvm_trace.log 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78  74acbd354e605519d799c7e1e90e52030e8f9e781453e48ecad18bb035fe1586 --empty-config
+Config: /home/user/TONLabs/sol2tvm/scripts/tonos-cli.conf.json
+Input arguments:
+ address: 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78
+   tx_id: 74acbd354e605519d799c7e1e90e52030e8f9e781453e48ecad18bb035fe1586
+trace_path: tvm_trace.log
+config_path: None
+contract_path: None
+Fetching config contract transactions...
+Fetching contract transactions...
+Replaying the last transactions...
+DONE
+Log saved to tvm_trace.log.
+```
+
+## 11.2. Debug call
+
+```bash
+tonos-cli debug call [FLAGS] [OPTIONS] <address> <method> <params>
+```
+
+FLAGS:
+--boc          Flag that changes behavior of the command to work with the saved account state (account BOC).
+--min_trace    Flag that changes trace to minimal version.
+--tvc          Flag that changes behavior of the command to work with the saved contract state (stateInit TVC).
+
+OPTIONS:
+--abi <ABI>                             Path to the contract ABI file. Can be specified in the config file.
+--tvc_address <ACCOUNT_ADDRESS>         Account address for account constructed from TVC.
+-c, --config <CONFIG_PATH>              Path to the file with saved config contract state.
+-d, --dbg_info <DBG_INFO>               Path to the file with debug info.
+--decode_abi <DECODE_ABI>               Path to the ABI file used to decode output messages.
+-o, --output <LOG_PATH>                 Path where to store the trace. Default path is "./trace.log". Note: old file
+                                        will be removed.
+--now <NOW>                             Now timestamp (in milliseconds) for execution. If not set it is equal to the
+                                        current timestamp.
+--sign <SIGN>                           Seed phrase or path to the file with keypair used to sign the message. Can be
+                                        specified in the config.
+
+ARGUMENTS:
+<address>    Contract address or path the file with saved contract state if corresponding flag is used.
+<method>     Name of the function being called.
+<params>     Function arguments. Can be specified with a filename, which contains json data.
+
+This command allows user locally emulate contract call and obtain TVM trace.
+Command can work with contract in the network by querying its boc and running message on it or with saved account state
+in format of account BOC or pure StateInit TVC. If contract is passed via TVC file, contract address can be specified
+with `--address <tvc_address>` option. Also, execution timestamp can be specified with option `--now <timestamp>`.
+
+```bash
+$ tonos-cli debug call --abi ../samples/1_Accumulator.abi.jso
+n --sign keys/key0 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78 add2 '{"value":1}'
+Config: /home/user/TONLabs/sol2tvm/scripts/tonos-cli.conf.json
+Input arguments:
+   input: 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78
+  method: add2
+  params: {"value":1}
+    sign: keys/key0
+     abi: ../samples/1_Accumulator.abi.json
+  output: ./trace.log
+Execution finished.
+Log saved to ./trace.log
+```
+
+## 11.3. Debug replay transaction on the saved account state
+
+```bash
+    tonos-cli debug replay [FLAGS] [OPTIONS] <TX_ID> <INPUT>
+```
+
+FLAGS:
+--min_trace       Flag that changes trace to minimal version.
+--update_state    Update state of the contract.
+
+OPTIONS:
+-c, --config <CONFIG_PATH>       Path to the file with saved config contract state.
+-d, --dbg_info <DBG_INFO>        Path to the file with debug info.
+--decode_abi <DECODE_ABI>        Path to the ABI file used to decode output messages.file.
+-o, --output <LOG_PATH>          Path where to store the trace. Default path is "./trace.log". Note: old file will
+                                 be removed.
+
+ARGS:
+<TX_ID>    ID of the transaction that should be replayed.
+<INPUT>    Path to the saved account state.
+
+This command allows replay transaction on the saved account state. This can be useful if user wants to check
+transaction execution on the contract state, whose code was replaced to a new one using TVM_LINKER.
+
+```bash
+$ tonos-cli debug replay --min_trace --update_state -d 2_StorageClient.dbg.json2 --decode_abi 2_UintStorage.abi.json -o trace2.log 82733d3ddf7cae1d3fa07ec5ce288b7febf3bffd9d229a8e538f62fac10eec3e contract.boc 
+Config: default
+Input arguments:
+   input: contract.boc
+   tx_id: 82733d3ddf7cae1d3fa07ec5ce288b7febf3bffd9d229a8e538f62fac10eec3e
+  output: trace2.log
+config_path: None
+debug_info: 2_StorageClient.dbg.json2
+Contract state was updated.
+Execution finished.
+Log saved to trace2.log
+```
+
+## 11.4. HOWTO debug a contract with tonos-cli
+
+1) Call a function that fails.
+2) Explore the error message, look for these strings:
+
+```
+Error: Failed: {
+...
+    "account_address": "0:8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa",
+...
+    "transaction_id": "69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88"
+```
+
+3) Run the tonos-cli debug transaction command with the obtained values to get TVM trace:
+
+```
+tonos-cli debug transaction --dump_contract -e --min_trace -d <contract>.dbg.json -o trace_old_code.log 8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88
+```
+
+4) Explore the output for contract dump:
+
+```
+...
+Contract account was dumped to 0:8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa-69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88.boc
+...
+```
+
+5) Rewrite your contract to fix the error and compile a new version of the contract.
+6) Replace code in the account dump using tvm_linker:
+
+```
+tvm_linker replace_code -a <new_contract>.abi.json --debug-map <new_contract>.dbg.json -o contract.boc <new_contract>.code "0:8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa-69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88.boc"
+```
+
+7.1) Run debug replay to replay the transaction on the modified account state:
+
+```
+tonos-cli debug replay --update_state -d <new_contract>.dbg.json -o new_trace.log 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 contract.boc"
+```
+
+7.2) Run debug call locally on the new account to test new version of the contract on a new generated call message:
+
+```
+tonos-cli debug call --boc --abi <new_contract>.abi.json -d <new_contract>.dbg.json -o new_trace.log --sign <key> contract.boc <function> <params>
+```

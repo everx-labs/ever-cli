@@ -31,6 +31,8 @@ mod multisig;
 mod sendfile;
 mod voting;
 mod replay;
+mod debug;
+mod debug_executor;
 
 use account::{get_account, calc_storage};
 use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method, run_local_for_account};
@@ -39,6 +41,7 @@ use config::{Config, set_config, clear_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use debot::{create_debot_command, debot_command};
 use decode::{create_decode_command, decode_command};
+use debug::{create_debug_command, debug_command};
 use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
 use helpers::{load_ton_address, load_abi, create_client_local};
@@ -49,6 +52,7 @@ use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
 use replay::{fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
+use crate::account::dump_accounts;
 use crate::config::FullConfig;
 
 pub const VERBOSE_MODE: bool = true;
@@ -94,7 +98,7 @@ fn default_config_name() -> Result<String, String> {
         })
 }
 
-fn abi_from_matches_or_config(matches: &ArgMatches<'_>, config: Config) -> Result<String, String> {
+pub fn abi_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> Result<String, String> {
     Ok(matches.value_of("ABI")
         .map(|s| s.to_string())
         .or(config.abi_path.clone())
@@ -116,7 +120,7 @@ fn parse_lifetime(lifetime: Option<&str>, config: Config) -> Result<u32, String>
             .map_err(|e| format!("failed to parse lifetime: {}", e))
     })
         .transpose()?
-        .unwrap_or(config.timeout))
+        .unwrap_or(config.lifetime))
 }
 
 #[tokio::main]
@@ -278,7 +282,11 @@ async fn main_internal() -> Result <(), String> {
 
     let genphrase_cmd = SubCommand::with_name("genphrase")
         .about("Generates a seed phrase for keypair.")
-        .author("TONLabs");
+        .author("TONLabs")
+        .arg(Arg::with_name("DUMP_KEYPAIR")
+            .long("--dump")
+            .takes_value(true)
+            .help("Path where to dump keypair generated from the phrase"));
 
     let genpubkey_cmd = SubCommand::with_name("genpubkey")
         .about("Generates a public key from the seed phrase.")
@@ -478,7 +486,7 @@ async fn main_internal() -> Result <(), String> {
             .help("Number of attempts to call smart contract function if previous attempt was unsuccessful."))
         .arg(Arg::with_name("TIMEOUT")
             .long("--timeout")
-            .help("Contract call timeout in ms."))
+            .help("Network `wait_for` timeout in ms."))
         .arg(Arg::with_name("DEPOOL_FEE")
             .long("--depool_fee")
             .help("Value added to the message sent to depool to cover it's fees (change will be returned)."))
@@ -558,10 +566,14 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("TIMEOUT")
             .long("--timeout")
             .takes_value(true)
-            .help("Contract call timeout in ms."))
+            .help("Network `wait_for` timeout in ms."))
+        .arg(Arg::with_name("MSG_TIMEOUT")
+            .long("--message_processing_timeout")
+            .takes_value(true)
+            .help("Network message processing timeout in ms."))
         .arg(Arg::with_name("LIST")
             .long("--list")
-            .conflicts_with_all(&["NO_ANSWER", "ASYNC_CALL", "LOCAL_RUN", "BALANCE_IN_TONS", "LIFETIME", "DEPOOL_FEE", "PUBKEY", "URL", "ABI", "KEYS", "ADDR", "RETRIES", "TIMEOUT", "WC", "WALLET"])
+            .conflicts_with_all(&["OUT_OF_SYNC","NO_ANSWER", "ASYNC_CALL", "LOCAL_RUN", "BALANCE_IN_TONS", "LIFETIME", "DEPOOL_FEE", "PUBKEY", "URL", "ABI", "KEYS", "ADDR", "RETRIES", "TIMEOUT", "WC", "WALLET"])
             .help("Prints all config parameters."))
         .arg(Arg::with_name("DEPOOL_FEE")
             .long("--depool_fee")
@@ -570,7 +582,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("LIFETIME")
             .long("--lifetime")
             .takes_value(true)
-            .help("Period of time in seconds while message is valid."))
+            .help("Period of time in seconds while message is valid. Change of this parameter may affect \"out_of_sync\" parameter, because \"lifetime\" should be at least 2 times greater than \"out_of_sync\"."))
         .arg(Arg::with_name("NO_ANSWER")
             .long("--no-answer")
             .takes_value(true)
@@ -587,6 +599,10 @@ async fn main_internal() -> Result <(), String> {
             .long("--async_call")
             .takes_value(true)
             .help("Disables wait for transaction to appear in the network after call command."))
+        .arg(Arg::with_name("OUT_OF_SYNC")
+            .long("--out_of_sync")
+            .takes_value(true)
+            .help("Network connection \"out_of_sync_threshold\" parameter in seconds. Mind that it cant exceed half of the \"lifetime\" parameter."))
         .subcommand(config_clear_cmd)
         .subcommand(config_endpoint_cmd);
 
@@ -595,19 +611,23 @@ async fn main_internal() -> Result <(), String> {
         .about("Obtains and prints account information.")
         .version(&*version_string)
         .author("TONLabs")
-        .arg(address_arg.clone())
+        .arg(Arg::with_name("ADDRESS")
+            .required(true)
+            .takes_value(true)
+            .help("List of addresses.")
+            .multiple(true))
         .arg(Arg::with_name("DUMPTVC")
             .long("--dumptvc")
             .short("-d")
             .takes_value(true)
             .conflicts_with("DUMPBOC")
-            .help("Dumps account StateInit to the specified tvc file."))
+            .help("Dumps account StateInit to the specified tvc file. Works only if one address was given."))
         .arg(Arg::with_name("DUMPBOC")
             .long("--dumpboc")
             .short("-b")
             .takes_value(true)
             .conflicts_with("DUMPTVC")
-            .help("Dumps the whole account state boc to the specified file."));
+            .help("Dumps the whole account state boc to the specified file. Works only if one address was given. Use 'tonos-cli dump account` to dump several accounts."));
 
     let fee_cmd = SubCommand::with_name("fee")
         .about("Calculates fees for executing message or account storage fee.")
@@ -621,7 +641,7 @@ async fn main_internal() -> Result <(), String> {
                 .long("--period")
                 .short("-p")
                 .takes_value(true)
-                .help("Time period in seconds (default value is 1 day).")))
+                .help("Time period in seconds (default value is 1 year).")))
         .subcommand(deploy_cmd.clone()
             .about("Executes deploy locally, calculates fees and prints table of fees in nanotons."))
         .subcommand(call_cmd.clone()
@@ -691,12 +711,28 @@ async fn main_internal() -> Result <(), String> {
             .help("Parameter index."));
 
     let bcconfig_cmd = SubCommand::with_name("dump")
+        .about("Commands to dump network entities.")
+        .version(&*version_string)
+        .author("TONLabs")
         .subcommand(SubCommand::with_name("config")
             .about("Dumps the blockchain config for the last key block.")
             .arg(Arg::with_name("PATH")
                 .required(true)
                 .takes_value(true)
-                .help("Path to the file where to save the blockchain config.")));
+                .help("Path to the file where to save the blockchain config.")))
+        .subcommand(SubCommand::with_name("account")
+            .about("Dumps state of given accounts.")
+            .setting(AppSettings::AllowLeadingHyphen)
+            .arg(Arg::with_name("ADDRESS")
+                .required(true)
+                .takes_value(true)
+                .help("List of addresses.")
+                .multiple(true))
+            .arg(Arg::with_name("PATH")
+                .takes_value(true)
+                .long("--path")
+                .short("-p")
+                .help("Path to folder where to store the dumped accounts. Default value is \".\".")));
 
     let nodeid_cmd = SubCommand::with_name("nodeid")
         .about("Calculates node ID from the validator public key")
@@ -718,6 +754,7 @@ async fn main_internal() -> Result <(), String> {
 
     let fetch_cmd = SubCommand::with_name("fetch")
         .about("Fetches account's zerostate and transactions.")
+        .setting(AppSettings::AllowLeadingHyphen)
         .arg(address_arg.clone().help("Account address to fetch zerostate and txns for."))
         .arg(Arg::with_name("OUTPUT")
             .required(true)
@@ -786,6 +823,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(create_depool_command())
         .subcommand(create_decode_command())
         .subcommand(create_debot_command())
+        .subcommand(create_debug_command())
         .subcommand(getconfig_cmd)
         .subcommand(bcconfig_cmd)
         .subcommand(nodeid_cmd)
@@ -924,6 +962,9 @@ async fn main_internal() -> Result <(), String> {
         if let Some(m) = matches.subcommand_matches("config") {
             return dump_bc_config_command(m, conf).await;
         }
+        if let Some(m) = matches.subcommand_matches("account") {
+            return dump_accounts_command(m, conf).await;
+        }
     }
     if let Some(m) = matches.subcommand_matches("nodeid") {
         return nodeid_command(m);
@@ -933,6 +974,9 @@ async fn main_internal() -> Result <(), String> {
     }
     if let Some(m) = matches.subcommand_matches("decode") {
         return decode_command(m, conf).await;
+    }
+    if let Some(m) = matches.subcommand_matches("debug") {
+        return debug_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("debot") {
         return debot_command(m, conf).await;
@@ -970,8 +1014,8 @@ fn convert_tokens(matches: &ArgMatches, config: Config) -> Result<(), String> {
     Ok(())
 }
 
-fn genphrase_command(_matches: &ArgMatches, _config: Config) -> Result<(), String> {
-    generate_mnemonic()
+fn genphrase_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
+    generate_mnemonic(matches.value_of("DUMP_KEYPAIR"), config)
 }
 
 fn genpubkey_command(matches: &ArgMatches, _config: Config) -> Result<(), String> {
@@ -979,16 +1023,16 @@ fn genpubkey_command(matches: &ArgMatches, _config: Config) -> Result<(), String
     extract_pubkey(mnemonic)
 }
 
-fn getkeypair_command(matches: &ArgMatches, _config: Config) -> Result<(), String> {
+fn getkeypair_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let key_file = matches.value_of("KEY_FILE");
     let phrase = matches.value_of("PHRASE");
     print_args!(key_file, phrase);
-    generate_keypair(key_file.unwrap(), phrase.unwrap())
+    generate_keypair(key_file.unwrap(), phrase.unwrap(), config)
 }
 
 async fn send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let message = matches.value_of("MESSAGE");
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
 
     print_args!(message, abi);
 
@@ -1011,7 +1055,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
     let output = matches.value_of("OUTPUT");
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let params = Some(load_params(params.unwrap())?);
     print_args!(method, params, abi, output);
 
@@ -1053,7 +1097,7 @@ fn unpack_alternative_params(matches: &ArgMatches<'_>, abi: &str, method: &str) 
 async fn runx_account(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let account = matches.value_of("ADDRESS");
     let method = matches.value_of("METHOD");
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
 
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
@@ -1083,7 +1127,7 @@ async fn run_account(matches: &ArgMatches<'_>, config: Config) -> Result<(), Str
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
 
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
 
     let params = Some(load_params(params.unwrap())?);
     if !config.is_json {
@@ -1112,7 +1156,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
 
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
 
     let keys = match call {
         CallType::Call | CallType::Msg | CallType::Fee => {
@@ -1175,7 +1219,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
 async fn callx_command(matches: &ArgMatches<'_>, config: Config, call_type: CallType) -> Result<(), String> {
     let method = matches.value_of("METHOD");
     let address = Some(address_from_matches_or_config(matches, config.clone())?);
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
 
@@ -1219,7 +1263,7 @@ async fn callex_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
             .or(config.addr.clone())
             .ok_or("ADDRESS is not defined. Supply it in the config file or in command line.".to_string())?
     );
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
     let params = matches.values_of("PARAMS").ok_or("PARAMS is not defined")?;
@@ -1283,7 +1327,7 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: D
     let wc = wc_from_matches_or_config(matches, config.clone())?;
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let keys = matches.value_of("SIGN")
             .map(|s| s.to_string())
             .or(config.keys_path.clone());
@@ -1303,7 +1347,7 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: D
 async fn deployx_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let tvc = matches.value_of("TVC");
     let wc = wc_from_matches_or_config(matches, config.clone())?;
-    let abi = Some(abi_from_matches_or_config(matches, config.clone())?);
+    let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
     let params = unpack_alternative_params(
@@ -1363,13 +1407,15 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let wc = matches.value_of("WC");
             let retries = matches.value_of("RETRIES");
             let timeout = matches.value_of("TIMEOUT");
+            let msg_timeout = matches.value_of("MSG_TIMEOUT");
             let depool_fee = matches.value_of("DEPOOL_FEE");
             let lifetime = matches.value_of("LIFETIME");
             let no_answer = matches.value_of("NO_ANSWER");
             let balance_in_tons = matches.value_of("BALANCE_IN_TONS");
             let local_run = matches.value_of("LOCAL_RUN");
             let async_call = matches.value_of("ASYNC_CALL");
-            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, async_call);
+            let out_of_sync = matches.value_of("OUT_OF_SYNC");
+            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, msg_timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, async_call, out_of_sync);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {
@@ -1397,19 +1443,41 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
     let update_tvc = matches.is_present("SAVE");
     let abi = matches.value_of("ABI");
     let is_update_tvc = if update_tvc { Some("true") } else { None };
-    print_args!(tvc, wc, keys, init_data, is_update_tvc);
+    if !config.is_json {
+        print_args!(tvc, wc, keys, init_data, is_update_tvc);
+    }
     generate_address(config, tvc.unwrap(), abi.unwrap(), wc, keys, new_keys, init_data, update_tvc).await
 }
 
 async fn account_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    let address = matches.value_of("ADDRESS");
+    let addresses_list = matches.values_of("ADDRESS").unwrap().collect::<Vec<_>>();
+    let mut formatted_list = vec![];
+    for address in addresses_list.iter() {
+        let formatted = load_ton_address(address, &config)?;
+        formatted_list.push(formatted);
+    }
     let tvcname = matches.value_of("DUMPTVC");
     let bocname = matches.value_of("DUMPBOC");
+    let addresses = Some(formatted_list.join(", "));
     if !config.is_json {
-        print_args!(address);
+        print_args!(addresses);
     }
-    let address = load_ton_address(address.unwrap(), &config)?;
-    get_account(config, address.as_str(), tvcname, bocname).await
+    get_account(config, formatted_list, tvcname, bocname).await
+}
+
+async fn dump_accounts_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+    let addresses_list = matches.values_of("ADDRESS").unwrap().collect::<Vec<_>>();
+    let mut formatted_list = vec![];
+    for address in addresses_list.iter() {
+        let formatted = load_ton_address(address, &config)?;
+        formatted_list.push(formatted);
+    }
+    let path = matches.value_of("PATH");
+    let addresses = Some(formatted_list.join(", "));
+    if !config.is_json {
+        print_args!(addresses, path);
+    }
+    dump_accounts(config, formatted_list, path).await
 }
 
 async fn storage_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {

@@ -22,6 +22,9 @@ use ton_client::crypto::{CryptoConfig, KeyPair};
 use ton_client::error::ClientError;
 use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection};
 use ton_client::{ClientConfig, ClientContext};
+use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit};
+use std::str::FromStr;
+use serde_json::Value;
 
 const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
 const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
@@ -59,13 +62,12 @@ pub fn read_keys(filename: &str) -> Result<KeyPair, String> {
 }
 
 pub fn load_ton_address(addr: &str, conf: &Config) -> Result<String, String> {
-    use std::str::FromStr;
     let addr = if addr.find(':').is_none() {
         format!("{}:{}", conf.wc, addr)
     } else {
         addr.to_owned()
     };
-    let _ = ton_block::MsgAddressInt::from_str(&addr)
+    let _ = MsgAddressInt::from_str(&addr)
         .map_err(|e| format!("Address is specified in the wrong format. Error description: {}", e))?;
     Ok(addr)
 }
@@ -94,7 +96,7 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
     let cli_conf = ClientConfig {
         abi: AbiConfig {
             workchain: conf.wc,
-            message_expiration_timeout: conf.timeout,
+            message_expiration_timeout: conf.lifetime * 1000,
             message_expiration_timeout_grow_factor: 1.3,
         },
         crypto: CryptoConfig {
@@ -109,12 +111,12 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
                 } else {
                     Some(conf.endpoints.to_owned())
                 },
-            network_retries_count: 3,
+            // network_retries_count: 3,
             message_retries_count: conf.retries as i8,
             message_processing_timeout: 30000,
-            wait_for_timeout: 30000,
-            out_of_sync_threshold: (conf.timeout / 2),
-            max_reconnect_timeout: 1000,
+            wait_for_timeout: conf.timeout,
+            out_of_sync_threshold: conf.out_of_sync_threshold * 1000,
+            // max_reconnect_timeout: 1000,
             ..Default::default()
         },
         ..Default::default()
@@ -167,15 +169,27 @@ pub async fn query_with_limit(
         .map(|r| r.result)
 }
 
-pub async fn query(
-    ton: TonClient,
-    collection: &str,
-    filter: serde_json::Value,
-    result: &str,
-    order: Option<Vec<OrderBy>>,
-) -> Result<Vec<serde_json::Value>, ClientError> {
-    query_with_limit(ton, collection, filter, result, order, None).await
+pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> Result<String, String> {
+    let accounts = query_with_limit(
+        ton.clone(),
+        "accounts",
+        json!({ "id": { "eq": address } }),
+        field,
+        None,
+        Some(1),
+    ).await
+        .map_err(|e| format!("failed to query account data: {}", e))?;
+
+    if accounts.len() == 0 {
+        return Err(format!("account not found"));
+    }
+    let data = accounts[0][field].as_str();
+    if data.is_none() {
+        return Err(format!("account doesn't contain {}", field));
+    }
+    Ok(data.unwrap().to_string())
 }
+
 
 pub async fn decode_msg_body(
     ton: TonClient,
@@ -298,6 +312,45 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
     return Ok(("".to_owned(), "".to_owned()));
 }
 
+pub fn json_account(
+    acc_type: Option<String>,
+    address: Option<String>,
+    balance: Option<String>,
+    last_paid: Option<String>,
+    last_trans_lt: Option<String>,
+    data: Option<String>,
+    code_hash: Option<String>,
+    state_init: Option<String>,
+) -> Value {
+    let mut res = json!({ });
+    if acc_type.is_some() {
+        res["acc_type"] = json!(acc_type.unwrap());
+    }
+    if address.is_some() {
+        res["address"] = json!(address.unwrap());
+    }
+    if balance.is_some() {
+        res["balance"] = json!(balance.unwrap());
+    }
+    if last_paid.is_some() {
+        res["last_paid"] = json!(last_paid.unwrap());
+    }
+    if last_trans_lt.is_some() {
+        res["last_trans_lt"] = json!(last_trans_lt.unwrap());
+    }
+    if data.is_some() {
+        res["data(boc)"] = json!(data.unwrap());
+    }
+    if code_hash.is_some() {
+        res["code_hash"] = json!(code_hash.unwrap());
+    }
+    if state_init.is_some() {
+        res["state_init"] = json!(state_init.unwrap());
+    }
+    res
+}
+
+
 pub fn print_account(
     config: &Config,
     acc_type: Option<String>,
@@ -310,32 +363,17 @@ pub fn print_account(
     state_init: Option<String>,
 ) {
     if config.is_json {
-        println!("{{");
-        if acc_type.is_some() {
-            print!("  \"acc_type\": \"{}\"", acc_type.unwrap());
-        }
-        if address.is_some() {
-            print!(",\n  \"address\": \"{}\"", address.unwrap());
-        }
-        if balance.is_some() {
-            print!(",\n  \"balance\": \"{}\"", balance.unwrap());
-        }
-        if last_paid.is_some() {
-            print!(",\n  \"last_paid\": \"{}\"", last_paid.unwrap());
-        }
-        if last_trans_lt.is_some() {
-            print!(",\n  \"last_trans_lt\": \"{}\"", last_trans_lt.unwrap());
-        }
-        if data.is_some() {
-            print!(",\n  \"data(boc)\": \"{}\"", data.unwrap());
-        }
-        if code_hash.is_some() {
-            print!(",\n  \"code_hash\": \"{}\"", code_hash.unwrap());
-        }
-        if state_init.is_some() {
-            print!(",\n  \"state_init\": {}", state_init.unwrap());
-        }
-        println!("\n}}");
+        let acc = json_account(
+            acc_type,
+            address,
+            balance,
+            last_paid,
+            last_trans_lt,
+            data,
+            code_hash,
+            state_init,
+        );
+        println!("{}", serde_json::to_string_pretty(&acc).unwrap_or("Undefined".to_string()));
     } else {
         if acc_type.is_some() && acc_type.clone().unwrap() == "NonExist" {
             println!("Account does not exist.");
@@ -366,4 +404,30 @@ pub fn print_account(
             println!("state_init: {}", state_init.unwrap());
         }
     }
+}
+
+pub fn construct_account_from_tvc(tvc_path: &str, address: Option<&str>, balance: Option<u64>) -> Result<Account, String> {
+    Ok(Account::active_by_init_code_hash(
+        match address {
+            Some(address) => MsgAddressInt::from_str(address)
+                .map_err(|e| format!("Failed to set address: {}", e))?,
+            _ => MsgAddressInt::default()
+        },
+        match balance {
+            Some(balance) => CurrencyCollection::with_grams(balance),
+            _ => CurrencyCollection::default()
+        },
+        0,
+        StateInit::construct_from_file(tvc_path)
+            .map_err(|e| format!(" failed to load TVC from the file {}: {}", tvc_path, e))?,
+        true
+    ).map_err(|e| format!(" failed to create account with the stateInit: {}",e))?)
+}
+
+pub fn check_dir(path: &str) -> Result<(), String> {
+    if !path.is_empty() && !std::path::Path::new(path).exists() {
+        std::fs::create_dir(path)
+            .map_err(|e| format!("Failed to create folder {}: {}", path, e))?;
+    }
+    Ok(())
 }
