@@ -13,7 +13,7 @@
 use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field};
+use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field, query_with_limit};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
@@ -23,13 +23,15 @@ use ton_types::{UInt256, HashmapE};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
 use ton_executor::{ExecuteParams, TransactionExecutor};
 use std::sync::{Arc, atomic::AtomicU64};
-use ton_client::net::{ParamsOfQueryCollection, query_collection};
+use ton_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDirection};
 use crate::crypto::load_keypair;
 use crate::debug_executor::{DebugTransactionExecutor, TraceLevel};
+use std::fmt;
 
 const DEFAULT_TRACE_PATH: &'static str = "./trace.log";
 const DEFAULT_CONFIG_PATH: &'static str = "config.txns";
 const DEFAULT_CONTRACT_PATH: &'static str = "contract.txns";
+const TRANSACTION_QUANTITY: u32 = 10;
 
 
 struct DebugLogger {
@@ -150,36 +152,87 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .short("-c")
         .takes_value(true);
 
+    let empty_config_arg = Arg::with_name("EMPTY_CONFIG")
+        .help("Replay transaction without full dump of the config contract.")
+        .long("--empty_config")
+        .short("-e");
+
+    let config_save_path_arg = Arg::with_name("CONFIG_PATH")
+        .help("Path to the file with saved config contract transactions. If not set transactions will be fetched to file \"config.txns\".")
+        .long("--config")
+        .short("-c")
+        .takes_value(true);
+
+    let contract_path_arg = Arg::with_name("CONTRACT_PATH")
+        .help("Path to the file with saved target contract transactions. If not set transactions will be fetched to file \"contract.txns\".")
+        .long("--contract")
+        .short("-t")
+        .takes_value(true);
+
+    let dump_config_arg = Arg::with_name("DUMP_CONFIG")
+        .help("Dump the replayed config contract account state.")
+        .long("--dump_config");
+
+    let dump_contract_arg = Arg::with_name("DUMP_CONTRACT")
+        .help("Dump the replayed target contract account state.")
+        .long("--dump_contract");
+
+    let run_cmd = SubCommand::with_name("run")
+        .about("Play getter locally with trace")
+        .arg(output_arg.clone())
+        .arg(dbg_info_arg.clone())
+        .arg(address_arg.clone())
+        .arg(method_arg.clone())
+        .arg(params_arg.clone())
+        .arg(abi_arg.clone())
+        .arg(min_trace_arg.clone())
+        .arg(decode_abi_arg.clone())
+        .arg(boc_arg.clone())
+        .arg(Arg::with_name("TVC")
+            .long("--tvc")
+            .conflicts_with("BOC")
+            .help("Flag that changes behavior of the command to work with the saved contract state (stateInit TVC)."))
+        .arg(Arg::with_name("ACCOUNT_ADDRESS")
+            .takes_value(true)
+            .long("--tvc_address")
+            .help("Account address for account constructed from TVC.")
+            .requires("TVC"))
+        .arg(Arg::with_name("NOW")
+            .takes_value(true)
+            .long("--now")
+            .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp."))
+        .arg(config_path_arg.clone());
+
+    let call_cmd = run_cmd.clone().name("call")
+        .about("Play call locally with trace")
+        .arg(sign_arg.clone());
+
     SubCommand::with_name("debug")
         .about("Debug commands.")
         .subcommand(SubCommand::with_name("transaction")
             .about("Replay transaction with specified ID.")
-            .arg(Arg::with_name("EMPTY_CONFIG")
-                .help("Replay transaction without full dump of the config contract.")
-                .long("--empty_config")
-                .short("-e"))
-            .arg(Arg::with_name("CONFIG_PATH")
-                .help("Path to the file with saved config contract transactions. If not set transactions will be fetched to file \"config.txns\".")
-                .long("--config")
-                .short("-c")
-                .takes_value(true))
-            .arg(Arg::with_name("CONTRACT_PATH")
-                .help("Path to the file with saved target contract transactions. If not set transactions will be fetched to file \"contract.txns\".")
-                .long("--contract")
-                .short("-t")
-                .takes_value(true))
+            .arg(empty_config_arg.clone())
+            .arg(config_save_path_arg.clone())
+            .arg(contract_path_arg.clone())
             .arg(output_arg.clone())
             .arg(dbg_info_arg.clone())
-            .arg(address_arg.clone())
             .arg(min_trace_arg.clone())
             .arg(decode_abi_arg.clone())
             .arg(tx_id_arg.clone())
-            .arg(Arg::with_name("DUMP_CONFIG")
-                .help("Dump the replayed config contract account state.")
-                .long("--dump_config"))
-            .arg(Arg::with_name("DUMP_CONTRACT")
-                .help("Dump the replayed target contract account state.")
-                .long("--dump_contract")))
+            .arg(dump_config_arg.clone())
+            .arg(dump_contract_arg.clone()))
+        .subcommand(SubCommand::with_name("account")
+            .about("Loads list of the last transactions for the specified account. User should choose which one to debug.")
+            .arg(empty_config_arg.clone())
+            .arg(config_save_path_arg.clone())
+            .arg(contract_path_arg.clone())
+            .arg(output_arg.clone())
+            .arg(dbg_info_arg.clone())
+            .arg(min_trace_arg.clone())
+            .arg(decode_abi_arg.clone())
+            .arg(address_arg.clone())
+            .arg(dump_config_arg.clone())
+            .arg(dump_contract_arg.clone()))
         .subcommand(SubCommand::with_name("replay")
             .about("Replay transaction on the saved account state.")
             .arg(output_arg.clone())
@@ -195,40 +248,22 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
                 .help("Path to the saved account state.")
                 .required(true)
                 .takes_value(true)))
-        .subcommand(SubCommand::with_name("call")
-            .about("Play call locally with trace")
-            .arg(output_arg.clone())
-            .arg(dbg_info_arg.clone())
-            .arg(address_arg.clone())
-            .arg(method_arg.clone())
-            .arg(params_arg.clone())
-            .arg(abi_arg.clone())
-            .arg(sign_arg.clone())
-            .arg(min_trace_arg.clone())
-            .arg(decode_abi_arg.clone())
-            .arg(boc_arg.clone())
-            .arg(Arg::with_name("TVC")
-                .long("--tvc")
-                .conflicts_with("BOC")
-                .help("Flag that changes behavior of the command to work with the saved contract state (stateInit TVC)."))
-            .arg(Arg::with_name("ACCOUNT_ADDRESS")
-                .takes_value(true)
-                .long("--tvc_address")
-                .help("Account address for account constructed from TVC.")
-                .requires("TVC"))
-            .arg(Arg::with_name("NOW")
-                .takes_value(true)
-                .long("--now")
-                .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp."))
-            .arg(config_path_arg.clone()))
+        .subcommand(call_cmd)
+        .subcommand(run_cmd)
 }
 
 pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     if let Some(matches) = matches.subcommand_matches("transaction") {
-        return debug_transaction_command(matches, config).await;
+        return debug_transaction_command(matches, config, false).await;
+    }
+    if let Some(matches) = matches.subcommand_matches("account") {
+        return debug_transaction_command(matches, config, true).await;
     }
     if let Some(matches) = matches.subcommand_matches("call") {
-        return debug_call_command(matches, config).await;
+        return debug_call_command(matches, config, false).await;
+    }
+    if let Some(matches) = matches.subcommand_matches("run") {
+        return debug_call_command(matches, config, true).await;
     }
     if let Some(matches) = matches.subcommand_matches("replay") {
         return replay_transaction_command(matches, config).await;
@@ -236,20 +271,30 @@ pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
     Err("unknown command".to_owned())
 }
 
-async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
-    let address = matches.value_of("ADDRESS");
-    let tx_id = matches.value_of("TX_ID");
+async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_account: bool) -> Result<(), String> {
     let trace_path = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
     let config_path = matches.value_of("CONFIG_PATH");
     let contract_path = matches.value_of("CONTRACT_PATH");
-    if !config.is_json {
-        print_args!(address, tx_id, trace_path, config_path, contract_path);
-    }
-
     let is_empty_config = matches.is_present("EMPTY_CONFIG");
 
-    let address = load_ton_address(address.unwrap(), &config)?;
+    let (tx_id, address) = if !is_account {
+        let tx_id = matches.value_of("TX_ID");
+        if !config.is_json {
+            print_args!(tx_id, trace_path, config_path, contract_path);
+        }
+        let address = query_address(tx_id.clone().unwrap(), &config).await?;
+        (tx_id.unwrap().to_string(), address)
+    } else {
+        let address = matches.value_of("ADDRESS");
+        if !config.is_json {
+            print_args!(address, trace_path, config_path, contract_path);
+        }
+        let address = address.unwrap();
+        let transactions = query_transactions(address, &config).await?;
+        let tr_id = choose_transaction(transactions)?;
+        (tr_id, address.to_string())
+    };
 
     let config_path = match config_path {
         Some(config_path) => {
@@ -295,14 +340,14 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config) -> 
         dump_mask |= DUMP_ACCOUNT;
     }
     println!("Replaying the last transactions...");
-    let tr = replay(contract_path, config_path, &tx_id.unwrap(),false, false, false, trace_level, init_logger, debug_info, dump_mask).await?;
+    let tr = replay(contract_path, config_path, &tx_id,false, false, false, trace_level, init_logger, debug_info, dump_mask).await?;
 
     decode_messages(tr.out_msgs, load_decode_abi(matches, config)).await?;
     println!("Log saved to {}.", trace_path);
     Ok(())
 }
 
-async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: TonClient, debug_info: Option<String>, is_min_trace: bool) -> Result<Box<DebugTransactionExecutor>, String> {
+async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: TonClient, debug_info: Option<String>, is_min_trace: bool, is_getter: bool) -> Result<Box<DebugTransactionExecutor>, String> {
     let config_account = match matches.value_of("CONFIG_PATH") {
         Some(bc_config) => {
             Account::construct_from_file(bc_config)
@@ -317,6 +362,7 @@ async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: 
     }.map_err(|e| format!("Failed to construct config account: {}", e))?;
     let bc_config = construct_blockchain_config(&config_account)?;
 
+
     Ok(Box::new(
         DebugTransactionExecutor::new(
             bc_config.clone(),
@@ -325,7 +371,8 @@ async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: 
                 TraceLevel::Minimal
             } else {
                 TraceLevel::Full
-            }
+            },
+            is_getter
         )
     ))
 }
@@ -376,7 +423,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
     let trans = Transaction::construct_from_base64(boc)
         .map_err(|e| format!("Failed to parse transaction: {}", e))?;
 
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace).await?;
+    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, false).await?;
 
     let mut account = Account::construct_from_file(input.unwrap())
         .map_err(|e| format!("Failed to construct account from the file: {}", e))?
@@ -443,7 +490,7 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: Config) -> Option<String> {
     }
 }
 
-async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter: bool) -> Result<(), String> {
     let input = matches.value_of("ADDRESS");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
@@ -532,7 +579,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config) -> Result<
         debug: true,
     };
 
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace).await?;
+    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, is_getter).await?;
 
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
@@ -581,4 +628,92 @@ async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<(), S
             .map_err(|e| format!("Failed to serialize json: {}", e))?);
     }
     Ok(())
+}
+
+async fn query_address(tr_id: &str, config: &Config) -> Result<String, String> {
+    let ton_client = create_client(config)?;
+    let query_result = query_with_limit(
+        ton_client,
+        "transactions",
+        json!({
+            "id": {
+                "eq": tr_id
+            }
+        }),
+        "account_addr",
+        None,
+        Some(1)
+    ).await
+        .map_err(|e| format!("Failed to query address: {}", e))?;
+    match query_result.len() {
+        0 => Err("Transaction was not found".to_string()),
+        _ => Ok(query_result[0]["account_addr"]
+            .to_string()
+            .trim_start_matches(|c| c == '"')
+            .trim_end_matches(|c| c == '"')
+            .to_string())
+    }
+}
+
+struct TrDetails {
+    transaction_id: String,
+    timestamp: String,
+    source_address: String,
+    message_type: String
+}
+
+impl fmt::Display for TrDetails {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\ttransaction_id: {}\n", self.transaction_id)?;
+        write!(f, "\ttimestamp     : {}\n", self.timestamp)?;
+        write!(f, "\tmessage_type  : {}\n", self.message_type)?;
+        write!(f, "\tsource_address: {}\n", self.source_address)
+    }
+}
+
+async fn query_transactions(address: &str, config: &Config) -> Result<Vec<TrDetails>, String> {
+    let ton_client = create_client(config)?;
+    let order = vec![OrderBy{ path: "lt".to_string(), direction: SortDirection::DESC }];
+    let query_result = query_with_limit(
+        ton_client,
+        "transactions",
+        json!({
+            "account_addr": {
+                "eq": address
+            }
+        }),
+        "id now_string in_message { src msg_type_name }",
+        Some(order),
+        Some(TRANSACTION_QUANTITY)
+    ).await
+        .map_err(|e| format!("Failed to query address: {}", e))?;
+    match query_result.len() {
+        0 => Err("Transaction list is empty.".to_string()),
+        _ => {
+            Ok(query_result.iter().map(|query| {
+                TrDetails{
+                    transaction_id: query["id"].to_string(),
+                    timestamp: query["now_string"].to_string(),
+                    source_address: query["in_message"]["src"].to_string(),
+                    message_type: query["in_message"]["msg_type_name"].to_string()
+                }
+            }).collect::<Vec<TrDetails>>())
+        }
+    }
+}
+
+fn choose_transaction(transactions: Vec<TrDetails>) -> Result<String, String> {
+    println!("\n\nChoose transaction you want to debug:");
+    for index in 1..=transactions.len() {
+        println!("{}){}", index, transactions[index - 1]);
+    }
+    println!("\n\nEnter number of the chosen transaction (from 1 to {}):", transactions.len());
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+    let chosen: usize = input.trim().parse()
+        .map_err(|e| format!("Failed to parse user input as integer: {}", e))?;
+    if !(1..=transactions.len()).contains(&chosen) {
+        return Err("Wrong transaction number".to_string());
+    }
+    Ok(transactions[chosen-1].transaction_id.trim_start_matches(|c| c == '"').trim_end_matches(|c| c == '"').to_string())
 }

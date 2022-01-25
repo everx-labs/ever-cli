@@ -80,7 +80,7 @@ tonos-cli <subcommand> -h
   - [7.8. View DePool events](#78-view-depool-events)
   - [7.9. Replenish DePool balance](#79-replenish-depool-balance)
   - [7.10. Send ticktock to DePool](#710-send-ticktock-to-depool)
-- [8. Proposal commads](#8-proposal-commads)
+- [8. Proposal commands](#8-proposal-commands)
   - [8.1. Create proposal and cast the first vote](#81-create-proposal-and-cast-the-first-vote)
   - [8.2. Vote for proposal](#82-vote-for-proposal)
   - [8.3. Decode proposal comment](#83-decode-proposal-comment)
@@ -95,8 +95,9 @@ tonos-cli <subcommand> -h
 - [11. Debug commands](#11-debug-commands)
   - [11.1. Debug transaction](#111-debug-transaction)
   - [11.2. Debug call](#112-debug-call)
-  - [11.3. Debug replay transaction on the saved account state](#113-debug-replay-transaction-on-the-saved-account-state)
-  - [11.4. HOWTO debug a contract with tonos-cli](#114-howto-debug-a-contract-with-tonos-cli)
+  - [11.3. Debug run](#113-debug-run)
+  - [11.4. Debug replay transaction on the saved account state](#114-debug-replay-transaction-on-the-saved-account-state)
+  - [11.5. HOWTO debug a contract with tonos-cli](#115-howto-debug-a-contract-with-tonos-cli)
 
 # 1. Installation
 
@@ -192,7 +193,7 @@ This step can be skipped, if TONOS-CLI was installed through EVERDEV. Otherwise,
 
 ## Check version
 
-You can check the version of he current TONOS-CLI installation with the following command:
+You can check version of the current TONOS-CLI installation with the following command:
 
 ```bash
 tonos-cli version
@@ -234,7 +235,7 @@ If this is not done, `arguments are not in json format: key must be a string at 
 
 TONOS-CLI can remember some parameter values and use it automatically in various subcommands.
 
-After that you can omit the corresponding parameters in sunsequent subcommands.
+After that you can omit the corresponding parameters in subsequent subcommands.
 
 `tonos-cli.config.json` configuration file will be created in the current working directory. All subsequent calls of the utility will use this file.
 
@@ -304,7 +305,7 @@ Succeeded.
 
 ```
 
-Some of the frequently used networks:
+Some frequently used networks:
 
 `https://net.ton.dev` - developer sandbox for testing. TONOS-CLI connects to it by default.
 
@@ -312,7 +313,7 @@ Some of the frequently used networks:
 
 `https://rustnet.ton.dev` - test network running on Rust nodes.
 
-TONOS-CLI supports the use of multiple endpoints for networks: if several endpoints are [specified in the endpoint map](#24-configure-endpoints-map) for a network, TONOS-CLI will use them all when accessing it. Otherwise the network URL will be treated as the only endpoint.
+TONOS-CLI supports the use of multiple endpoints for networks: if several endpoints are [specified in the endpoint map](#24-configure-endpoints-map) for a network, TONOS-CLI will use them all when accessing it. Otherwise, the network URL will be treated as the only endpoint.
 
 `main.ton.dev` and `net.ton.dev` networks already have their current endpoints specified in the default endpoint map.
 See [section 2.4 below](#24-configure-endpoints-map) on how to edit and add endpoints to the endpoint map.
@@ -320,11 +321,11 @@ See [section 2.4 below](#24-configure-endpoints-map) on how to edit and add endp
 > **Note**: This change was introduced in version 0.16.1 and is fully compatible with scripts written for previous versions, where main.ton.dev and net.ton.dev networks were specified with a single url. TONOS-CLI will simply use the default endpoint map to access these networks.
 
 
-Network configuration can be [overridden](#25-override-network-settings) for any single subcommand.
+Network configuration can be [overridden](#26-override-network-settings) for any single subcommand.
 
 To connect to a [DApp Server](https://github.com/tonlabs/TON-OS-DApp-Server) you are running, it should have domain name and a DNS record. Then its URL may be used to access it with TONOS-CLI:
 
-```jsx
+```bash
 tonos-cli config --url <dapp_server_url>
 ```
 
@@ -432,7 +433,7 @@ tonos-cli --config /home/user/config.json account <address>
 
 The `--config` global option has higher priority than the `TONOSCLI_CONFIG` environment variable.
 
-> Note: You cannot use the config subcommand to create or edit a configuration file located outside of the current working directory. It should either be called from the directory containing the file, or the file should be manually copied to the desired directory later.
+> Note: You cannot use the config subcommand to create or edit a configuration file located outside the current working directory. It should either be called from the directory containing the file, or the file should be manually copied to the desired directory later.
 
 > However, config --list subcommand displays the parameters of the currently used configuration file, wherever it is located.
 
@@ -528,7 +529,7 @@ When working with smart contracts, TONOS-CLI requires the following files:
 - **TVC file** - the compiled smart contract file. Used only when generating contract address and deploying contract code to the blockchain.
 - **Key pair file** - used in contracts with implemented authorization. It is the file containing [private and public keys](#3-cryptographic-commands) authorized to access the contract. In `--sign` parameter the corresponding seed phrase may be used instead of it.
 
-By default the utility looks for these files in the current working directory.
+By default, the utility looks for these files in the current working directory.
 
 ## 4.1. Generate contract address
 
@@ -549,7 +550,7 @@ tonos-cli genaddr [--genkey|--setkey <keyfile.json>] [--wc <int8>] <contract.tvc
 > Note: if you use --genkey, the corresponding seed phrase will be displayed. Write it down, if you mean to keep using this key pair.
 
 - `--setkey <keyfile.json>` - use already [existing](#33-generate-key-pair-file) `keyfile.json` key pair file to calculate the contract address. Seed phrase cannot be used instead of the file.
-- `--wc <int8>`  ID of the workchain the contract will be deployed to (`-1` for masterchain, `0` for basechain). By default this value is set to 0.
+- `--wc <int8>`  ID of the workchain the contract will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
 
 `<contract.tvc>` - compiled smart contract file.
 
@@ -599,7 +600,7 @@ Example:
 or
 
 - `--sign deploy.keys.json`
-- `--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default this value is set to 0.
+- `--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
 
 `<contract.abi.json>` - contract interface file.
 
@@ -645,7 +646,7 @@ Example:
 or
 
 - `--sign deploy.keys.json`
-- `--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default this value is set to 0.
+- `--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
 
 `<contract.abi.json>` - contract interface file.
 
@@ -2034,7 +2035,7 @@ Result: {
 }
 ```
 
-# 8. Proposal commads
+# 8. Proposal commands
 
 The following commands are used when voting for various FreeTON proposals at [https://gov.freeton.org/](https://gov.freeton.org/)
 
@@ -2278,7 +2279,7 @@ Debug commands allow user to replay transaction locally or execute a function ca
 ## 11.1. Debug transaction
 
 ```bash
-tonos-cli debug transaction [FLAGS] [OPTIONS] <address> <tx_id>
+tonos-cli debug transaction [FLAGS] [OPTIONS] <tx_id>
 ```
 
 FLAGS:
@@ -2298,7 +2299,6 @@ OPTIONS:
                                   be removed.
 
 ARGUMENTS:
-<address>    Contract address.
 <tx_id>      ID of the transaction that should be replayed.
 
 This command allows user to replay remote transaction locally and obtain TVM trace.
@@ -2312,7 +2312,7 @@ execution if the contract needs config is to reuse dump of config transactions b
 Example:
 
 ```bash
-$ tonos-cli debug transaction -o tvm_trace.log 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78  74acbd354e605519d799c7e1e90e52030e8f9e781453e48ecad18bb035fe1586 --empty-config
+$ tonos-cli debug transaction -o tvm_trace.log 74acbd354e605519d799c7e1e90e52030e8f9e781453e48ecad18bb035fe1586 --empty-config
 Config: /home/user/TONLabs/sol2tvm/scripts/tonos-cli.conf.json
 Input arguments:
  address: 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78
@@ -2352,9 +2352,9 @@ OPTIONS:
                                         specified in the config.
 
 ARGUMENTS:
-<address>    Contract address or path the file with saved contract state if corresponding flag is used.
-<method>     Name of the function being called.
-<params>     Function arguments. Can be specified with a filename, which contains json data.
+  `<address>`    Contract address or path the file with saved contract state if corresponding flag is used.
+  `<method>`     Name of the function being called.
+  `<params>`     Function arguments. Can be specified with a filename, which contains json data.
 
 This command allows user locally emulate contract call and obtain TVM trace.
 Command can work with contract in the network by querying its boc and running message on it or with saved account state
@@ -2376,7 +2376,51 @@ Execution finished.
 Log saved to ./trace.log
 ```
 
-## 11.3. Debug replay transaction on the saved account state
+## 11.3. Debug run
+
+```bash
+tonos-cli debug run [FLAGS] [OPTIONS] <address> <method> <params>
+```
+
+FLAGS:
+--boc          Flag that changes behavior of the command to work with the saved account state (account BOC).
+--min_trace    Flag that changes trace to minimal version.
+--tvc          Flag that changes behavior of the command to work with the saved contract state (stateInit TVC).
+
+OPTIONS:
+--abi <ABI>                             Path to the contract ABI file. Can be specified in the config file.
+--tvc_address <ACCOUNT_ADDRESS>         Account address for account constructed from TVC.
+-c, --config <CONFIG_PATH>              Path to the file with saved config contract state.
+-d, --dbg_info <DBG_INFO>               Path to the file with debug info.
+--decode_abi <DECODE_ABI>               Path to the ABI file used to decode output messages.
+-o, --output <LOG_PATH>                 Path where to store the trace. Default path is "./trace.log". Note: old file
+                                        will be removed.
+--now <NOW>                             Now timestamp (in milliseconds) for execution. If not set it is equal to the
+                                        current timestamp.
+
+ARGUMENTS:
+  `<address>`    Contract address or path the file with saved contract state if corresponding flag is used.
+  `<method>`     Name of the function being called.
+  `<params>`     Function arguments. Can be specified with a filename, which contains json data.
+
+This command is similar to `tonos-cli debug call` but allows user to debug get methods.
+
+```bash
+$ tonos-cli debug run --abi ../sol2tvm/samples/1_Accumulator.abi.json 0:04a12b2e001a4144b70ddb244838f8627f8d11cade399dc0892aded7b82d6d68 sum '{}'
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+   input: 0:04a12b2e001a4144b70ddb244838f8627f8d11cade399dc0892aded7b82d6d68
+  method: sum
+  params: {}
+    sign: None
+ opt_abi: ../sol2tvm/samples/1_Accumulator.abi.json
+  output: ./trace.log
+debug_info: None
+Execution finished.
+Log saved to ./trace.log
+```
+
+## 11.4. Debug replay transaction on the saved account state
 
 ```bash
     tonos-cli debug replay [FLAGS] [OPTIONS] <TX_ID> <INPUT>
@@ -2414,7 +2458,7 @@ Execution finished.
 Log saved to trace2.log
 ```
 
-## 11.4. HOWTO debug a contract with tonos-cli
+## 11.5. HOWTO debug a contract with tonos-cli
 
 1) Call a function that fails.
 2) Explore the error message, look for these strings:

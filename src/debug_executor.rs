@@ -43,6 +43,7 @@ pub struct DebugTransactionExecutor {
     config: BlockchainConfig,
     dbg_info: Option<String>,
     trace_level: TraceLevel,
+    is_getter: bool,
 }
 
 impl TransactionExecutor for DebugTransactionExecutor {
@@ -353,11 +354,12 @@ impl TransactionExecutor for DebugTransactionExecutor {
 }
 
 impl DebugTransactionExecutor {
-    pub fn new(config: BlockchainConfig, dbg_info: Option<String>, trace_level: TraceLevel) -> Self {
+    pub fn new(config: BlockchainConfig, dbg_info: Option<String>, trace_level: TraceLevel, is_getter: bool) -> Self {
         Self {
             config,
             dbg_info,
             trace_level,
+            is_getter
         }
     }
 
@@ -436,7 +438,7 @@ impl DebugTransactionExecutor {
 
         if result_acc.get_code().is_none() {
             vm_phase.exit_code = -13;
-            if is_external {
+            if is_external && !self.is_getter {
                 fail!(ExecutorError::NoAcceptError(vm_phase.exit_code, None))
             } else {
                 vm_phase.exit_arg = None;
@@ -529,7 +531,7 @@ impl DebugTransactionExecutor {
         let used = gas.get_gas_used() as u64;
         vm_phase.gas_used = used.into();
         if credit != 0 {
-            if is_external {
+            if is_external && !self.is_getter {
                 fail!(ExecutorError::NoAcceptError(vm_phase.exit_code, raw_exit_arg))
             }
             vm_phase.gas_fees = Grams::zero();
