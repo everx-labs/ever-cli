@@ -706,9 +706,8 @@ async fn main_internal() -> Result <(), String> {
     let getconfig_cmd = SubCommand::with_name("getconfig")
         .about("Reads the global configuration parameter with defined index.")
         .arg(Arg::with_name("INDEX")
-            .required(true)
             .takes_value(true)
-            .help("Parameter index."));
+            .help("Parameter index. If not specified, command will print all config parameters."));
 
     let bcconfig_cmd = SubCommand::with_name("dump")
         .about("Commands to dump network entities.")
@@ -1547,7 +1546,7 @@ async fn getconfig_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
     if !config.is_json {
         print_args!(index);
     }
-    query_global_config(config, index.unwrap()).await
+    query_global_config(config, index.unwrap_or("")).await
 }
 
 async fn dump_bc_config_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {

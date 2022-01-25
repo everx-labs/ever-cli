@@ -228,11 +228,6 @@ master {
 pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
-    let _i = i32::from_str_radix(index, 10)
-        .map_err(|e| format!(r#"failed to parse "index": {}"#, e))?;
-    
-    let config_name = format!("p{}", index);
-
     let last_key_block_query = query_with_limit(
         ton.clone(),
         "blocks",
@@ -267,7 +262,14 @@ pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String
         Err("Config was not set".to_string())?;
     }
 
-    let config = &config_query[0]["master"]["config"][&config_name];
+    let (config_name, config) = if index.is_empty() {
+        ("".to_owned(), &config_query[0]["master"]["config"])
+    } else {
+        let _i = i32::from_str_radix(index, 10)
+            .map_err(|e| format!(r#"failed to parse "index": {}"#, e))?;
+        let config_name = format!("p{}", index);
+        (config_name.clone(), &config_query[0]["master"]["config"][&config_name])
+    };
     let config_str = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("failed to parse config body from sdk: {}", e))?;
 
