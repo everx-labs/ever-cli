@@ -225,7 +225,7 @@ master {
   }
 "#;
 
-pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String> {
+pub async fn query_global_config(conf: Config, index: Option<&str>) -> Result<(), String> {
     let ton = create_client_verbose(&conf)?;
 
     let last_key_block_query = query_with_limit(
@@ -262,21 +262,28 @@ pub async fn query_global_config(conf: Config, index: &str) -> Result<(), String
         Err("Config was not set".to_string())?;
     }
 
-    let (config_name, config) = if index.is_empty() {
-        ("".to_owned(), &config_query[0]["master"]["config"])
-    } else {
-        let _i = i32::from_str_radix(index, 10)
-            .map_err(|e| format!(r#"failed to parse "index": {}"#, e))?;
-        let config_name = format!("p{}", index);
-        (config_name.clone(), &config_query[0]["master"]["config"][&config_name])
-    };
-    let config_str = serde_json::to_string_pretty(&config)
-        .map_err(|e| format!("failed to parse config body from sdk: {}", e))?;
-
-    if conf.is_json {
-        println!("{}", config_str);
-    } else {
-        println!("Config {}: {}", config_name, config_str);
+    match index {
+        None => {
+            let config = &config_query[0]["master"]["config"];
+            println!("{}{}", if !conf.is_json {
+                "Config: "
+            } else {
+                ""
+            }, serde_json::to_string_pretty(&config)
+                .map_err(|e| format!("failed to parse config body from sdk: {}", e))?);
+        },
+        Some(index) => {
+            let _i = i32::from_str_radix(index, 10)
+                .map_err(|e| format!(r#"failed to parse "index": {}"#, e))?;
+            let config_name = format!("p{}", index);
+            let config = &config_query[0]["master"]["config"][&config_name];
+            println!("{}{}", if !conf.is_json {
+                format!("Config {}: ", config_name)
+            } else {
+                "".to_string()
+            }, serde_json::to_string_pretty(&config)
+                         .map_err(|e| format!("failed to parse config body from sdk: {}", e))?);
+        }
     }
     Ok(())
 }

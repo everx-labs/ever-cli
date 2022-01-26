@@ -1546,7 +1546,7 @@ async fn getconfig_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
     if !config.is_json {
         print_args!(index);
     }
-    query_global_config(config, index.unwrap_or("")).await
+    query_global_config(config, index).await
 }
 
 async fn dump_bc_config_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
