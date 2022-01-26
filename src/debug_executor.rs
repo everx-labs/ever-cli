@@ -223,8 +223,20 @@ impl TransactionExecutor for DebugTransactionExecutor {
                         new_data,
                         is_special
                     ) {
-                        Ok((action_ph, msgs)) => {
+                        Ok((action_ph, msgs, copyleft_reward, sent_copyleft_reward)) => {
                             out_msgs = msgs;
+                            let mut tr_fees = tr.total_fees.clone();
+                            tr_fees.grams.sub(&copyleft_reward)?;
+                            tr.set_total_fees(tr_fees);
+
+                            if sent_copyleft_reward && action_ph.success {
+                                account.set_copyleft_reward(0.into())?;
+                            } else if copyleft_reward.0 != 0 {
+                                let mut account_copyleft_reward = account.copyleft_reward().unwrap_or(&0.into()).clone();
+                                account_copyleft_reward.add(&copyleft_reward)?;
+                                account.set_copyleft_reward(account_copyleft_reward)?;
+                            }
+
                             Some(action_ph)
                         }
                         Err(e) => fail!(
@@ -253,6 +265,10 @@ impl TransactionExecutor for DebugTransactionExecutor {
                     "action_phase: present: success={}, err_code={}", phase.success, phase.result_code);
                 match phase.status_change {
                     AccStatusChange::Deleted => {
+                        let mut tr_fees = tr.total_fees.clone();
+                        tr_fees.grams.add(account.copyleft_reward().unwrap_or(&Grams(0)))?;
+                        tr.set_total_fees(tr_fees);
+
                         *account = Account::default();
                         description.destroyed = true;
                     },
@@ -298,9 +314,6 @@ impl TransactionExecutor for DebugTransactionExecutor {
             if let Some(TrBouncePhase::Ok(_)) = description.bounce {
                 log::debug!(target: "executor", "restore balance {} => {}", acc_balance.grams, original_acc_balance.grams);
                 acc_balance = original_acc_balance;
-                if (account.status() == AccountStatus::AccStateUninit) && acc_balance.is_zero()? {
-                    *account = Account::default();
-                }
             } else {
                 if account.is_none() && !acc_balance.is_zero()? {
                     *account = Account::uninit(
