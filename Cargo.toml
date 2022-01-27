@@ -5,12 +5,18 @@ description = 'command line tool for TON blockchain'
 documentation = 'https://docs.ton.dev'
 edition = '2018'
 homepage = 'https://ton.dev'
-keywords = [ 'TON', 'SDK', 'smart contract', 'tonlabs', 'solidity' ]
+keywords = [
+    'TON',
+    'SDK',
+    'smart contract',
+    'tonlabs',
+    'solidity'
+]
 license = 'Apache-2.0'
 name = 'tonos-cli'
 readme = 'README.md'
 repository = 'https://github.com/tonlabs/tonos-cli'
-version = '0.24.25'
+version = '0.24.26'
 
 [dependencies]
 async-trait = '0.1.42'
@@ -49,4 +55,3 @@ ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.30' }
 assert_cmd = '1.0.3'
 lazy_static = '1.4.0'
 predicates = '1'
-
