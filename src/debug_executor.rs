@@ -458,7 +458,11 @@ impl DebugTransactionExecutor {
         libs.push(state_libs);
 
         let mut vm = VMSetup::new(code.into())
-            .set_contract_info(smc_info, self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapInitCodeHash))?
+            .set_contract_info(
+                smc_info,
+                self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapInitCodeHash),
+                self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapMycode)
+            )?
             .set_stack(stack)
             .set_data(data)?
             .set_libraries(libs)
