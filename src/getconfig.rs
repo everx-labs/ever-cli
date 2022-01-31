@@ -237,7 +237,8 @@ pub async fn query_global_config(conf: Config, index: Option<&str>) -> Result<()
         Some(1),
     ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
 
-    if last_key_block_query.len() == 0 {
+    if last_key_block_query.len() == 0  ||
+        last_key_block_query[0]["prev_key_block_seqno"].as_u64() == Some(0) {
         Err("Key block not found".to_string())?;
     }
 
