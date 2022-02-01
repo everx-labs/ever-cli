@@ -48,16 +48,10 @@ ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.28.0' }
 ton_executor = { git = 'https://github.com/tonlabs/ton-labs-executor.git', tag = '1.15.48' }
 ton_labs_assembler = { git = 'https://github.com/tonlabs/ton-labs-assembler.git', tag = '1.2.30' }
 ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.28.0' }
-ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.10.12'}
+ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.10.12' }
 ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.28' }
 
 [dev-dependencies]
 assert_cmd = '1.0.3'
 lazy_static = '1.4.0'
 predicates = '1'
-
-[patch.'https://github.com/tonlabs/ton-labs-executor.git']
-ton_executor = { path = "/home/user/ton-executor/" }
-
-[patch.'ssh://git@github.com/tonlabs/ton-executor.git']
-ton_executor = { path = "/home/user/ton-executor/" }
