@@ -470,6 +470,12 @@ impl DebugTransactionExecutor {
         libs.push(result_acc.libraries().inner());
         libs.push(state_libs);
 
+        let vm_version = if self.config().has_capability(GlobalCapabilities::CapInitCodeHash) {
+            ton_vm::executor::Capabilities::CapCopyleft
+        } else {
+            ton_vm::executor::Capabilities::CapNone
+        } as u64;
+
         let mut vm = VMSetup::new(code.into())
             .set_contract_info(smc_info, self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapInitCodeHash))?
             .set_stack(stack)
@@ -477,6 +483,7 @@ impl DebugTransactionExecutor {
             .set_libraries(libs)
             .set_gas(gas)
             .set_debug(debug)
+            .set_version(vm_version)
             .create();
 
         match self.trace_level {
