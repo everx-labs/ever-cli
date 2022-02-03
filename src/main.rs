@@ -126,7 +126,7 @@ fn parse_lifetime(lifetime: Option<&str>, config: Config) -> Result<u32, String>
 #[tokio::main]
 async fn main() -> Result<(), i32> {
     main_internal().await.map_err(|err_str| {
-        println!("Error: {}", err_str);
+        println!("{}", err_str);
         1
     })
 }
@@ -573,7 +573,7 @@ async fn main_internal() -> Result <(), String> {
             .help("Network message processing timeout in ms."))
         .arg(Arg::with_name("LIST")
             .long("--list")
-            .conflicts_with_all(&["OUT_OF_SYNC","NO_ANSWER", "ASYNC_CALL", "LOCAL_RUN", "BALANCE_IN_TONS", "LIFETIME", "DEPOOL_FEE", "PUBKEY", "URL", "ABI", "KEYS", "ADDR", "RETRIES", "TIMEOUT", "WC", "WALLET"])
+            .conflicts_with_all(&["OUT_OF_SYNC", "NO_ANSWER", "ASYNC_CALL", "LOCAL_RUN", "BALANCE_IN_TONS", "LIFETIME", "DEPOOL_FEE", "PUBKEY", "URL", "ABI", "KEYS", "ADDR", "RETRIES", "TIMEOUT", "WC", "WALLET"])
             .help("Prints all config parameters."))
         .arg(Arg::with_name("DEPOOL_FEE")
             .long("--depool_fee")
@@ -779,7 +779,7 @@ async fn main_internal() -> Result <(), String> {
         .version(&*format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
                            env!("CARGO_PKG_VERSION"),
                            env!("BUILD_GIT_COMMIT"),
-                           env!("BUILD_TIME") ,
+                           env!("BUILD_TIME"),
                            env!("BUILD_GIT_DATE"),
                            env!("BUILD_GIT_BRANCH"))
         )
@@ -837,6 +837,15 @@ async fn main_internal() -> Result <(), String> {
 
     let is_json = matches.is_present("JSON");
 
+    command_parser(&matches, is_json).await
+        .map_err(|e| format!("{}{}", if is_json {
+            ""
+        } else {
+            "Error: "
+        }, e))
+}
+
+async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), String> {
     let config_file = matches.value_of("CONFIG").map(|v| v.to_string())
         .or(env::var("TONOSCLI_CONFIG").ok())
         .unwrap_or(default_config_name()?);
