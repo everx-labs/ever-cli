@@ -419,7 +419,7 @@ async fn run_local(
             ..Default::default()
         },
     ).await
-        .map_err(|e| format!("run failed: {:#}", e))?;
+        .map_err(|e| format!("{:#}", e))?;
     let res = result.decoded.and_then(|d| d.output)
         .ok_or("Failed to decode the result. Check that abi matches the contract.")?;
     Ok(res)
