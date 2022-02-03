@@ -362,19 +362,16 @@ async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: 
     }.map_err(|e| format!("Failed to construct config account: {}", e))?;
     let bc_config = construct_blockchain_config(&config_account)?;
 
-
-    Ok(Box::new(
-        DebugTransactionExecutor::new(
-            bc_config.clone(),
-            debug_info,
-            if is_min_trace {
-                TraceLevel::Minimal
-            } else {
-                TraceLevel::Full
-            },
-            is_getter
-        )
-    ))
+    Ok(Box::new(DebugTransactionExecutor::new(
+        bc_config.clone(),
+        debug_info,
+        if is_min_trace {
+            TraceLevel::Minimal
+        } else {
+            TraceLevel::Full
+        },
+        is_getter,
+    )))
 }
 
 

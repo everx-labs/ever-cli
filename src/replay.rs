@@ -596,7 +596,8 @@ pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
     let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
         m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, false, false, TraceLevel::None, ||{Ok(())}, None, DUMP_ALL
+        false, false, false,
+        TraceLevel::None, ||{Ok(())}, None, DUMP_ALL,
     ).await?;
     Ok(())
 }
