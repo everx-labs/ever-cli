@@ -212,7 +212,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
                     log::debug!(target: "executor", "action_phase: lt={}", lt);
                     action_phase_processed = true;
                     // since the balance is not used anywhere else if we have reached this point, then we can change it here
-                    match self.action_phase(
+                    match self.action_phase_with_copyleft(
                         &mut tr,
                         account,
                         &original_acc_balance,
