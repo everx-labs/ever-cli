@@ -424,7 +424,7 @@ impl DebugTransactionExecutor {
             return Ok((TrComputePhase::skipped(ComputeSkipReason::NoGas), None, None))
         }
         let gas_config = self.config().get_gas_config(is_masterchain);
-        let gas = init_gas(acc_balance.grams.0, msg_balance.grams.0, is_external, is_special, is_ordinary, gas_config);
+        let gas = init_gas(acc_balance.grams.0, msg_balance.grams.0, is_external, is_special, is_ordinary, gas_config, self.is_getter);
         if gas.get_gas_limit() == 0 && gas.get_gas_credit() == 0 {
             log::debug!(target: "executor", "skip computing phase no gas");
             return Ok((TrComputePhase::skipped(ComputeSkipReason::NoGas), None, None))
@@ -457,7 +457,7 @@ impl DebugTransactionExecutor {
                 vm_phase.exit_arg = None;
                 vm_phase.success = false;
                 vm_phase.gas_fees = Grams::from(if is_special { 0 } else { gas_config.calc_gas_fee(0) });
-                if !acc_balance.grams.sub(&vm_phase.gas_fees)? {
+                if !self.is_getter && !acc_balance.grams.sub(&vm_phase.gas_fees)? {
                     log::debug!(target: "executor", "can't sub funds: {} from acc_balance: {}", vm_phase.gas_fees, acc_balance.grams);
                     fail!("can't sub funds: from acc_balance")
                 }
@@ -571,7 +571,7 @@ impl DebugTransactionExecutor {
         vm_phase.vm_steps = vm.steps();
         //TODO: vm_final_state_hash
         log::debug!(target: "executor", "acc_balance: {}, gas fees: {}", acc_balance.grams, vm_phase.gas_fees);
-        if !acc_balance.grams.sub(&vm_phase.gas_fees)? {
+        if !self.is_getter && !acc_balance.grams.sub(&vm_phase.gas_fees)? {
             log::error!(target: "executor", "This situation is unreachable: can't sub funds: {} from acc_balance: {}", vm_phase.gas_fees, acc_balance.grams);
             fail!("can't sub funds: from acc_balance")
         }
@@ -599,14 +599,18 @@ impl DebugTransactionExecutor {
 }
 
 
-fn init_gas(acc_balance: u128, msg_balance: u128, is_external: bool, is_special: bool, is_ordinary: bool, gas_info: &GasLimitsPrices) -> Gas {
-    let gas_max = if is_special {
-        gas_info.special_gas_limit
-    } else {
-        std::cmp::min(gas_info.gas_limit, gas_info.calc_gas(acc_balance))
-    };
+fn init_gas(acc_balance: u128, msg_balance: u128, is_external: bool, is_special: bool, is_ordinary: bool, gas_info: &GasLimitsPrices, is_getter: bool) -> Gas {
+    let gas_max = if is_getter {
+            100000000000
+        } else if is_special {
+            gas_info.special_gas_limit
+        } else {
+            std::cmp::min(gas_info.gas_limit, gas_info.calc_gas(acc_balance))
+        };
     let mut gas_credit = 0;
-    let gas_limit = if !is_ordinary {
+    let gas_limit = if is_getter {
+        100000000000
+    } else if !is_ordinary {
         gas_max
     } else {
         if is_external {
