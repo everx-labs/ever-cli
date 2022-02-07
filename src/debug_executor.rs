@@ -385,7 +385,7 @@ impl DebugTransactionExecutor {
         acc_balance: &mut CurrencyCollection,
         msg_balance: &CurrencyCollection,
         state_libs: HashmapE, // masterchain libraries
-        smc_info: SmartContractInfo,
+        mut smc_info: SmartContractInfo,
         stack: Stack,
         is_masterchain: bool,
         is_special: bool,
@@ -470,6 +470,9 @@ impl DebugTransactionExecutor {
         libs.push(result_acc.libraries().inner());
         libs.push(state_libs);
 
+        if let Some(init_code_hash) = result_acc.init_code_hash() {
+            smc_info.set_init_code_hash(init_code_hash.clone());
+        }
         let mut vm = VMSetup::new(code.into())
             .set_contract_info(smc_info, self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapInitCodeHash))?
             .set_stack(stack)
