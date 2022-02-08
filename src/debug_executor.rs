@@ -473,14 +473,13 @@ impl DebugTransactionExecutor {
         if let Some(init_code_hash) = result_acc.init_code_hash() {
             smc_info.set_init_code_hash(init_code_hash.clone());
         }
-        let mut vm = VMSetup::new(code.into())
+        let mut vm = VMSetup::new_with_capabilites(code.into(), self.config().capabilites())
             .set_contract_info(smc_info, self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapInitCodeHash))?
             .set_stack(stack)
             .set_data(data)?
             .set_libraries(libs)
             .set_gas(gas)
             .set_debug(debug)
-            .set_capabilites(self.config().capabilites())
             .create();
 
         match self.trace_level {
