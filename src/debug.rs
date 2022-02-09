@@ -432,9 +432,9 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
 
     let params = ExecuteParams {
         state_libs: HashmapE::default(),
-        block_unixtime: trans.now,
+        block_unixtime: trans.now(),
         block_lt,
-        last_tr_lt: Arc::new(AtomicU64::new(trans.lt)),
+        last_tr_lt: Arc::new(AtomicU64::new(trans.logical_time())),
         seed_block: UInt256::default(),
         debug: false,
     };

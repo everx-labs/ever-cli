@@ -225,7 +225,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
                     ) {
                         Ok((action_ph, msgs, copyleft_reward, sent_copyleft_reward)) => {
                             out_msgs = msgs;
-                            let mut tr_fees = tr.total_fees.clone();
+                            let mut tr_fees = tr.total_fees().clone();
                             tr_fees.grams.sub(&copyleft_reward)?;
                             tr.set_total_fees(tr_fees);
 
@@ -265,7 +265,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
                     "action_phase: present: success={}, err_code={}", phase.success, phase.result_code);
                 match phase.status_change {
                     AccStatusChange::Deleted => {
-                        let mut tr_fees = tr.total_fees.clone();
+                        let mut tr_fees = tr.total_fees().clone();
                         tr_fees.grams.add(account.copyleft_reward().unwrap_or(&Grams(0)))?;
                         tr.set_total_fees(tr_fees);
 
@@ -473,7 +473,7 @@ impl DebugTransactionExecutor {
         if let Some(init_code_hash) = result_acc.init_code_hash() {
             smc_info.set_init_code_hash(init_code_hash.clone());
         }
-        let mut vm = VMSetup::new_with_capabilites(code.into(), self.config().capabilites())
+        let mut vm = VMSetup::with_capabilites(code.into(), self.config().capabilites())
             .set_contract_info(smc_info, self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapInitCodeHash))?
             .set_stack(stack)
             .set_data(data)?
