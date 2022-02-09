@@ -223,20 +223,17 @@ impl TransactionExecutor for DebugTransactionExecutor {
                         new_data,
                         is_special
                     ) {
-                        Ok((action_ph, msgs, copyleft_reward, sent_copyleft_reward)) => {
+                        Ok((action_ph, msgs, mut copyleft_reward, sent_copyleft_reward)) => {
                             out_msgs = msgs;
-                            let mut tr_fees = tr.total_fees().clone();
-                            tr_fees.grams.sub(&copyleft_reward)?;
-                            tr.set_total_fees(tr_fees);
-
+                            tr.total_fees_mut().grams.sub(&copyleft_reward)?;
                             if sent_copyleft_reward && action_ph.success {
                                 account.set_copyleft_reward(0.into())?;
-                            } else if copyleft_reward.0 != 0 {
-                                let mut account_copyleft_reward = account.copyleft_reward().unwrap_or(&0.into()).clone();
-                                account_copyleft_reward.add(&copyleft_reward)?;
-                                account.set_copyleft_reward(account_copyleft_reward)?;
+                            } else if !copyleft_reward.is_zero() {
+                                if let Some(old_copyleft_reward) = account.copyleft_reward() {
+                                    copyleft_reward.add(old_copyleft_reward)?
+                                }
+                                account.set_copyleft_reward(copyleft_reward)?;                            
                             }
-
                             Some(action_ph)
                         }
                         Err(e) => fail!(
@@ -265,10 +262,9 @@ impl TransactionExecutor for DebugTransactionExecutor {
                     "action_phase: present: success={}, err_code={}", phase.success, phase.result_code);
                 match phase.status_change {
                     AccStatusChange::Deleted => {
-                        let mut tr_fees = tr.total_fees().clone();
-                        tr_fees.grams.add(account.copyleft_reward().unwrap_or(&Grams(0)))?;
-                        tr.set_total_fees(tr_fees);
-
+                        if let Some(copyleft_reward) = account.copyleft_reward() {
+                            tr.total_fees_mut().grams.add(copyleft_reward)?;
+                        }
                         *account = Account::default();
                         description.destroyed = true;
                     },
