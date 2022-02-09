@@ -480,7 +480,7 @@ pub async fn replay(
         }
         if tr.id == txnid {
             if dump_mask & DUMP_ACCOUNT != 0 {
-                let path = format!("{}-{}.boc", state.account_addr, txnid);
+                let path = format!("{}-{}.boc", state.account_addr.split(':').last().unwrap_or(""), txnid);
                 account_root.write_to_file(&path);
                 println!("Contract account was dumped to {}", path);
             }
