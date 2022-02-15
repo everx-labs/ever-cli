@@ -311,7 +311,7 @@ pub async fn emulate_locally(
         println!("  \"total_output\": \"{}\"", fees.total_output);
         println!("}}");
     } else {
-        println!("Local run succeeded. Executing onchain.");
+        println!("Local run succeeded. Executing onchain."); // TODO: check is_json
     }
     Ok(())
 }
@@ -382,7 +382,7 @@ pub async fn run_local_for_account(
         println!("Succeeded.");
     }
 
-    print_json_result(res, conf);
+    print_json_result(res, conf)?;
     Ok(())
 }
 
@@ -490,7 +490,7 @@ pub async fn process_message(
             },
             callback,
         ).await
-            .map_err(|e| format!("Failed: {:#}", e))?
+            .map_err(|e| format!("{:#}", e))?
     } else {
         ton_client::processing::process_message(
             ton,
@@ -501,7 +501,7 @@ pub async fn process_message(
             },
             |_| { async move {} },
         ).await
-            .map_err(|e| format!("Failed: {:#}", e))?
+            .map_err(|e| format!("{:#}", e))?
     };
 
     Ok(res.decoded.and_then(|d| d.output).unwrap_or(json!({})))
@@ -588,14 +588,17 @@ pub async fn call_contract_with_client(
     process_message(ton.clone(), msg_params, conf.is_json).await
 }
 
-fn print_json_result(result: Value, conf: Config) {
+fn print_json_result(result: Value, conf: Config) -> Result<(), String> {
     if !result.is_null() {
+        let result = serde_json::to_string_pretty(&result)
+            .map_err(|e| format!("Failed to serialize the result: {}", e))?;
         if !conf.is_json {
-            println!("Result: {}", serde_json::to_string_pretty(&result).unwrap_or("failed to serialize the result".to_owned()));
+            println!("Result: {}", result);
         } else {
-            println!("{}", serde_json::to_string_pretty(&result).unwrap_or("failed to serialize the result".to_owned()));
+            println!("{}", result);
         }
     }
+    Ok(())
 }
 
 pub async fn call_contract(
@@ -612,7 +615,7 @@ pub async fn call_contract(
     if !conf.is_json {
         println!("Succeeded.");
     }
-    print_json_result(result, conf);
+    print_json_result(result, conf)?;
     Ok(())
 }
 
