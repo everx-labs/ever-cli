@@ -212,7 +212,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
                     log::debug!(target: "executor", "action_phase: lt={}", lt);
                     action_phase_processed = true;
                     // since the balance is not used anywhere else if we have reached this point, then we can change it here
-                    match self.action_phase_with_copyleft(
+                    match self.action_phase(
                         &mut tr,
                         account,
                         &original_acc_balance,
@@ -223,17 +223,8 @@ impl TransactionExecutor for DebugTransactionExecutor {
                         new_data,
                         is_special
                     ) {
-                        Ok((action_ph, msgs, mut copyleft_reward, sent_copyleft_reward)) => {
+                        Ok((action_ph, msgs)) => {
                             out_msgs = msgs;
-                            tr.total_fees_mut().grams.sub(&copyleft_reward)?;
-                            if sent_copyleft_reward && action_ph.success {
-                                account.set_copyleft_reward(0.into())?;
-                            } else if !copyleft_reward.is_zero() {
-                                if let Some(old_copyleft_reward) = account.copyleft_reward() {
-                                    copyleft_reward.add(old_copyleft_reward)?
-                                }
-                                account.set_copyleft_reward(copyleft_reward)?;                            
-                            }
                             Some(action_ph)
                         }
                         Err(e) => fail!(
@@ -262,9 +253,6 @@ impl TransactionExecutor for DebugTransactionExecutor {
                     "action_phase: present: success={}, err_code={}", phase.success, phase.result_code);
                 match phase.status_change {
                     AccStatusChange::Deleted => {
-                        if let Some(copyleft_reward) = account.copyleft_reward() {
-                            tr.total_fees_mut().grams.add(copyleft_reward)?;
-                        }
                         *account = Account::default();
                         description.destroyed = true;
                     },
@@ -389,7 +377,7 @@ impl DebugTransactionExecutor {
     ) -> Result<(TrComputePhase, Option<Cell>, Option<Cell>)> {
         let mut result_acc = acc.clone();
         let mut vm_phase = TrComputePhaseVm::default();
-        let init_code_hash = self.config().has_capability(GlobalCapabilities::CapInitCodeHash);
+        let init_code_hash = self.config().has_capability(GlobalCapabilities::CapVmInitCodeHash);
         let is_external = if let Some(msg) = msg {
             if let Some(header) = msg.int_header() {
                 log::debug!(target: "executor", "msg internal, bounce: {}", header.bounce);
@@ -470,7 +458,7 @@ impl DebugTransactionExecutor {
             smc_info.set_init_code_hash(init_code_hash.clone());
         }
         let mut vm = VMSetup::with_capabilites(code.into(), self.config().capabilites())
-            .set_contract_info(smc_info, self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapInitCodeHash))?
+            .set_contract_info(smc_info, self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapVmInitCodeHash))?
             .set_stack(stack)
             .set_data(data)?
             .set_libraries(libs)
