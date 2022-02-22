@@ -377,7 +377,7 @@ impl DebugTransactionExecutor {
     ) -> Result<(TrComputePhase, Option<Cell>, Option<Cell>)> {
         let mut result_acc = acc.clone();
         let mut vm_phase = TrComputePhaseVm::default();
-        let init_code_hash = self.config().has_capability(GlobalCapabilities::CapVmInitCodeHash);
+        let init_code_hash = self.config().has_capability(GlobalCapabilities::CapInitCodeHash);
         let is_external = if let Some(msg) = msg {
             if let Some(header) = msg.int_header() {
                 log::debug!(target: "executor", "msg internal, bounce: {}", header.bounce);
@@ -458,7 +458,7 @@ impl DebugTransactionExecutor {
             smc_info.set_init_code_hash(init_code_hash.clone());
         }
         let mut vm = VMSetup::with_capabilites(code.into(), self.config().capabilites())
-            .set_contract_info(smc_info, self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapVmInitCodeHash))?
+            .set_contract_info(smc_info, self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapInitCodeHash))?
             .set_stack(stack)
             .set_data(data)?
             .set_libraries(libs)
