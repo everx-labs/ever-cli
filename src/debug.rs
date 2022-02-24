@@ -445,6 +445,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
         last_tr_lt: Arc::new(AtomicU64::new(trans.lt)),
         seed_block: UInt256::default(),
         debug: false,
+        ..ExecuteParams::default()
     };
 
     let msg = trans.in_msg_cell().map(|c| Message::construct_from_cell(c)
@@ -595,6 +596,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
         last_tr_lt: Arc::new(AtomicU64::new(now)),
         seed_block: UInt256::default(),
         debug: true,
+        ..ExecuteParams::default()
     };
 
     let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, is_getter).await?;
