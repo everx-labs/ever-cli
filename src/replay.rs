@@ -19,9 +19,9 @@ use ton_block::{Account, ConfigParamEnum, ConfigParams, Deserializable, Message,
 use ton_client::{ClientConfig, ClientContext, abi::{Abi, CallSet, ParamsOfEncodeMessage, encode_message}, net::{AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection}, tvm::{ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm}};
 use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
 use ton_types::{HashmapE, UInt256, serialize_toc};
+use ton_vm::executor::{Engine, EngineTraceInfo};
 
 use crate::config::Config;
-use crate::debug_executor::{TraceLevel, DebugTransactionExecutor};
 
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
 static ELECTOR_ADDR: &str = "-1:3333333333333333333333333333333333333333333333333333333333333333";
@@ -415,9 +415,9 @@ pub async fn replay(
     trace_execution: bool,
     track_elector_unfreeze: bool,
     track_config_param_34: bool,
-    trace_last_transaction: TraceLevel,
+    trace_last_transaction: bool,
+    trace_callback: Option<Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync>>,
     init_trace_last_logger: impl Fn() -> Result<(), String>,
-    debug_info:  Option<String>,
     dump_mask: u8,
 ) -> Result<Transaction, String> {
     let mut account_state = State::new(input_filename)?;
@@ -506,10 +506,27 @@ pub async fn replay(
                     .write_to_file(&path);
                 println!("Config for executor was dumped to {}", path);
             }
-        }
-        let trace_last = (trace_last_transaction != TraceLevel::None) && tr.id == txnid;
-        if trace_last {
-            init_trace_last_logger()?;
+            if trace_last_transaction {
+                init_trace_last_logger()?;
+                let executor = Box::new(OrdinaryTransactionExecutor::new(config.clone()));
+                let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c)
+                    .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
+                let params = ExecuteParams {
+                    state_libs: HashmapE::default(),
+                    block_unixtime: tr.tr.now,
+                    block_lt: tr.tr.lt,
+                    last_tr_lt: Arc::new(AtomicU64::new(tr.tr.lt)),
+                    seed_block: UInt256::default(),
+                    debug: trace_execution,
+                    trace_callback,
+                    ..ExecuteParams::default()
+                };
+                let tr = executor.execute_with_libs_and_params(
+                    msg.as_ref(),
+                    &mut account_root,
+                    params).map_err(|e| format!("Failed to execute txn: {}", e))?;
+                return Ok(tr);
+            }
         }
         let executor: Box<dyn TransactionExecutor> =
             match tr.tr.read_description()
@@ -518,11 +535,7 @@ pub async fn replay(
                     Box::new(TickTockTransactionExecutor::new(config.clone(), desc.tt))
                 }
                 TransactionDescr::Ordinary(_) => {
-                    if trace_last {
-                        Box::new(DebugTransactionExecutor::new(config.clone(), debug_info.clone(), trace_last_transaction.clone(), false))
-                    } else {
-                        Box::new(OrdinaryTransactionExecutor::new(config.clone()))
-                    }
+                    Box::new(OrdinaryTransactionExecutor::new(config.clone()))
                 }
                 _ => {
                     panic!("Unknown transaction type");
@@ -597,7 +610,7 @@ pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
     let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
         m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, false, false, TraceLevel::None, ||{Ok(())}, None, DUMP_ALL
+        false, false, false,  false, None, ||{Ok(())},  DUMP_ALL
     ).await?;
     Ok(())
 }

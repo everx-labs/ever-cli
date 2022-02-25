@@ -18,15 +18,17 @@ use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
 use std::io::{Write};
-use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction};
+use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction, GasLimitsPrices, ConfigParamEnum};
 use ton_types::{UInt256, HashmapE};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
-use ton_executor::{ExecuteParams, TransactionExecutor};
+use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TransactionExecutor};
 use std::sync::{Arc, atomic::AtomicU64};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDirection};
 use crate::crypto::load_keypair;
-use crate::debug_executor::{DebugTransactionExecutor, TraceLevel};
 use std::fmt;
+use std::fs::File;
+use ton_labs_assembler::DbgInfo;
+use ton_vm::executor::{Engine, EngineTraceInfo, EngineTraceInfoType};
 
 const DEFAULT_TRACE_PATH: &'static str = "./trace.log";
 const DEFAULT_CONFIG_PATH: &'static str = "config.txns";
@@ -273,7 +275,6 @@ pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
 
 async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_account: bool) -> Result<(), String> {
     let trace_path = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
     let config_path = matches.value_of("CONFIG_PATH");
     let contract_path = matches.value_of("CONTRACT_PATH");
     let is_empty_config = matches.is_present("EMPTY_CONFIG");
@@ -330,12 +331,6 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
         Ok(())
     };
 
-    let trace_level = if matches.is_present("MIN_TRACE") {
-        TraceLevel::Minimal
-    } else {
-        TraceLevel::Full
-    };
-
     let mut dump_mask = DUMP_NONE;
     if matches.is_present("DUMP_CONFIG") {
         dump_mask |= DUMP_CONFIG;
@@ -346,7 +341,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
     if !config.is_json {
         println!("Replaying the last transactions...");
     }
-    let tr = replay(contract_path, config_path, &tx_id,false, false, false, trace_level, init_logger, debug_info, dump_mask).await?;
+    let tr = replay(contract_path, config_path, &tx_id,false, false, false, true, generate_callback(matches), init_logger,  dump_mask).await?;
 
     decode_messages(tr.out_msgs, load_decode_abi(matches, config.clone())).await?;
     if !config.is_json {
@@ -355,7 +350,8 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
     Ok(())
 }
 
-async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: TonClient, debug_info: Option<String>, is_min_trace: bool, is_getter: bool) -> Result<Box<DebugTransactionExecutor>, String> {
+
+async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: TonClient, is_getter: bool) -> Result<Box<OrdinaryTransactionExecutor>, String> {
     let config_account = match matches.value_of("CONFIG_PATH") {
         Some(bc_config) => {
             Account::construct_from_file(bc_config)
@@ -369,18 +365,32 @@ async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: 
         }
     }.map_err(|e| format!("Failed to construct config account: {}", e))?;
     let bc_config = construct_blockchain_config(&config_account)?;
-
+    let bc_config = if is_getter {
+        let mut config = bc_config.raw_config().to_owned();
+        let gas = GasLimitsPrices {
+            gas_price: 65536000,
+            flat_gas_limit: 100,
+            flat_gas_price: 1000000,
+            gas_limit: 1000000,
+            special_gas_limit: 10000000,
+            gas_credit: 10000000,
+            block_gas_limit: 10000000,
+            freeze_due_limit: 100000000,
+            delete_due_limit:1000000000,
+            max_gas_threshold:10000000000,
+        };
+        let c20 = ConfigParamEnum::ConfigParam20(gas.clone());
+        let c21 = ConfigParamEnum::ConfigParam21(gas);
+        config.set_config(c20).unwrap();
+        config.set_config(c21).unwrap();
+        BlockchainConfig::with_config(config).map_err(|e| format!("Failed to construct config: {}", e))?
+    } else {
+        bc_config
+    };
 
     Ok(Box::new(
-        DebugTransactionExecutor::new(
+        OrdinaryTransactionExecutor::new(
             bc_config.clone(),
-            debug_info,
-            if is_min_trace {
-                TraceLevel::Minimal
-            } else {
-                TraceLevel::Full
-            },
-            is_getter
         )
     ))
 }
@@ -389,14 +399,12 @@ async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: 
 async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let tx_id = matches.value_of("TX_ID");
     let config_path = matches.value_of("CONFIG_PATH");
-    let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
-    let is_min_trace = matches.is_present("MIN_TRACE");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let input = matches.value_of("INPUT");
     let do_update = matches.is_present("UPDATE_STATE");
 
     if !config.is_json {
-        print_args!(input, tx_id, output, config_path, debug_info);
+        print_args!(input, tx_id, output, config_path);
     }
 
     let ton_client = create_client(&config)?;
@@ -431,7 +439,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
     let trans = Transaction::construct_from_base64(boc)
         .map_err(|e| format!("Failed to parse transaction: {}", e))?;
 
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, false).await?;
+    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), false).await?;
 
     let mut account = Account::construct_from_file(input.unwrap())
         .map_err(|e| format!("Failed to construct account from the file: {}", e))?
@@ -444,7 +452,8 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
         block_lt,
         last_tr_lt: Arc::new(AtomicU64::new(trans.lt)),
         seed_block: UInt256::default(),
-        debug: false,
+        debug: true,
+        trace_callback: generate_callback(matches),
         ..ExecuteParams::default()
     };
 
@@ -512,7 +521,6 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: Config) -> Option<String> {
 async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter: bool) -> Result<(), String> {
     let input = matches.value_of("ADDRESS");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
     let sign = matches.value_of("SIGN")
@@ -524,10 +532,9 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
     let params = Some(load_params(params.unwrap())?);
 
     if !config.is_json {
-        print_args!(input, method, params, sign, opt_abi, output, debug_info);
+        print_args!(input, method, params, sign, opt_abi, output);
     }
 
-    let is_min_trace = matches.is_present("MIN_TRACE");
     let ton_client = create_client(&config)?;
     let input = input.unwrap();
     let account = if is_tvc {
@@ -596,10 +603,11 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
         last_tr_lt: Arc::new(AtomicU64::new(now)),
         seed_block: UInt256::default(),
         debug: true,
+        trace_callback: generate_callback(matches),
         ..ExecuteParams::default()
     };
 
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, is_getter).await?;
+    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), is_getter).await?;
 
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
@@ -622,7 +630,15 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
             "Execution finished.".to_string()
         }
         Err(e) => {
-            format!("Execution failed: {}", e)
+            if !is_getter {
+                format!("Execution failed: {}", e)
+            } else {
+                if e.to_string().contains("Contract did not accept message") {
+                    "Execution finished.".to_string()
+                } else {
+                    format!("Execution failed: {}", e)
+                }
+            }
         }
     };
     if !config.is_json {
@@ -737,4 +753,90 @@ fn choose_transaction(transactions: Vec<TrDetails>) -> Result<String, String> {
         return Err("Wrong transaction number".to_string());
     }
     Ok(transactions[chosen-1].transaction_id.trim_start_matches(|c| c == '"').trim_end_matches(|c| c == '"').to_string())
+}
+
+fn trace_callback(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {
+    if info.info_type == EngineTraceInfoType::Dump {
+        log::info!(target: "tvm", "{}", info.cmd_str);
+        return;
+    }
+
+    log::info!(target: "tvm", "{}: {}",
+             info.step,
+             info.cmd_str
+    );
+    log::info!(target: "tvm", "{} {}",
+             info.cmd_code.remaining_bits(),
+             info.cmd_code.to_hex_string()
+    );
+
+    log::info!(target: "tvm", "\nGas: {} ({})",
+             info.gas_used,
+             info.gas_cmd
+    );
+
+    let position = get_position(info, debug_info);
+    if position.is_some() {
+        log::info!(target: "tvm", "Position: {}", position.unwrap());
+    } else {
+        log::info!(target: "tvm", "Position: Undefined");
+    }
+
+    log::info!(target: "tvm", "\n--- Stack trace ------------------------");
+    for item in info.stack.iter() {
+        log::info!(target: "tvm", "{}", item);
+    }
+    log::info!(target: "tvm", "----------------------------------------\n");
+}
+
+
+fn trace_callback_minimal(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {
+    let position = match get_position(info, &debug_info) {
+        Some(position) => position,
+        _ => "".to_string()
+    };
+    log::info!(target: "tvm", "{} {} {} {} {}", info.step, info.gas_used, info.gas_cmd, info.cmd_str, position);
+}
+
+fn get_position(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) -> Option<String> {
+    if let Some(debug_info) = debug_info {
+        let cell_hash = info.cmd_code.cell().repr_hash();
+        let offset = info.cmd_code.pos();
+        let position = match debug_info.get(&cell_hash) {
+            Some(offset_map) => match offset_map.get(&offset) {
+                Some(pos) => format!("{}:{}", pos.filename, pos.line),
+                None => String::from("-:0 (offset not found)")
+            },
+            None => String::from("-:0 (cell hash not found)")
+        };
+        return Some(position)
+    }
+    None
+}
+
+fn generate_callback(matches: &ArgMatches<'_>) -> Option<Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync>> {
+    let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
+    let debug_info: Option<DbgInfo> = match debug_info {
+        Some(dbg_info) => {
+            match File::open(dbg_info) {
+                Ok(file ) => match serde_json::from_reader(file) {
+                    Ok(info) => Some(info),
+                    Err(e) => {
+                        println!("serde failed: {}", e);
+                        None
+                    },
+                },
+                Err(e) =>  {
+                    println!("open failed: {}", e);
+                    None
+                }
+            }
+        },
+        _ => None
+    };
+    Some(if matches.is_present("MIN_TRACE") {
+        Arc::new(move |_, info| trace_callback_minimal(info, &debug_info))
+    } else {
+        Arc::new(move |_, info| trace_callback(info, &debug_info))
+    })
 }

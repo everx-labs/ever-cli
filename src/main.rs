@@ -32,7 +32,6 @@ mod sendfile;
 mod voting;
 mod replay;
 mod debug;
-mod debug_executor;
 
 use account::{get_account, calc_storage};
 use call::{call_contract, call_contract_with_msg, generate_message, parse_params, run_get_method, run_local_for_account};
