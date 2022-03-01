@@ -298,9 +298,6 @@ impl TransactionExecutor for DebugTransactionExecutor {
             if let Some(TrBouncePhase::Ok(_)) = description.bounce {
                 log::debug!(target: "executor", "restore balance {} => {}", acc_balance.grams, original_acc_balance.grams);
                 acc_balance = original_acc_balance;
-                if (account.status() == AccountStatus::AccStateUninit) && acc_balance.is_zero()? {
-                    *account = Account::default();
-                }
             } else {
                 if account.is_none() && !acc_balance.is_zero()? {
                     *account = Account::uninit(
@@ -372,7 +369,7 @@ impl DebugTransactionExecutor {
         acc_balance: &mut CurrencyCollection,
         msg_balance: &CurrencyCollection,
         state_libs: HashmapE, // masterchain libraries
-        smc_info: SmartContractInfo,
+        mut smc_info: SmartContractInfo,
         stack: Stack,
         is_masterchain: bool,
         is_special: bool,
@@ -457,7 +454,10 @@ impl DebugTransactionExecutor {
         libs.push(result_acc.libraries().inner());
         libs.push(state_libs);
 
-        let mut vm = VMSetup::new(code.into())
+        if let Some(init_code_hash) = result_acc.init_code_hash() {
+            smc_info.set_init_code_hash(init_code_hash.clone());
+        }
+        let mut vm = VMSetup::with_capabilites(code.into(), self.config().capabilites())
             .set_contract_info(smc_info, self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapInitCodeHash))?
             .set_stack(stack)
             .set_data(data)?
