@@ -2466,15 +2466,14 @@ Log saved to trace2.log
 ```
 Error: Failed: {
 ...
-    "account_address": "0:8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa",
-...
     "transaction_id": "69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88"
 ```
 
 3) Run the tonos-cli debug transaction command with the obtained values to get TVM trace:
 
 ```
-tonos-cli debug transaction --dump_contract -e --min_trace -d <contract>.dbg.json -o trace_old_code.log 8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88
+tonos-cli debug transaction 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 \
+--dump_contract -e --min_trace -d <contract>.dbg.json -o trace_old_code.log 
 ```
 
 4) Explore the output for contract dump:

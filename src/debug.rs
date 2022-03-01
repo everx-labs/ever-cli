@@ -301,7 +301,9 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
             config_path
         },
         _ => {
-            println!("Fetching config contract transactions...");
+            if !config.is_json {
+                println!("Fetching config contract transactions...");
+            }
             fetch(&config.url,CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config).await?;
             DEFAULT_CONFIG_PATH
         }
@@ -311,7 +313,9 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
             contract_path
         },
         _ => {
-            println!("Fetching contract transactions...");
+            if !config.is_json {
+                println!("Fetching contract transactions...");
+            }
             fetch(&config.url, &address, DEFAULT_CONTRACT_PATH, false).await?;
             DEFAULT_CONTRACT_PATH
         }
@@ -339,11 +343,15 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
     if matches.is_present("DUMP_CONTRACT") {
         dump_mask |= DUMP_ACCOUNT;
     }
-    println!("Replaying the last transactions...");
+    if !config.is_json {
+        println!("Replaying the last transactions...");
+    }
     let tr = replay(contract_path, config_path, &tx_id,false, false, false, trace_level, init_logger, debug_info, dump_mask).await?;
 
-    decode_messages(tr.out_msgs, load_decode_abi(matches, config)).await?;
-    println!("Log saved to {}.", trace_path);
+    decode_messages(tr.out_msgs, load_decode_abi(matches, config.clone())).await?;
+    if !config.is_json {
+        println!("Log saved to {}.", trace_path);
+    }
     Ok(())
 }
 
@@ -437,6 +445,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
         last_tr_lt: Arc::new(AtomicU64::new(trans.logical_time())),
         seed_block: UInt256::default(),
         debug: false,
+        ..ExecuteParams::default()
     };
 
     let msg = trans.in_msg_cell().map(|c| Message::construct_from_cell(c)
@@ -458,19 +467,27 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
             .map_err(|e| format!("Failed to construct account: {}", e))?
             .write_to_file(input.unwrap())
             .map_err(|e| format!("Failed to save account state: {}", e))?;
-        println!("Contract state was updated.");
+        if !config.is_json {
+            println!("Contract state was updated.");
+        }
     }
 
     match result_trans {
         Ok(result_trans) => {
             decode_messages(result_trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
-            println!("Execution finished.");
+            if !config.is_json {
+                println!("Execution finished.");
+            }
         }
         Err(e) => {
-            println!("Execution failed: {}", e);
+            if !config.is_json {
+                println!("Execution failed: {}", e);
+            }
         }
     }
-    println!("Log saved to {}", output.unwrap());
+    if !config.is_json {
+        println!("Log saved to {}", output.unwrap());
+    }
     Ok(())
 }
 
@@ -482,7 +499,9 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: Config) -> Option<String> {
         Some(path) => match std::fs::read_to_string(path) {
             Ok(res) => Some(res),
             Err(e) => {
-                println!("Failed to read abi: {}", e);
+                if !config.is_json {
+                    println!("Failed to read abi: {}", e);
+                }
                 None
             }
         }
@@ -577,6 +596,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
         last_tr_lt: Arc::new(AtomicU64::new(now)),
         seed_block: UInt256::default(),
         debug: true,
+        ..ExecuteParams::default()
     };
 
     let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, is_getter).await?;
@@ -596,18 +616,19 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
         &mut acc_root,
         params
     );
-
-    match trans {
+    let msg_string = match trans {
         Ok(trans) => {
             decode_messages(trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
-            println!("Execution finished.");
+            "Execution finished.".to_string()
         }
         Err(e) => {
-            println!("Execution failed: {}", e);
+            format!("Execution failed: {}", e)
         }
+    };
+    if !config.is_json {
+        println!("{}", msg_string);
+        println!("Log saved to {}", trace_path);
     }
-
-    println!("Log saved to {}", trace_path);
     Ok(())
 }
 

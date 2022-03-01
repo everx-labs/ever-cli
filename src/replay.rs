@@ -543,6 +543,7 @@ pub async fn replay(
             last_tr_lt: Arc::new(AtomicU64::new(tr.tr.logical_time())),
             seed_block: UInt256::default(),
             debug: trace_execution,
+            ..ExecuteParams::default()
         };
         let tr_local = executor.execute_with_libs_and_params(
             msg.as_ref(),
