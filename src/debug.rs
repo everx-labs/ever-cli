@@ -474,7 +474,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
 
     match result_trans {
         Ok(result_trans) => {
-            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
+            decode_messages(result_trans.0.out_msgs,load_decode_abi(matches, config.clone())).await?;
             if !config.is_json {
                 println!("Execution finished.");
             }
@@ -618,7 +618,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
     );
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
+            decode_messages(trans.0.out_msgs,load_decode_abi(matches, config.clone())).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {

@@ -11,9 +11,7 @@
  * limitations under the License.
  */
 
-use ton_executor::{
-    BlockchainConfig, CalcMsgFwdFees, ExecutorError, TransactionExecutor, ExecuteParams, VMSetup
-};
+use ton_executor::{BlockchainConfig, CalcMsgFwdFees, ExecutorError, TransactionExecutor, ExecuteParams, VMSetup, CopyleftReward};
 
 use std::sync::{atomic::Ordering, Arc};
 use ton_block::{
@@ -54,7 +52,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
         in_msg: Option<&Message>,
         account: &mut Account,
         params: ExecuteParams,
-    ) -> Result<Transaction> {
+    ) -> Result<(Transaction, Option<CopyleftReward>)> {
 
         let in_msg = in_msg.ok_or_else(|| error!("Ordinary transaction must have input message"))?;
         let in_msg_cell = in_msg.serialize()?; // TODO: get from outside
@@ -325,7 +323,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
         account.set_last_tr_time(lt);
         tr.write_description(&TransactionDescr::Ordinary(description))?;
 
-        Ok(tr)
+        Ok((tr, None))
     }
     fn ordinary_transaction(&self) -> bool { true }
     fn config(&self) -> &BlockchainConfig { &self.config }
