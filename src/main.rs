@@ -50,7 +50,7 @@ use getconfig::{query_global_config, dump_blockchain_config};
 use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
-use replay::{fetch_command, replay_command};
+use replay::{fetch_block_command, fetch_command, replay_block_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use crate::account::dump_accounts;
 use crate::config::FullConfig;
@@ -751,6 +751,17 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true)
             .help("Message boc file."));
 
+    let fetch_block_cmd = SubCommand::with_name("fetch-block")
+        .about("Fetches a block.")
+        .arg(Arg::with_name("BLOCKID")
+            .required(true)
+            .takes_value(true)
+            .help("Block ID."))
+        .arg(Arg::with_name("OUTPUT")
+            .required(true)
+            .takes_value(true)
+            .help("Output file name"));
+
     let fetch_cmd = SubCommand::with_name("fetch")
         .about("Fetches account's zerostate and transactions.")
         .setting(AppSettings::AllowLeadingHyphen)
@@ -759,6 +770,13 @@ async fn main_internal() -> Result <(), String> {
             .required(true)
             .takes_value(true)
             .help("Output file name"));
+
+    let replay_block_cmd = SubCommand::with_name("replay-block")
+        .about("Replays block.")
+        .arg(Arg::with_name("BLOCK")
+            .required(true)
+            .takes_value(true)
+            .help("File containing block description ready for replay."));
 
     let replay_cmd = SubCommand::with_name("replay")
         .about("Replays account's transactions starting from zerostate.")
@@ -827,7 +845,9 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(bcconfig_cmd)
         .subcommand(nodeid_cmd)
         .subcommand(sendfile_cmd)
+        .subcommand(fetch_block_cmd)
         .subcommand(fetch_cmd)
+        .subcommand(replay_block_cmd)
         .subcommand(replay_cmd)
         .subcommand(callx_cmd)
         .subcommand(deployx_cmd)
@@ -994,8 +1014,14 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     if let Some(m) = matches.subcommand_matches("debot") {
         return debot_command(m, conf).await;
     }
+    if let Some(m) = matches.subcommand_matches("fetch-block") {
+        return fetch_block_command(m, conf).await;
+    }
     if let Some(m) = matches.subcommand_matches("fetch") {
         return fetch_command(m, conf).await;
+    }
+    if let Some(m) = matches.subcommand_matches("replay-block") {
+        return replay_block_command(m).await;
     }
     if let Some(m) = matches.subcommand_matches("replay") {
         return replay_command(m).await;
