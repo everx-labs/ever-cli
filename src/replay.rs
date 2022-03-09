@@ -590,6 +590,11 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
         m.value_of("OUTPUT").ok_or("Missing output filename")?,
         false
     ).await?;
+    if config.is_json {
+        println!("{{}}");
+    } else {
+        println!("Succeeded");
+    }
     Ok(())
 }
 

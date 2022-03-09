@@ -1,5 +1,4 @@
 target
-*.lock
 .vscode
 .solc_imports
 /tonlabs-cli.conf.json
