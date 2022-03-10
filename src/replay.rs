@@ -488,6 +488,8 @@ pub async fn replay(
             config = construct_blockchain_config(&config_account)?;
         }
 
+        //println!("{} {}", state.account_addr, tr.id);
+
         let mut account_root = state.account.serialize()
             .map_err(|e| format!("Failed to serialize: {}", e))?;
 
@@ -660,7 +662,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
     })?;
 
     if accounts.is_empty() {
-        return Err(err_msg("Empty block"))
+        return Err(err_msg("The block is empty"))
     }
 
     for (account, _) in &accounts {
@@ -671,63 +673,64 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
             false).await.map_err(|err| err_msg(err))?;
     }
 
+    let config_txns_path = format!("{}.txns", CONFIG_ADDR);
+    if !std::path::Path::new(config_txns_path.as_str()).exists() {
+        println!("Fetching transactions of {}", CONFIG_ADDR);
+        fetch(server_address,
+            CONFIG_ADDR,
+            config_txns_path.as_str(),
+            false).await.map_err(|err| err_msg(err))?;
+    }
+
+    let acc = accounts[0].0.as_str();
     let txnid = accounts[0].1[0].0.as_str();
 
-    if !std::path::Path::new(format!("config-{}.boc", txnid).as_str()).exists() {
-        println!("Replaying a transaction to get config");
-        replay(format!("{}.txns", accounts[0].0).as_str(),
-            format!("{}.txns", CONFIG_ADDR).as_str(), txnid,
+    let config_path = format!("config-{}.boc", txnid);
+    if !std::path::Path::new(config_path.as_str()).exists() {
+        println!("Computing config: replaying {} up to {}", acc, txnid);
+        replay(format!("{}.txns", acc).as_str(),
+            config_txns_path.as_str(), txnid,
             false, false, false, TraceLevel::None,
             || Ok(()), None, DUMP_CONFIG).await.map_err(|err| err_msg(err))?;
+    } else {
+        println!("Using pre-computed config {}", config_path);
     }
 
-    let mut config_data = vec!();
-    {
-        let mut config_file = File::open(format!("config-{}.boc", txnid))?;
-        config_file.read_to_end(&mut config_data)?;
-    }
-
-    let config_file = File::create("config.txns")?;
-    let mut config_writer = std::io::BufWriter::new(config_file);
-
-    config_writer.write(format!("{{\"id\":\"{}\",\"boc\":\"{}\"}}", CONFIG_ADDR, base64::encode(&config_data)).as_bytes())?;
-    println!("Wrote config.txns");
-
-    let file = File::create(filename)?;
-    let mut writer = std::io::BufWriter::new(file);
-
+    let mut writer = std::io::BufWriter::new(File::create(filename)?);
+    let mut config_data = Vec::new();
+    let mut config_file = File::open(format!("config-{}.boc", txnid))?;
+    config_file.read_to_end(&mut config_data)?;
     writer.write(format!("{{\"config-boc\":\"{}\",\"accounts\":[", base64::encode(&config_data)).as_bytes())?;
 
     let mut index1 = 0;
     for (account, txns) in &accounts {
         println!("Pre-replaying {}", account);
-        let config_txns = if account == ELECTOR_ADDR {
-            CONFIG_ADDR
-        } else {
-            "config"
-        };
         let txnid = txns[0].0.as_str();
         if !std::path::Path::new(format!("{}-{}.boc", account, txnid).as_str()).exists() {
             replay(format!("{}.txns", account).as_str(),
-                format!("{}.txns", config_txns).as_str(), txnid,
+                format!("{}.txns", CONFIG_ADDR).as_str(), txnid,
                 false, false, false, TraceLevel::None,
                 || Ok(()), None, DUMP_ACCOUNT).await.map_err(|err| err_msg(err))?;
         }
         let mut account_file = File::open(format!("{}-{}.boc", account, txnid))?;
-        let mut account_data = vec!();
+        let mut account_data = Vec::new();
         account_file.read_to_end(&mut account_data)?;
         writer.write(format!("{{\"account-boc\":\"{}\",\"transactions\":[", base64::encode(&account_data)).as_bytes())?;
         let mut index2 = 0;
         for (_, txn) in txns {
-            writer.write(format!("\"{}\"{}", txn, if index2 == txns.len() - 1 { "" } else { "," }).as_bytes())?;
+            writer.write(format!("\"{}\"{}", txn, delim(index2, txns)).as_bytes())?;
             index2 += 1;
         }
-        writer.write(format!("]}}{}", if index1 == accounts.len() - 1 { "" } else { "," }).as_bytes())?;
+        writer.write(format!("]}}{}", delim(index1, &accounts)).as_bytes())?;
         index1 += 1;
     }
     writer.write(b"]}")?;
     println!("Wrote {}", filename);
     Ok(())
+}
+
+fn delim<T>(index: usize, vec: &Vec<T>) -> &'static str {
+    if index == vec.len() - 1 { "" } else { "," }
 }
 
 // {
@@ -777,10 +780,8 @@ fn replay_block_impl(data: BlockReplayData) -> Result<(), failure::Error> {
                     _ => panic!("Unknown transaction type")
                 };
             let msg_cell = tr.in_msg_cell();
-            let msg = match msg_cell {
-                Some(c) => Some(Message::construct_from_cell(c)?),
-                None => None
-            };
+            let msg = msg_cell.map(|c| Message::construct_from_cell(c)).transpose()?;
+
             let params = ExecuteParams {
                 state_libs: HashmapE::default(),
                 block_unixtime: tr.now,
@@ -828,7 +829,7 @@ pub async fn replay_block(block_filename: &str) -> Result<(), failure::Error> {
         .ok_or(err_msg("No accounts field found"))?.as_array()
         .ok_or(err_msg("accounts field is not a string"))?;
 
-    let mut accounts = vec!();
+    let mut accounts = Vec::new();
 
     for acc in accounts_json {
         let account_boc = acc.get("account-boc")
@@ -837,7 +838,7 @@ pub async fn replay_block(block_filename: &str) -> Result<(), failure::Error> {
         let account = Account::construct_from_base64(account_boc)?;
         let account_cell = account.serialize()?;
 
-        let mut transactions = vec!();
+        let mut transactions = Vec::new();
 
         let txns = acc.get("transactions")
             .ok_or(err_msg("No transactions field found"))?.as_array()
@@ -851,6 +852,7 @@ pub async fn replay_block(block_filename: &str) -> Result<(), failure::Error> {
         accounts.push(AccountReplayData { account_cell, transactions });
     }
 
+    // all required data has been loaded into memory, now do the desired replay
     replay_block_impl(BlockReplayData { config, accounts })
 }
 
