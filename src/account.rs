@@ -278,6 +278,8 @@ pub async fn dump_accounts(conf:Config, addresses: Vec<String>, path: Option<&st
             }
         }
         println!("Succeeded.");
+    } else {
+        println!("{{}}");
     }
     Ok(())
 }

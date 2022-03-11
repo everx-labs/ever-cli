@@ -628,6 +628,8 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
     if !config.is_json {
         println!("{}", msg_string);
         println!("Log saved to {}", trace_path);
+    } else {
+        println!("{{}}");
     }
     Ok(())
 }

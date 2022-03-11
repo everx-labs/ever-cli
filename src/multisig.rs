@@ -393,7 +393,14 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
 
     if res.is_err() {
         if res.clone().err().unwrap().contains("Account does not exist.") {
-            println!("Your account should have initial balance for deployment. Please transfer some value to your wallet address before deploy.");
+            if !config.is_json {
+                println!("Your account should have initial balance for deployment. Please transfer some value to your wallet address before deploy.");
+            } else {
+                println!("{{");
+                println!("  \"Error\": \"Your account should have initial balance for deployment. Please transfer some value to your wallet address before deploy.\",");
+                println!("  \"Address\": \"{}\"", address);
+                println!("}}");
+            }
             return Ok(());
         }
         return Err(res.err().unwrap());
@@ -402,6 +409,10 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
     if !config.is_json {
         println!("Wallet successfully deployed");
         println!("Wallet address: {}", address);
+    } else {
+        println!("{{");
+        println!("  \"Address\": \"{}\"", address);
+        println!("}}");
     }
 
     Ok(())
