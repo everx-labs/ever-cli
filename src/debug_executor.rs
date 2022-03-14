@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 
-use ton_executor::{BlockchainConfig, CalcMsgFwdFees, ExecutorError, TransactionExecutor, ExecuteParams, VMSetup, CopyleftReward};
+use ton_executor::{BlockchainConfig, CalcMsgFwdFees, ExecutorError, TransactionExecutor, ExecuteParams, VMSetup};
 
 use std::sync::{atomic::Ordering, Arc};
 use ton_block::{
     AddSub, Grams, Serializable, Account, AccStatusChange, CommonMsgInfo, Message, Transaction,
     TransactionDescrOrdinary, TransactionDescr, TrComputePhase, TrBouncePhase, CurrencyCollection,
-    GlobalCapabilities, ComputeSkipReason, TrComputePhaseVm, AccountStatus, GasLimitsPrices,
+    GlobalCapabilities, ComputeSkipReason, TrComputePhaseVm, AccountStatus, GasLimitsPrices
 };
 use ton_types::{
     error, fail, Result, HashmapE, Cell, ExceptionCode
@@ -52,7 +52,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
         in_msg: Option<&Message>,
         account: &mut Account,
         params: ExecuteParams,
-    ) -> Result<(Transaction, Option<CopyleftReward>)> {
+    ) -> Result<Transaction> {
 
         let in_msg = in_msg.ok_or_else(|| error!("Ordinary transaction must have input message"))?;
         let in_msg_cell = in_msg.serialize()?; // TODO: get from outside
@@ -323,7 +323,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
         account.set_last_tr_time(lt);
         tr.write_description(&TransactionDescr::Ordinary(description))?;
 
-        Ok((tr, None))
+        Ok(tr)
     }
     fn ordinary_transaction(&self) -> bool { true }
     fn config(&self) -> &BlockchainConfig { &self.config }

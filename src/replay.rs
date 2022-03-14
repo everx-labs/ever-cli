@@ -562,7 +562,7 @@ pub async fn replay(
             println!("FAILURE\nNew hashes mismatch:\nremote {}\nlocal  {}",
                 account_new_hash_remote.to_hex_string(),
                 account_new_hash_local.to_hex_string());
-            println!("{:?}", tr_local.0.read_description()
+            println!("{:?}", tr_local.read_description()
                 .map_err(|e| format!("failed to read description: {}", e))?);
             exit(2);
         }
@@ -577,7 +577,7 @@ pub async fn replay(
 
         if tr.id == txnid {
             println!("DONE");
-            return Ok(tr_local.0);
+            return Ok(tr_local);
         }
         state.tr = None;
     }
