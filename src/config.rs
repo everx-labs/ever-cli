@@ -263,6 +263,7 @@ pub fn clear_config(
     balance_in_tons: bool,
     local_run: bool,
 ) -> Result<(), String> {
+    let is_json = conf.is_json;
     if url {
         let url = default_url();
         conf.endpoints = FullConfig::default_map()[&url].clone();
@@ -311,7 +312,9 @@ pub fn clear_config(
     }
 
     Config::to_file(path, &conf)?;
-    println!("Succeeded.");
+    if !is_json {
+        println!("Succeeded.");
+    }
     Ok(())
 }
 

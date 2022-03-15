@@ -838,11 +838,16 @@ async fn main_internal() -> Result <(), String> {
     let is_json = matches.is_present("JSON");
 
     command_parser(&matches, is_json).await
-        .map_err(|e| format!("{}{}", if is_json {
-            ""
-        } else {
-            "Error: "
-        }, e))
+        .map_err(|e| {
+            if !is_json {
+                format!("Error: {}", e)
+            } else {
+                let err: serde_json::Value = json!(e);
+                let res = json!({"Error": err});
+                serde_json::to_string_pretty(&res)
+                    .unwrap_or("{{ \"JSON serialization error\" }}".to_string())
+            }
+        })
 }
 
 async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), String> {
@@ -975,7 +980,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         }
     }
     if let Some(m) = matches.subcommand_matches("nodeid") {
-        return nodeid_command(m);
+        return nodeid_command(m, conf);
     }
     if let Some(m) = matches.subcommand_matches("sendfile") {
         return sendfile_command(m, conf).await;
@@ -996,14 +1001,24 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return replay_command(m).await;
     }
     if let Some(_) = matches.subcommand_matches("version") {
-        println!(
-            "tonos-cli {}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
-            env!("CARGO_PKG_VERSION"),
-            env!("BUILD_GIT_COMMIT"),
-            env!("BUILD_TIME") ,
-            env!("BUILD_GIT_DATE"),
-            env!("BUILD_GIT_BRANCH")
-        );
+        if conf.is_json {
+            println!("{{");
+            println!(r#"  "tonos-cli": "{}","#, env!("CARGO_PKG_VERSION"));
+            println!(r#"  "COMMIT_ID": "{}","#, env!("BUILD_GIT_COMMIT"));
+            println!(r#"  "BUILD_DATE": "{}","#, env!("BUILD_TIME"));
+            println!(r#"  "COMMIT_DATE": "{}","#, env!("BUILD_GIT_DATE"));
+            println!(r#"  "GIT_BRANCH": "{}""#, env!("BUILD_GIT_BRANCH"));
+            println!("}}");
+        } else {
+            println!(
+                "tonos-cli {}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
+                env!("CARGO_PKG_VERSION"),
+                env!("BUILD_GIT_COMMIT"),
+                env!("BUILD_TIME"),
+                env!("BUILD_GIT_DATE"),
+                env!("BUILD_GIT_BRANCH")
+            );
+        }
         return Ok(());
     }
     Err("invalid arguments".to_string())
@@ -1028,13 +1043,15 @@ fn genphrase_command(matches: &ArgMatches, config: Config) -> Result<(), String>
 
 fn genpubkey_command(matches: &ArgMatches, _config: Config) -> Result<(), String> {
     let mnemonic = matches.value_of("PHRASE").unwrap();
-    extract_pubkey(mnemonic)
+    extract_pubkey(mnemonic, _config.is_json)
 }
 
 fn getkeypair_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let key_file = matches.value_of("KEY_FILE");
     let phrase = matches.value_of("PHRASE");
-    print_args!(key_file, phrase);
+    if !config.is_json {
+        print_args!(key_file, phrase);
+    }
     generate_keypair(key_file.unwrap(), phrase.unwrap(), config)
 }
 
@@ -1042,7 +1059,9 @@ async fn send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
     let message = matches.value_of("MESSAGE");
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
 
-    print_args!(message, abi);
+    if !config.is_json {
+        print_args!(message, abi);
+    }
 
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
@@ -1065,7 +1084,9 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
     let output = matches.value_of("OUTPUT");
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let params = Some(load_params(params.unwrap())?);
-    print_args!(method, params, abi, output);
+    if !config.is_json {
+        print_args!(method, params, abi, output);
+    }
 
     let params = serde_json::from_str(&params.unwrap())
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
@@ -1088,7 +1109,13 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
     .map_err(|e| format!("failed to encode body: {}", e))
     .map(|r| r.body)?;
 
-    println!("Message body: {}", body);
+    if !config.is_json {
+        println!("Message body: {}", body);
+    } else {
+        println!("{{");
+        println!("  \"Message\": \"{}\"", body);
+        println!("}}");
+    }
 
     Ok(())
 }
@@ -1347,7 +1374,7 @@ async fn deploy_command(matches: &ArgMatches<'_>, config: Config, deploy_type: D
     }
     match deploy_type {
         DeployType::Full => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false).await,
-        DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, raw, output).await,
+        DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, raw, output, config.is_json).await,
         DeployType::Fee => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, true).await,
     }
 }
@@ -1511,8 +1538,9 @@ async fn proposal_create_command(matches: &ArgMatches<'_>, config: Config) -> Re
     let comment = matches.value_of("COMMENT");
     let lifetime = matches.value_of("LIFETIME");
     let offline = matches.is_present("OFFLINE");
-    print_args!(address, comment, keys, lifetime);
-
+    if !config.is_json {
+        print_args!(address, comment, keys, lifetime);
+    }
     let address = load_ton_address(address.unwrap(), &config)?;
     let lifetime = parse_lifetime(lifetime, config.clone())?;
 
@@ -1533,19 +1561,23 @@ async fn proposal_vote_command(matches: &ArgMatches<'_>, config: Config) -> Resu
     let id = matches.value_of("ID");
     let lifetime = matches.value_of("LIFETIME");
     let offline = matches.is_present("OFFLINE");
-    print_args!(address, id, keys, lifetime);
-
+    if !config.is_json {
+        print_args!(address, id, keys, lifetime);
+    }
     let address = load_ton_address(address.unwrap(), &config)?;
     let lifetime = parse_lifetime(lifetime, config.clone())?;
 
-    vote(config, address.as_str(), keys, id.unwrap(), lifetime, offline).await
+    vote(config, address.as_str(), keys, id.unwrap(), lifetime, offline).await?;
+    println!("{{}}");
+    Ok(())
 }
 
 async fn proposal_decode_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let id = matches.value_of("ID");
-    print_args!(address, id);
-
+    if !config.is_json {
+        print_args!(address, id);
+    }
     let address = load_ton_address(address.unwrap(), &config)?;
     decode_proposal(config, address.as_str(), id.unwrap()).await
 }
@@ -1566,10 +1598,12 @@ async fn dump_bc_config_command(matches: &ArgMatches<'_>, config: Config) -> Res
     dump_blockchain_config(config, path.unwrap()).await
 }
 
-fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
+fn nodeid_command(matches: &ArgMatches, config: Config) -> Result<(), String> {
     let key = matches.value_of("KEY");
     let keypair = matches.value_of("KEY_PAIR");
-    print_args!(key, keypair);
+    if !config.is_json {
+        print_args!(key, keypair);
+    }
     let nodeid = if let Some(key) = key {
         let vec = hex::decode(key)
             .map_err(|e| format!("failed to decode public key: {}", e))?;
@@ -1581,12 +1615,20 @@ fn nodeid_command(matches: &ArgMatches) -> Result<(), String> {
     } else {
         return Err("Either public key or key pair parameter should be provided".to_owned());
     };
-    println!("{}", nodeid);
+    if !config.is_json {
+        println!("{}", nodeid);
+    } else {
+        println!("{{");
+        println!("  \"nodeid\": \"{}\"", nodeid);
+        println!("}}");
+    }
     Ok(())
 }
 
 async fn sendfile_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), String> {
     let boc = m.value_of("BOC");
-    print_args!(boc);
+    if !conf.is_json {
+        print_args!(boc);
+    }
     sendfile::sendfile(conf, boc.unwrap()).await
 }

@@ -23,9 +23,12 @@ pub async fn sendfile(conf: Config, msg_boc: &str) -> Result<(), String> {
     let dst = tvm_msg.dst()
         .ok_or(format!("failed to parse dst address"))?;
 
-    println!("Sending message to account {}", dst);
-
-    send_message_and_wait(ton, None, base64::encode(&boc_vec), conf).await?;
-    println!("Succeded.");
+    if !conf.is_json {
+        println!("Sending message to account {}", dst);
+    }
+    send_message_and_wait(ton, None, base64::encode(&boc_vec), conf.clone()).await?;
+    if !conf.is_json {
+        println!("Succeded.");
+    }
     Ok(())
 }

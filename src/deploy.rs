@@ -69,6 +69,8 @@ pub async fn deploy_contract(
             println!("Transaction succeeded.");
         }
         println!("Contract deployed at address: {}", addr);
+    } else {
+        println!("{{}}");
     }
     Ok(())
 }
@@ -81,6 +83,7 @@ pub async fn generate_deploy_message(
     wc: i32,
     is_raw: bool,
     output: Option<&str>,
+    is_json: bool,
 ) -> Result<(), String> {
 
     let ton = create_client_local()?;
@@ -95,10 +98,11 @@ pub async fn generate_deploy_message(
         expire: None,
         address: addr.to_owned(),
     };
-    display_generated_message(&msg, "constructor", is_raw, output)?;
-    println!("Contract's address: {}", addr);
-    println!("Succeeded.");
-
+    display_generated_message(&msg, "constructor", is_raw, output, is_json)?;
+    if !is_json {
+        println!("Contract's address: {}", addr);
+        println!("Succeeded.");
+    }
     Ok(())
 }
 
