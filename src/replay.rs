@@ -215,8 +215,8 @@ impl State {
 }
 
 fn choose<'a>(st1: &'a mut State, st2: &'a mut State) -> &'a mut State {
-    let lt1 = st1.tr.as_ref().map_or(u64::MAX, |tr| tr.tr.lt);
-    let lt2 = st2.tr.as_ref().map_or(u64::MAX, |tr| tr.tr.lt);
+    let lt1 = st1.tr.as_ref().map_or(u64::MAX, |tr| tr.tr.logical_time());
+    let lt2 = st2.tr.as_ref().map_or(u64::MAX, |tr| tr.tr.logical_time());
     if lt1 <= lt2 {
         st1
     } else {
@@ -538,9 +538,9 @@ pub async fn replay(
 
         let params = ExecuteParams {
             state_libs: HashmapE::default(),
-            block_unixtime: tr.tr.now,
-            block_lt: tr.tr.lt,
-            last_tr_lt: Arc::new(AtomicU64::new(tr.tr.lt)),
+            block_unixtime: tr.tr.now(),
+            block_lt: tr.tr.logical_time(),
+            last_tr_lt: Arc::new(AtomicU64::new(tr.tr.logical_time())),
             seed_block: UInt256::default(),
             debug: trace_execution,
             ..ExecuteParams::default()
