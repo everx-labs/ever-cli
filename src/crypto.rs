@@ -135,14 +135,20 @@ pub fn generate_mnemonic(keypath: Option<&str>, config: Config) -> Result<(), St
     Ok(())
 }
 
-pub fn extract_pubkey(mnemonic: &str) -> Result<(), String> {
+pub fn extract_pubkey(mnemonic: &str, is_json: bool) -> Result<(), String> {
     let keypair = generate_keypair_from_mnemonic(mnemonic)?;
-    println!("Succeeded.");
-    println!("Public key: {}", keypair.public);
-    println!();
-    qr2term::print_qr(&keypair.public)
-        .map_err(|e| format!("failed to print the QR code: {}", e))?;
-    println!();
+    if !is_json {
+        println!("Succeeded.");
+        println!("Public key: {}", keypair.public);
+        println!();
+        qr2term::print_qr(&keypair.public)
+            .map_err(|e| format!("failed to print the QR code: {}", e))?;
+        println!();
+    } else {
+        println!("{{");
+        println!("  \"Public key\": \"{}\"", keypair.public);
+        println!("}}");
+    }
     Ok(())
 }
 

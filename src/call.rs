@@ -118,15 +118,20 @@ pub fn prepare_message_params (
     })
 }
 
-pub fn print_encoded_message(msg: &EncodedMessage) {
-    println!();
-    println!("MessageId: {}", msg.message_id);
-    print!("Expire at: ");
-    if msg.expire.is_some() {
-        let expire_at = Local.timestamp(msg.expire.unwrap() as i64 , 0);
-        println!("{}", expire_at.to_rfc2822());
+pub fn print_encoded_message(msg: &EncodedMessage, is_json:bool) {
+    let expire = if msg.expire.is_some() {
+        let expire_at = Local.timestamp(msg.expire.unwrap() as i64, 0);
+        expire_at.to_rfc2822()
     } else {
-        println!("unknown");
+        "unknown".to_string()
+    };
+    if !is_json {
+        println!();
+        println!("MessageId: {}", msg.message_id);
+        println!("Expire at: {}", expire);
+    } else {
+        println!("  \"MessageId\": \"{}\",", msg.message_id);
+        println!("  \"Expire at\": \"{}\",", expire);
     }
 }
 
@@ -624,21 +629,36 @@ pub fn display_generated_message(
     method: &str,
     is_raw: bool,
     output: Option<&str>,
+    is_json: bool,
 ) -> Result<(), String> {
-    print_encoded_message(msg);
+    if is_json {
+        println!("{{");
+    }
+    print_encoded_message(msg, is_json);
 
     let msg_bytes = pack_message(msg, method, is_raw)?;
     if output.is_some() {
         let out_file = output.unwrap();
         std::fs::write(out_file, msg_bytes)
             .map_err(|e| format!("cannot write message to file: {}", e))?;
-        println!("Message saved to file {}", out_file);
+        if !is_json {
+            println!("Message saved to file {}", out_file);
+        } else {
+            println!("  \"Message\": \"saved to file {}\"", out_file);
+        }
     } else {
         let msg_hex = hex::encode(&msg_bytes);
-        println!("Message: {}", msg_hex);
-        println!();
-        qr2term::print_qr(msg_hex).map_err(|e| format!("failed to print QR code: {}", e))?;
-        println!();
+        if !is_json {
+            println!("Message: {}", msg_hex);
+            println!();
+            qr2term::print_qr(msg_hex).map_err(|e| format!("failed to print QR code: {}", e))?;
+            println!();
+        } else {
+            println!("  \"Message\": \"{}\"", msg_hex);
+        }
+    }
+    if is_json {
+        println!("}}");
     }
     Ok(())
 }
@@ -675,10 +695,10 @@ pub async fn generate_message(
         params,
         Some(header),
         keys,
-        false,
+        _conf.is_json,
     ).await?;
 
-    display_generated_message(&msg, method, is_raw, output)?;
+    display_generated_message(&msg, method, is_raw, output, _conf.is_json)?;
 
     Ok(())
 }
@@ -688,20 +708,30 @@ pub async fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) 
     let abi = load_abi(&abi)?;
 
     let (msg, _) = unpack_message(&str_msg)?;
-    print_encoded_message(&msg);
+    if conf.is_json {
+        println!("{{");
+    }
+    print_encoded_message(&msg, conf.is_json);
 
     let params = decode_call_parameters(ton.clone(), &msg, abi.clone()).await?;
 
-    println!("Calling method {} with parameters:", params.0);
-    println!("{}", params.1);
-    println!("Processing... ");
+    if !conf.is_json {
+        println!("Calling method {} with parameters:", params.0);
+        println!("{}", params.1);
+        println!("Processing... ");
+    } else {
+        println!("  \"Method\": \"{}\",", params.0);
+        println!("  \"Parameters\": {},", params.1);
+        println!("}}");
+    }
+    let result = send_message_and_wait(ton, Some(abi), msg.message,  conf.clone()).await?;
 
-    let result = send_message_and_wait(ton, Some(abi), msg.message,  conf).await?;
-
-    println!("Succeeded.");
-    if !result.is_null() {
-        println!("Result: {}", serde_json::to_string_pretty(&result)
-            .map_err(|e| format!("failed to serialize result: {}", e))?);
+    if !conf.is_json {
+        println!("Succeeded.");
+        if !result.is_null() {
+            println!("Result: {}", serde_json::to_string_pretty(&result)
+                .map_err(|e| format!("failed to serialize result: {}", e))?);
+        }
     }
     Ok(())
 }

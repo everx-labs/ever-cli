@@ -440,9 +440,9 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
 
     let params = ExecuteParams {
         state_libs: HashmapE::default(),
-        block_unixtime: trans.now,
+        block_unixtime: trans.now(),
         block_lt,
-        last_tr_lt: Arc::new(AtomicU64::new(trans.lt)),
+        last_tr_lt: Arc::new(AtomicU64::new(trans.logical_time())),
         seed_block: UInt256::default(),
         debug: false,
         ..ExecuteParams::default()
@@ -628,6 +628,8 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
     if !config.is_json {
         println!("{}", msg_string);
         println!("Log saved to {}", trace_path);
+    } else {
+        println!("{{}}");
     }
     Ok(())
 }

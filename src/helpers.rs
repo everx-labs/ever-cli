@@ -180,9 +180,8 @@ pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> 
         Some(1),
     ).await
         .map_err(|e| format!("failed to query account data: {}", e))?;
-
     if accounts.len() == 0 {
-        return Err(format!("account not found"));
+        return Err(format!("account with address {} not found", address));
     }
     let data = accounts[0][field].as_str();
     if data.is_none() {
