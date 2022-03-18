@@ -21,7 +21,7 @@ use clap::ArgMatches;
 use failure::err_msg;
 use serde_json::Value;
 
-use ton_block::{Account, ConfigParamEnum, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr, Block, HashmapAugType};
+use ton_block::{Account, ConfigParamEnum, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr, Block, HashmapAugType, GlobalCapabilities};
 use ton_client::{
     ClientConfig, ClientContext,
     abi::{Abi, CallSet, ParamsOfEncodeMessage, encode_message},
@@ -575,8 +575,17 @@ pub async fn replay(
             params).map_err(|e| format!("Failed to execute txn: {}", e))?;
         state.account = Account::construct_from_cell(account_root.clone())
             .map_err(|e| format!("Failed to construct account: {}", e))?;
-        state.account.update_storage_stat()
-            .map_err(|e| format!("failed to update account: {}", e))?;
+
+        if config.has_capability(GlobalCapabilities::CapFastStorageStat) {
+            state.account.update_storage_stat_fast()
+                .map_err(|e| format!("failed to update account: {}", e))?;
+        } else {
+            state.account.update_storage_stat()
+                .map_err(|e| format!("failed to update account: {}", e))?;
+        }
+
+        account_root = state.account.serialize()
+            .map_err(|e| format!("Failed to serialize: {}", e))?;
 
         let account_new_hash_local = account_root.repr_hash();
         let account_new_hash_remote = tr.tr.read_state_update()
@@ -586,8 +595,11 @@ pub async fn replay(
             println!("FAILURE\nNew hashes mismatch:\nremote {}\nlocal  {}",
                 account_new_hash_remote.to_hex_string(),
                 account_new_hash_local.to_hex_string());
-            println!("{:?}", tr_local.read_description()
-                .map_err(|e| format!("failed to read description: {}", e))?);
+            let local_desc = tr_local.read_description()
+                .map_err(|e| format!("failed to read description: {}", e))?;
+            let remote_desc = tr.tr.read_description()
+                .map_err(|e| format!("failed to read description: {}", e))?;
+            assert_eq!(remote_desc, local_desc);
             exit(2);
         }
 
@@ -784,9 +796,9 @@ fn replay_block_impl(data: BlockReplayData) -> Result<(), failure::Error> {
 
             let params = ExecuteParams {
                 state_libs: HashmapE::default(),
-                block_unixtime: tr.now,
-                block_lt: tr.lt,
-                last_tr_lt: Arc::new(AtomicU64::new(tr.lt)),
+                block_unixtime: tr.now(),
+                block_lt: tr.logical_time(),
+                last_tr_lt: Arc::new(AtomicU64::new(tr.logical_time())),
                 seed_block: UInt256::default(),
                 debug: false,
             };
