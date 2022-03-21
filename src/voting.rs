@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use crate::{call};
+use crate::{call, message};
 use crate::helpers::{create_client_local, decode_msg_body};
 use crate::multisig::{encode_transfer_body, MSIG_ABI, TRANSFER_WITH_COMMENT};
 
@@ -38,7 +38,7 @@ pub async fn create_proposal(
 	let keys = keys.map(|s| s.to_owned());
 
 	if offline {
-		call::generate_message(
+		message::generate_message(
 			conf,
 			addr,
 			MSIG_ABI.to_string(),
@@ -57,7 +57,6 @@ pub async fn create_proposal(
 			"submitTransaction",
 			&params,
 			keys,
-			false,
 			false,
 		).await
 	}
@@ -79,7 +78,7 @@ pub async fn vote(
 	let keys = keys.map(|s| s.to_owned());
 
 	if offline {
-		call::generate_message(
+		message::generate_message(
 			conf,
 			addr,
 			MSIG_ABI.to_string(),
@@ -99,7 +98,6 @@ pub async fn vote(
 			&params,
 			keys,
 			false,
-			false,
 		).await
 	}
 }
@@ -110,6 +108,7 @@ pub async fn decode_proposal(
 	proposal_id: &str,
 ) -> Result<(), String> {
 
+	// change to run
 	let result = call::call_contract_with_result(
 		conf.clone(),
 		addr,
@@ -117,7 +116,6 @@ pub async fn decode_proposal(
 		"getTransactions",
 		"{}",
 		None,
-		true,
 		false,
 	).await?;
 

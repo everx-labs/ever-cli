@@ -226,7 +226,7 @@ master {
 "#;
 
 pub async fn query_global_config(conf: Config, index: Option<&str>) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+    let ton = create_client_verbose(&conf, true)?;
 
     let last_key_block_query = query_with_limit(
         ton.clone(),
@@ -290,7 +290,7 @@ pub async fn query_global_config(conf: Config, index: Option<&str>) -> Result<()
 }
 
 pub async fn dump_blockchain_config(conf: Config, path: &str) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+    let ton = create_client_verbose(&conf, true)?;
 
     let last_key_block_query = query_with_limit(
         ton.clone(),

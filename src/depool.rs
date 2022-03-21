@@ -30,9 +30,10 @@ use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 use serde_json;
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet, ParamsOfDecodeMessageBody};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, ParamsOfWaitForCollection, SortDirection};
-use crate::call::{prepare_message_params, process_message};
+use crate::call::{process_message};
 
 use std::collections::HashMap;
+use crate::message::prepare_message_params;
 
 pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
     let wallet_arg = Arg::with_name("MSIG")
@@ -345,7 +346,7 @@ async fn answer_command(m: &ArgMatches<'_>, conf: Config, depool: &str) -> Resul
             .transpose()?
             .unwrap_or(0);
 
-    let ton = create_client_verbose(&conf)?;
+    let ton = create_client_verbose(&conf, true)?;
     let wallet = load_ton_address(&wallet, &conf)
         .map_err(|e| format!("invalid depool address: {}", e))?;
 
@@ -428,7 +429,7 @@ async fn print_event(ton: TonClient, event: &serde_json::Value) -> Result<(), St
 }
 
 async fn get_events(conf: Config, depool: &str, since: u32) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+    let ton = create_client_verbose(&conf, true)?;
     let _addr = load_ton_address(depool, &conf)?;
 
     let events = ton_client::net::query_collection(
@@ -450,7 +451,7 @@ async fn get_events(conf: Config, depool: &str, since: u32) -> Result<(), String
 }
 
 async fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+    let ton = create_client_verbose(&conf, true)?;
     let _addr = load_ton_address(depool, &conf)?;
     println!("Waiting for a new event...");
     let event = ton_client::net::wait_for_collection(
@@ -819,7 +820,7 @@ async fn call_contract_and_get_answer(
     body: &str,
     answer_is_expected: bool
 ) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+    let ton = create_client_verbose(&conf, true)?;
     let abi = load_abi(MSIG_ABI)?;
     let start = now()?;
 
@@ -842,7 +843,7 @@ async fn call_contract_and_get_answer(
 
     println!("Multisig message processing... ");
 
-    process_message(ton.clone(), msg, conf.is_json).await?;
+    process_message(ton.clone(), msg, conf.clone()).await?;
 
     println!("\nMessage was successfully sent to the multisig, waiting for message to be sent to the depool...");
 

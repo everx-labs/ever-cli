@@ -34,7 +34,7 @@ const DEFAULT_CONTRACT_PATH: &'static str = "contract.txns";
 const TRANSACTION_QUANTITY: u32 = 10;
 
 
-struct DebugLogger {
+pub struct DebugLogger {
     tvm_trace: String,
 }
 
@@ -132,9 +132,9 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .help("Path to the ABI file used to decode output messages. Can be specified in the config file.");
 
-    let min_trace_arg = Arg::with_name("MIN_TRACE")
-        .long("--min_trace")
-        .help("Flag that changes trace to minimal version.");
+    let full_trace_arg = Arg::with_name("FULL_TRACE")
+        .long("--full_trace")
+        .help("Flag that changes trace to full version.");
 
     let boc_arg = Arg::with_name("BOC")
         .long("--boc")
@@ -185,7 +185,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .arg(method_arg.clone())
         .arg(params_arg.clone())
         .arg(abi_arg.clone())
-        .arg(min_trace_arg.clone())
+        .arg(full_trace_arg.clone())
         .arg(decode_abi_arg.clone())
         .arg(boc_arg.clone())
         .arg(Arg::with_name("TVC")
@@ -216,7 +216,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(contract_path_arg.clone())
             .arg(output_arg.clone())
             .arg(dbg_info_arg.clone())
-            .arg(min_trace_arg.clone())
+            .arg(full_trace_arg.clone())
             .arg(decode_abi_arg.clone())
             .arg(tx_id_arg.clone())
             .arg(dump_config_arg.clone())
@@ -228,7 +228,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(contract_path_arg.clone())
             .arg(output_arg.clone())
             .arg(dbg_info_arg.clone())
-            .arg(min_trace_arg.clone())
+            .arg(full_trace_arg.clone())
             .arg(decode_abi_arg.clone())
             .arg(address_arg.clone())
             .arg(dump_config_arg.clone())
@@ -237,7 +237,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .about("Replay transaction on the saved account state.")
             .arg(output_arg.clone())
             .arg(dbg_info_arg.clone())
-            .arg(min_trace_arg.clone())
+            .arg(full_trace_arg.clone())
             .arg(tx_id_arg.clone())
             .arg(config_path_arg.clone())
             .arg(decode_abi_arg.clone())
@@ -330,10 +330,10 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
         Ok(())
     };
 
-    let trace_level = if matches.is_present("MIN_TRACE") {
-        TraceLevel::Minimal
-    } else {
+    let trace_level = if matches.is_present("FULL_TRACE") {
         TraceLevel::Full
+    } else {
+        TraceLevel::Minimal
     };
 
     let mut dump_mask = DUMP_NONE;
@@ -355,7 +355,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
     Ok(())
 }
 
-async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: TonClient, debug_info: Option<String>, is_min_trace: bool, is_getter: bool) -> Result<Box<DebugTransactionExecutor>, String> {
+async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: TonClient, debug_info: Option<String>, is_full_trace: bool, is_getter: bool) -> Result<Box<DebugTransactionExecutor>, String> {
     let config_account = match matches.value_of("CONFIG_PATH") {
         Some(bc_config) => {
             Account::construct_from_file(bc_config)
@@ -375,10 +375,10 @@ async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: 
         DebugTransactionExecutor::new(
             bc_config.clone(),
             debug_info,
-            if is_min_trace {
-                TraceLevel::Minimal
-            } else {
+            if is_full_trace {
                 TraceLevel::Full
+            } else {
+                TraceLevel::Minimal
             },
             is_getter
         )
@@ -390,7 +390,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
     let tx_id = matches.value_of("TX_ID");
     let config_path = matches.value_of("CONFIG_PATH");
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
-    let is_min_trace = matches.is_present("MIN_TRACE");
+    let is_full_trace = matches.is_present("FULL_TRACE");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let input = matches.value_of("INPUT");
     let do_update = matches.is_present("UPDATE_STATE");
@@ -431,7 +431,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
     let trans = Transaction::construct_from_base64(boc)
         .map_err(|e| format!("Failed to parse transaction: {}", e))?;
 
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, false).await?;
+    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_full_trace, false).await?;
 
     let mut account = Account::construct_from_file(input.unwrap())
         .map_err(|e| format!("Failed to construct account from the file: {}", e))?
@@ -527,7 +527,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
         print_args!(input, method, params, sign, opt_abi, output, debug_info);
     }
 
-    let is_min_trace = matches.is_present("MIN_TRACE");
+    let is_full_trace = matches.is_present("FULL_TRACE");
     let ton_client = create_client(&config)?;
     let input = input.unwrap();
     let account = if is_tvc {
@@ -599,7 +599,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
         ..ExecuteParams::default()
     };
 
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, is_getter).await?;
+    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_full_trace, is_getter).await?;
 
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;

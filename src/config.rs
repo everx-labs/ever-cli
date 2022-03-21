@@ -85,6 +85,8 @@ pub struct Config {
     pub local_run: bool,
     #[serde(default = "default_false")]
     pub async_call: bool,
+    #[serde(default = "default_false")]
+    pub debug_fail: bool,
     #[serde(default = "default_endpoints")]
     pub endpoints: Vec<String>,
 }
@@ -119,6 +121,7 @@ impl Config {
             async_call: default_false(),
             endpoints,
             out_of_sync_threshold: default_out_of_sync(),
+            debug_fail: default_false(),
         }
     }
 
@@ -338,6 +341,7 @@ pub fn set_config(
     local_run: Option<&str>,
     async_call: Option<&str>,
     out_of_sync_threshold: Option<&str>,
+    debug_fail: Option<&str>,
 ) -> Result<(), String> {
     if let Some(s) = url {
         let resolved_url = resolve_net_name(s).unwrap_or(s.to_owned());
@@ -413,6 +417,10 @@ pub fn set_config(
             return  Err("\"out_of_sync\" should not exceed 0.5 * \"lifetime\".".to_string());
         }
         conf.out_of_sync_threshold = time;
+    }
+    if let Some(debug_fail) = debug_fail {
+        conf.debug_fail = debug_fail.parse::<bool>()
+            .map_err(|e| format!(r#"failed to parse "debug_fail": {}"#, e))?;
     }
 
     Config::to_file(path, &conf)?;

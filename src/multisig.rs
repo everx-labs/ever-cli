@@ -321,7 +321,6 @@ pub async fn send_with_body(
         &params,
         Some(keys.to_owned()),
         false,
-        false,
     ).await
 }
 
@@ -372,7 +371,7 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
         println!("Wallet address: {}", address);
     }
 
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(&config, true)?;
 
     if let Some(value) = matches.value_of("VALUE") {
         let params = format!(r#"{{"dest":"{}","amount":"{}"}}"#, address, value);
@@ -385,11 +384,10 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
             &params,
             None,
             false,
-            false,
         ).await?;
     }
 
-    let res = call::process_message(ton.clone(), msg, config.is_json).await;
+    let res = call::process_message(ton.clone(), msg, config.clone()).await;
 
     if res.is_err() {
         if res.clone().err().unwrap().contains("Account does not exist.") {

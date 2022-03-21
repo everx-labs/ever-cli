@@ -14,8 +14,6 @@ use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_
 use crate::config::Config;
 use crate::crypto::load_keypair;
 use crate::call::{
-    EncodedMessage,
-    display_generated_message,
     emulate_locally,
     process_message,
     send_message_and_wait,
@@ -24,6 +22,7 @@ use ton_client::abi::{
     encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage, Abi,
 };
 use ton_client::crypto::KeyPair;
+use crate::message::{display_generated_message, EncodedMessage};
 
 pub async fn deploy_contract(
     conf: Config,
@@ -34,7 +33,7 @@ pub async fn deploy_contract(
     wc: i32,
     is_fee: bool,
 ) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+    let ton = create_client_verbose(&conf, true)?;
 
     if !is_fee && !conf.is_json {
         println!("Deploying...");
@@ -61,7 +60,7 @@ pub async fn deploy_contract(
                               enc_msg.message,
                               conf.clone()).await?;
     } else {
-        process_message(ton.clone(), msg, conf.is_json).await?;
+        process_message(ton.clone(), msg, conf.clone()).await?;
     }
 
     if !conf.is_json {

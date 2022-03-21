@@ -31,7 +31,7 @@ const ACCOUNT_FIELDS: &str = r#"
 const DEFAULT_PATH: &str = ".";
 
 async fn query_accounts(conf: Config, addresses: Vec<String>, fields: &str) -> Result<Vec<Value>, String> {
-    let ton = create_client_verbose(&conf)?;
+    let ton = create_client_verbose(&conf, true)?;
 
     if !conf.is_json {
         println!("Processing...");
@@ -214,7 +214,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
 }
 
 pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+    let ton = create_client_verbose(&conf, true)?;
 
     if !conf.is_json {
         println!("Processing...");

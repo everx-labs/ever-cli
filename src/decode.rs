@@ -270,7 +270,7 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(),
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(&config, true)?;
     let address = load_ton_address(address.unwrap(), &config)?;
     let data = query_account_field(ton.clone(), &address, "data").await?;
 
@@ -366,7 +366,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     let ton = if is_local {
         create_client_local()?
     } else {
-        create_client_verbose(&config)?
+        create_client_verbose(&config, true)?
     };
     let input = input.unwrap().to_owned();
 

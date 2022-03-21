@@ -32,6 +32,9 @@ const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
 pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
 
+pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
+pub const TRACE_PATH: &str = "./trace.log";
+
 struct SimpleLogger;
 
 impl log::Log for SimpleLogger {
@@ -126,24 +129,24 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
     Ok(Arc::new(cli))
 }
 
-pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
+pub fn create_client_verbose(conf: &Config, init_logger: bool) -> Result<TonClient, String> {
     if !conf.is_json {
         println!("Connecting to:\n\tUrl: {}", conf.url);
         println!("\tEndpoints: {:?}\n", conf.endpoints);
     }
-
-    let level = if std::env::var("RUST_LOG")
-        .unwrap_or_default()
-        .eq_ignore_ascii_case("debug")
-    {
-        TEST_MAX_LEVEL
-    } else {
-        MAX_LEVEL
-    };
-    log::set_max_level(level);
-    log::set_boxed_logger(Box::new(SimpleLogger))
-        .map_err(|e| format!("failed to init logger: {}", e))?;
-
+    if init_logger {
+        let level = if std::env::var("RUST_LOG")
+            .unwrap_or_default()
+            .eq_ignore_ascii_case("debug")
+        {
+            TEST_MAX_LEVEL
+        } else {
+            MAX_LEVEL
+        };
+        log::set_max_level(level);
+        log::set_boxed_logger(Box::new(SimpleLogger))
+            .map_err(|e| format!("failed to init logger: {}", e))?;
+    }
     create_client(conf)
 }
 
@@ -431,3 +434,34 @@ pub fn check_dir(path: &str) -> Result<(), String> {
     }
     Ok(())
 }
+
+
+pub enum AccountSource {
+    NETWORK,
+    BOC,
+    TVC,
+}
+
+pub async fn load_account(source_type: &AccountSource, source: &str, ton_client: Option<TonClient>, config: &Config) -> Result<Account, String> {
+    Ok(match source_type {
+        AccountSource::NETWORK => {
+            let ton_client = match ton_client {
+                Some(ton_client) => ton_client,
+                None => {
+                    create_client(&config)?
+                }
+            };
+            let boc = query_account_field(ton_client.clone(),source, "boc").await?;
+            Account::construct_from_base64(&boc)
+                .map_err(|e| format!("Failed to construct account: {}", e))?
+        },
+        AccountSource::BOC => {
+            Account::construct_from_file(source)
+                .map_err(|e| format!(" failed to load account from the file {}: {}", source, e))?
+        },
+        AccountSource::TVC => {
+            construct_account_from_tvc(source, None, None)?
+        },
+    })
+}
+
