@@ -304,7 +304,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
             if !config.is_json {
                 println!("Fetching config contract transactions...");
             }
-            fetch(&config.url,CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config).await?;
+            fetch(&config.url,CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config, None).await?;
             DEFAULT_CONFIG_PATH
         }
     };
@@ -316,7 +316,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
             if !config.is_json {
                 println!("Fetching contract transactions...");
             }
-            fetch(&config.url, &address, DEFAULT_CONTRACT_PATH, false).await?;
+            fetch(&config.url, &address, DEFAULT_CONTRACT_PATH, false, None).await?;
             DEFAULT_CONTRACT_PATH
         }
     };

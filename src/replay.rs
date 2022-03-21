@@ -56,7 +56,7 @@ fn construct_blockchain_config_err(config_account: &Account) -> Result<Blockchai
     BlockchainConfig::with_config(config_params)
 }
 
-pub async fn fetch(server_address: &str, account_address: &str, filename: &str, fast_stop: bool) -> Result<(), String> {
+pub async fn fetch(server_address: &str, account_address: &str, filename: &str, fast_stop: bool, upto: Option<u64>) -> Result<(), String> {
     if std::path::Path::new(filename).exists() {
         println!("File exists");
         return Ok(())
@@ -72,15 +72,27 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
         }).map_err(|e| format!("Failed to create ctx: {}", e))?,
     );
 
+    let filter = if let Some(upto) = upto {
+        let upto = format!("0x{:x}", upto);
+        serde_json::json!({
+            "account_addr": {
+                "eq": account_address
+            },
+            "lt": { "lt": upto },
+        })
+    } else {
+        serde_json::json!({
+            "account_addr": {
+                "eq": account_address
+            },
+        })
+    };
+
     let tr_count = aggregate_collection(
         context.clone(),
         ParamsOfAggregateCollection {
             collection: "transactions".to_owned(),
-            filter: Some(serde_json::json!({
-                "account_addr": {
-                    "eq": account_address
-                },
-            })),
+            filter: Some(filter),
             fields: Some(vec![
                 FieldAggregation {
                     field: "fn".to_owned(),
@@ -145,16 +157,27 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
     let mut lt = String::from("0x0");
     loop {
         let action = || async {
+            let filter = if let Some(upto) = upto {
+                let upto = format!("0x{:x}", upto);
+                serde_json::json!({
+                    "account_addr": {
+                        "eq": account_address
+                    },
+                    "lt": { "gt": lt, "lt": upto },
+                })
+            } else {
+                serde_json::json!({
+                    "account_addr": {
+                        "eq": account_address
+                    },
+                    "lt": { "gt": lt },
+                })
+            };
             let query = query_collection(
                 context.clone(),
                 ParamsOfQueryCollection {
                     collection: "transactions".to_owned(),
-                    filter: Some(serde_json::json!({
-                        "account_addr": {
-                            "eq": account_address
-                        },
-                        "lt": { "gt": lt },
-                    })),
+                    filter: Some(filter),
                     result: "id lt block { start_lt } boc".to_owned(),
                     limit: None,
                     order: Some(vec![
@@ -640,7 +663,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
                     "eq": block_id
                 },
             })),
-            result: "workchain_id boc".to_owned(),
+            result: "workchain_id end_lt boc".to_owned(),
             limit: None,
             order: None,
         },
@@ -653,6 +676,8 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
     let mut accounts = vec!();
 
     let wid = block.result.get(0).unwrap()["workchain_id"].as_i64().unwrap();
+    let end_lt = block.result.get(0).unwrap()["end_lt"].as_str().unwrap().trim_start_matches("0x");
+    let end_lt = u64::from_str_radix(end_lt, 16).unwrap();
     let block = Block::construct_from_base64(block.result.get(0).unwrap()["boc"].as_str().unwrap())?;
     let extra = block.read_extra()?;
     let account_blocks = extra.read_account_blocks()?;
@@ -682,7 +707,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         fetch(server_address,
             account.as_str(),
             format!("{}.txns", account).as_str(),
-            false).await.map_err(|err| err_msg(err))?;
+            false, Some(end_lt + 1)).await.map_err(|err| err_msg(err))?;
     }
 
     let config_txns_path = format!("{}.txns", CONFIG_ADDR);
@@ -691,7 +716,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         fetch(server_address,
             CONFIG_ADDR,
             config_txns_path.as_str(),
-            false).await.map_err(|err| err_msg(err))?;
+            false, Some(end_lt + 1)).await.map_err(|err| err_msg(err))?;
     }
 
     let acc = accounts[0].0.as_str();
@@ -880,7 +905,8 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
     fetch(config.url.as_str(),
         m.value_of("ADDRESS").ok_or("Missing account address")?,
         m.value_of("OUTPUT").ok_or("Missing output filename")?,
-        false
+        false,
+        None
     ).await?;
     if config.is_json {
         println!("{{}}");
