@@ -4,6 +4,8 @@ use std::env;
 use std::time::Duration;
 use std::thread::sleep;
 use std::fs;
+use serde_json::Value;
+
 mod common;
 use common::{BIN_NAME, NETWORK, get_config};
 
@@ -30,6 +32,15 @@ fn generate_phrase_and_key(key_path: &str) -> Result<String, Box<dyn std::error:
     Ok(seed)
 }
 
+fn set_config(config: &str, argument: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg(config)
+        .arg(argument)
+        .assert()
+        .success();
+    Ok(())
+}
 fn generate_public_key(seed: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     let out = cmd.arg("genpubkey")
@@ -68,12 +79,7 @@ fn generate_key_and_address(
 
 fn ask_giver(target: &str, amount: u64) -> Result<(), Box<dyn std::error::Error>> {
     let giver_abi = "tests/samples/giver.abi.json";
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg(&*NETWORK)
-        .assert()
-        .success();
+    set_config("--url", &*NETWORK)?;
 
     let arg_string = format!(r#"{{"dest":"{}","amount":{}}}"#, target, amount);
 
@@ -118,12 +124,7 @@ fn test_config_1() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#""timeout": 25000"#))
         .stdout(predicate::str::contains(r#""wc": -2"#));
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--wc")
-        .arg("0")
-        .assert()
-        .success();
+    set_config("--wc", "0")?;
     Ok(())
 }
 
@@ -473,12 +474,7 @@ fn test_async_deploy() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("acc_type:      Uninit"));
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--async_call")
-        .arg("true")
-        .assert()
-        .success();
+    set_config("--async_call", "true")?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("deploy")
@@ -492,12 +488,7 @@ fn test_async_deploy() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(addr.clone()));
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--async_call")
-        .arg("false")
-        .assert()
-        .success();
+    set_config("--async_call", "false")?;
 
     sleep(Duration::new(1, 0));
 
@@ -521,12 +512,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
 
     ask_giver(&addr, 1000000000)?;
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--balance_in_tons")
-        .arg("true");
-    cmd.assert()
-        .success();
+    set_config("--balance_in_tons", "true")?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
@@ -543,12 +529,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("\"balance\": \""));
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--balance_in_tons")
-        .arg("false");
-    cmd.assert()
-        .success();
+    set_config("--balance_in_tons", "false")?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
@@ -661,12 +642,7 @@ fn test_genaddr_seed() -> Result<(), Box<dyn std::error::Error>> {
 fn test_callex() -> Result<(), Box<dyn std::error::Error>> {
     let giver_abi_name = "tests/samples/giver.abi.json";
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg(&*NETWORK)
-        .assert()
-        .success();
+    set_config("--url", &*NETWORK)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("callex")
@@ -811,12 +787,7 @@ fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success();
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--async_call")
-        .arg("true")
-        .assert()
-        .success();
+    set_config("--async_call", "true")?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--url")
@@ -826,12 +797,7 @@ fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success();
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--async_call")
-        .arg("false")
-        .assert()
-        .success();
+    set_config("--async_call", "false")?;
 
     Ok(())
 }
@@ -841,12 +807,7 @@ fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
 fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
     env::set_var("RUST_LOG", "debug");
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg("https://net.ton.dev");
-    cmd.assert()
-        .success();
+    set_config("--url", "https://net.ton.dev")?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
@@ -887,12 +848,7 @@ fn test_config_wc() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("acc_type:      Active"));
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--wc")
-        .arg("1");
-    cmd.assert()
-        .success();
+    set_config("--wc", "1")?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
@@ -901,24 +857,14 @@ fn test_config_wc() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Account not found"));
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--wc")
-        .arg("0");
-    cmd.assert()
-        .success();
+    set_config("--wc", "0")?;
     Ok(())
 }
 
 
 #[test]
 fn test_account_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg("https://net.ton.dev");
-    cmd.assert()
-        .success();
+    set_config("--url", "https://net.ton.dev")?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account");
@@ -1001,12 +947,7 @@ fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std:
 
     //test getting ABI from config
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--abi")
-        .arg("tests/samples/Subscription.abi.json");
-    cmd.assert()
-        .success();
+    set_config("--abi", "tests/samples/Subscription.abi.json")?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("decode")
@@ -1029,12 +970,7 @@ fn test_decode_body_constructor_for_minus_workchain() -> Result<(), Box<dyn std:
 
 
     //test that abi in commandline is preferred
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--abi")
-        .arg("tests/samples/wallet.abi.json");
-    cmd.assert()
-        .success();
+    set_config("--abi", "tests/samples/wallet.abi.json")?;
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--json").arg("decode")
         .arg("body").arg("te6ccgEBAgEAkwABW1ByqHsAAAF1QnI+qZ/1tsdEUQb8jxj9vr/H4WuiQwfD5ESNbO4lcz2Kca2KavABAMAQYZcjaCLLbO1phXFWOD/kmlkZ1g7FyjgSIEHRpXeeIDiQ3f7FKVd+oeq6VxVlAti+jigqVmtrn8wmBEgbyT8P+5iyVBuoBWSPJetGndR2b83eA6LP5vtB2MFXHClAfKM=")
@@ -1304,12 +1240,7 @@ fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
     let config = get_config().unwrap();
     let depool_addr = config["addr"].as_str().unwrap();
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--depool_fee")
-        .arg("0.7")
-        .assert()
-        .success();
+    set_config("--depool_fee", "0.7")?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -1336,12 +1267,7 @@ fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#"reinvest": true"#))
         .stdout(predicate::str::contains(r#"value": "700000000"#));
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--depool_fee")
-        .arg("0.8")
-        .assert()
-        .success();
+    set_config("--depool_fee", "0.8")?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -1805,12 +1731,7 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
 
     let config_path = "tests/block_config.boc";
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg("main.ton.dev")
-        .assert()
-        .success();
+    set_config("--url", "main.ton.dev")?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("dump")
@@ -1819,12 +1740,7 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success();
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg(&*NETWORK)
-        .assert()
-        .success();
+    set_config("--url", &*NETWORK)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -1913,19 +1829,8 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
 fn test_run_async_call() -> Result<(), Box<dyn std::error::Error>> {
     let giver_abi_name = "tests/samples/giver.abi.json";
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg(&*NETWORK)
-        .assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--async_call")
-        .arg("false")
-        .assert()
-        .success();
+    set_config("--url", &*NETWORK)?;
+    set_config("--async_call", "false")?;
 
     let time = now_ms();
 
@@ -1942,12 +1847,7 @@ fn test_run_async_call() -> Result<(), Box<dyn std::error::Error>> {
 
     let duration = now_ms() - time;
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--async_call")
-        .arg("true")
-        .assert()
-        .success();
+    set_config("--async_call", "true")?;
 
     let time = now_ms();
 
@@ -2291,12 +2191,7 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
     let wallet_abi = "tests/samples/SafeMultisigWallet.abi.json";
     let key_path = "tests/deploy_test.key";
 
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("config")
-        .arg("--url")
-        .arg(&*NETWORK)
-        .assert()
-        .success();
+    set_config("--url", &*NETWORK)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     let out = cmd.arg("genphrase")
@@ -2416,3 +2311,132 @@ fn test_convert() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn _test_json_output() -> Result<(), Box<dyn std::error::Error>> {
+    // success
+    set_config("--url", &*NETWORK)?;
+    let depool_abi = "tests/samples/fakeDepool.abi.json";
+    let depool_tvc = "tests/samples/fakeDepool.tvc";
+    let key_path = "tests/depool_test.key";
+
+    let depool_addr = generate_key_and_address(key_path, depool_tvc, depool_abi)?;
+    ask_giver(&depool_addr, 10000000000)?;
+
+    run_command_and_decode_json("account 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")?;
+    run_command_and_decode_json(r#"body --abi tests/samples/fakeDepool.abi.json addOrdinaryStake {"stake":65535}"#)?;
+    run_command_and_decode_json(r#"call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGrams {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1111111} --abi tests/samples/giver.abi.json"#)?;
+    run_command_and_decode_json(r#"callex sendGrams 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 tests/samples/giver.abi.json tests/deploy_test.key --dest 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 123464"#)?;
+    run_command_and_decode_json(r#"callx --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGrams --dest 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1111111 --abi tests/samples/giver.abi.json"#)?;
+    run_command_and_decode_json(r#"config endpoint add randomurl randomendpoint"#)?;
+    run_command_and_decode_json(r#"config endpoint print"#)?;
+    run_command_and_decode_json(r#"config endpoint remove randomurl"#)?;
+    run_command_and_decode_json(r#"config endpoint reset"#)?;
+    run_command_and_decode_json(r#"decode msg tests/samples/wallet.boc --abi tests/samples/wallet.abi.json"#)?;
+    run_command_and_decode_json(r#"decode body te6ccgEBAQEARAAAgwAAALqUCTqWL8OX7JivfJrAAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMQAAAAAAAAAAAAAAAEeGjADA== --abi tests/samples/wallet.abi.json"#)?;
+    run_command_and_decode_json(r#"decode stateinit 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94"#)?;
+    run_command_and_decode_json(r#"decode account data --abi tests/test_abi_v2.1.abi.json --tvc tests/decode_fields.tvc"#)?;
+    run_command_and_decode_json(r#"decode account boc tests/account.boc"#)?;
+    run_command_and_decode_json(r#"fee deploy --abi tests/samples/fakeDepool.abi.json --sign tests/depool_test.key tests/samples/fakeDepool.tvc {}"#)?;
+    run_command_and_decode_json(r#"deploy --abi tests/samples/fakeDepool.abi.json --sign tests/depool_test.key tests/samples/fakeDepool.tvc {}"#)?;
+
+    let depool_addr = generate_key_and_address(key_path, depool_tvc, depool_abi)?;
+    ask_giver(&depool_addr, 10000000000)?;
+    run_command_and_decode_json(r#"deployx --abi tests/samples/fakeDepool.abi.json --keys tests/depool_test.key tests/samples/fakeDepool.tvc "#)?;
+    run_command_and_decode_json(r#"deploy_message --raw --abi tests/samples/fakeDepool.abi.json -o fakeDepool.msg --sign tests/depool_test.key tests/samples/fakeDepool.tvc {}"#)?;
+    run_command_and_decode_json(r#"dump account 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94"#)?;
+    run_command_and_decode_json("config clear")?;
+    run_command_and_decode_json(r#"dump config 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94.boc"#)?;
+    run_command_and_decode_json(r#"getconfig 1"#)?;
+    run_command_and_decode_json(r#"getconfig"#)?;
+    set_config("--url", &*NETWORK)?;
+    run_command_and_decode_json(r#"fee storage 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94"#)?;
+    run_command_and_decode_json(r#"fee call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGrams {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1111111} --abi tests/samples/giver.abi.json"#)?;
+    run_command_and_decode_json(r#"fetch 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 fakeDepool.msg"#)?;
+    run_command_and_decode_json(r#"genaddr tests/samples/wallet.tvc tests/samples/wallet.abi.json --genkey tests/deploy_test.key"#)?;
+    run_command_and_decode_json(r#"genphrase"#)?;
+    // run_command_and_decode_json(r#"genpubkey "jar denial ozone coil heart tattoo science stay wire about act equip""#)?;
+    run_command_and_decode_json(r#"message 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendTransaction {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":1000000000,"bounce":true} --abi tests/samples/wallet.abi.json --raw --output fakeDepool.msg"#)?;
+    run_command_and_decode_json(r#"message 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendTransaction {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":1000000000,"bounce":true} --abi tests/samples/wallet.abi.json --raw"#)?;
+    run_command_and_decode_json(r#"multisig deploy -k tests/deploy_test.key -l 1000000000"#)?;
+    run_command_and_decode_json(r#"nodeid --pubkey cde8fbf86c44e4ed2095f83b6f3c97b7aec55a77e06e843f8b9ffeab66ad4b32"#)?;
+    run_command_and_decode_json(r#"nodeid --keypair tests/samples/exp.json"#)?;
+    run_command_and_decode_json(r#"proposal create 0:28a3738f08f5b3410e92aab20f702d64160e2891aaaed881f27d59ff518078d1 0:28a3738f08f5b3410e92aab20f702d64160e2891aaaed881f27d59ff518078d1 12313 tests/deploy_test.key"#)?;
+    run_command_and_decode_json(r#"proposal vote 0:28a3738f08f5b3410e92aab20f702d64160e2891aaaed881f27d59ff518078d1 12313 tests/deploy_test.key"#)?;
+    let command = format!("run --abi tests/samples/fakeDepool.abi.json {} getData {{}}", depool_addr);
+    run_command_and_decode_json(&command)?;
+    let command = format!("runx --abi tests/samples/fakeDepool.abi.json --addr {} getData ", depool_addr);
+    run_command_and_decode_json(&command)?;
+    run_command_and_decode_json(r#"runget --boc tests/account_fift.boc past_election_ids"#)?;
+    run_command_and_decode_json(r#"sendfile fakeDepool.msg"#)?;
+    run_command_and_decode_json(r#"debug call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGrams '{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1111111}' --abi tests/samples/giver.abi.json -c tests/config.boc"#)?;
+    run_command_and_decode_json("convert tokens 0.123456789")?;
+    run_command_and_decode_json("version")?;
+
+
+    // fail
+    run_command_and_decode_json("account 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a23")?;
+    run_command_and_decode_json(r#"body --abi tests/samples/fakeDepool.abi.json addOrdinaryStake {"stake1":65535}"#)?;
+    run_command_and_decode_json("convert tokens 0.12345678a")?;
+    run_command_and_decode_json(r#"call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 sendGrams {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1111111} --abi tests/samples/giver.abi.json"#)?;
+    run_command_and_decode_json(r#"callex sendGrams 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 tests/samples/giver.abi.json tests/deploy_test.key --dest 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 123464"#)?;
+    run_command_and_decode_json(r#"callx --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 sendGrams --dest 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1111111 --abi tests/samples/giver.abi.json"#)?;
+    run_command_and_decode_json(r#"config endpoint remove random"#)?;
+    run_command_and_decode_json(r#"decode msg tests/samples/wallet.boc --abi tests/samples/fakeDepool.abi.json"#)?;
+    run_command_and_decode_json(r#"decode msg tests/account_fift.tvc --abi tests/samples/fakeDepool.abi.json"#)?;
+    run_command_and_decode_json(r#"decode body te6ccgEBAQEARAAAgwAAALqUCTqWL8OX7JivfJrAAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMQAAAAAAAAAAAAAAAEeGjADA== --abi tests/samples/fakeDepool.abi.json"#)?;
+    run_command_and_decode_json(r#"decode stateinit 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a65"#)?;
+    run_command_and_decode_json(r#"decode account data --abi tests/test_abi_v2.1.abi.json --tvc tests/account_fift.tvc"#)?;
+    run_command_and_decode_json(r#"decode account boc tests/account_fift.tvc"#)?;
+    run_command_and_decode_json(r#"sendfile tests/account.boc"#)?;
+    run_command_and_decode_json(r#"fee deploy --abi tests/samples/fakeDepool.abi.json --sign tests/NumberInput.keys.json tests/samples/fakeDepool.tvc {}"#)?;
+    run_command_and_decode_json(r#"deploy --abi tests/samples/fakeDepool.abi.json --sign tests/NumberInput.keys.json tests/samples/fakeDepool.tvc {}"#)?;
+    run_command_and_decode_json(r#"deployx --abi tests/samples/fakeDepool.abi.json --keys tests/NumberInput.keys.json tests/samples/fakeDepool.tvc "#)?;
+    run_command_and_decode_json(r#"deploy_message --raw --abi tests/samples/fakeDepool.abi.json --sign tests/deploy_test.key tests/account.boc {}"#)?;
+    run_command_and_decode_json(r#"dump config 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94.boc"#)?;
+    run_command_and_decode_json(r#"fee storage 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a11"#)?;
+    run_command_and_decode_json(r#"fee call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 sendGrams {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1111111} --abi tests/samples/giver.abi.json"#)?;
+    run_command_and_decode_json(r#"genaddr tests/account.boc tests/samples/wallet.abi.json --genkey tests/deploy_test.key"#)?;
+    // run_command_and_decode_json(r#"genpubkey "jar denial ozone coil heart tattoo science stay wire about act""#)?;
+    run_command_and_decode_json(r#"getconfig 1"#)?;
+    run_command_and_decode_json(r#"message 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendansaction {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":1000000000,"bounce":true} --abi tests/samples/wallet.abi.json --raw"#)?;
+    run_command_and_decode_json(r#"multisig deploy -k tests/depool_test.key"#)?;
+    run_command_and_decode_json(r#"multisig deploy -k tests/deploy_test.key -l 1000000000"#)?;
+    run_command_and_decode_json(r#"nodeid --pubkey cde8fbf86c"#)?;
+    run_command_and_decode_json(r#"nodeid --keypair tests/account.boc"#)?;
+    run_command_and_decode_json(r#"proposal vote 0:28a3738f08f5b3410e92aab20f702d64160e2891aaaed881f27d59ff518078d1 12313 tests/depool_test.key"#)?;
+    run_command_and_decode_json(r#"proposal decode 0:28a3738f08f5b3410e92aab20f702d64160e2891aaaed881f27d59ff518078d1 12313"#)?;
+    let command = format!("run --abi tests/samples/fakeDepool.abi.json {} getDat {{}}", depool_addr);
+    run_command_and_decode_json(&command)?;
+    let command = format!("runx --abi tests/samples/fakeDepool.abi.json --addr {} gtData ", depool_addr);
+    run_command_and_decode_json(&command)?;
+    run_command_and_decode_json(r#"runget --boc tests/account_fift.boc past_election_is"#)?;
+    run_command_and_decode_json(r#"send --abi tests/samples/fakeDepool.abi.json 65465"#)?;
+    run_command_and_decode_json(r#"debug call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGram1 '{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1111111}' --abi tests/samples/giver.abi.json -c tests/config.boc"#)?;
+    fs::remove_file(key_path)?;
+    fs::remove_file("fakeDepool.msg")?;
+    fs::remove_file("841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94.boc")?;
+    Ok(())
+}
+
+fn run_command_and_decode_json(command: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    println!("Command: {}",command);
+    let out = cmd.arg("-j")
+        .args(command.split(" ").collect::<Vec<&str>>())
+        .output()
+        .expect("Failed to execute command.");
+        // .stdout;
+
+    println!("OUT: {:?}", out);
+
+    let out = core::str::from_utf8(&out.stdout)
+        .map_err(|e| format!("Failed to decode command output: {}", e))?;
+
+    println!("OUT: {}", out);
+    let _ : Value = serde_json::from_str(out)
+        .map_err(|e| format!("Failed to decode output as json: {}", e))?;
+    Ok(())
+}
+
+

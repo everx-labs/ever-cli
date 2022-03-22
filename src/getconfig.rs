@@ -322,6 +322,8 @@ pub async fn dump_blockchain_config(conf: Config, path: &str) -> Result<(), Stri
         .map_err(|e| format!("Failed to write data to the file {}: {}", path, e))?;
     if !conf.is_json {
         println!("Config successfully saved to {}", path);
+    } else {
+        println!("{{}}");
     }
     Ok(())
 }

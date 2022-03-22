@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use crate::call;
+use crate::{call};
 use crate::helpers::{create_client_local, decode_msg_body};
 use crate::multisig::{encode_transfer_body, MSIG_ABI, TRANSFER_WITH_COMMENT};
 
@@ -111,7 +111,7 @@ pub async fn decode_proposal(
 ) -> Result<(), String> {
 
 	let result = call::call_contract_with_result(
-		conf,
+		conf.clone(),
 		addr,
 		MSIG_ABI.to_string(),
 		"getTransactions",
@@ -148,10 +148,22 @@ pub async fn decode_proposal(
 				).map_err(|e| format!("failed to parse comment from transaction payload: {}", e))?
 			).map_err(|e| format!("failed to convert comment to string: {}", e))?;
 
-			println!("Comment: {}", comment);
+			if !conf.is_json {
+				println!("Comment: {}", comment);
+			} else {
+				println!("{{");
+				println!("  \"Comment\": \"{}\"", comment);
+				println!("}}");
+			}
 			return Ok(());
 		}
 	}
-	println!("Proposal with id {} not found", proposal_id);
+	if !conf.is_json {
+		println!("Proposal with id {} not found", proposal_id);
+	} else {
+		println!("{{");
+		println!("  \"Error\": \"Proposal with id {} not found\"", proposal_id);
+		println!("}}");
+	}
 	Ok(())
 }

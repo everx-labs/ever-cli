@@ -150,7 +150,13 @@ async fn decode_account_from_boc(m: &ArgMatches<'_>, config: Config) -> Result<(
 
 pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, config: Config) -> Result<(), String> {
     if account.is_none() {
-        println!("\nAccount is None");
+        if !config.is_json {
+            println!("\nAccount is None");
+        } else {
+            println!("{{");
+            println!("  \"Account\": \"None\"");
+            println!("}}");
+        }
         return Ok(());
     }
     let state_init = account.state_init();
@@ -247,7 +253,10 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
         )
         .await
         .map_err(|e| format!("failed to decode data: {}", e))?;
-    println!("TVC fields:\n{}", serde_json::to_string_pretty(&res.data)
+    if !config.is_json {
+        println!("TVC fields:");
+    }
+    println!("{}", serde_json::to_string_pretty(&res.data)
         .map_err(|e| format!("failed to serialize the result: {}", e))?);
     Ok(())
 }
@@ -535,8 +544,7 @@ pub mod msg_printer {
                 .map_err(|e| format!("failed to serialize body: {}", e))?;
             res["BodyCall"] =  match serialize_body(body_vec, &abi, ton).await {
                 Ok(res) => res,
-                Err(e) => {
-                    println!("Warning: {}", e);
+                Err(_) => {
                     json!("Undefined")
                 }
             };
