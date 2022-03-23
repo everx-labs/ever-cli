@@ -2865,6 +2865,7 @@ dependencies = [
  "crc16",
  "ed25519-dalek",
  "failure",
+ "futures",
  "hex 0.3.2",
  "indicatif",
  "lazy_static",

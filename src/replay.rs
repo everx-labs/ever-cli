@@ -19,6 +19,7 @@ use std::{
 };
 use clap::ArgMatches;
 use failure::err_msg;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use ton_block::{Account, ConfigParamEnum, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr, Block, HashmapAugType, GlobalCapabilities};
@@ -733,60 +734,73 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         println!("Using pre-computed config {}", config_path);
     }
 
-    let mut writer = std::io::BufWriter::new(File::create(filename)?);
+    println!("Pre-replaying block accounts");
+    let tasks: Vec<_> = accounts.iter().map(|(account, txns)| {
+        let account = account.clone();
+        let txnid = txns[0].0.clone();
+        tokio::spawn(async move {
+            if !std::path::Path::new(format!("{}-{}.boc", account, txnid).as_str()).exists() {
+                replay(
+                    format!("{}.txns", account).as_str(),
+                    format!("{}.txns", CONFIG_ADDR).as_str(),
+                    &txnid,
+                    false,
+                    false,
+                    false,
+                    TraceLevel::None,
+                    || Ok(()),
+                    None,
+                    DUMP_ACCOUNT
+                ).await.map_err(|err| err_msg(err)).unwrap();
+            }
+        })
+    }).collect();
+    futures::future::join_all(tasks).await;
+
+    println!("Writing block");
     let mut config_data = Vec::new();
     let mut config_file = File::open(format!("config-{}.boc", txnid))?;
     config_file.read_to_end(&mut config_data)?;
-    writer.write(format!("{{\"config-boc\":\"{}\",\"accounts\":[", base64::encode(&config_data)).as_bytes())?;
 
-    let mut index1 = 0;
+    let mut block = BlockDescr {
+        id: block_id.to_string(),
+        config_boc: base64::encode(&config_data),
+        accounts: vec!(),
+    };
+
     for (account, txns) in &accounts {
-        println!("Pre-replaying {}", account);
         let txnid = txns[0].0.as_str();
-        if !std::path::Path::new(format!("{}-{}.boc", account, txnid).as_str()).exists() {
-            replay(format!("{}.txns", account).as_str(),
-                format!("{}.txns", CONFIG_ADDR).as_str(), txnid,
-                false, false, false, TraceLevel::None,
-                || Ok(()), None, DUMP_ACCOUNT).await.map_err(|err| err_msg(err))?;
-        }
         let mut account_file = File::open(format!("{}-{}.boc", account, txnid))?;
         let mut account_data = Vec::new();
         account_file.read_to_end(&mut account_data)?;
-        writer.write(format!("{{\"account-boc\":\"{}\",\"transactions\":[", base64::encode(&account_data)).as_bytes())?;
-        let mut index2 = 0;
+        let mut transactions = vec!();
         for (_, txn) in txns {
-            writer.write(format!("\"{}\"{}", txn, delim(index2, txns)).as_bytes())?;
-            index2 += 1;
+            transactions.push(txn.clone());
         }
-        writer.write(format!("]}}{}", delim(index1, &accounts)).as_bytes())?;
-        index1 += 1;
+        block.accounts.push(BlockAccountDescr {
+            account_boc: base64::encode(&account_data),
+            transactions,
+        });
     }
-    writer.write(b"]}")?;
-    println!("Wrote {}", filename);
+
+    let mut writer = std::io::BufWriter::new(File::create(filename)?);
+    writer.write_all(serde_json::to_string_pretty(&block)?.as_bytes())?;
+    println!("Wrote block to {}", filename);
     Ok(())
 }
 
-fn delim<T>(index: usize, vec: &Vec<T>) -> &'static str {
-    if index == vec.len() - 1 { "" } else { "," }
+#[derive(Serialize, Deserialize)]
+struct BlockDescr {
+    id: String,
+    config_boc: String,
+    accounts: Vec<BlockAccountDescr>,
 }
 
-// {
-//   "config-boc": "<base64>",
-//   "accounts": [
-//     {
-//       "account-boc": "<base64>",
-//       "transactions": [
-//         "<base64>",
-//         "<base64>",
-//         "<base64>"
-//       ]
-//     },
-//     {
-//       ...
-//     },
-//     ...
-//   ]
-// }
+#[derive(Serialize, Deserialize)]
+struct BlockAccountDescr {
+    account_boc: String,
+    transactions: Vec<String>,
+}
 
 struct AccountReplayData {
     account_cell: Cell,
@@ -853,37 +867,16 @@ fn replay_block_impl(data: BlockReplayData) -> Result<(), failure::Error> {
 
 pub async fn replay_block(block_filename: &str) -> Result<(), failure::Error> {
     let block_file = File::open(block_filename)?;
-    let block_json: Value = serde_json::from_reader(BufReader::new(block_file))?;
-
-    let toplevel = block_json.as_object()
-        .ok_or(err_msg("Failed to read block description"))?;
-    let config_boc = toplevel.get("config-boc")
-        .ok_or(err_msg("No config-boc field found"))?.as_str()
-        .ok_or(err_msg("config-boc field is not a string"))?;
-    let config_account = Account::construct_from_base64(config_boc)?;
+    let block: BlockDescr = serde_json::from_reader(BufReader::new(block_file))?;
+    let config_account = Account::construct_from_base64(&block.config_boc)?;
     let config = construct_blockchain_config_err(&config_account)?;
-    let accounts_json = toplevel.get("accounts")
-        .ok_or(err_msg("No accounts field found"))?.as_array()
-        .ok_or(err_msg("accounts field is not a string"))?;
-
     let mut accounts = Vec::new();
-
-    for acc in accounts_json {
-        let account_boc = acc.get("account-boc")
-            .ok_or(err_msg("No account-boc field found"))?.as_str()
-            .ok_or(err_msg("account-boc field is not a string"))?;
-        let account = Account::construct_from_base64(account_boc)?;
+    for acc in block.accounts {
+        let account = Account::construct_from_base64(&acc.account_boc)?;
         let account_cell = account.serialize()?;
-
         let mut transactions = Vec::new();
-
-        let txns = acc.get("transactions")
-            .ok_or(err_msg("No transactions field found"))?.as_array()
-            .ok_or(err_msg("transactions field is not an array"))?;
-        for txn in txns {
-            let txn_boc = txn.as_str()
-                .ok_or(err_msg("transaction boc is not a string"))?;
-            let tr = Transaction::construct_from_base64(txn_boc)?;
+        for txn in acc.transactions {
+            let tr = Transaction::construct_from_base64(&txn)?;
             transactions.push(tr);
         }
         accounts.push(AccountReplayData { account_cell, transactions });
