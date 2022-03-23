@@ -12,7 +12,7 @@
  */
 
 use std::{
-    collections::HashMap, fs::File,
+    fs::File,
     io::{self, BufRead, Lines, Write, BufReader, Read},
     process::exit,
     sync::{Arc, atomic::AtomicU64}
@@ -22,21 +22,18 @@ use failure::err_msg;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use ton_block::{Account, ConfigParamEnum, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr, Block, HashmapAugType, GlobalCapabilities};
+use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr, Block, HashmapAugType, GlobalCapabilities};
 use ton_client::{
     ClientConfig, ClientContext,
-    abi::{Abi, CallSet, ParamsOfEncodeMessage, encode_message},
     net::{AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection},
-    tvm::{ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm}
 };
 use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
-use ton_types::{HashmapE, UInt256, serialize_toc, Cell, serialize_tree_of_cells};
+use ton_types::{HashmapE, UInt256, Cell, serialize_tree_of_cells};
 
 use crate::config::Config;
 use crate::debug_executor::{TraceLevel, DebugTransactionExecutor};
 
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
-static ELECTOR_ADDR: &str = "-1:3333333333333333333333333333333333333333333333333333333333333333";
 
 pub const DUMP_NONE:  u8 = 0x00;
 pub const DUMP_ACCOUNT:  u8 = 0x01;
@@ -270,177 +267,6 @@ fn choose<'a>(st1: &'a mut State, st2: &'a mut State) -> &'a mut State {
     }
 }
 
-#[async_trait::async_trait]
-trait ReplayTracker {
-    async fn new() -> Self;
-    async fn track(&mut self, account: &Account) -> Result<(), String>;
-}
-
-#[derive(Clone)]
-struct ElectorUnfreezeTracker {
-    ctx: Arc<ClientContext>,
-    abi: Abi,
-    message: String,
-    unfreeze_map: HashMap<u32, u32>,
-}
-
-impl Default for ElectorUnfreezeTracker {
-    fn default() -> Self {
-        Self {
-            ctx: Arc::new(ClientContext::new(ClientConfig::default()).unwrap()),
-            abi: Abi::Json(String::new()),
-            message: String::new(),
-            unfreeze_map: HashMap::new()
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl ReplayTracker for ElectorUnfreezeTracker {
-    async fn new() -> Self {
-        let ctx = Arc::new(ClientContext::new(ClientConfig::default()).unwrap());
-        let abi = Abi::Json(std::fs::read_to_string("Elector.abi.json").unwrap());
-        let message = encode_message(ctx.clone(), ParamsOfEncodeMessage {
-            address: Some(ELECTOR_ADDR.into()),
-            abi: abi.clone(),
-            call_set: CallSet::some_with_function("get"),
-            ..Default::default()
-        }).await.unwrap().message;
-        Self { ctx, abi, message, unfreeze_map: HashMap::new() }
-    }
-    async fn track(&mut self, account: &Account) -> Result<(), String> {
-        let account_bytes = serialize_toc(&account.serialize()
-            .map_err(|e| format!("Failed to serialize account: {}", e))?)
-            .map_err(|e| format!("Failed to serialize tree of cells: {}", e))?;
-        let output = run_tvm(self.ctx.clone(), ParamsOfRunTvm {
-                account: base64::encode(&account_bytes),
-                abi: Some(self.abi.clone()),
-                message: self.message.clone(),
-                ..Default::default()
-            })
-            .await.map_err(|e| format!("Failed to execute run_tvm: {}", e))?
-            .decoded.ok_or("Failed to decode run_tvm result")?
-            .output.ok_or("Empty body")?;
-        let past_elections = output["past_elections"].as_object().ok_or(format!("Failed to parse value"))?;
-        for (key, value) in past_elections {
-            let elect_at = u32::from_str_radix(&key, 10)
-                .map_err(|e| format!("Failed to parse decimal int: {}", e))?;
-            let unfreeze = value["unfreeze_at"].as_str().ok_or(format!("Failed to parse value"))?;
-            let t2 = u32::from_str_radix(unfreeze, 10)
-                .map_err(|e| format!("Failed to parse decimal int: {}", e))?;
-            let vset_hash = value["vset_hash"].as_str().ok_or(format!("Failed to parse value"))?;
-            match self.unfreeze_map.insert(elect_at, t2) {
-                Some(t1) => {
-                    if t1 != t2 {
-                        println!("DBG past election {} vset {}: unfreeze time changed from {} to {} (+{})",
-                            elect_at, &vset_hash[2..10], t1, t2, t2 - t1);
-                    }
-                }
-                None => {
-                    println!("DBG past election {} {}: unfreeze time set to {}",
-                        elect_at, &vset_hash[2..10], t2);
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-#[derive(Clone)]
-struct ElectorOrigUnfreezeTracker {
-    ctx: Arc<ClientContext>,
-    unfreeze_map: HashMap<u32, u32>,
-}
-
-impl Default for ElectorOrigUnfreezeTracker {
-    fn default() -> Self {
-        Self {
-            ctx: Arc::new(ClientContext::new(ClientConfig::default()).unwrap()),
-            unfreeze_map: HashMap::new()
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl ReplayTracker for ElectorOrigUnfreezeTracker {
-    async fn new() -> Self {
-        let ctx = Arc::new(ClientContext::new(ClientConfig::default()).unwrap());
-        Self { ctx, unfreeze_map: HashMap::new() }
-    }
-    async fn track(&mut self, account: &Account) -> Result<(), String> {
-        let account_bytes = serialize_toc(&account.serialize()
-            .map_err(|e| format!("Failed to serialize account: {}", e))?)
-            .map_err(|e| format!("Failed to serialize tree of cells: {}", e))?;
-        let output = run_get(self.ctx.clone(), ParamsOfRunGet {
-                account: base64::encode(&account_bytes),
-                function_name: "past_elections_list".to_owned(),
-                input: None,
-                ..Default::default()
-            })
-            .await.map_err(|e| format!("Failed to execute run_tvm: {}", e))?.output;
-        let mut list = output.as_array().ok_or(format!("Failed to parse value"))?
-            .get(0).ok_or(format!("Failed to parse value"))?;
-        loop {
-            if list.is_null() {
-                break;
-            }
-            let pair = list.as_array().ok_or(format!("Failed to parse value"))?;
-            let head = pair.get(0).ok_or(format!("Failed to parse value"))?;
-
-            let fields = head.as_array().ok_or(format!("Failed to parse value"))?;
-            let key = fields.get(0).ok_or(format!("Failed to parse value"))?.as_str().ok_or(format!("Failed to parse value"))?;
-            let elect_at = u32::from_str_radix(&key, 10).map_err(|e| format!("Failed to parse decimal int: {}", e))?;
-            let unfreeze = fields.get(1).ok_or(format!("Failed to parse value"))?.as_str().ok_or(format!("Failed to parse value"))?;
-            let t2 = u32::from_str_radix(unfreeze, 10).map_err(|e| format!("Failed to parse decimal int: {}", e))?;
-            let vset_hash = fields.get(2).ok_or(format!("Failed to parse value"))?.as_str().ok_or(format!("Failed to parse value"))?;
-            match self.unfreeze_map.insert(elect_at, t2) {
-                Some(t1) => {
-                    if t1 != t2 {
-                        println!("DBG past election {} vset {}: unfreeze time changed from {} to {} (+{})",
-                            elect_at, &vset_hash[2..10], t1, t2, t2 - t1);
-                    }
-                }
-                None => {
-                    println!("DBG past election {} {}: unfreeze time set to {}",
-                        elect_at, &vset_hash[2..10], t2);
-                }
-            }
-
-            list = pair.get(1).ok_or(format!("Failed to parse value"))?;
-        }
-        Ok(())
-    }
-}
-
-#[derive(Clone)]
-struct ConfigParam34Tracker {
-    cur_hash: UInt256,
-}
-
-#[async_trait::async_trait]
-impl ReplayTracker for ConfigParam34Tracker {
-    async fn new() -> Self {
-        Self { cur_hash: UInt256::default() }
-    }
-    async fn track(&mut self, account: &Account) -> Result<(), String> {
-        let config = construct_blockchain_config(&account)?;
-        let param = config.raw_config().config(34).map_err(
-            |e| format!("Failed to get config param 34: {}", e))?;
-        if let Some(ConfigParamEnum::ConfigParam34(cfg34)) = param {
-            let hash = cfg34.write_to_new_cell()
-                .map_err(|e| format!("failed to serialize config param 32: {}", e))?
-                .into_cell()
-                .map_err(|e| format!("failed to finalize cell: {}", e))?
-                .repr_hash();
-            if self.cur_hash != UInt256::default() && self.cur_hash != hash {
-                println!("DBG cfg34 hash changed to {}", &hash.to_hex_string()[..8]);
-            }
-            self.cur_hash = hash;
-        }
-        Ok(())
-    }
-}
-
 struct TrivialLogger;
 static LOGGER: TrivialLogger = TrivialLogger;
 
@@ -459,8 +285,6 @@ pub async fn replay(
     config_filename: &str,
     txnid: &str,
     trace_execution: bool,
-    track_elector_unfreeze: bool,
-    track_config_param_34: bool,
     trace_last_transaction: TraceLevel,
     init_trace_last_logger: impl Fn() -> Result<(), String>,
     debug_info:  Option<String>,
@@ -478,17 +302,6 @@ pub async fn replay(
         log::set_logger(&LOGGER).map_err(|e| format!("Failed to set logger: {}", e))?;
     }
 
-    let mut cfg_tracker = if track_config_param_34 {
-        Some(ConfigParam34Tracker::new().await)
-    } else {
-        None
-    };
-
-    let mut tracker = if track_elector_unfreeze {
-        Some(ElectorUnfreezeTracker::new().await)
-    } else {
-        None
-    };
     loop {
         if account_state.tr.is_none() {
             account_state.next_transaction();
@@ -577,10 +390,6 @@ pub async fn replay(
                 }
             };
 
-        if track_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
-            tracker.as_mut().unwrap().track(&state.account).await?;
-        }
-
         let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c)
             .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
 
@@ -625,14 +434,6 @@ pub async fn replay(
                 .map_err(|e| format!("failed to read description: {}", e))?;
             assert_eq!(remote_desc, local_desc);
             exit(2);
-        }
-
-        if track_config_param_34 && state.account_addr == CONFIG_ADDR {
-            cfg_tracker.as_mut().unwrap().track(&state.account).await?;
-        }
-
-        if track_elector_unfreeze && state.account_addr == ELECTOR_ADDR {
-            tracker.as_mut().unwrap().track(&state.account).await?;
         }
 
         if tr.id == txnid {
@@ -728,7 +529,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         println!("Computing config: replaying {} up to {}", acc, txnid);
         replay(format!("{}.txns", acc).as_str(),
             config_txns_path.as_str(), txnid,
-            false, false, false, TraceLevel::None,
+            false, TraceLevel::None,
             || Ok(()), None, DUMP_CONFIG).await.map_err(|err| err_msg(err))?;
     } else {
         println!("Using pre-computed config {}", config_path);
@@ -744,8 +545,6 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
                     format!("{}.txns", account).as_str(),
                     format!("{}.txns", CONFIG_ADDR).as_str(),
                     &txnid,
-                    false,
-                    false,
                     false,
                     TraceLevel::None,
                     || Ok(()),
@@ -918,7 +717,7 @@ pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
     let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
         m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, false, false, TraceLevel::None, ||{Ok(())}, None, DUMP_ALL
+        false, TraceLevel::None, ||{Ok(())}, None, DUMP_ALL
     ).await?;
     Ok(())
 }

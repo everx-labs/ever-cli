@@ -346,7 +346,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
     if !config.is_json {
         println!("Replaying the last transactions...");
     }
-    let tr = replay(contract_path, config_path, &tx_id,false, false, false, trace_level, init_logger, debug_info, dump_mask).await?;
+    let tr = replay(contract_path, config_path, &tx_id, false, trace_level, init_logger, debug_info, dump_mask).await?;
 
     decode_messages(tr.out_msgs, load_decode_abi(matches, config.clone())).await?;
     if !config.is_json {
