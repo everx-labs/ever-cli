@@ -13,7 +13,7 @@
 
 use std::{
     fs::File,
-    io::{self, BufRead, Lines, Write, BufReader, Read},
+    io::{self, BufRead, Lines, Write, Read},
     process::exit,
     sync::{Arc, atomic::AtomicU64}
 };
@@ -28,7 +28,7 @@ use ton_client::{
     net::{AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection},
 };
 use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
-use ton_types::{HashmapE, UInt256, Cell, serialize_tree_of_cells};
+use ton_types::{HashmapE, UInt256, serialize_tree_of_cells};
 
 use crate::config::Config;
 use crate::debug_executor::{TraceLevel, DebugTransactionExecutor};
@@ -601,90 +601,6 @@ struct BlockAccountDescr {
     transactions: Vec<String>,
 }
 
-struct AccountReplayData {
-    account_cell: Cell,
-    transactions: Vec<Transaction>,
-}
-
-struct BlockReplayData {
-    config: BlockchainConfig,
-    accounts: Vec<AccountReplayData>,
-}
-
-#[inline(never)]
-fn replay_block_impl(data: BlockReplayData) -> Result<(), failure::Error> {
-    let mut acc_count = 0;
-    let mut txn_count = 0;
-    let start = std::time::Instant::now();
-    for acc in data.accounts {
-        let mut account = acc.account_cell;
-        for tr in acc.transactions {
-            let executor: Box<dyn TransactionExecutor> =
-                match tr.read_description()? {
-                    TransactionDescr::TickTock(desc) => {
-                        Box::new(TickTockTransactionExecutor::new(data.config.clone(), desc.tt))
-                    }
-                    TransactionDescr::Ordinary(_) => {
-                        Box::new(OrdinaryTransactionExecutor::new(data.config.clone()))
-                    }
-                    _ => panic!("Unknown transaction type")
-                };
-            let msg_cell = tr.in_msg_cell();
-            let msg = msg_cell.map(|c| Message::construct_from_cell(c)).transpose()?;
-
-            let params = ExecuteParams {
-                state_libs: HashmapE::default(),
-                block_unixtime: tr.now(),
-                block_lt: tr.logical_time(),
-                last_tr_lt: Arc::new(AtomicU64::new(tr.logical_time())),
-                seed_block: UInt256::default(),
-                debug: false,
-            };
-            let tr_local = executor.execute_with_libs_and_params(
-                msg.as_ref(),
-                &mut account,
-                params)?;
-
-            let account_new_hash_local = account.repr_hash();
-            let account_new_hash_remote = tr.read_state_update()?.new_hash;
-            if account_new_hash_local != account_new_hash_remote {
-                println!("FAILURE\nNew hashes mismatch:\nremote {}\nlocal  {}",
-                    account_new_hash_remote.to_hex_string(),
-                    account_new_hash_local.to_hex_string());
-                println!("{:?}", tr_local.read_description()?);
-                return Err(err_msg("hash mismatch"));
-            }
-            txn_count += 1;
-        }
-        acc_count += 1;
-    }
-    let duration = start.elapsed();
-    println!("Replayed {} transactions of {} accounts", txn_count, acc_count);
-    println!("Time elapsed is {:?}", duration);
-    Ok(())
-}
-
-pub async fn replay_block(block_filename: &str) -> Result<(), failure::Error> {
-    let block_file = File::open(block_filename)?;
-    let block: BlockDescr = serde_json::from_reader(BufReader::new(block_file))?;
-    let config_account = Account::construct_from_base64(&block.config_boc)?;
-    let config = construct_blockchain_config_err(&config_account)?;
-    let mut accounts = Vec::new();
-    for acc in block.accounts {
-        let account = Account::construct_from_base64(&acc.account_boc)?;
-        let account_cell = account.serialize()?;
-        let mut transactions = Vec::new();
-        for txn in acc.transactions {
-            let tr = Transaction::construct_from_base64(&txn)?;
-            transactions.push(tr);
-        }
-        accounts.push(AccountReplayData { account_cell, transactions });
-    }
-
-    // all required data has been loaded into memory, now do the desired replay
-    replay_block_impl(BlockReplayData { config, accounts })
-}
-
 pub async fn fetch_block_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     fetch_block(config.url.as_str(),
         m.value_of("BLOCKID").ok_or("Missing block id")?,
@@ -706,11 +622,6 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
         println!("Succeeded");
     }
     Ok(())
-}
-
-pub async fn replay_block_command(m: &ArgMatches<'_>) -> Result<(), String> {
-    replay_block(m.value_of("BLOCK").ok_or("Missing block filename")?).await
-        .map_err(|e| format!("Replay failed: {}", e))
 }
 
 pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {

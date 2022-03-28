@@ -50,7 +50,7 @@ use getconfig::{query_global_config, dump_blockchain_config};
 use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
-use replay::{fetch_block_command, fetch_command, replay_block_command, replay_command};
+use replay::{fetch_block_command, fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use crate::account::dump_accounts;
 use crate::config::FullConfig;
@@ -771,13 +771,6 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true)
             .help("Output file name"));
 
-    let replay_block_cmd = SubCommand::with_name("replay-block")
-        .about("Replays block.")
-        .arg(Arg::with_name("BLOCK")
-            .required(true)
-            .takes_value(true)
-            .help("File containing block description ready for replay."));
-
     let replay_cmd = SubCommand::with_name("replay")
         .about("Replays account's transactions starting from zerostate.")
         .arg(Arg::with_name("CONFIG_TXNS")
@@ -847,7 +840,6 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(sendfile_cmd)
         .subcommand(fetch_block_cmd)
         .subcommand(fetch_cmd)
-        .subcommand(replay_block_cmd)
         .subcommand(replay_cmd)
         .subcommand(callx_cmd)
         .subcommand(deployx_cmd)
@@ -1019,9 +1011,6 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
     if let Some(m) = matches.subcommand_matches("fetch") {
         return fetch_command(m, conf).await;
-    }
-    if let Some(m) = matches.subcommand_matches("replay-block") {
-        return replay_block_command(m).await;
     }
     if let Some(m) = matches.subcommand_matches("replay") {
         return replay_command(m).await;
