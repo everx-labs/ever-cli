@@ -50,6 +50,7 @@ ton_labs_assembler = { git = 'https://github.com/tonlabs/ton-labs-assembler.git'
 ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.31.0' }
 ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.10.12' }
 ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.32' }
+ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git' }
 
 [dev-dependencies]
 assert_cmd = '1.0.3'

@@ -13,8 +13,10 @@
 use crate::helpers::{create_client_verbose, query_with_limit};
 use crate::config::Config;
 use serde_json::{json};
+use ton_block::{Serializable};
 use ton_client::net::{OrderBy, SortDirection};
 use ton_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
+use crate::call::{prepare_message_new_config_param, serialize_config_param};
 
 const QUERY_FIELDS: &str = r#"
 master { 
@@ -286,6 +288,31 @@ pub async fn query_global_config(conf: Config, index: Option<&str>) -> Result<()
                          .map_err(|e| format!("failed to parse config body from sdk: {}", e))?);
         }
     }
+    Ok(())
+}
+
+pub async fn gen_update_config_message(seqno: &str, config_master_file: &str, new_param_file: &str) -> Result<(), String> {
+    let seqno = u32::from_str_radix(seqno, 10)
+        .map_err(|e| format!(r#"failed to parse "seqno": {}"#, e))?;
+
+    let config_master_address = std::fs::read(&*(config_master_file.to_string() + ".addr"))
+        .map_err(|e| format!(r#"failed to read "config_master": {}"#, e))?;
+    let config_account = ton_types::AccountId::from_raw(config_master_address, 32*8);
+
+    let private_key = std::fs::read(&*(config_master_file.to_string() + ".pk"))
+        .map_err(|e| format!(r#"failed to read "config_master": {}"#, e))?;
+
+    let config_str = std::fs::read_to_string(new_param_file)
+        .map_err(|e| format!(r#"failed to read "new_param_file": {}"#, e))?;
+
+    let (config_cell, key_number) = serialize_config_param(config_str)?;
+    let message = prepare_message_new_config_param(config_cell, seqno, key_number, config_account, private_key)?;
+
+    let msg_bytes = message.write_to_bytes()
+        .map_err(|e| format!(r#"failed to serialize message": {}"#, e))?;
+    let msg_hex = hex::encode(&msg_bytes);
+    println!("Message: {}", msg_hex);
+
     Ok(())
 }
 

@@ -54,6 +54,7 @@ use replay::{fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use crate::account::dump_accounts;
 use crate::config::FullConfig;
+use crate::getconfig::gen_update_config_message;
 
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
@@ -709,6 +710,18 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true)
             .help("Parameter index. If not specified, command will print all config parameters."));
 
+    let update_config_param_cmd = SubCommand::with_name("update_config")
+        .about("Generates message with update of config params.")
+        .arg(Arg::with_name("SEQNO")
+            .takes_value(true)
+            .help("Current seqno from config contract"))
+        .arg(Arg::with_name("CONFIG_MASTER")
+            .takes_value(true)
+            .help("path to config-master files"))
+        .arg(Arg::with_name("NEW_PARAM")
+            .takes_value(true)
+            .help("New config param value"));
+
     let bcconfig_cmd = SubCommand::with_name("dump")
         .about("Commands to dump network entities.")
         .version(&*version_string)
@@ -832,6 +845,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(callx_cmd)
         .subcommand(deployx_cmd)
         .subcommand(runx_cmd)
+        .subcommand(update_config_param_cmd)
         .setting(AppSettings::SubcommandRequired)
         .get_matches();
 
@@ -970,6 +984,9 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
     if let Some(m) = matches.subcommand_matches("getconfig") {
         return getconfig_command(m, conf).await;
+    }
+    if let Some(m) = matches.subcommand_matches("update_config") {
+        return update_config_command(m).await;
     }
     if let Some(matches) = matches.subcommand_matches("dump") {
         if let Some(m) = matches.subcommand_matches("config") {
@@ -1588,6 +1605,14 @@ async fn getconfig_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
         print_args!(index);
     }
     query_global_config(config, index).await
+}
+
+async fn update_config_command(matches: &ArgMatches<'_>) -> Result<(), String> {
+    let seqno = matches.value_of("SEQNO");
+    let config_master = matches.value_of("CONFIG_MASTER");
+    let new_param = matches.value_of("NEW_PARAM");
+    print_args!(seqno, config_master, new_param);
+    gen_update_config_message(seqno.unwrap(), config_master.unwrap(), new_param.unwrap()).await
 }
 
 async fn dump_bc_config_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {

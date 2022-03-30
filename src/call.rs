@@ -45,13 +45,12 @@ use ton_client::tvm::{
     AccountForExecutor,
     ExecutionOptions
 };
-use ton_block::{
-    Account,
-    Serializable,
-    Deserializable,
-};
+use ton_block::{Account, Serializable, Deserializable, Message, MsgAddressInt, ExternalInboundMessageHeader, Grams};
 use std::str::FromStr;
+use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::{Value, Map};
+use ton_block::MsgAddressExt::AddrNone;
+use ton_types::{BuilderData, Cell, IBitstring, SliceData};
 
 pub struct EncodedMessage {
     pub message_id: String,
@@ -116,6 +115,84 @@ pub fn prepare_message_params (
         },
         ..Default::default()
     })
+}
+
+pub fn serialize_config_param(config_str: String) -> Result<(Cell, u32), String> {
+    let config_json: serde_json::Value = serde_json::from_str(&*config_str)
+        .map_err(|e| format!(r#"failed to parse "new_param_file": {}"#, e))?;
+    let config_json = config_json.as_object()
+        .ok_or(format!(r#""new_param_file" is not json object"#))?;
+    if config_json.len() != 1 {
+        Err(r#""new_param_file" is not a valid json"#.to_string())?;
+    }
+
+    let mut key_number = None;
+    for key in config_json.keys() {
+        if !key.starts_with("p") {
+            Err(r#""new_param_file" is not a valid json"#.to_string())?;
+        }
+        key_number = Some(key.trim_start_matches("p").to_string());
+        break;
+    }
+
+    let key_number = key_number
+        .ok_or(format!(r#""new_param_file" is not a valid json"#))?
+        .parse::<u32>()
+        .map_err(|e| format!(r#""new_param_file" is not a valid json: {}"#, e))?;
+
+    let config_params = ton_block_json::parse_config(config_json)
+        .map_err(|e| format!(r#"failed to parse config params from "new_param_file": {}"#, e))?;
+
+    let config_param = config_params.config(key_number)
+        .map_err(|e| format!(r#"failed to parse config params from "new_param_file": {}"#, e))?
+        .ok_or(format!(r#"Not found config number {} in parsed config_params"#, key_number))?;
+
+    let mut cell = BuilderData::default();
+    config_param.write_to_cell(&mut cell)
+        .map_err(|e| format!(r#"failed to serialize config param": {}"#, e))?;
+    let config_cell = cell.references()[0].clone();
+
+    Ok((config_cell, key_number))
+}
+
+pub fn prepare_message_new_config_param(
+    config_param: Cell,
+    seqno: u32,
+    key_number: u32,
+    config_account: SliceData,
+    private_key_of_config_account: Vec<u8>
+) -> Result<Message, String> {
+    let prefix = hex::decode("43665021").unwrap();
+    let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32 + 100; // timestamp + 100 secs
+
+    let mut cell = BuilderData::default();
+    cell.append_raw(prefix.as_slice(), 32).unwrap();
+    cell.append_u32(seqno).unwrap();
+    cell.append_u32(since_the_epoch).unwrap();
+    cell.append_i32(key_number as i32).unwrap();
+    cell.append_reference_cell(config_param.clone());
+
+    let exp_key = ed25519_dalek::ExpandedSecretKey::from(
+        &ed25519_dalek::SecretKey::from_bytes(private_key_of_config_account.as_slice()
+    )
+        .map_err(|e| format!(r#"failed to read private key from config-master file": {}"#, e))?);
+    let pub_key = ed25519_dalek::PublicKey::from(&exp_key);
+    let msg_signature = exp_key.sign(cell.finalize(0).unwrap().repr_hash().into_vec().as_slice(), &pub_key).to_bytes().to_vec();
+
+    let mut cell = BuilderData::default();
+    cell.append_raw(msg_signature.as_slice(), 64*8).unwrap();
+    cell.append_raw(prefix.as_slice(), 32).unwrap();
+    cell.append_u32(seqno).unwrap();
+    cell.append_u32(since_the_epoch).unwrap();
+    cell.append_i32(key_number as i32).unwrap();
+    cell.append_reference_cell(config_param);
+
+    let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
+    let mut header = ExternalInboundMessageHeader::new(AddrNone, config_contract_address);
+    header.import_fee = Grams::zero();
+    let message = Message::with_ext_in_header_and_body(header, cell.into());
+
+    Ok(message)
 }
 
 pub fn print_encoded_message(msg: &EncodedMessage, is_json:bool) {
