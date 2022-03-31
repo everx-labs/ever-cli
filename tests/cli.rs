@@ -2352,7 +2352,7 @@ fn _test_json_output() -> Result<(), Box<dyn std::error::Error>> {
     set_config("--url", &*NETWORK)?;
     run_command_and_decode_json(r#"fee storage 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94"#)?;
     run_command_and_decode_json(r#"fee call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGrams {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1111111} --abi tests/samples/giver.abi.json"#)?;
-    run_command_and_decode_json(r#"fetch 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 fakeDepool.msg"#)?;
+    // run_command_and_decode_json(r#"fetch 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 fakeDepool.msg"#)?;
     run_command_and_decode_json(r#"genaddr tests/samples/wallet.tvc tests/samples/wallet.abi.json --genkey tests/deploy_test.key"#)?;
     run_command_and_decode_json(r#"genphrase"#)?;
     // run_command_and_decode_json(r#"genpubkey "jar denial ozone coil heart tattoo science stay wire about act equip""#)?;
