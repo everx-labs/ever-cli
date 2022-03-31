@@ -54,7 +54,7 @@ fn construct_blockchain_config_err(config_account: &Account) -> Result<Blockchai
     BlockchainConfig::with_config(config_params)
 }
 
-pub async fn fetch(server_address: &str, account_address: &str, filename: &str, fast_stop: bool, upto: Option<u64>) -> Result<(), String> {
+pub async fn fetch(server_address: &str, account_address: &str, filename: &str, fast_stop: bool, lt_bound: Option<u64>) -> Result<(), String> {
     if std::path::Path::new(filename).exists() {
         println!("File exists");
         return Ok(())
@@ -70,13 +70,13 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
         }).map_err(|e| format!("Failed to create ctx: {}", e))?,
     );
 
-    let filter = if let Some(upto) = upto {
-        let upto = format!("0x{:x}", upto);
+    let filter = if let Some(lt_bound) = lt_bound {
+        let lt_bound = format!("0x{:x}", lt_bound);
         serde_json::json!({
             "account_addr": {
                 "eq": account_address
             },
-            "lt": { "lt": upto },
+            "lt": { "le": lt_bound },
         })
     } else {
         serde_json::json!({
@@ -155,13 +155,13 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
     let mut lt = String::from("0x0");
     loop {
         let action = || async {
-            let filter = if let Some(upto) = upto {
-                let upto = format!("0x{:x}", upto);
+            let filter = if let Some(lt_bound) = lt_bound {
+                let lt_bound = format!("0x{:x}", lt_bound);
                 serde_json::json!({
                     "account_addr": {
                         "eq": account_address
                     },
-                    "lt": { "gt": lt, "lt": upto },
+                    "lt": { "gt": lt, "le": lt_bound },
                 })
             } else {
                 serde_json::json!({
@@ -341,7 +341,7 @@ pub async fn replay(
         }
         if tr.id == txnid {
             if dump_mask & DUMP_ACCOUNT != 0 {
-                let path = format!("{}-{}.boc", state.account_addr, txnid);
+                let path = format!("{}-{}.boc", state.account_addr.split(':').last().unwrap_or(""), txnid);
                 account_root.write_to_file(&path);
                 println!("Contract account was dumped to {}", path);
             }
@@ -509,7 +509,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         fetch(server_address,
             account.as_str(),
             format!("{}.txns", account).as_str(),
-            false, Some(end_lt + 1)).await.map_err(|err| err_msg(err))?;
+            false, Some(end_lt)).await.map_err(|err| err_msg(err))?;
     }
 
     let config_txns_path = format!("{}.txns", CONFIG_ADDR);
@@ -518,7 +518,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         fetch(server_address,
             CONFIG_ADDR,
             config_txns_path.as_str(),
-            false, Some(end_lt + 1)).await.map_err(|err| err_msg(err))?;
+            false, Some(end_lt)).await.map_err(|err| err_msg(err))?;
     }
 
     let acc = accounts[0].0.as_str();
@@ -537,12 +537,12 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
 
     println!("Pre-replaying block accounts");
     let tasks: Vec<_> = accounts.iter().map(|(account, txns)| {
-        let account = account.clone();
+        let account_filename = account.split(':').last().unwrap_or("").to_owned();
         let txnid = txns[0].0.clone();
         tokio::spawn(async move {
-            if !std::path::Path::new(format!("{}-{}.boc", account, txnid).as_str()).exists() {
+            if !std::path::Path::new(format!("{}-{}.boc", account_filename, txnid).as_str()).exists() {
                 replay(
-                    format!("{}.txns", account).as_str(),
+                    format!("{}.txns", account_filename).as_str(),
                     format!("{}.txns", CONFIG_ADDR).as_str(),
                     &txnid,
                     false,
