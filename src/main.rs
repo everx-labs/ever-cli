@@ -986,7 +986,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return getconfig_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("update_config") {
-        return update_config_command(m).await;
+        return update_config_command(m, conf).await;
     }
     if let Some(matches) = matches.subcommand_matches("dump") {
         if let Some(m) = matches.subcommand_matches("config") {
@@ -1607,12 +1607,12 @@ async fn getconfig_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
     query_global_config(config, index).await
 }
 
-async fn update_config_command(matches: &ArgMatches<'_>) -> Result<(), String> {
+async fn update_config_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let seqno = matches.value_of("SEQNO");
     let config_master = matches.value_of("CONFIG_MASTER");
     let new_param = matches.value_of("NEW_PARAM");
     print_args!(seqno, config_master, new_param);
-    gen_update_config_message(seqno.unwrap(), config_master.unwrap(), new_param.unwrap()).await
+    gen_update_config_message(seqno.unwrap(), config_master.unwrap(), new_param.unwrap(), config.is_json).await
 }
 
 async fn dump_bc_config_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {

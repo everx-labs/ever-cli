@@ -291,7 +291,12 @@ pub async fn query_global_config(conf: Config, index: Option<&str>) -> Result<()
     Ok(())
 }
 
-pub async fn gen_update_config_message(seqno: &str, config_master_file: &str, new_param_file: &str) -> Result<(), String> {
+pub async fn gen_update_config_message(
+    seqno: &str,
+    config_master_file: &str,
+    new_param_file: &str,
+    is_json: bool
+) -> Result<(), String> {
     let seqno = u32::from_str_radix(seqno, 10)
         .map_err(|e| format!(r#"failed to parse "seqno": {}"#, e))?;
 
@@ -311,7 +316,12 @@ pub async fn gen_update_config_message(seqno: &str, config_master_file: &str, ne
     let msg_bytes = message.write_to_bytes()
         .map_err(|e| format!(r#"failed to serialize message": {}"#, e))?;
     let msg_hex = hex::encode(&msg_bytes);
-    println!("Message: {}", msg_hex);
+
+    if is_json {
+        println!("{{\"Message\": \"{}\"}}", msg_hex);
+    } else {
+        println!("Message: {}", msg_hex);
+    }
 
     Ok(())
 }

@@ -52,6 +52,8 @@ use serde_json::{Value, Map};
 use ton_block::MsgAddressExt::AddrNone;
 use ton_types::{BuilderData, Cell, IBitstring, SliceData};
 
+const PREFIX_UPDATE_CONFIG_MESSAGE_DATA: &str = "43665021";
+
 pub struct EncodedMessage {
     pub message_id: String,
     pub message: String,
@@ -162,7 +164,7 @@ pub fn prepare_message_new_config_param(
     config_account: SliceData,
     private_key_of_config_account: Vec<u8>
 ) -> Result<Message, String> {
-    let prefix = hex::decode("43665021").unwrap();
+    let prefix = hex::decode(PREFIX_UPDATE_CONFIG_MESSAGE_DATA).unwrap();
     let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32 + 100; // timestamp + 100 secs
 
     let mut cell = BuilderData::default();
