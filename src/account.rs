@@ -232,6 +232,7 @@ pub async fn calc_storage(config: &Config, addr: &str, period: u32) -> Result<()
         ParamsOfCalcStorageFee {
             account: boc,
             period,
+            ..Default::default()
         }
     ).await.map_err(|e| format!("failed to calculate storage fee: {}", e))?;
 
