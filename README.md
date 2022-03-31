@@ -90,6 +90,7 @@ tonos-cli <subcommand> -h
   - [9.3. NodeID](#93-nodeid)
   - [9.4. Dump blockchain config](#94-dump-blockchain-config)
   - [9.5. Dump several account states](#95-dump-several-account-states)
+  - [9.6. Update global config parameter](#96-update-global-config-parameter)
   - [10. Fetch and replay](#10-fetch-and-replay)
     - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 - [11. Debug commands](#11-debug-commands)
@@ -2198,6 +2199,45 @@ Processing...
 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 was not found.
 0:3333333333333333333333333333333333333333333333333333333333333333 was not found.
 Succeeded.
+```
+
+## 9.6. Update global config parameter
+
+Use the following command to update one parameter of global config, that is stored in a .json file:
+
+```bash
+tonos-cli update_config <seqno> <config_master_key_file> <new_param_file>
+```
+
+`<seqno>` – current seqno of config contract. It can get from command `seqno` on config account.
+
+`<config_master_key_file>` – prefix of config master files. There should be two files: `<config_master_key_file>.addr` with address of config master and `<config_master_key_file>.pk` with private key of config master.
+
+`<new_param_file>` – json with new config configuration. 
+
+Example of new_param_file
+
+```json
+{
+  "p8": {
+    "version": 10,
+    "capabilities": 8238
+  }
+}
+
+```
+
+Example:
+
+```bash
+$ tonos-cli update_config 9 config-master example.json
+Config: /home/user/tonos-cli/tonos-cli.conf.json
+Input arguments:
+   seqno: 9
+config_master: config-master
+new_param: example.json
+Message: b5ee9c720101020100850001e589feaaaaaaaaaaaaa...
+
 ```
 
 ## 10. Fetch and replay

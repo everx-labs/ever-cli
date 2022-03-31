@@ -715,10 +715,10 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("SEQNO")
             .takes_value(true)
             .help("Current seqno from config contract"))
-        .arg(Arg::with_name("CONFIG_MASTER")
+        .arg(Arg::with_name("CONFIG_MASTER_KEY_FILE")
             .takes_value(true)
             .help("path to config-master files"))
-        .arg(Arg::with_name("NEW_PARAM")
+        .arg(Arg::with_name("NEW_PARAM_FILE")
             .takes_value(true)
             .help("New config param value"));
 
@@ -1609,8 +1609,8 @@ async fn getconfig_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
 
 async fn update_config_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let seqno = matches.value_of("SEQNO");
-    let config_master = matches.value_of("CONFIG_MASTER");
-    let new_param = matches.value_of("NEW_PARAM");
+    let config_master = matches.value_of("CONFIG_MASTER_KEY_FILE");
+    let new_param = matches.value_of("NEW_PARAM_FILE");
     print_args!(seqno, config_master, new_param);
     gen_update_config_message(seqno.unwrap(), config_master.unwrap(), new_param.unwrap(), config.is_json).await
 }
