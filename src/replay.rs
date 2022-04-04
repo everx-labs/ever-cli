@@ -22,13 +22,13 @@ use failure::err_msg;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr, Block, HashmapAugType, GlobalCapabilities};
+use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr, Block, HashmapAugType};
 use ton_client::{
     ClientConfig, ClientContext,
     net::{AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection},
 };
 use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
-use ton_types::{HashmapE, UInt256, serialize_tree_of_cells};
+use ton_types::{UInt256, serialize_tree_of_cells};
 
 use crate::config::Config;
 use crate::debug_executor::{TraceLevel, DebugTransactionExecutor};
@@ -394,11 +394,9 @@ pub async fn replay(
             .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
 
         let params = ExecuteParams {
-            state_libs: HashmapE::default(),
             block_unixtime: tr.tr.now(),
             block_lt: tr.tr.logical_time(),
             last_tr_lt: Arc::new(AtomicU64::new(tr.tr.logical_time())),
-            seed_block: UInt256::default(),
             debug: trace_execution,
             ..ExecuteParams::default()
         };
@@ -409,18 +407,9 @@ pub async fn replay(
         state.account = Account::construct_from_cell(account_root.clone())
             .map_err(|e| format!("Failed to construct account: {}", e))?;
 
-        if config.has_capability(GlobalCapabilities::CapFastStorageStat) {
-            state.account.update_storage_stat_fast()
-                .map_err(|e| format!("failed to update account: {}", e))?;
-        } else {
-            state.account.update_storage_stat()
-                .map_err(|e| format!("failed to update account: {}", e))?;
-        }
-
-        account_root = state.account.serialize()
-            .map_err(|e| format!("Failed to serialize: {}", e))?;
-
-        let account_new_hash_local = account_root.repr_hash();
+        let account_new_hash_local = tr_local.read_state_update()
+            .map_err(|e| format!("failed to read state update: {}", e))?
+            .new_hash;
         let account_new_hash_remote = tr.tr.read_state_update()
             .map_err(|e| format!("failed to read state update: {}", e))?
             .new_hash;
