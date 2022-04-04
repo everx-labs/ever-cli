@@ -82,8 +82,8 @@ macro_rules! print_args {
                 println!(
                     "{:>width$}: {}",
                     stringify!($arg),
-                    if $arg.is_some() { $arg.as_ref().unwrap() } else { "None" },
-                    width=8
+                    if let Some(ref arg) = $arg { arg.as_ref() } else { "None" },
+                    width = 8
                 );
             )*
         }
