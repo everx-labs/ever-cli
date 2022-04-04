@@ -10,6 +10,11 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
+
+#![allow(clippy::from_str_radix_10)]
+#![allow(clippy::or_fun_call)]
+#![allow(clippy::too_many_arguments)]
+
 extern crate clap;
 #[macro_use] extern crate log;
 #[macro_use] extern crate serde_json;
