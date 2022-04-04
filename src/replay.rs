@@ -102,9 +102,9 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
     .await
     .map_err(|e| format!("Failed to fetch txns count: {}", e))?;
     let tr_count = u64::from_str_radix(
-        tr_count.values.as_array().ok_or(format!("Failed to parse value"))?
-        .get(0).ok_or(format!("Failed to parse value"))?
-        .as_str().ok_or(format!("Failed to parse value"))?, 10)
+        tr_count.values.as_array().ok_or("Failed to parse value".to_string())?
+        .get(0).ok_or("Failed to parse value".to_string())?
+        .as_str().ok_or("Failed to parse value".to_string())?, 10)
         .map_err(|e| format!("Failed to parse decimal int: {}", e))?;
 
     let file = File::create(filename)
@@ -126,7 +126,7 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
     let mut zerostate_found = false;
     if let Ok(zerostates) = zerostates {
         let result = &zerostates.result.to_vec();
-        let accounts = result[0]["accounts"].as_array().ok_or(format!("Failed to parse value"))?;
+        let accounts = result[0]["accounts"].as_array().ok_or("Failed to parse value".to_string())?;
         for account in accounts {
             if account["id"] == account_address {
                 let data = format!("{}\n", account);
@@ -198,8 +198,8 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
             writer.write_all(data.as_bytes()).map_err(|e| format!("Failed to write to file: {}", e))?;
         }
 
-        let last = transactions.result.last().ok_or(format!("Failed to get last txn"))?;
-        lt = last["lt"].as_str().ok_or(format!("Failed to parse value"))?.to_owned();
+        let last = transactions.result.last().ok_or("Failed to get last txn".to_string())?;
+        lt = last["lt"].as_str().ok_or("Failed to parse value".to_string())?.to_owned();
         count += transactions.result.len() as u64;
         pb.set_position(std::cmp::min(count, tr_count));
     }
@@ -485,7 +485,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
             txns.push((cell.repr_hash().to_hex_string(), base64::encode(&bytes)));
             Ok(true)
         })?;
-        accounts.push((account_name.clone(), txns));
+        accounts.push((account_name, txns));
         Ok(true)
     })?;
 
@@ -498,7 +498,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         fetch(server_address,
             account.as_str(),
             format!("{}.txns", account).as_str(),
-            false, Some(end_lt)).await.map_err(|err| err_msg(err))?;
+            false, Some(end_lt)).await.map_err(err_msg)?;
     }
 
     let config_txns_path = format!("{}.txns", CONFIG_ADDR);
@@ -507,7 +507,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         fetch(server_address,
             CONFIG_ADDR,
             config_txns_path.as_str(),
-            false, Some(end_lt)).await.map_err(|err| err_msg(err))?;
+            false, Some(end_lt)).await.map_err(err_msg)?;
     }
 
     let acc = accounts[0].0.as_str();
@@ -519,7 +519,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         replay(format!("{}.txns", acc).as_str(),
             config_txns_path.as_str(), txnid,
             false, TraceLevel::None,
-            || Ok(()), None, DUMP_CONFIG).await.map_err(|err| err_msg(err))?;
+            || Ok(()), None, DUMP_CONFIG).await.map_err(err_msg)?;
     } else {
         println!("Using pre-computed config {}", config_path);
     }
@@ -539,7 +539,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
                     || Ok(()),
                     None,
                     DUMP_ACCOUNT
-                ).await.map_err(|err| err_msg(err)).unwrap();
+                ).await.map_err(err_msg).unwrap();
             }
         })
     }).collect();

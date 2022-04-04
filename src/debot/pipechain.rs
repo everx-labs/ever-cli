@@ -2,14 +2,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
 
-fn default_init_method() -> String { format!("start") }
+fn default_init_method() -> String { "start".to_string() }
 fn default_mandatory() -> bool { false }
 
 #[derive(Deserialize, Clone, PartialEq)]
 pub enum ApproveKind {
-    ApproveOnChainCall,
-    ApproveNetwork,
-    ApproveMessageLimit,
+    OnChainCall,
+    Network,
+    MessageLimit,
 }
 
 #[derive(Deserialize, Clone, Default)]
@@ -29,10 +29,11 @@ pub struct PipeChain {
 
 impl PipeChain {
     pub fn new() -> Self {
-        let mut pipechain = PipeChain::default();
-        pipechain.init_method = default_init_method();
-        pipechain.quiet = false;
-        pipechain
+        Self {
+            init_method: default_init_method(),
+            quiet: false,
+            ..Self::default()
+        }
     }
 }
 

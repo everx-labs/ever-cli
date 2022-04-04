@@ -237,9 +237,9 @@ pub async fn query_global_config(conf: Config, index: Option<&str>) -> Result<()
         Some(1),
     ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
 
-    if last_key_block_query.len() == 0  ||
+    if last_key_block_query.is_empty()  ||
         last_key_block_query[0]["prev_key_block_seqno"].as_u64() == Some(0) {
-        Err("Key block not found".to_string())?;
+        return Err("Key block not found".to_string());
     }
 
     let config_query = query_with_limit(
@@ -259,8 +259,8 @@ pub async fn query_global_config(conf: Config, index: Option<&str>) -> Result<()
         Some(1),
     ).await.map_err(|e| format!("failed to query master block config: {}", e))?;
 
-    if config_query.len() == 0 {
-        Err("Config was not set".to_string())?;
+    if config_query.is_empty() {
+        return Err("Config was not set".to_string());
     }
 
     match index {
@@ -301,8 +301,8 @@ pub async fn dump_blockchain_config(conf: Config, path: &str) -> Result<(), Stri
         Some(1),
     ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
 
-    if last_key_block_query.len() == 0 {
-        Err("Key block not found".to_string())?;
+    if last_key_block_query.is_empty() {
+        return Err("Key block not found".to_string());
     }
 
     let block = last_key_block_query[0]["boc"].as_str()

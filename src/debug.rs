@@ -28,9 +28,9 @@ use crate::crypto::load_keypair;
 use crate::debug_executor::{DebugTransactionExecutor, TraceLevel};
 use std::fmt;
 
-const DEFAULT_TRACE_PATH: &'static str = "./trace.log";
-const DEFAULT_CONFIG_PATH: &'static str = "config.txns";
-const DEFAULT_CONTRACT_PATH: &'static str = "contract.txns";
+const DEFAULT_TRACE_PATH: &str = "./trace.log";
+const DEFAULT_CONFIG_PATH: &str = "config.txns";
+const DEFAULT_CONTRACT_PATH: &str = "contract.txns";
 const TRANSACTION_QUANTITY: u32 = 10;
 
 
@@ -283,7 +283,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
         if !config.is_json {
             print_args!(tx_id, trace_path, config_path, contract_path);
         }
-        let address = query_address(tx_id.clone().unwrap(), &config).await?;
+        let address = query_address(tx_id.unwrap(), &config).await?;
         (tx_id.unwrap().to_string(), address)
     } else {
         let address = matches.value_of("ADDRESS");
@@ -373,7 +373,7 @@ async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: 
 
     Ok(Box::new(
         DebugTransactionExecutor::new(
-            bc_config.clone(),
+            bc_config,
             debug_info,
             if is_min_trace {
                 TraceLevel::Minimal
@@ -416,17 +416,17 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
     ).await
         .map_err(|e| format!("Failed to query transaction: {}", e))?;
 
-    if trans.result.len() == 0 {
+    if trans.result.is_empty() {
         return Err("Transaction with specified id was not found".to_string());
     }
 
     let trans = trans.result[0].clone();
     let block_lt = trans["block"]["start_lt"].as_str()
-        .ok_or(format!("Failed to parse block_lt."))?;
+        .ok_or("Failed to parse block_lt.".to_string())?;
     let block_lt = u64::from_str_radix(&block_lt[2..], 16)
         .map_err(|e| format!("Failed to convert block_lt: {}", e))?;
     let boc = trans["boc"].as_str()
-        .ok_or(format!("Failed to parse boc."))?;
+        .ok_or("Failed to parse boc.".to_string())?;
 
     let trans = Transaction::construct_from_base64(boc)
         .map_err(|e| format!("Failed to parse transaction: {}", e))?;
@@ -445,7 +445,6 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
         last_tr_lt: Arc::new(AtomicU64::new(trans.logical_time())),
         seed_block: UInt256::default(),
         debug: false,
-        ..ExecuteParams::default()
     };
 
     let msg = trans.in_msg_cell().map(|c| Message::construct_from_cell(c)
@@ -453,7 +452,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
 
     log::set_max_level(log::LevelFilter::Trace);
     log::set_boxed_logger(
-        Box::new(DebugLogger::new(output.unwrap().to_string().clone()))
+        Box::new(DebugLogger::new(output.unwrap().to_string()))
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
     let result_trans = executor.execute_with_libs_and_params(
@@ -570,7 +569,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
     };
     let msg_params = ParamsOfEncodeMessage {
         abi,
-        address: Some(format!("0:{}", std::iter::repeat("0").take(64).collect::<String>())),  // TODO: add option or get from input
+        address: Some(format!("0:{}", "0".repeat(64))),  // TODO: add option or get from input
         call_set: Some(call_set),
         signer: if keys.is_some() {
             Signer::Keys { keys: keys.unwrap() }
@@ -596,7 +595,6 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
         last_tr_lt: Arc::new(AtomicU64::new(now)),
         seed_block: UInt256::default(),
         debug: true,
-        ..ExecuteParams::default()
     };
 
     let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, is_getter).await?;
@@ -687,10 +685,10 @@ struct TrDetails {
 
 impl fmt::Display for TrDetails {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\ttransaction_id: {}\n", self.transaction_id)?;
-        write!(f, "\ttimestamp     : {}\n", self.timestamp)?;
-        write!(f, "\tmessage_type  : {}\n", self.message_type)?;
-        write!(f, "\tsource_address: {}\n", self.source_address)
+        writeln!(f, "\ttransaction_id: {}", self.transaction_id)?;
+        writeln!(f, "\ttimestamp     : {}", self.timestamp)?;
+        writeln!(f, "\tmessage_type  : {}", self.message_type)?;
+        writeln!(f, "\tsource_address: {}", self.source_address)
     }
 }
 

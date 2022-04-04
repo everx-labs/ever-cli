@@ -28,10 +28,10 @@ use crate::Config;
 
 pub fn load_keypair(keys: &str) -> Result<KeyPair, String> {
     if keys.find(' ').is_none() {
-        let keys = read_keys(&keys)?;
+        let keys = read_keys(keys)?;
         Ok(keys)
     } else {
-        generate_keypair_from_mnemonic(&keys)
+        generate_keypair_from_mnemonic(keys)
     }
 }
 
@@ -42,7 +42,6 @@ pub fn gen_seed_phrase() -> Result<String, String> {
         ParamsOfMnemonicFromRandom {
             dictionary: Some(1),
             word_count: Some(WORD_COUNT),
-            ..Default::default()
         },
     )
     .map_err(|e| format!("{}", e))
@@ -57,7 +56,6 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
             dictionary: Some(1),
             word_count: Some(WORD_COUNT),
             phrase: mnemonic.to_string(),
-            ..Default::default()
         },
     ).map_err(|e| format!("{}", e))?;
 
@@ -66,7 +64,6 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
         ParamsOfHDKeyDeriveFromXPrvPath {
             xprv: hdk_master.xprv,
             path: HD_PATH.to_string(),
-            ..Default::default()
         },
     ).map_err(|e| format!("{}", e))?;
 
@@ -74,15 +71,13 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
         client.clone(),
         ParamsOfHDKeySecretFromXPrv {
             xprv: hdk_root.xprv,
-            ..Default::default()
         },
     ).map_err(|e| format!("{}", e))?;
 
     let mut keypair: KeyPair = nacl_sign_keypair_from_secret_key(
-        client.clone(),
+        client,
         ParamsOfNaclSignKeyPairFromSecret {
             secret: secret.secret,
-            ..Default::default()
         },
     ).map_err(|e| format!("failed to get KeyPair from secret key: {}", e))?;
 
@@ -98,10 +93,9 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
 pub fn generate_keypair_from_secret(secret: String) -> Result<KeyPair, String> {
     let client = create_client_local()?;
     let mut keypair: KeyPair = nacl_sign_keypair_from_secret_key(
-        client.clone(),
+        client,
         ParamsOfNaclSignKeyPairFromSecret {
             secret,
-            ..Default::default()
         },
     ).map_err(|e| format!("failed to get KeyPair from secret key: {}", e))?;
     // special case if secret contains public key too.
@@ -123,14 +117,11 @@ pub fn generate_mnemonic(keypath: Option<&str>, config: Config) -> Result<(), St
         println!("  \"phrase\": \"{}\"", mnemonic);
         println!("}}");
     }
-    match keypath {
-        Some(path) => {
-            generate_keypair(path, &mnemonic, config.clone())?;
-            if !config.is_json {
-                println!("Keypair saved to {}", path);
-            }
+    if let Some(path) = keypath {
+        generate_keypair(path, &mnemonic, config.clone())?;
+        if !config.is_json {
+            println!("Keypair saved to {}", path);
         }
-        _ => {}
     }
     Ok(())
 }
@@ -153,7 +144,7 @@ pub fn extract_pubkey(mnemonic: &str, is_json: bool) -> Result<(), String> {
 }
 
 pub fn generate_keypair(keys_path: &str, mnemonic: &str, config: Config) -> Result<(), String> {
-    let keys = if mnemonic.contains(" ") {
+    let keys = if mnemonic.contains(' ') {
         generate_keypair_from_mnemonic(mnemonic)?
     } else {
         generate_keypair_from_secret(mnemonic.to_string())?

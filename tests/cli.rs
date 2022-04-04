@@ -494,7 +494,7 @@ fn test_async_deploy() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
-        .arg(addr.clone())
+        .arg(addr)
         .assert()
         .success()
         .stdout(predicate::str::contains("acc_type:      Active"));
@@ -2118,9 +2118,9 @@ fn test_multisig() -> Result<(), Box<dyn std::error::Error>> {
         .arg("{}")
         .assert()
         .success()
-        .stdout(predicate::str::contains(key1.clone()))
-        .stdout(predicate::str::contains(key2.clone()))
-        .stdout(predicate::str::contains(key3.clone()));
+        .stdout(predicate::str::contains(key1))
+        .stdout(predicate::str::contains(key2))
+        .stdout(predicate::str::contains(key3));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -2423,7 +2423,7 @@ fn run_command_and_decode_json(command: &str) -> Result<(), Box<dyn std::error::
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     println!("Command: {}",command);
     let out = cmd.arg("-j")
-        .args(command.split(" ").collect::<Vec<&str>>())
+        .args(command.split(' ').collect::<Vec<&str>>())
         .output()
         .expect("Failed to execute command.");
         // .stdout;

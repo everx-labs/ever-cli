@@ -10,7 +10,7 @@ use crate::debot::{ChainProcessor, ProcessorError};
 use tokio::sync::RwLock;
 use std::sync::Arc;
 
-pub const ID: &'static str = "c13024e101c95e71afb1f5fa6d72f633d51e721de0320d73dfd6121a54e4d40a";
+pub const ID: &str = "c13024e101c95e71afb1f5fa6d72f633d51e721de0320d73dfd6121a54e4d40a";
 
 const ABI: &str = r#"
 {
@@ -83,7 +83,7 @@ impl SigningBoxInput {
                 self.handles.write().await.push(signing_box);
                 Ok((answer_id, json!({ "handle": handle.0})))
             }
-            Err(e) => Err(format!("{:?}", e))?,
+            Err(e) => return Err(format!("{:?}", e)),
             Ok(handle) => {
                 Ok((answer_id, json!({ "handle": handle}) ))
             }

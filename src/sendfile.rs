@@ -21,7 +21,7 @@ pub async fn sendfile(conf: Config, msg_boc: &str) -> Result<(), String> {
     let tvm_msg = ton_sdk::Contract::deserialize_message(&boc_vec[..])
         .map_err(|e| format!("failed to parse message from boc: {}", e))?;
     let dst = tvm_msg.dst()
-        .ok_or(format!("failed to parse dst address"))?;
+        .ok_or("failed to parse dst address".to_string())?;
 
     if !conf.is_json {
         println!("Sending message to account {}", dst);

@@ -122,15 +122,15 @@ pub async fn decode_proposal(
 	).await?;
 
 	let txns = result["transactions"].as_array()
-		.ok_or(format!(r#"failed to decode result: "transactions" array not found"#))?;
+		.ok_or(r#"failed to decode result: "transactions" array not found"#.to_string())?;
 
 	for txn in txns {
 		let txn_id = txn["id"].as_str()
-			.ok_or(format!(r#"failed to parse transaction in list: "id" not found"#))?;
+			.ok_or(r#"failed to parse transaction in list: "id" not found"#.to_string())?;
 
 		if txn_id == proposal_id {
 			let body = txn["payload"].as_str()
-				.ok_or(format!(r#"failed to parse transaction in list: "payload" not found"#))?;
+				.ok_or(r#"failed to parse transaction in list: "payload" not found"#.to_string())?;
 			let ton = create_client_local()?;
 			let result = decode_msg_body(
 				ton.clone(),
