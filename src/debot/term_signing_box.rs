@@ -92,7 +92,7 @@ where
         });
         if let Ok(ref keys) = pair {
             if !possible_keys.is_empty() {
-                if possible_keys
+                if !possible_keys
                     .iter()
                     .any(|x| x.get(2..).unwrap() == keys.public.as_str())
                 {

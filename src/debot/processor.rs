@@ -115,7 +115,7 @@ impl ChainProcessor {
     pub fn next_approve(&mut self, activity: &DebotActivity) -> Result<bool, ProcessorError> {
 
         let app_kind = match activity {
-            DebotActivity::Transaction {..} => ApproveKind::OnChainCall,
+            DebotActivity::Transaction {..} => ApproveKind::ApproveOnChainCall,
         };
         let auto_approve = self.pipechain.auto_approve.as_ref().map(|vec| vec.iter().any(|x| *x == app_kind));
 
