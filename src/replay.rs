@@ -55,8 +55,8 @@ fn construct_blockchain_config_err(config_account: &Account) -> Result<Blockchai
     BlockchainConfig::with_config(config_params)
 }
 
-pub async fn fetch(server_address: &str, account_address: &str, filename: &str, fast_stop: bool, lt_bound: Option<u64>) -> Result<(), String> {
-    if std::path::Path::new(filename).exists() {
+pub async fn fetch(server_address: &str, account_address: &str, filename: &str, fast_stop: bool, lt_bound: Option<u64>, rewrite_file: bool) -> Result<(), String> {
+    if !rewrite_file && std::path::Path::new(filename).exists() {
         println!("File exists");
         return Ok(())
     }
@@ -531,7 +531,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         fetch(server_address,
             account.as_str(),
             format!("{}.txns", account).as_str(),
-            false, Some(end_lt)).await.map_err(err_msg)?;
+            false, Some(end_lt), false).await.map_err(err_msg)?;
     }
 
     let config_txns_path = format!("{}.txns", CONFIG_ADDR);
@@ -540,7 +540,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         fetch(server_address,
             CONFIG_ADDR,
             config_txns_path.as_str(),
-            false, Some(end_lt)).await.map_err(err_msg)?;
+            false, Some(end_lt), false).await.map_err(err_msg)?;
     }
 
     let acc = accounts[0].0.as_str();
@@ -637,7 +637,8 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
         m.value_of("ADDRESS").ok_or("Missing account address")?,
         m.value_of("OUTPUT").ok_or("Missing output filename")?,
         false,
-        None
+        None,
+        true
     ).await?;
     if config.is_json {
         println!("{{}}");
