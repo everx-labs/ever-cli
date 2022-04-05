@@ -777,7 +777,8 @@ async fn main_internal() -> Result <(), String> {
     let replay_cmd = SubCommand::with_name("replay")
         .about("Replays account's transactions starting from zerostate.")
         .arg(Arg::with_name("CONFIG_TXNS")
-            .required(true)
+            .long("--config")
+            .short("-c")
             .takes_value(true)
             .help("File containing zerostate and txns of -1:555..5 account."))
         .arg(Arg::with_name("INPUT_TXNS")
@@ -787,7 +788,11 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("TXNID")
             .required(true)
             .takes_value(true)
-            .help("Dump account state before this transaction ID and stop replaying."));
+            .help("Dump account state before this transaction ID and stop replaying."))
+        .arg(Arg::with_name("CURRENT_CONFIG")
+            .help("Replay transaction with current network config.")
+            .long("--current_config")
+            .short("-e"));
 
     let matches = App::new("tonos_cli")
         .version(&*format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
@@ -1016,7 +1021,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return fetch_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("replay") {
-        return replay_command(m).await;
+        return replay_command(m, &conf).await;
     }
     if matches.subcommand_matches("version").is_some() {
         if conf.is_json {

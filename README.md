@@ -90,8 +90,8 @@ tonos-cli <subcommand> -h
   - [9.3. NodeID](#93-nodeid)
   - [9.4. Dump blockchain config](#94-dump-blockchain-config)
   - [9.5. Dump several account states](#95-dump-several-account-states)
-  - [10. Fetch and replay](#10-fetch-and-replay)
-    - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
+- [10. Fetch and replay](#10-fetch-and-replay)
+  - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 - [11. Debug commands](#11-debug-commands)
   - [11.1. Debug transaction](#111-debug-transaction)
   - [11.2. Debug call](#112-debug-call)
@@ -2220,8 +2220,10 @@ $ tonos-cli fetch 0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb776
 where `0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d` is an example of account address, `570ddeb8.txns` - name of the output file.
 
 ```bash
-$ tonos-cli replay config.txns 570ddeb8.txns 197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270
+$ tonos-cli replay [-e] [-c config.txns] 570ddeb8.txns 197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270
 ```
+
+Transaction can be replayed with config using option `-c` or with the current network config (option `-e`).
 
 where `197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270` is a txn id before which account state should be restored.
 

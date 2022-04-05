@@ -217,7 +217,7 @@ struct State {
     account: Account,
     account_addr: String,
     tr: Option<TransactionExt>,
-    lines: Lines<std::io::BufReader<File>>,
+    lines: Option<Lines<std::io::BufReader<File>>>,
 }
 
 impl State {
@@ -237,21 +237,36 @@ impl State {
         let account_addr = String::from(value["id"].as_str()
                                             .ok_or("failed to load account address")?);
 
-        Ok(Self { account, account_addr, tr: None, lines })
+        Ok(Self { account, account_addr, tr: None, lines: Some(lines) })
+    }
+
+    fn default() -> Result<Self, String> {
+        Ok(Self {
+            account: Account::default(),
+            account_addr: "".to_string(),
+            tr: None,
+            lines: None
+        })
+    }
+
+    pub fn set_account(&mut self, account: Account) {
+        self.account = account;
     }
 
     pub fn next_transaction(&mut self) -> Option<()> {
-        match self.lines.next() {
-            Some(res) => {
-                let value = serde_json::from_str::<Value>(res.ok()?.as_str()).ok()?;
-                let id = String::from(value["id"].as_str()?);
-                let boc = value["boc"].as_str()?;
-                let tr = Transaction::construct_from_base64(boc).ok()?;
-                let block_lt = u64::from_str_radix(&value["block"]["start_lt"].as_str()?[2..], 16).ok()?;
-                self.tr = Some(TransactionExt { id, block_lt, tr });
-            }
-            None => {
-                self.tr = None;
+        if self.lines.is_some() {
+            match self.lines.as_mut().unwrap().next() {
+                Some(res) => {
+                    let value = serde_json::from_str::<Value>(res.ok()?.as_str()).ok()?;
+                    let id = String::from(value["id"].as_str()?);
+                    let boc = value["boc"].as_str()?;
+                    let tr = Transaction::construct_from_base64(boc).ok()?;
+                    let block_lt = u64::from_str_radix(&value["block"]["start_lt"].as_str()?[2..], 16).ok()?;
+                    self.tr = Some(TransactionExt { id, block_lt, tr });
+                }
+                None => {
+                    self.tr = None;
+                }
             }
         }
         Some(())
@@ -293,10 +308,10 @@ pub async fn replay(
     cli_config: Option<&Config>,
 ) -> Result<Transaction, String> {
     let mut account_state = State::new(input_filename)?;
-    let mut config_state = State::new(config_filename)?;
-    assert_eq!(config_state.account_addr, CONFIG_ADDR);
+    let account_address = account_state.account_addr.clone();
 
-    let mut config = match cli_config {
+
+    let (mut config, mut config_state) = match cli_config {
         Some(cli_config) => {
             let ton_client = create_client(cli_config)?;
             let config = query_account_field(
@@ -305,9 +320,15 @@ pub async fn replay(
                 "boc",
             ).await?;
             let config = Account::construct_from_base64(&config).map_err(|_| "".to_string())?;
-            construct_blockchain_config(&config)?
+            let mut state = State::default()?;
+            state.set_account(config.clone());
+            (construct_blockchain_config(&config)?, state)
         },
-        None => BlockchainConfig::default(),
+        None => {
+            let config_state = State::new(config_filename)?;
+            assert_eq!(config_state.account_addr, CONFIG_ADDR);
+            (BlockchainConfig::default(), config_state)
+        },
     };
     let mut cur_block_lt = 0u64;
 
@@ -331,8 +352,6 @@ pub async fn replay(
         let state = choose(&mut account_state, &mut config_state);
         let tr = state.tr.as_ref().ok_or("failed to obtain state transaction")?;
 
-        //print!("lt {: >26} {: >16x}, txn for {}, ", tr.tr.lt, tr.tr.lt, &state.account_addr[..8]);
-
         if cli_config.is_none() {
             if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
                 assert!(tr.block_lt > cur_block_lt);
@@ -340,8 +359,6 @@ pub async fn replay(
                 config = construct_blockchain_config(&config_account)?;
             }
         }
-
-        //println!("{} {}", state.account_addr, tr.id);
 
         let mut account_root = state.account.serialize()
             .map_err(|e| format!("Failed to serialize: {}", e))?;
@@ -357,7 +374,7 @@ pub async fn replay(
         }
         if tr.id == txnid {
             if dump_mask & DUMP_ACCOUNT != 0 {
-                let path = format!("{}-{}.boc", state.account_addr.split(':').last().unwrap_or(""), txnid);
+                let path = format!("{}-{}.boc", account_address.split(':').last().unwrap_or(""), txnid);
                 account_root.write_to_file(&path);
                 println!("Contract account was dumped to {}", path);
             }
@@ -630,11 +647,15 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
     Ok(())
 }
 
-pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
+pub async fn replay_command(m: &ArgMatches<'_>, cli_config: &Config) -> Result<(), String> {
+    let (config_txns, cli_config) = if m.is_present("CURRENT_CONFIG") {
+        ("", Some(cli_config))
+    } else {
+        (m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?, None)
+    };
     let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
-        m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
-        m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, TraceLevel::None, ||{Ok(())}, None, DUMP_ALL, None
+        config_txns, m.value_of("TXNID").ok_or("Missing final txn id")?,
+        false, TraceLevel::None, ||{Ok(())}, None, DUMP_ALL, cli_config
     ).await?;
     Ok(())
 }
