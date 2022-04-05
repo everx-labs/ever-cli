@@ -304,7 +304,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
             if !config.is_json {
                 println!("Fetching config contract transactions...");
             }
-            fetch(&config.url,CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config, None).await?;
+            fetch(&config.url, CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config, None).await?;
             DEFAULT_CONFIG_PATH
         }
     };
@@ -346,7 +346,17 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
     if !config.is_json {
         println!("Replaying the last transactions...");
     }
-    let tr = replay(contract_path, config_path, &tx_id, false, trace_level, init_logger, debug_info, dump_mask).await?;
+    let tr = replay(
+        contract_path,
+        config_path,
+        &tx_id,
+        false,
+        trace_level,
+        init_logger,
+        debug_info,
+        dump_mask,
+        if is_empty_config { Some(&config) } else { None },
+    ).await?;
 
     decode_messages(tr.out_msgs, load_decode_abi(matches, config.clone())).await?;
     if !config.is_json {

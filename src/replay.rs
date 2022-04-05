@@ -32,6 +32,7 @@ use ton_types::{UInt256, serialize_tree_of_cells};
 
 use crate::config::Config;
 use crate::debug_executor::{TraceLevel, DebugTransactionExecutor};
+use crate::helpers::{create_client, query_account_field};
 
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
 
@@ -289,12 +290,25 @@ pub async fn replay(
     init_trace_last_logger: impl Fn() -> Result<(), String>,
     debug_info:  Option<String>,
     dump_mask: u8,
+    cli_config: Option<&Config>,
 ) -> Result<Transaction, String> {
     let mut account_state = State::new(input_filename)?;
     let mut config_state = State::new(config_filename)?;
     assert_eq!(config_state.account_addr, CONFIG_ADDR);
 
-    let mut config = BlockchainConfig::default();
+    let mut config = match cli_config {
+        Some(cli_config) => {
+            let ton_client = create_client(cli_config)?;
+            let config = query_account_field(
+                ton_client.clone(),
+                CONFIG_ADDR,
+                "boc",
+            ).await?;
+            let config = Account::construct_from_base64(&config).map_err(|_| "".to_string())?;
+            construct_blockchain_config(&config)?
+        },
+        None => BlockchainConfig::default(),
+    };
     let mut cur_block_lt = 0u64;
 
     if trace_execution {
@@ -319,10 +333,12 @@ pub async fn replay(
 
         //print!("lt {: >26} {: >16x}, txn for {}, ", tr.tr.lt, tr.tr.lt, &state.account_addr[..8]);
 
-        if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
-            assert!(tr.block_lt > cur_block_lt);
-            cur_block_lt = tr.block_lt;
-            config = construct_blockchain_config(&config_account)?;
+        if cli_config.is_none() {
+            if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
+                assert!(tr.block_lt > cur_block_lt);
+                cur_block_lt = tr.block_lt;
+                config = construct_blockchain_config(&config_account)?;
+            }
         }
 
         //println!("{} {}", state.account_addr, tr.id);
@@ -519,7 +535,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         replay(format!("{}.txns", acc).as_str(),
             config_txns_path.as_str(), txnid,
             false, TraceLevel::None,
-            || Ok(()), None, DUMP_CONFIG).await.map_err(err_msg)?;
+            || Ok(()), None, DUMP_CONFIG, None).await.map_err(err_msg)?;
     } else {
         println!("Using pre-computed config {}", config_path);
     }
@@ -538,7 +554,8 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
                     TraceLevel::None,
                     || Ok(()),
                     None,
-                    DUMP_ACCOUNT
+                    DUMP_ACCOUNT,
+                    None
                 ).await.map_err(err_msg).unwrap();
             }
         })
@@ -617,7 +634,7 @@ pub async fn replay_command(m: &ArgMatches<'_>) -> Result<(), String> {
     let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?,
         m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, TraceLevel::None, ||{Ok(())}, None, DUMP_ALL
+        false, TraceLevel::None, ||{Ok(())}, None, DUMP_ALL, None
     ).await?;
     Ok(())
 }
