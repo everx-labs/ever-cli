@@ -508,7 +508,7 @@ impl DebugTransactionExecutor {
                     }
                     error_code
                 };
-                vm_phase.exit_arg = match exception.value.as_integer().and_then(|value| value.into(std::i32::MIN..=std::i32::MAX)) {
+                vm_phase.exit_arg = match exception.value.as_integer().and_then(|value| value.into(i32::MIN..=i32::MAX)) {
                     Err(_) | Ok(0) => None,
                     Ok(exit_arg) => Some(exit_arg)
                 };

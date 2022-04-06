@@ -252,7 +252,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(run_cmd)
 }
 
-pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+pub async fn debug_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     if let Some(matches) = matches.subcommand_matches("transaction") {
         return debug_transaction_command(matches, config, false).await;
     }
@@ -271,7 +271,7 @@ pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
     Err("unknown command".to_owned())
 }
 
-async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_account: bool) -> Result<(), String> {
+async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is_account: bool) -> Result<(), String> {
     let trace_path = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
     let config_path = matches.value_of("CONFIG_PATH");
@@ -358,7 +358,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
         if is_empty_config { Some(&config) } else { None },
     ).await?;
 
-    decode_messages(tr.out_msgs, load_decode_abi(matches, config.clone())).await?;
+    decode_messages(tr.out_msgs, load_decode_abi(matches, config)).await?;
     if !config.is_json {
         println!("Log saved to {}.", trace_path);
     }
@@ -396,7 +396,7 @@ async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: 
 }
 
 
-async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let tx_id = matches.value_of("TX_ID");
     let config_path = matches.value_of("CONFIG_PATH");
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
@@ -483,7 +483,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
 
     match result_trans {
         Ok(result_trans) => {
-            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
+            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config)).await?;
             if !config.is_json {
                 println!("Execution finished.");
             }
@@ -500,7 +500,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
     Ok(())
 }
 
-fn load_decode_abi(matches: &ArgMatches<'_>, config: Config) -> Option<String> {
+fn load_decode_abi(matches: &ArgMatches<'_>, config: &Config) -> Option<String> {
     let abi = matches.value_of("DECODE_ABI")
         .map(|s| s.to_owned())
         .or(abi_from_matches_or_config(matches, &config).ok());
@@ -518,7 +518,7 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: Config) -> Option<String> {
     }
 }
 
-async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter: bool) -> Result<(), String> {
+async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter: bool) -> Result<(), String> {
     let input = matches.value_of("ADDRESS");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
@@ -626,7 +626,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
     );
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
+            decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {

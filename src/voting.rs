@@ -16,7 +16,7 @@ use crate::helpers::{create_client_local, decode_msg_body};
 use crate::multisig::{encode_transfer_body, MSIG_ABI, TRANSFER_WITH_COMMENT};
 
 pub async fn create_proposal(
-	conf: Config,
+	config: &Config,
 	addr: &str,
 	keys: Option<&str>,
 	dest: &str,
@@ -39,7 +39,7 @@ pub async fn create_proposal(
 
 	if offline {
 		message::generate_message(
-			conf,
+			config,
 			addr,
 			MSIG_ABI.to_string(),
 			"submitTransaction",
@@ -51,7 +51,7 @@ pub async fn create_proposal(
 	} else {
 
 		call::call_contract(
-			conf,
+			config,
 			addr,
 			MSIG_ABI.to_string(),
 			"submitTransaction",
@@ -63,7 +63,7 @@ pub async fn create_proposal(
 }
 
 pub async fn vote(
-	conf: Config,
+	config: &Config,
 	addr: &str,
 	keys: Option<&str>,
 	trid: &str,
@@ -79,7 +79,7 @@ pub async fn vote(
 
 	if offline {
 		message::generate_message(
-			conf,
+			config,
 			addr,
 			MSIG_ABI.to_string(),
 			"confirmTransaction",
@@ -91,7 +91,7 @@ pub async fn vote(
 		).await
 	} else {
 		call::call_contract(
-			conf,
+			config,
 			addr,
 			MSIG_ABI.to_string(),
 			"confirmTransaction",
@@ -103,14 +103,14 @@ pub async fn vote(
 }
 
 pub async fn decode_proposal(
-	conf: Config,
+	config: &Config,
 	addr: &str,
 	proposal_id: &str,
 ) -> Result<(), String> {
 
 	// change to run
 	let result = call::call_contract_with_result(
-		conf.clone(),
+		config,
 		addr,
 		MSIG_ABI.to_string(),
 		"getTransactions",
@@ -146,7 +146,7 @@ pub async fn decode_proposal(
 				).map_err(|e| format!("failed to parse comment from transaction payload: {}", e))?
 			).map_err(|e| format!("failed to convert comment to string: {}", e))?;
 
-			if !conf.is_json {
+			if !config.is_json {
 				println!("Comment: {}", comment);
 			} else {
 				println!("{{");
@@ -156,7 +156,7 @@ pub async fn decode_proposal(
 			return Ok(());
 		}
 	}
-	if !conf.is_json {
+	if !config.is_json {
 		println!("Proposal with id {} not found", proposal_id);
 	} else {
 		println!("{{");

@@ -624,7 +624,7 @@ struct BlockAccountDescr {
     transactions: Vec<String>,
 }
 
-pub async fn fetch_block_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+pub async fn fetch_block_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     fetch_block(config.url.as_str(),
         m.value_of("BLOCKID").ok_or("Missing block id")?,
         m.value_of("OUTPUT").ok_or("Missing output filename")?
@@ -632,7 +632,7 @@ pub async fn fetch_block_command(m: &ArgMatches<'_>, config: Config) -> Result<(
     Ok(())
 }
 
-pub async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+pub async fn fetch_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     fetch(config.url.as_str(),
         m.value_of("ADDRESS").ok_or("Missing account address")?,
         m.value_of("OUTPUT").ok_or("Missing output filename")?,

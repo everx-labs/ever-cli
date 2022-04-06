@@ -107,7 +107,7 @@ pub fn generate_keypair_from_secret(secret: String) -> Result<KeyPair, String> {
     Ok(keypair)
 }
 
-pub fn generate_mnemonic(keypath: Option<&str>, config: Config) -> Result<(), String> {
+pub fn generate_mnemonic(keypath: Option<&str>, config: &Config) -> Result<(), String> {
     let mnemonic = gen_seed_phrase()?;
     if !config.is_json {
         println!("Succeeded.");
@@ -118,7 +118,7 @@ pub fn generate_mnemonic(keypath: Option<&str>, config: Config) -> Result<(), St
         println!("}}");
     }
     if let Some(path) = keypath {
-        generate_keypair(path, &mnemonic, config.clone())?;
+        generate_keypair(path, &mnemonic, config)?;
         if !config.is_json {
             println!("Keypair saved to {}", path);
         }
@@ -143,8 +143,8 @@ pub fn extract_pubkey(mnemonic: &str, is_json: bool) -> Result<(), String> {
     Ok(())
 }
 
-pub fn generate_keypair(keys_path: &str, mnemonic: &str, config: Config) -> Result<(), String> {
-    let keys = if mnemonic.contains(' ') {
+pub fn generate_keypair(keys_path: &str, mnemonic: &str, config: &Config) -> Result<(), String> {
+    let keys = if mnemonic.contains(" ") {
         generate_keypair_from_mnemonic(mnemonic)?
     } else {
         generate_keypair_from_secret(mnemonic.to_string())?

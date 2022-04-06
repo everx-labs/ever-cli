@@ -25,7 +25,7 @@ use ton_client::crypto::KeyPair;
 use crate::message::{display_generated_message, EncodedMessage};
 
 pub async fn deploy_contract(
-    conf: Config,
+    config: &Config,
     tvc: &str,
     abi: &str,
     params: &str,
@@ -33,9 +33,9 @@ pub async fn deploy_contract(
     wc: i32,
     is_fee: bool,
 ) -> Result<(), String> {
-    let ton = create_client_verbose(&conf, true)?;
+    let ton = create_client_verbose(config)?;
 
-    if !is_fee && !conf.is_json {
+    if !is_fee && !config.is_json {
         println!("Deploying...");
     }
 
@@ -44,27 +44,27 @@ pub async fn deploy_contract(
     let enc_msg = encode_message(ton.clone(), msg.clone()).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
-    if conf.local_run || is_fee {
+    if config.local_run || is_fee {
         emulate_locally(ton.clone(), addr.as_str(), enc_msg.message.clone(), is_fee).await?;
         if is_fee {
             return Ok(());
         }
     }
 
-    if conf.async_call {
+    if config.async_call {
         let abi = std::fs::read_to_string(abi)
             .map_err(|e| format!("failed to read ABI file: {}", e))?;
         let abi = load_abi(&abi)?;
         send_message_and_wait(ton,
                               Some(abi),
                               enc_msg.message,
-                              conf.clone()).await?;
+                              config).await?;
     } else {
-        process_message(ton.clone(), msg, conf.clone()).await?;
+        process_message(ton.clone(), msg, config).await?;
     }
 
-    if !conf.is_json {
-        if !conf.async_call {
+    if !config.is_json {
+        if !config.async_call {
             println!("Transaction succeeded.");
         }
         println!("Contract deployed at address: {}", addr);

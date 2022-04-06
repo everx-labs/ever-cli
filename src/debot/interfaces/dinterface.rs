@@ -46,12 +46,12 @@ impl InterfaceWrapper {
 }
 
 impl SupportedInterfaces {
-    pub fn new(client: TonClient, conf: &Config, processor: Arc<RwLock<ChainProcessor>>) -> Self {
+    pub fn new(client: TonClient, config: &Config, processor: Arc<RwLock<ChainProcessor>>) -> Self {
         let mut interfaces = HashMap::new();
 
         let iw = InterfaceWrapper { processor: processor.clone() };
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AddressInput::new(conf.clone())));
+        let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AddressInput::new(config.clone())));
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AmountInput::new()));
@@ -83,7 +83,7 @@ impl SupportedInterfaces {
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(
-            Arc::new(UserInfo::new(client.clone(), conf.clone()))
+            Arc::new(UserInfo::new(client.clone(), config.clone()))
         );
         interfaces.insert(iface.get_id(), iface);
 

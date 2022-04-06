@@ -14,19 +14,20 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use clap::ArgMatches;
+use serde_json::{Map, Value};
 use ton_block::{Account, Deserializable, Message, Serializable};
 use ton_client::abi::{Abi, FunctionHeader};
-use ton_client::tvm::{ParamsOfRunTvm, run_tvm};
+use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
 use ton_executor::{ExecuteParams, TransactionExecutor};
 use ton_types::{HashmapE, UInt256};
 use crate::{abi_from_matches_or_config, AccountSource, Config, create_client_local, create_client_verbose, DebugLogger, load_abi, load_account, unpack_alternative_params};
-use crate::call::{prepare_execution_options, print_json_result};
+use crate::call::{print_json_result};
 use crate::debug_executor::{DebugTransactionExecutor, TraceLevel};
-use crate::helpers::{now, now_ms, query_account_field, SDK_EXECUTION_ERROR_CODE, TonClient, TRACE_PATH};
+use crate::helpers::{create_client, now, now_ms, query_account_field, SDK_EXECUTION_ERROR_CODE, TonClient, TRACE_PATH};
 use crate::message::prepare_message;
 use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 
-pub async fn run_command(matches: &ArgMatches<'_>, config: Config, is_alternative: bool) -> Result<(), String> {
+pub async fn run_command(matches: &ArgMatches<'_>, config: &Config, is_alternative: bool) -> Result<(), String> {
     let address = if is_alternative {
         matches.value_of("ADDRESS")
             .map(|s| s.to_string())
@@ -43,18 +44,17 @@ pub async fn run_command(matches: &ArgMatches<'_>, config: Config, is_alternativ
         AccountSource::NETWORK
     };
 
-    let ton_client = create_client_verbose(
-        &config,
-        !config.debug_fail,
-    )?;
-    if config.debug_fail {
+    let ton_client = if config.debug_fail {
         log::set_max_level(log::LevelFilter::Trace);
         log::set_boxed_logger(
             Box::new(DebugLogger::new(TRACE_PATH.to_string()))
         ).map_err(|e| format!("Failed to set logger: {}", e))?;
-    }
+        create_client(&config)?
+    } else {
+        create_client_verbose(&config)?
+    };
 
-    let account = load_account(
+    let (account, account_boc) = load_account(
         &account_source,
         &address,
         Some(ton_client.clone()),
@@ -65,15 +65,12 @@ pub async fn run_command(matches: &ArgMatches<'_>, config: Config, is_alternativ
         AccountSource::BOC => account.get_addr().unwrap().to_string(),
         AccountSource::TVC => std::iter::repeat("0").take(64).collect::<String>()
     };
-    let account = account.write_to_bytes()
-        .map_err(|e| format!("failed to load data from the account: {}", e))?;
-    let account = base64::encode(&account);
-    run(matches, config, Some(ton_client), &address, account, is_alternative).await
+    run(matches, config, Some(ton_client), &address, account_boc, is_alternative).await
 }
 
 pub async fn run(
     matches: &ArgMatches<'_>,
-    config: Config,
+    config: &Config,
     ton_client: Option<TonClient>,
     address: &str,
     account_boc: String,
@@ -126,7 +123,7 @@ pub async fn run(
         msg.message,
         account_boc,
         bc_config,
-        config.clone(),
+        config,
     ).await?;
 
     if !config.is_json {
@@ -143,7 +140,7 @@ pub async fn run_local(
     msg: String,
     acc_boc: String,
     bc_config: Option<&str>,
-    config: Config,
+    config: &Config,
 ) -> Result<serde_json::Value, String> {
     let execution_options = prepare_execution_options(bc_config)?;
     let result = run_tvm(
@@ -223,4 +220,71 @@ pub async fn run_local(
     let res = result.decoded.and_then(|d| d.output)
         .ok_or("Failed to decode the result. Check that abi matches the contract.")?;
     Ok(res)
+}
+
+fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<ExecutionOptions>, String> {
+    if let Some(config) = bc_config {
+        let bytes = std::fs::read(config)
+            .map_err(|e| format!("Failed to read data from file {}: {}", config, e))?;
+        let config_boc = base64::encode(&bytes);
+        let ex_opt = ExecutionOptions{
+            blockchain_config: Some(config_boc),
+            ..Default::default()
+        };
+        return Ok(Some(ex_opt));
+    }
+    Ok(None)
+}
+
+pub async fn run_get_method(config: &Config, addr: &str, method: &str, params: Option<String>, source_type: AccountSource, bc_config: Option<&str>) -> Result<(), String> {
+    let ton = if source_type != AccountSource::NETWORK {
+        create_client_verbose(&config)?
+    } else {
+        create_client_local()?
+    };
+
+    let (_, acc_boc) = load_account(&source_type, addr, Some(ton.clone()), config).await?;
+
+    let params = params.map(|p| serde_json::from_str(&p))
+        .transpose()
+        .map_err(|e| format!("arguments are not in json format: {}", e))?;
+
+    if !config.is_json {
+        println!("Running get-method...");
+    }
+    let execution_options = prepare_execution_options(bc_config)?;
+    let result = run_get(
+        ton,
+        ParamsOfRunGet {
+            account: acc_boc,
+            function_name: method.to_owned(),
+            input: params,
+            execution_options,
+            ..Default::default()
+        },
+    ).await
+        .map_err(|e| format!("run failed: {}", e.to_string()))?
+        .output;
+
+    if !config.is_json {
+        println!("Succeeded.");
+        println!("Result: {}", result);
+    } else {
+        let mut res = Map::new();
+        match result {
+            Value::Array(array) => {
+                let mut i = 0;
+                for val in array.iter() {
+                    res.insert(format!("value{}", i), val.to_owned());
+                    i = 1 + i;
+                }
+            },
+            _ => {
+                res.insert("value0".to_owned(), result);
+            }
+        }
+        let res = Value::Object(res);
+        println!("{}", serde_json::to_string_pretty(&res).unwrap_or("Undefined".to_string()));
+    }
+    Ok(())
 }

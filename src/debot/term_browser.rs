@@ -41,7 +41,7 @@ struct TerminalBrowser {
     bots: HashMap<String, DebotEntry>,
     /// Set of intrefaces implemented by current DBrowser.
     interfaces: SupportedInterfaces,
-    conf: Config,
+    config: Config,
     processor: Arc<tokio::sync::RwLock<ChainProcessor>>,
     /// Indicates if Browser will interact with the user or not.
     interactive: bool,
@@ -50,7 +50,7 @@ struct TerminalBrowser {
 }
 
 impl TerminalBrowser {
-    async fn new(client: TonClient, addr: &str, conf: Config, pipechain: PipeChain) -> Result<Self, String> {
+    async fn new(client: TonClient, addr: &str, config: Config, pipechain: PipeChain) -> Result<Self, String> {
         let processor = ChainProcessor::new(pipechain);
         let start = processor.default_start();
         let interactive = processor.interactive();
@@ -62,8 +62,8 @@ impl TerminalBrowser {
             client: client.clone(),
             msg_queue: Default::default(),
             bots: HashMap::new(),
-            interfaces: SupportedInterfaces::new(client.clone(), &conf, processor.clone()),
-            conf,
+            interfaces: SupportedInterfaces::new(client.clone(), &config, processor.clone()),
+            config,
             processor,
             interactive,
             exit_arg: None,
@@ -100,9 +100,9 @@ impl TerminalBrowser {
     }
 
     async fn fetch_debot(&mut self, addr: &str, call_start: bool, autorun: bool) -> Result<String, String> {
-        let debot_addr = load_ton_address(addr, &self.conf)?;
+        let debot_addr = load_ton_address(addr, &self.config)?;
         let callbacks = Arc::new(
-            Callbacks::new(self.client.clone(), self.conf.clone(), self.processor.clone())
+            Callbacks::new(self.client.clone(), self.config.clone(), self.processor.clone())
         );
         let callbacks_ref = Arc::clone(&callbacks);
         let mut dengine = DEngine::new_with_client(

@@ -151,7 +151,7 @@ pub fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String>
 }
 
 pub async fn generate_message(
-    _conf: Config,
+    config: &Config,
     addr: &str,
     abi: String,
     method: &str,
@@ -163,7 +163,7 @@ pub async fn generate_message(
 ) -> Result<(), String> {
     let ton = create_client_local()?;
 
-    let ton_addr = load_ton_address(addr, &_conf)
+    let ton_addr = load_ton_address(addr, &config)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
 
     let abi = load_abi(&abi)?;
@@ -182,10 +182,10 @@ pub async fn generate_message(
         params,
         Some(header),
         keys,
-        _conf.is_json,
+        config.is_json,
     ).await?;
 
-    display_generated_message(&msg, method, is_raw, output, _conf.is_json)?;
+    display_generated_message(&msg, method, is_raw, output, config.is_json)?;
 
     Ok(())
 }
