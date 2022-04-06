@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 use ton_client::{abi::Abi, crypto::EncryptionBoxHandle};
 use ton_client::debot::{DebotInterface, InterfaceResult};
 
-const ID: &'static str = "5b5f76b54d976d72f1ada3063d1af2e5352edaf1ba86b3b311170d4d81056d61";
+const ID: &str = "5b5f76b54d976d72f1ada3063d1af2e5352edaf1ba86b3b311170d4d81056d61";
 
 const ABI: &str = r#"
 {
@@ -104,7 +104,7 @@ impl EncryptionBoxInput {
     pub fn new(client: TonClient) -> Self {
         Self {
             handles: RwLock::new(vec![]),
-            client: client,
+            client,
         }
     }
 
@@ -117,8 +117,8 @@ impl EncryptionBoxInput {
         let result = TerminalEncryptionBox::new(ParamsOfTerminalEncryptionBox {
             context: self.client.clone(),
             box_type: EncryptionBoxType::NaCl,
-            their_pubkey: their_pubkey,
-            nonce: nonce,
+            their_pubkey,
+            nonce,
         }).await;
         Ok((answer_id, json!({ "handle": self.insert_box(result).await.0 })))
     }
@@ -131,7 +131,7 @@ impl EncryptionBoxInput {
             context: self.client.clone(),
             box_type: EncryptionBoxType::SecretNaCl,
             their_pubkey: String::new(),
-            nonce: nonce,
+            nonce,
         })
         .await;
         Ok((answer_id, json!({ "handle": self.insert_box(result).await.0})))

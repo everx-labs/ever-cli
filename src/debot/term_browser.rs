@@ -15,14 +15,14 @@ use crate::config::Config;
 use crate::helpers::{create_client, load_ton_address, load_abi, TonClient};
 use std::io::{self, BufRead, Write};
 use std::sync::Arc;
-use ton_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, ParamsOfDecodeMessage, 
+use ton_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, ParamsOfDecodeMessage,
     encode_internal_message, decode_message};
 use ton_client::boc::{ParamsOfParse, parse_message};
 use ton_client::debot::{DebotInterfaceExecutor, DEngine, DebotInfo, DEBOT_WC};
 use std::collections::{HashMap, VecDeque};
 use super::{Callbacks, ChainLink, PipeChain, ChainProcessor, SupportedInterfaces};
 
-const BROWSER_ID: &'static str = "0000000000000000000000000000000000000000000000000000000000000000";
+const BROWSER_ID: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 /// Stores Debot info needed for DBrowser.
 struct DebotEntry {
     abi: Abi,
@@ -56,7 +56,7 @@ impl TerminalBrowser {
         let interactive = processor.interactive();
         let call_set = processor.initial_call_set();
         let mut init_message = processor.initial_msg();
-        
+
         let processor = Arc::new(tokio::sync::RwLock::new(processor));
         let mut browser = Self {
             client: client.clone(),
@@ -114,7 +114,7 @@ impl TerminalBrowser {
         let info: DebotInfo = dengine.init().await?.into();
         let abi_version = info.dabi_version.clone();
         let abi_ref = info.dabi.as_ref();
-        let abi = load_abi(&abi_ref.ok_or(format!("DeBot ABI is not defined"))?)?;
+        let abi = load_abi(abi_ref.ok_or("DeBot ABI is not defined".to_string())?)?;
         if !autorun {
             Self::print_info(&info);
         }
@@ -124,13 +124,13 @@ impl TerminalBrowser {
                 run_debot = match val.as_str() {
                     "y" => true,
                     "n" => false,
-                    _ => Err(format!("invalid enter"))?,
+                    _ => return Err("invalid enter".to_string()),
                 };
                 Ok(())
             });
         }
         if !run_debot {
-            return Err(format!("DeBot rejected"));
+            return Err("DeBot rejected".to_string());
         }
         if call_start {
             dengine.start().await?;
@@ -152,12 +152,12 @@ impl TerminalBrowser {
     async fn call_interface(
         &mut self,
         msg: String,
-        interface_id: &String,
+        interface_id: String,
         debot_addr: &str,
     ) -> Result<(), String> {
         let debot = self.bots.get_mut(debot_addr)
             .ok_or_else(|| "Internal browser error: debot not found".to_owned())?;
-        if let Some(result) = self.interfaces.try_execute(&msg, interface_id, &debot.info.dabi_version).await {
+        if let Some(result) = self.interfaces.try_execute(&msg, &interface_id, &debot.info.dabi_version).await {
             let (func_id, return_args) = result?;
             debug!("response: {} ({})", func_id, return_args);
             let call_set = match func_id {
@@ -191,8 +191,7 @@ impl TerminalBrowser {
         if self.bots.get_mut(addr).is_none() {
             self.fetch_debot(addr, false, !self.interactive).await?;
         }
-        let debot = self.bots.get_mut(addr)
-            .ok_or_else(|| "Internal error: debot not found")?;
+        let debot = self.bots.get_mut(addr).ok_or("Internal error: debot not found")?;
         debot.dengine.send(msg).await.map_err(|e| format!("Debot failed: {}", e))?;
         debot.callbacks.take_messages(&mut self.msg_queue);
         Ok(())
@@ -200,9 +199,9 @@ impl TerminalBrowser {
 
     fn print_info(info: &DebotInfo) {
         println!("DeBot Info:");
-        fn print<'a>(field: &'a Option<String>) -> &'a str {
+        fn print(field: &Option<String>) -> &str {
             field.as_ref().map(|v| v.as_str()).unwrap_or("None")
-        } 
+        }
         println!("Name   : {}", print(&info.name));
         println!("Version: {}", print(&info.version));
         println!("Author : {}", print(&info.author));
@@ -248,9 +247,7 @@ where
         }
         argc = input_str
             .split_whitespace()
-            .map(|x| x.parse::<String>().unwrap())
-            .collect::<Vec<String>>()
-            .len();
+            .count();
     }
     input_str.trim().to_owned()
 }
@@ -287,9 +284,9 @@ pub fn action_input(max: usize) -> Result<(usize, usize, Vec<String>), String> {
         argc = argv.len();
     }
     let n = usize::from_str_radix(&argv[0], 10)
-        .map_err(|_| format!("Oops! Invalid action. Try again, please."))?;
+        .map_err(|_| "Oops! Invalid action. Try again, please.".to_string())?;
     if n > max {
-        Err(format!("Auch! Invalid action. Try again, please."))?;
+        return Err("Auch! Invalid action. Try again, please.".to_string());
     }
 
     Ok((n, argc, argv))
@@ -308,7 +305,7 @@ pub async fn run_debot_browser(
         println!("Network: {}", config.url);
     }
     let ton = create_client(&config)?;
-    
+
     if let Some(path) = signkey_path {
         let input = std::io::BufReader::new(path.as_bytes());
         let mut sbox = TerminalSigningBox::new(ton.clone(), vec![], Some(input)).await?;
@@ -332,10 +329,10 @@ pub async fn run_debot_browser(
             .parsed;
 
             let msg_dest = parsed["dst"].as_str()
-                .ok_or(format!("invalid message in the queue: no dst address"))?;
+                .ok_or("invalid message in the queue: no dst address".to_string())?;
 
             let msg_src = parsed["src"].as_str()
-                .ok_or(format!("invalid message in the queue: no src address"))?;
+                .ok_or("invalid message in the queue: no src address".to_string())?;
 
             let wc_and_addr: Vec<_> = msg_dest.split(':').collect();
             let id = wc_and_addr[1].to_string();
@@ -346,7 +343,7 @@ pub async fn run_debot_browser(
                     // Message from DeBot to Browser
                     browser.set_exit_arg(msg, msg_src).await?;
                 } else {
-                    browser.call_interface(msg, &id, msg_src).await?;
+                    browser.call_interface(msg, id, msg_src).await?;
                 }
             } else {
                 browser.call_debot(msg_dest, msg).await?;
@@ -371,7 +368,7 @@ pub async fn run_debot_browser(
         }
         // ---------------------------------------
     }
-    
+
     Ok(browser.exit_arg)
 }
 

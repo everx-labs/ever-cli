@@ -27,7 +27,7 @@ use crate::helpers::{
 };
 use crate::multisig::{send_with_body, MSIG_ABI};
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
-use serde_json;
+
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet, ParamsOfDecodeMessageBody};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, ParamsOfWaitForCollection, SortDirection};
 use crate::call::{prepare_message_params, process_message};
@@ -260,7 +260,7 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
         if let Some(matches) = matches {
             let is_vesting = m.subcommand_matches("vesting").is_some();
             set_wait_answer(matches);
-            let (wallet, keys) = parse_wallet_data(&matches, &conf)?;
+            let (wallet, keys) = parse_wallet_data(matches, &conf)?;
             return set_donor_command(matches, conf, depool.as_str(), &wallet, &keys, is_vesting).await;
         }
     }
@@ -309,7 +309,7 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
         let matches = m.subcommand_matches("on").or(m.subcommand_matches("off"));
         if let Some(matches) = matches {
             set_wait_answer(matches);
-            let (wallet, keys) = parse_wallet_data(&matches, &conf)?;
+            let (wallet, keys) = parse_wallet_data(matches, &conf)?;
             let enable_withdraw = m.subcommand_matches("on").is_some();
             return set_withdraw_command(conf, &depool, &wallet, &keys, enable_withdraw).await;
         }
@@ -326,7 +326,7 @@ pub async fn depool_command(m: &ArgMatches<'_>, conf: Config) -> Result<(), Stri
         ).await;
     }
     if let Some(m) = m.subcommand_matches("ticktock") {
-        let (wallet, keys) = parse_wallet_data(&m, &conf)?;
+        let (wallet, keys) = parse_wallet_data(m, &conf)?;
         return ticktock_command(conf, &depool, &wallet, &keys).await;
     }
     Err("unknown depool command".to_owned())
@@ -407,7 +407,6 @@ async fn print_event(ton: TonClient, event: &serde_json::Value) -> Result<(), St
             abi: load_abi(DEPOOL_ABI).map_err(|e| format!("failed to load depool abi: {}", e))?,
             body: body.to_owned(),
             is_internal: false,
-            ..Default::default()
         },
     ).await;
     let (name, args) = if result.is_err() {
@@ -460,10 +459,9 @@ async fn wait_for_event(conf: Config, depool: &str) -> Result<(), String> {
             filter: Some(events_filter(depool, now()?)),
             result: "id body created_at created_at_string".to_owned(),
             timeout: Some(conf.timeout),
-            ..Default::default()
         },
 
-    ).await.map_err(|e| println!("failed to query event: {}", e.to_string()));
+    ).await.map_err(|e| println!("failed to query event: {}", e));
     if event.is_ok() {
         print_event(ton.clone(), &event.unwrap().result).await?;
     }
@@ -546,7 +544,7 @@ async fn exotic_stake_command(
         if v > 0 && v <= 36500 {
             Ok(v)
         } else {
-            Err(format!("period cannot be more than 36500 days"))
+            Err("period cannot be more than 36500 days".to_string())
         }
     };
     let wperiod = u32::from_str_radix(withdrawal_period.unwrap(), 10)
@@ -673,7 +671,7 @@ async fn set_withdraw(
 ) -> Result<(), String> {
     let body = encode_set_withdraw(enable).await?;
     let value = conf.depool_fee.to_string();
-    call_contract(conf.clone(), &wallet, &depool, &format!("{}", value), &keys, &body, true).await
+    call_contract(conf.clone(), wallet, depool, &value.to_string(), keys, &body, true).await
 }
 
 async fn set_donor(
@@ -686,7 +684,7 @@ async fn set_donor(
 ) -> Result<(), String> {
     let body = encode_set_donor(is_vesting, donor).await?;
     let value = conf.depool_fee.to_string();
-    call_contract(conf.clone(), &wallet, &depool, &format!("{}", value), &keys, &body, true).await
+    call_contract(conf.clone(), wallet, depool, &value.to_string(), keys, &body, true).await
 }
 
 async fn encode_body(func: &str, params: serde_json::Value) -> Result<String, String> {
@@ -853,9 +851,8 @@ async fn call_contract_and_get_answer(
             filter: Some(answer_filter(src_addr, dest_addr, start)),
             result: "id body created_at created_at_string".to_owned(),
             timeout: Some(conf.timeout),
-            ..Default::default()
         },
-    ).await.map_err(|e| println!("failed to query message: {}", e.to_string()));
+    ).await.map_err(|e| println!("failed to query message: {}", e));
 
     if message.is_err() {
         println!("\nRequest failed. Check the contract balance to be great enough to cover transfer value with possible fees.");
@@ -895,9 +892,8 @@ async fn call_contract_and_get_answer(
                 filter: Some(answer_filter(dest_addr, src_addr, start)),
                 result: "id body created_at created_at_string value".to_owned(),
                 timeout: Some(conf.timeout),
-                ..Default::default()
             },
-        ).await.map_err(|e| println!("failed to query answer: {}", e.to_string()));
+        ).await.map_err(|e| println!("failed to query answer: {}", e));
         if message.is_ok() {
             let message = message.unwrap().result;
             println!("\nAnswer: ");

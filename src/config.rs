@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-const TESTNET: &'static str = "net.ton.dev";
+const TESTNET: &str = "net.ton.dev";
 fn default_url() -> String {
     TESTNET.to_string()
 }
@@ -95,8 +95,8 @@ pub struct FullConfig {
     endpoints_map: BTreeMap<String, Vec<String>>,
 }
 
-impl Config {
-    pub fn new() -> Self {
+impl Default for Config {
+    fn default() -> Self {
         let url = default_url();
         let endpoints = FullConfig::default_map()[&url].clone();
         Config {
@@ -121,7 +121,9 @@ impl Config {
             out_of_sync_threshold: default_out_of_sync(),
         }
     }
+}
 
+impl Config {
     pub fn from_file(path: &str) -> Option<Self> {
         let conf_str = std::fs::read_to_string(path).ok()?;
         let conf: serde_json::error::Result<FullConfig>  = serde_json::from_str(&conf_str);
@@ -177,7 +179,7 @@ pub fn resolve_net_name(url: &str) -> Option<String> {
 impl FullConfig {
     pub fn new() -> Self {
         FullConfig {
-            config: Config::new(),
+            config: Config::default(),
             endpoints_map: FullConfig::default_map(),
         }
     }
@@ -217,12 +219,12 @@ impl FullConfig {
     pub fn add_endpoint(path: &str, url: &str, endpoints: &str) -> Result<(), String> {
         let mut fconf = FullConfig::from_file(path);
         let mut new_endpoints : Vec<String> = endpoints
-            .replace("[", "")
-            .replace("]", "")
-            .split(",")
+            .replace('[', "")
+            .replace(']', "")
+            .split(',')
             .map(|s| s.to_string())
             .collect();
-        
+
         let old_endpoints = fconf.endpoints_map.entry(url.to_string()).or_insert(vec![]);
         old_endpoints.append(&mut new_endpoints);
         old_endpoints.sort();
@@ -306,9 +308,9 @@ pub fn clear_config(
         conf.local_run = default_false();
     }
 
-    if (url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime
-        || no_answer || balance_in_tons || local_run) == false {
-        conf = Config::new();
+    if !(url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime
+        || no_answer || balance_in_tons || local_run) {
+        conf = Config::default();
     }
 
     Config::to_file(path, &conf)?;

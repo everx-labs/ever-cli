@@ -6,7 +6,7 @@ use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use ton_client::encoding::decode_abi_number;
 
-pub(super) const ID: &'static str = "ac1a4d3ecea232e49783df4a23a81823cdca3205dc58cd20c4db259c25605b48";
+pub(super) const ID: &str = "ac1a4d3ecea232e49783df4a23a81823cdca3205dc58cd20c4db259c25605b48";
 
 const ABI: &str = r#"
 {
@@ -75,15 +75,15 @@ impl Menu {
 		let menu_items: Vec<MenuItem> = serde_json::from_value(args["items"].clone()).unwrap();
         let title = decode_string_arg(args, "title")?;
         let description = decode_string_arg(args, "description")?;
-        if title.len() > 0 {
+        if !title.is_empty() {
             println!("{}", title);
         }
-        if description.len() > 0 {
+        if !description.is_empty() {
             println!("{}", description);
         }
         for (i, menu) in menu_items.iter().enumerate() {
             println!("{}) {}", i + 1, menu.title);
-            if menu.description != "" {
+            if !menu.description.is_empty() {
                 println!("   {}", menu.description);
             }
         }
