@@ -10,6 +10,11 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
+
+#![allow(clippy::from_str_radix_10)]
+#![allow(clippy::or_fun_call)]
+#![allow(clippy::too_many_arguments)]
+
 extern crate clap;
 #[macro_use] extern crate log;
 #[macro_use] extern crate serde_json;
@@ -52,7 +57,7 @@ use getconfig::{query_global_config, dump_blockchain_config};
 use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
 use voting::{create_proposal, decode_proposal, vote};
-use replay::{fetch_command, replay_command};
+use replay::{fetch_block_command, fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use crate::account::dump_accounts;
 
@@ -64,7 +69,7 @@ use crate::run::{run_command};
 
 pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
-const CONFIG_BASE_NAME: &'static str = "tonos-cli.conf.json";
+const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
 const DEF_STORAGE_PERIOD: u32 = 60 * 60 * 24 * 365;
 
 enum CallType {
@@ -88,8 +93,8 @@ macro_rules! print_args {
                 println!(
                     "{:>width$}: {}",
                     stringify!($arg),
-                    if $arg.is_some() { $arg.as_ref().unwrap() } else { "None" },
-                    width=8
+                    if let Some(ref arg) = $arg { arg.as_ref() } else { "None" },
+                    width = 8
                 );
             )*
         }
@@ -105,19 +110,17 @@ fn default_config_name() -> Result<String, String> {
 }
 
 pub fn abi_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> Result<String, String> {
-    Ok(matches.value_of("ABI")
+    matches.value_of("ABI")
         .map(|s| s.to_string())
         .or(config.abi_path.clone())
-        .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?
-    )
+        .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())
 }
 
 fn address_from_matches_or_config(matches: &ArgMatches<'_>, config: Config) -> Result<String, String> {
-    Ok(matches.value_of("ADDRESS")
+    matches.value_of("ADDRESS")
         .map(|s| s.to_string())
-        .or(config.addr.clone())
-        .ok_or("ADDRESS is not defined. Supply it in the config file or command line.".to_string())?
-    )
+        .or(config.addr)
+        .ok_or("ADDRESS is not defined. Supply it in the config file or command line.".to_string())
 }
 
 fn parse_lifetime(lifetime: Option<&str>, config: Config) -> Result<u32, String> {
@@ -138,7 +141,7 @@ async fn main() -> Result<(), i32> {
 }
 
 async fn main_internal() -> Result <(), String> {
-    let version_string = format!("{}", env!("CARGO_PKG_VERSION"));
+    let version_string = env!("CARGO_PKG_VERSION").to_string();
     let callex_cmd = SubCommand::with_name("callex")
         .about("Sends an external message with encoded function call to the contract (alternative syntax). Deprecated use `callx` instead.")
         .setting(AppSettings::AllowMissingPositional)
@@ -745,6 +748,17 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true)
             .help("Message boc file."));
 
+    let fetch_block_cmd = SubCommand::with_name("fetch-block")
+        .about("Fetches a block.")
+        .arg(Arg::with_name("BLOCKID")
+            .required(true)
+            .takes_value(true)
+            .help("Block ID."))
+        .arg(Arg::with_name("OUTPUT")
+            .required(true)
+            .takes_value(true)
+            .help("Output file name"));
+
     let fetch_cmd = SubCommand::with_name("fetch")
         .about("Fetches account's zerostate and transactions.")
         .setting(AppSettings::AllowLeadingHyphen)
@@ -757,7 +771,8 @@ async fn main_internal() -> Result <(), String> {
     let replay_cmd = SubCommand::with_name("replay")
         .about("Replays account's transactions starting from zerostate.")
         .arg(Arg::with_name("CONFIG_TXNS")
-            .required(true)
+            .long("--config")
+            .short("-c")
             .takes_value(true)
             .help("File containing zerostate and txns of -1:555..5 account."))
         .arg(Arg::with_name("INPUT_TXNS")
@@ -767,7 +782,11 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("TXNID")
             .required(true)
             .takes_value(true)
-            .help("Dump account state before this transaction ID and stop replaying."));
+            .help("Dump account state before this transaction ID and stop replaying."))
+        .arg(Arg::with_name("CURRENT_CONFIG")
+            .help("Replay transaction with current network config.")
+            .long("--current_config")
+            .short("-e"));
 
     let matches = App::new("tonos_cli")
         .version(&*format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
@@ -821,6 +840,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(bcconfig_cmd)
         .subcommand(nodeid_cmd)
         .subcommand(sendfile_cmd)
+        .subcommand(fetch_block_cmd)
         .subcommand(fetch_cmd)
         .subcommand(replay_cmd)
         .subcommand(callx_cmd)
@@ -856,7 +876,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         },
         None => {
             if !is_json { println!("Config: default"); }
-            Config::new()
+            Config::default()
         },
     };
     conf.is_json = is_json;
@@ -980,13 +1000,16 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     if let Some(m) = matches.subcommand_matches("debot") {
         return debot_command(m, conf).await;
     }
+    if let Some(m) = matches.subcommand_matches("fetch-block") {
+        return fetch_block_command(m, conf).await;
+    }
     if let Some(m) = matches.subcommand_matches("fetch") {
         return fetch_command(m, conf).await;
     }
     if let Some(m) = matches.subcommand_matches("replay") {
-        return replay_command(m).await;
+        return replay_command(m, &conf).await;
     }
-    if let Some(_) = matches.subcommand_matches("version") {
+    if matches.subcommand_matches("version").is_some() {
         if conf.is_json {
             println!("{{");
             println!(r#"  "tonos-cli": "{}","#, env!("CARGO_PKG_VERSION"));
@@ -1050,7 +1073,7 @@ async fn send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
     }
 
     let abi = std::fs::read_to_string(abi.unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
     call_contract_with_msg(config, message.unwrap().to_owned(), abi).await
 }
@@ -1078,7 +1101,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
 
     let abi = std::fs::read_to_string(abi.unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
 
     let client = create_client_local()?;
@@ -1086,7 +1109,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), St
         client.clone(),
         ParamsOfEncodeMessageBody {
             abi: load_abi(&abi)?,
-            call_set: CallSet::some_with_function_and_input(&method.unwrap(), params)
+            call_set: CallSet::some_with_function_and_input(method.unwrap(), params)
                 .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
             ..Default::default()
@@ -1136,7 +1159,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: Config, call: CallType) 
     }
 
     let abi = std::fs::read_to_string(abi.unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let address = load_ton_address(address.unwrap(), &config)?;
 
     match call {
@@ -1180,12 +1203,12 @@ async fn callx_command(matches: &ArgMatches<'_>, config: Config, call_type: Call
     let address = Some(address_from_matches_or_config(matches, config.clone())?);
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
     let params = unpack_alternative_params(
         matches,
         &loaded_abi,
-        method.clone().unwrap()
+        method.unwrap()
     )?;
     let keys = if let CallType::Call = call_type {
         matches.value_of("KEYS")
@@ -1223,10 +1246,10 @@ async fn callex_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), 
     );
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let params = matches.values_of("PARAMS").ok_or("PARAMS is not defined")?;
     let params = Some(parse_params(
-        params.collect::<Vec<_>>(), &loaded_abi, method_opt.clone().unwrap()
+        params.collect::<Vec<_>>(), &loaded_abi, method_opt.unwrap()
     )?);
     let keys = matches.value_of("SIGN")
         .map(|s| s.to_string())
@@ -1306,7 +1329,7 @@ async fn deployx_command(matches: &ArgMatches<'_>, config: Config) -> Result<(),
     let wc = wc_from_matches_or_config(matches, config.clone())?;
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let params = unpack_alternative_params(
         matches,
         &loaded_abi,
@@ -1381,7 +1404,7 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             c
         },
         None => {
-            Config::new()
+            Config::default()
         },
     };
     println!(

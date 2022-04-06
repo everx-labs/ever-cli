@@ -127,7 +127,7 @@ pub async fn prepare_deploy_message(
 
 
 pub async fn prepare_deploy_message_params(
-    tvc_bytes: &Vec<u8>,
+    tvc_bytes: &[u8],
     abi: Abi,
     params: &str,
     keys: Option<KeyPair>,
@@ -136,7 +136,7 @@ pub async fn prepare_deploy_message_params(
     let tvc_base64 = base64::encode(&tvc_bytes);
 
     let addr = calc_acc_address(
-        &tvc_bytes,
+        tvc_bytes,
         wc,
         keys.as_ref().map(|k| k.public.clone()),
         None,
@@ -164,4 +164,3 @@ pub async fn prepare_deploy_message_params(
         ..Default::default()
     }, addr))
 }
-    

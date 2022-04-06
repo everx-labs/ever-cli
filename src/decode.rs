@@ -224,7 +224,7 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: Config) -> Result<()
     if !config.is_json {
         print_args!(msg, abi);
     }
-    let msg = msg.map(|f| std::fs::read(f))
+    let msg = msg.map(std::fs::read)
         .transpose()
         .map_err(|e| format!(" failed to read msg boc file: {}", e))?
         .unwrap();
@@ -297,7 +297,7 @@ async fn print_decoded_body(body_vec: Vec<u8>, abi: &str, is_json: bool) -> Resu
     serialize_tree_of_cells(&Cell::default(), &mut empty_boc)
         .map_err(|e| format!("failed to serialize tree of cells: {}", e))?;
     if body_vec.cmp(&empty_boc) == std::cmp::Ordering::Equal {
-        return Err(format!("body is empty"));
+        return Err("body is empty".to_string());
     }
 
     let body_base64 = base64::encode(&body_vec);
@@ -333,7 +333,7 @@ async fn decode_body(body: &str, abi: &str, is_json: bool) -> Result<String, Str
 }
 
 async fn decode_message(msg_boc: Vec<u8>, abi: Option<String>) -> Result<String, String> {
-    let abi = abi.map(|f| std::fs::read_to_string(f))
+    let abi = abi.map(std::fs::read_to_string)
         .transpose()
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
@@ -373,7 +373,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     let state = if is_local {
         load_state_init(m)?
     } else {
-        let input = if input.contains(":") {
+        let input = if input.contains(':') {
             input
         } else {
             format!("{}:{}", config.wc, input)

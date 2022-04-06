@@ -12,7 +12,7 @@ pub enum ProcessorError {
     UnexpectedInterface,
     UnexpectedMethod,
     InteractiveApproveNeeded,
-    // TODO: 
+    // TODO:
     // UnexpectedApproveKind,
 }
 
@@ -28,7 +28,7 @@ impl ChainProcessor {
     }
 
     pub fn abi(&self) -> Option<Abi> {
-        self.pipechain.abi.clone().map(|v| Abi::Json(v.to_string())) 
+        self.pipechain.abi.clone().map(|v| Abi::Json(v.to_string()))
     }
 
     pub fn interactive(&self) -> bool {
@@ -60,7 +60,7 @@ impl ChainProcessor {
             Some(args) => CallSet::some_with_function_and_input(&self.pipechain.init_method, args.clone()),
             None => CallSet::some_with_function(&self.pipechain.init_method),
         }
-        
+
     }
 
     pub fn next_input(
@@ -76,7 +76,7 @@ impl ChainProcessor {
                 ProcessorError::NoMoreChainlinks
             }
         )?;
-        
+
         match chlink {
             ChainLink::Input {interface, method, params, mandatory} => {
                 if interface != in_interface {
@@ -88,7 +88,7 @@ impl ChainProcessor {
                 } else if method != in_method {
                     Err(ProcessorError::UnexpectedMethod)
                 } else {
-                    Ok(params.clone())
+                    Ok(params)
                 }
             },
             _ => Err(ProcessorError::UnexpectedChainLinkKind),
@@ -113,24 +113,20 @@ impl ChainProcessor {
     }
 
     pub fn next_approve(&mut self, activity: &DebotActivity) -> Result<bool, ProcessorError> {
-        
+
         let app_kind = match activity {
             DebotActivity::Transaction {..} => ApproveKind::ApproveOnChainCall,
         };
-        let auto_approve = self.pipechain.auto_approve.as_ref().and_then(|vec| {
-            Some(vec.iter().find(|x| **x == app_kind).is_some())
-        });
+        let auto_approve = self.pipechain.auto_approve.as_ref().map(|vec| vec.iter().any(|x| *x == app_kind));
 
         let chlink = self.chain_iter.next();
         if chlink.is_none() {
-            if auto_approve.is_some() {
-                return Ok(auto_approve.unwrap());
+            if let Some(auto_approve) = auto_approve {
+                return Ok(auto_approve);
+            } else if self.interactive() {
+                return Err(ProcessorError::InteractiveApproveNeeded);
             } else {
-                if self.interactive() {
-                    return Err(ProcessorError::InteractiveApproveNeeded);
-                } else {
-                    return Ok(false);
-                }
+                return Ok(false);
             }
         }
 
@@ -140,7 +136,7 @@ impl ChainProcessor {
             ChainLink::OnchainCall { approve, iflq: _, ifeq: _ } => {
                 match activity {
                     DebotActivity::Transaction {msg: _, dst: _, out: _, fee: _, setcode: _, signkey: _, signing_box_handle: _} => {
-                        Ok(approve.clone())
+                        Ok(approve)
                     }
                 }
             },
@@ -149,4 +145,3 @@ impl ChainProcessor {
     }
 }
 
-   

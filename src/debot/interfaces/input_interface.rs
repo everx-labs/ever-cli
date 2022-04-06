@@ -36,10 +36,8 @@ impl DebotInterface for InputInterface {
     }
 
     async fn call(&self, func: &str, args: &Value) -> InterfaceResult {
-        if &self.get_id() == TERMINAL_ID {
-            if func == "print" || func == "printf" {
-                return self.inner_interface.call(func, args).await;
-            }
+        if self.get_id() == TERMINAL_ID && (func == "print" || func == "printf") {
+            return self.inner_interface.call(func, args).await;
         }
         let result = self.processor.write().await.next_input(&self.get_id(), func, args);
         match result {
@@ -47,7 +45,7 @@ impl DebotInterface for InputInterface {
                 let res = self.inner_interface.call(func, args).await?;
                 Ok(res)
             },
-            Err(e) => Err(format!("{:?}", e))?,
+            Err(e) => return Err(format!("{:?}", e)),
             Ok(params) => {
                 let prompt = decode_prompt(args);
                 let title = decode_string_arg(args, "title");
@@ -66,15 +64,15 @@ impl DebotInterface for InputInterface {
                 }
                 let answer_id = if self.get_id() == MENU_ID {
                     let n = params["index"].as_u64()
-                        .ok_or(format!("invalid arguments for menu callback"))?;
+                        .ok_or("invalid arguments for menu callback".to_string())?;
                     let menu_items: Vec<MenuItem> = serde_json::from_value(args["items"].clone())
                         .map_err(|e| e.to_string())?;
                     let menu = menu_items.get(n as usize);
-                    menu.ok_or(format!("menu index is out of range"))?.handler_id
+                    menu.ok_or("menu index is out of range".to_string())?.handler_id
                 } else {
                     decode_answer_id(args)?
                 };
-                
+
                 Ok((answer_id, params))
             }
         }

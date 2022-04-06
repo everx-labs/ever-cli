@@ -15,6 +15,7 @@ use crate::convert;
 use crate::helpers::{TonClient, now, now_ms, create_client_verbose, create_client_local, load_ton_address, load_abi, construct_account_from_tvc, query_account_field, TRACE_PATH, SDK_EXECUTION_ERROR_CODE};
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
+
 use ton_client::abi::{
     encode_message,
     decode_message,
@@ -58,7 +59,6 @@ async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) 
         ParamsOfDecodeMessage {
             abi,
             message: msg.message.clone(),
-            ..Default::default()
         },
     )
     .await
@@ -107,7 +107,7 @@ fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Res
                 if let ParamType::Uint(_) = **x {
                     let mut result_vec: Vec<String> = vec![];
                     for i in value.split(|c| c == ',' || c == '[' || c == ']') {
-                        if i != "" {
+                        if !i.is_empty() {
                             result_vec.push(parse_integer_param(i)?)
                         }
                     }
@@ -230,7 +230,6 @@ pub async fn send_message_and_wait(
             message: msg.clone(),
             abi: abi.clone(),
             send_events: false,
-            ..Default::default()
         },
         callback,
     ).await
@@ -246,7 +245,7 @@ pub async fn send_message_and_wait(
                 send_events: true,
                 ..Default::default()
             },
-            callback.clone(),
+            callback,
         ).await
             .map_err(|e| format!("{:#}", e))?;
         Ok(result.decoded.and_then(|d| d.output).unwrap_or(json!({})))
@@ -261,9 +260,8 @@ pub async fn process_message(
     config: Config,
 ) -> Result<serde_json::Value, String> {
     let callback = |event| { async move {
-        match event {
-            ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } => println!("MessageId: {}", message_id),
-            _ => (),
+        if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
+            println!("MessageId: {}", message_id)
         }
     }};
     let res = if !config.is_json {
@@ -272,7 +270,6 @@ pub async fn process_message(
             ParamsOfProcessMessage {
                 message_encode_params: msg.clone(),
                 send_events: true,
-                ..Default::default()
             },
             callback,
         ).await
@@ -282,7 +279,6 @@ pub async fn process_message(
             ParamsOfProcessMessage {
                 message_encode_params: msg.clone(),
                 send_events: true,
-                ..Default::default()
             },
             |_| { async move {} },
         ).await
@@ -527,7 +523,7 @@ pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Opti
         base64::encode(&acc_bytes)
     } else {
         let addr = load_ton_address(addr, &conf)
-            .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
+            .map_err(|e| format!("failed to parse address: {}", e))?;
         query_account_field(ton.clone(), addr.as_str(), "boc").await?
     };
 
@@ -549,7 +545,7 @@ pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Opti
             ..Default::default()
         },
     ).await
-    .map_err(|e| format!("run failed: {}", e.to_string()))?
+    .map_err(|e| format!("run failed: {}", e))?
     .output;
 
     if !conf.is_json {
@@ -559,10 +555,8 @@ pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Opti
         let mut res = Map::new();
         match result {
             Value::Array(array) => {
-                let mut i = 0;
-                for val in array.iter() {
+                for (i, val) in array.iter().enumerate() {
                     res.insert(format!("value{}", i), val.to_owned());
-                    i = 1 + i;
                 }
             },
             _ => {

@@ -6,7 +6,7 @@ use serde_json::Value;
 use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 
-const ID: &'static str = "a56115147709ed3437efb89460b94a120b7fe94379c795d1ebb0435a847ee580";
+const ID: &str = "a56115147709ed3437efb89460b94a120b7fe94379c795d1ebb0435a847ee580";
 
 const ABI: &str = r#"
 {

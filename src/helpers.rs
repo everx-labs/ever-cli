@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use log;
+
 use std::sync::Arc;
 use std::time::SystemTime;
 use ton_client::abi::{
@@ -58,7 +58,7 @@ impl log::Log for SimpleLogger {
 
 pub fn read_keys(filename: &str) -> Result<KeyPair, String> {
     let keys_str = std::fs::read_to_string(filename)
-        .map_err(|e| format!("failed to read the keypair file: {}", e.to_string()))?;
+        .map_err(|e| format!("failed to read the keypair file: {}", e))?;
     let keys: KeyPair = serde_json::from_str(&keys_str)
         .map_err(|e| format!("failed to load keypair: {}", e))?;
     Ok(keys)
@@ -166,7 +166,6 @@ pub async fn query_with_limit(
             result: result.to_owned(),
             order,
             limit,
-            ..Default::default()
         },
     )
         .await
@@ -183,7 +182,7 @@ pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> 
         Some(1),
     ).await
         .map_err(|e| format!("failed to query account data: {}", e))?;
-    if accounts.len() == 0 {
+    if accounts.is_empty() {
         return Err(format!("account with address {} not found", address));
     }
     let data = accounts[0][field].as_str();
@@ -207,7 +206,6 @@ pub async fn decode_msg_body(
             abi,
             body: body.to_owned(),
             is_internal,
-            ..Default::default()
         },
     )
     .await
@@ -231,7 +229,7 @@ pub async fn calc_acc_address(
     let ton = create_client_local()?;
 
     let init_data_json = init_data
-        .map(|d| serde_json::from_str(d))
+        .map(serde_json::from_str)
         .transpose()
         .map_err(|e| format!("initial data is not in json: {}", e))?;
 
@@ -288,7 +286,7 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
         message["created_at"].as_u64().unwrap_or(0),
         message["created_at_string"].as_str().unwrap_or("Undefined")
     );
-    
+
     let body = message["body"].as_str();
     if body.is_some() {
         let body = body.unwrap();
@@ -298,7 +296,6 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
                 abi: load_abi(abi)?,
                 body: body.to_owned(),
                 is_internal,
-                ..Default::default()
             },
         ).await;
         let (name, args) = if result.is_err() {
@@ -312,7 +309,7 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
         return Ok((name, args));
     }
     println!();
-    return Ok(("".to_owned(), "".to_owned()));
+    Ok(("".to_owned(), "".to_owned()))
 }
 
 pub fn json_account(
@@ -410,7 +407,7 @@ pub fn print_account(
 }
 
 pub fn construct_account_from_tvc(tvc_path: &str, address: Option<&str>, balance: Option<u64>) -> Result<Account, String> {
-    Ok(Account::active_by_init_code_hash(
+    Account::active_by_init_code_hash(
         match address {
             Some(address) => MsgAddressInt::from_str(address)
                 .map_err(|e| format!("Failed to set address: {}", e))?,
@@ -424,7 +421,7 @@ pub fn construct_account_from_tvc(tvc_path: &str, address: Option<&str>, balance
         StateInit::construct_from_file(tvc_path)
             .map_err(|e| format!(" failed to load TVC from the file {}: {}", tvc_path, e))?,
         true
-    ).map_err(|e| format!(" failed to create account with the stateInit: {}",e))?)
+    ).map_err(|e| format!(" failed to create account with the stateInit: {}",e))
 }
 
 pub fn check_dir(path: &str) -> Result<(), String> {

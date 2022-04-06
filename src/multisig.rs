@@ -20,8 +20,8 @@ use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 use ton_client::abi::{encode_message_body, ParamsOfEncodeMessageBody, CallSet};
 use crate::crypto::load_keypair;
 
-const SAFEMULTISIG_LINK: &'static str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/safemultisig/SafeMultisigWallet.tvc?raw=true";
-const SETCODEMULTISIG_LINK: &'static str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/setcodemultisig/SetcodeMultisigWallet.tvc?raw=true";
+const SAFEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/safemultisig/SafeMultisigWallet.tvc?raw=true";
+const SETCODEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/setcodemultisig/SetcodeMultisigWallet.tvc?raw=true";
 
 pub const MSIG_ABI: &str = r#"{
 	"ABI version": 2,
@@ -247,13 +247,13 @@ pub async fn multisig_command(m: &ArgMatches<'_>, config: Config) -> Result<(), 
 
 async fn multisig_send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS")
-        .ok_or(format!("--addr parameter is not defined"))?;
+        .ok_or("--addr parameter is not defined".to_string())?;
     let dest = matches.value_of("DEST")
-        .ok_or(format!("--dst parameter is not defined"))?;
+        .ok_or("--dst parameter is not defined".to_string())?;
     let keys = matches.value_of("SIGN")
-        .ok_or(format!("--sign parameter is not defined"))?;
+        .ok_or("--sign parameter is not defined".to_string())?;
     let value = matches.value_of("VALUE")
-        .ok_or(format!("--value parameter is not defined"))?;
+        .ok_or("--value parameter is not defined".to_string())?;
     let comment = matches.value_of("PURPOSE");
 
     let address = load_ton_address(address, &config)?;
@@ -346,10 +346,10 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
     let keys = load_keypair(&keys)?;
 
     let owners_string = if let Some(owners) = matches.value_of("OWNERS") {
-        owners.replace("[", "")
-            .replace("]", "")
-            .replace("\"", "")
-            .replace("\'", "")
+        owners.replace('[', "")
+            .replace(']', "")
+            .replace('\"', "")
+            .replace('\'', "")
             .replace("0x", "")
             .split(',')
             .map(|o|

@@ -45,9 +45,9 @@ async fn query_accounts(conf: Config, addresses: Vec<String>, fields: &str) -> R
         }
         let mut filter = json!({ "id": { "eq": addresses[it] } });
         let mut cnt = 1;
-        for i in it..usize::min(addresses.len(), it + 49) {
+        for address in addresses.iter().skip(it).take(50) {
             cnt += 1;
-            filter = json!({ "id": { "eq": addresses[i] },
+            filter = json!({ "id": { "eq": address },
                 "OR": filter
             });
         }
@@ -73,7 +73,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
         println!("Succeeded.");
     }
     let mut found_addresses = vec![];
-    if accounts.len() != 0 {
+    if !accounts.is_empty() {
         let mut json_res = json!({ });
         for acc in accounts.iter() {
             let address = acc["id"].as_str().unwrap_or("Undefined").to_owned();
@@ -149,12 +149,10 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                         None,
                     );
                 }
+            } else if conf.is_json {
+                json_res[address.clone()] = json_account(Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
             } else {
-                if conf.is_json {
-                    json_res[address.clone()] = json_account(Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
-                } else {
-                    print_account(&conf, Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
-                }
+                print_account(&conf, Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
             }
             if !conf.is_json {
                 println!();
@@ -176,12 +174,10 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
             println!("{}", serde_json::to_string_pretty(&json_res)
                 .map_err(|e| format!("Failed to serialize result: {}", e))?);
         }
+    } else if conf.is_json {
+        println!("{{\n}}");
     } else {
-        if conf.is_json {
-            println!("{{\n}}");
-        } else {
-            println!("Account not found.");
-        }
+        println!("Account not found.");
     }
 
     if dumpfile.is_some() || dumpboc.is_some() && addresses.len() == 1 && accounts.len() == 1 {
@@ -224,7 +220,7 @@ pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), S
         ton.clone(),
         addr,
         "boc",
-    ).await.map_err(|e| format!("{}", e))?;
+    ).await.map_err(|e| e)?;
 
     let res = calc_storage_fee(
         ton.clone(),
@@ -258,7 +254,7 @@ pub async fn dump_accounts(conf:Config, addresses: Vec<String>, path: Option<&st
             None => { return Err("Query contains an unexpected address.".to_string()); }
         };
 
-        address.replace_range(..address.find(":").unwrap_or(0) + 1, "");
+        address.replace_range(..address.find(':').unwrap_or(0) + 1, "");
         let path = format!("{}/{}.boc", path.unwrap_or(DEFAULT_PATH), address);
         let boc = account["boc"].as_str()
             .ok_or("Failed to parse boc in the query result".to_owned())?;
