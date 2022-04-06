@@ -42,6 +42,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use serde_json::{Value};
+use ton_client::error::ClientError;
 use ton_executor::{ExecuteParams, TransactionExecutor};
 use ton_types::{HashmapE, UInt256};
 use crate::debug::DebugLogger;
@@ -231,7 +232,7 @@ pub async fn process_message(
     ton: TonClient,
     msg: ParamsOfEncodeMessage,
     config: &Config,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, ClientError> {
     let callback = |event| { async move {
         if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
             println!("MessageId: {}", message_id)
@@ -255,79 +256,7 @@ pub async fn process_message(
             },
             |_| { async move {} },
         ).await
-    };
-
-    if config.debug_fail && res.is_err()
-        && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
-        if !config.is_json {
-            println!("Execution failed. Starting debug...");
-        }
-        let acc_boc = query_account_field(
-            ton.clone(),
-            &msg.clone().address.unwrap(),
-            "boc",
-        ).await?;
-        let mut account = Account::construct_from_base64(&acc_boc)
-            .map_err(|e| format!("Failed to construct account: {}", e))?
-            .serialize()
-            .map_err(|e| format!("Failed to serialize account: {}", e))?;
-
-        let config_acc = query_account_field(
-            ton.clone(),
-            CONFIG_ADDR,
-            "boc",
-        ).await?;
-
-        let config_acc = Account::construct_from_base64(&config_acc)
-            .map_err(|e| format!("Failed to construct config account: {}", e))?;
-        let bc_config = construct_blockchain_config(&config_acc)?;
-
-        let executor = Box::new(
-            DebugTransactionExecutor::new(
-                bc_config,
-                None,
-                TraceLevel::Minimal,
-                false
-            )
-        );
-        let message = encode_message(ton.clone(), msg).await
-            .map_err(|e| format!("failed to create inbound message: {}", e))?;
-        let message = Message::construct_from_base64(&message.message)
-            .map_err(|e| format!("Faield to construct message: {}", e))?;
-
-        let now = now_ms();
-        let params = ExecuteParams {
-            state_libs: HashmapE::default(),
-            block_unixtime: (now / 1000) as u32,
-            block_lt: now,
-            last_tr_lt: Arc::new(AtomicU64::new(now)),
-            seed_block: UInt256::default(),
-            debug: true,
-            ..ExecuteParams::default()
-        };
-
-        let trans = executor.execute_with_libs_and_params(
-            Some(&message),
-            &mut account,
-            params
-        );
-        let msg_string = match trans {
-            Ok(_trans) => {
-                // decode_messages(trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
-                "Debug finished.".to_string()
-            },
-            Err(e) => {
-                format!("Debug failed: {}", e)
-            }
-        };
-
-        if !config.is_json {
-            println!("{}", msg_string);
-            println!("Log saved to {}", TRACE_PATH);
-        }
-    }
-
-    let res = res.map_err(|e| format!("{:#}", e))?;
+    }?;
 
     Ok(res.decoded.and_then(|d| d.output).unwrap_or(json!({})))
 }
@@ -383,9 +312,10 @@ pub async fn call_contract_with_client(
 
     let needs_encoded_msg = is_fee ||
         config.async_call ||
-        config.local_run;
+        config.local_run ||
+        config.debug_fail;
 
-    if needs_encoded_msg {
+    let message = if needs_encoded_msg {
         let msg = encode_message(ton.clone(), msg_params.clone()).await
             .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
@@ -398,17 +328,95 @@ pub async fn call_contract_with_client(
         if config.async_call {
             return send_message_and_wait(ton,
                                          Some(abi),
-                                         msg.message,
+                                         msg.message.clone(),
                                          config).await;
         }
-    }
+        Some(msg.message)
+    } else {
+        None
+    };
 
     if !config.is_json {
         print!("Expire at: ");
         let expire_at = Local.timestamp(expire_at as i64 , 0);
         println!("{}", expire_at.to_rfc2822());
     }
-    process_message(ton.clone(), msg_params, config).await
+
+    let dump = if config.debug_fail {
+        let acc_boc = query_account_field(
+            ton.clone(),
+            addr,
+            "boc",
+        ).await?;
+        let account = Account::construct_from_base64(&acc_boc)
+            .map_err(|e| format!("Failed to construct account: {}", e))?
+            .serialize()
+            .map_err(|e| format!("Failed to serialize account: {}", e))?;
+
+        let config_acc = query_account_field(
+            ton.clone(),
+            CONFIG_ADDR,
+            "boc",
+        ).await?;
+
+        let config_acc = Account::construct_from_base64(&config_acc)
+            .map_err(|e| format!("Failed to construct config account: {}", e))?;
+        let bc_config = construct_blockchain_config(&config_acc)?;
+        let now = now_ms();
+        Some((bc_config, account, message.unwrap(), now))
+    } else {
+        None
+    };
+
+    let res = process_message(ton.clone(), msg_params, config).await;
+
+    if config.debug_fail && res.is_err()
+        && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
+        if !config.is_json {
+            println!("Execution failed. Starting debug...");
+        }
+        let (bc_config, mut account, message, now) = dump.unwrap();
+        let message = Message::construct_from_base64(&message)
+            .map_err(|e| format!("failed to construct message: {}", e))?;
+        let executor = Box::new(
+            DebugTransactionExecutor::new(
+                bc_config,
+                None,
+                TraceLevel::Minimal,
+                false
+            )
+        );
+        let params = ExecuteParams {
+            state_libs: HashmapE::default(),
+            block_unixtime: (now / 1000) as u32,
+            block_lt: now,
+            last_tr_lt: Arc::new(AtomicU64::new(now)),
+            seed_block: UInt256::default(),
+            debug: true,
+            ..ExecuteParams::default()
+        };
+
+        let trans = executor.execute_with_libs_and_params(
+            Some(&message),
+            &mut account,
+            params
+        );
+        let msg_string = match trans {
+            Ok(_trans) => {
+                // decode_messages(trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
+                "Debug finished.".to_string()
+            },
+            Err(e) => {
+                format!("Debug failed: {}", e)
+            }
+        };
+
+        if !config.is_json {
+            println!("{}", msg_string);
+            println!("Log saved to {}", TRACE_PATH);
+        }
+    }
+    res.map_err(|e| format!("{:#}", e))
 }
 
 pub fn print_json_result(result: Value, config: &Config) -> Result<(), String> {

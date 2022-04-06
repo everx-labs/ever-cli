@@ -842,7 +842,8 @@ async fn call_contract_and_get_answer(
 
     println!("Multisig message processing... ");
 
-    process_message(ton.clone(), msg, config).await?;
+    process_message(ton.clone(), msg, config).await
+        .map_err(|e| format!("{:#}", e))?;
 
     println!("\nMessage was successfully sent to the multisig, waiting for message to be sent to the depool...");
 

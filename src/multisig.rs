@@ -387,7 +387,8 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
         ).await?;
     }
 
-    let res = call::process_message(ton.clone(), msg, config).await;
+    let res = call::process_message(ton.clone(), msg, config).await
+        .map_err(|e| format!("{:#}", e));
 
     if res.is_err() {
         if res.clone().err().unwrap().contains("Account does not exist.") {

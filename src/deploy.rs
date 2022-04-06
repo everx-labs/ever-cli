@@ -60,7 +60,8 @@ pub async fn deploy_contract(
                               enc_msg.message,
                               config).await?;
     } else {
-        process_message(ton.clone(), msg, config).await?;
+        process_message(ton.clone(), msg, config).await
+            .map_err(|e| format!("{:#}", e))?;
     }
 
     if !config.is_json {
