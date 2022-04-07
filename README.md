@@ -542,7 +542,7 @@ Contract address is generated based on contract TVC file and selected keys. To g
 Use the following command to generate the contract address:
 
 ```bash
-tonos-cli genaddr [--genkey|--setkey <keyfile.json>] [--wc <int8>] <contract.tvc> <contract.abi.json>
+tonos-cli genaddr [--genkey|--setkey <keyfile.json>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc>
 ```
 
 - `--genkey <keyfile.json>` - generate new `keyfile.json` key pair file and use it to calculate the contract address.
