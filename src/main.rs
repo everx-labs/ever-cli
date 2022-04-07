@@ -41,7 +41,7 @@ mod debug_executor;
 mod run;
 mod message;
 
-use account::{get_account, calc_storage};
+use account::{get_account, calc_storage, wait_for_change};
 use call::{call_contract, call_contract_with_msg, parse_params};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings, App};
 use config::{Config, set_config, clear_config};
@@ -626,6 +626,20 @@ async fn main_internal() -> Result <(), String> {
             .conflicts_with("DUMPTVC")
             .help("Dumps the whole account state boc to the specified file. Works only if one address was given. Use 'tonos-cli dump account` to dump several accounts."));
 
+    let account_wait_cmd = SubCommand::with_name("account-wait")
+        .setting(AppSettings::AllowLeadingHyphen)
+        .about("Waits for account change (based on last_trans_lt).")
+        .version(&*version_string)
+        .author("TONLabs")
+        .arg(Arg::with_name("ADDRESS")
+            .required(true)
+            .takes_value(true)
+            .help("Account address."))
+        .arg(Arg::with_name("TIMEOUT")
+            .long("--timeout")
+            .takes_value(true)
+            .help("Timeout in seconds (the default is 30)."));
+
     let fee_cmd = SubCommand::with_name("fee")
         .about("Calculates fees for executing message or account storage fee.")
         .subcommand(SubCommand::with_name("storage")
@@ -829,6 +843,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(runget_cmd)
         .subcommand(config_cmd)
         .subcommand(account_cmd)
+        .subcommand(account_wait_cmd)
         .subcommand(fee_cmd)
         .subcommand(proposal_cmd)
         .subcommand(create_multisig_command())
@@ -988,6 +1003,9 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         if let Some(m) = matches.subcommand_matches("account") {
             return dump_accounts_command(m, &config).await;
         }
+    }
+    if let Some(m) = matches.subcommand_matches("account-wait") {
+        return account_wait_command(m, &config).await;
     }
     if let Some(m) = matches.subcommand_matches("nodeid") {
         return nodeid_command(m, &config);
@@ -1473,6 +1491,14 @@ async fn dump_accounts_command(matches: &ArgMatches<'_>, config: &Config) -> Res
         print_args!(addresses, path);
     }
     dump_accounts(config, formatted_list, path).await
+}
+
+async fn account_wait_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let address = matches.value_of("ADDRESS").unwrap();
+    let address = load_ton_address(address, &config)?;
+    let timeout = matches.value_of("TIMEOUT").unwrap_or("30").parse::<u64>()
+        .map_err(|e| format!("failed to parse timeout: {}", e))?;
+    wait_for_change(config, &address, timeout).await
 }
 
 async fn storage_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {

@@ -13,7 +13,8 @@
 use crate::helpers::{check_dir, create_client_verbose, json_account, print_account, query_account_field};
 use crate::config::Config;
 use serde_json::{json, Value};
-use ton_client::net::{ParamsOfQueryCollection, query_collection};
+use ton_client::error::ClientError;
+use ton_client::net::{ParamsOfQueryCollection, query_collection, ResultOfSubscription, ParamsOfSubscribeCollection};
 use ton_client::utils::{calc_storage_fee, ParamsOfCalcStorageFee};
 use ton_block::{Account, Deserializable, Serializable};
 
@@ -282,4 +283,95 @@ pub async fn dump_accounts(config: &Config, addresses: Vec<String>, path: Option
         println!("{{}}");
     }
     Ok(())
+}
+
+lazy_static::lazy_static! {
+    static ref TX: tokio::sync::Mutex<Option<tokio::sync::mpsc::Sender<Result<(), String>>>> =
+        tokio::sync::Mutex::new(None);
+}
+
+async fn terminate(res: Result<(), String>) {
+    let lock = TX.lock().await;
+    let mut tx = lock.as_ref().unwrap().clone();
+    tx.send(res).await.unwrap();
+}
+
+fn extract_last_trans_lt(v: &serde_json::Value) -> Option<&str> {
+    v.as_object()?["last_trans_lt"].as_str()
+}
+
+pub async fn wait_for_change(config: &Config, account_address: &str, wait_secs: u64) -> Result<(), String> {
+    let context = create_client_verbose(config)?;
+
+    let query = ton_client::net::query_collection(
+        context.clone(),
+        ParamsOfQueryCollection {
+            collection: "accounts".to_owned(),
+            filter: Some(serde_json::json!({
+                "id": {
+                    "eq": account_address
+                }
+            })),
+            limit: None,
+            order: None,
+            result: "last_trans_lt".to_owned(),
+        }
+    ).await.map_err(|e| format!("Failed to query the account: {}", e))?;
+
+    let last_trans_lt = extract_last_trans_lt(&query.result[0])
+        .ok_or_else(|| format!("Failed to parse query result: {}", query.result[0]))?;
+
+    let (s, mut r) = tokio::sync::mpsc::channel(1);
+    *TX.lock().await = Some(s);
+
+    let callback = |result: Result<ResultOfSubscription, ClientError>| async {
+        let res = match result {
+            Ok(res) => {
+                if extract_last_trans_lt(&res.result).is_some() {
+                    Ok(())
+                } else {
+                    Err(format!("Can't parse the result: {}", res.result))
+                }
+            }
+            Err(e) => {
+                Err(format!("Client error: {}", e))
+            }
+        };
+        terminate(res).await
+    };
+
+    let subscription = ton_client::net::subscribe_collection(
+        context.clone(),
+        ParamsOfSubscribeCollection {
+            collection: "accounts".to_owned(),
+            filter: Some(serde_json::json!({
+                "id": {
+                    "eq": account_address
+                },
+                "last_trans_lt": {
+                    "gt": last_trans_lt
+                },
+            })),
+            result: "last_trans_lt".to_owned(),
+        },
+        callback
+    ).await.map_err(|e| format!("Failed to subscribe: {}", e))?;
+
+    tokio::spawn(async move {
+        tokio::time::delay_for(std::time::Duration::from_secs(wait_secs)).await;
+        terminate(Err("Timeout".to_owned())).await
+    });
+
+    let res = r.recv().await.ok_or_else(|| "Sender has dropped".to_owned())?;
+    ton_client::net::unsubscribe(context.clone(), subscription).await
+        .map_err(|e| format!("Failed to unsubscribe: {}", e))?;
+
+    if !config.is_json {
+        if res.is_ok() {
+            println!("Succeeded.");
+        }
+    } else {
+        println!("{{}}");
+    }
+    res
 }
