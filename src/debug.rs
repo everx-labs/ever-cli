@@ -19,9 +19,9 @@ use crate::replay::{
 };
 use std::io::{Write};
 use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction};
-use ton_types::{UInt256, HashmapE};
+use ton_types::{UInt256, HashmapE, Cell};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
-use ton_executor::{ExecuteParams, TransactionExecutor};
+use ton_executor::{BlockchainConfig, ExecuteParams, TransactionExecutor};
 use std::sync::{Arc, atomic::AtomicU64};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDirection};
 use crate::crypto::load_keypair;
@@ -747,4 +747,39 @@ fn choose_transaction(transactions: Vec<TrDetails>) -> Result<String, String> {
         return Err("Wrong transaction number".to_string());
     }
     Ok(transactions[chosen-1].transaction_id.trim_start_matches(|c| c == '"').trim_end_matches(|c| c == '"').to_string())
+}
+
+pub fn execute_debug(
+    bc_config: BlockchainConfig,
+    mut account: Cell,
+    message: String,
+    now: u64,
+    tr_lt: u64,
+    is_run: bool,
+) -> Result<Transaction, String> {
+    let message = Message::construct_from_base64(&message)
+        .map_err(|e| format!("failed to construct message: {}", e))?;
+    let executor = Box::new(
+        DebugTransactionExecutor::new(
+            bc_config,
+            None,
+            TraceLevel::Minimal,
+            is_run
+        )
+    );
+    let params = ExecuteParams {
+        state_libs: HashmapE::default(),
+        block_unixtime: (now / 1000) as u32,
+        block_lt: now,
+        last_tr_lt: Arc::new(AtomicU64::new(now)),
+        seed_block: UInt256::default(),
+        debug: true,
+        ..ExecuteParams::default()
+    };
+
+    executor.execute_with_libs_and_params(
+        Some(&message),
+        &mut account,
+        params
+    ).map_err(|e| format!("Debug failed: {}", e))
 }

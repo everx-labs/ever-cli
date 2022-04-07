@@ -37,16 +37,11 @@ use ton_client::tvm::{
     ParamsOfRunExecutor,
     AccountForExecutor,
 };
-use ton_block::{Account, Serializable, Deserializable, Message};
+use ton_block::{Account, Serializable, Deserializable};
 use std::str::FromStr;
-use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
 use serde_json::{Value};
 use ton_client::error::ClientError;
-use ton_executor::{ExecuteParams, TransactionExecutor};
-use ton_types::{HashmapE, UInt256};
-use crate::debug::DebugLogger;
-use crate::debug_executor::{DebugTransactionExecutor, TraceLevel};
+use crate::debug::{DebugLogger, execute_debug};
 use crate::message::{EncodedMessage, prepare_message_params, print_encoded_message, unpack_message};
 use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 
@@ -375,44 +370,11 @@ pub async fn call_contract_with_client(
         if !config.is_json {
             println!("Execution failed. Starting debug...");
         }
-        let (bc_config, mut account, message, now) = dump.unwrap();
-        let message = Message::construct_from_base64(&message)
-            .map_err(|e| format!("failed to construct message: {}", e))?;
-        let executor = Box::new(
-            DebugTransactionExecutor::new(
-                bc_config,
-                None,
-                TraceLevel::Minimal,
-                false
-            )
-        );
-        let params = ExecuteParams {
-            state_libs: HashmapE::default(),
-            block_unixtime: (now / 1000) as u32,
-            block_lt: now,
-            last_tr_lt: Arc::new(AtomicU64::new(now)),
-            seed_block: UInt256::default(),
-            debug: true,
-            ..ExecuteParams::default()
-        };
-
-        let trans = executor.execute_with_libs_and_params(
-            Some(&message),
-            &mut account,
-            params
-        );
-        let msg_string = match trans {
-            Ok(_trans) => {
-                // decode_messages(trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
-                "Debug finished.".to_string()
-            },
-            Err(e) => {
-                format!("Debug failed: {}", e)
-            }
-        };
+        let (bc_config, account, message, now) = dump.unwrap();
+        let _ = execute_debug(bc_config, account, message, now, now, false)?;
 
         if !config.is_json {
-            println!("{}", msg_string);
+            println!("Debug finished.");
             println!("Log saved to {}", TRACE_PATH);
         }
     }
