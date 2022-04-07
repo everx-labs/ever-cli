@@ -365,36 +365,16 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
     Ok(())
 }
 
-async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: TonClient, debug_info: Option<String>, is_full_trace: bool, is_getter: bool) -> Result<Box<DebugTransactionExecutor>, String> {
-    let config_account = match matches.value_of("CONFIG_PATH") {
+fn construct_bc_config(matches: &ArgMatches<'_>) -> Result<Option<BlockchainConfig>, String> {
+    Ok(match matches.value_of("CONFIG_PATH") {
         Some(bc_config) => {
-            Account::construct_from_file(bc_config)
-        }
-        _ => { let acc = query_account_field(
-                ton_client.clone(),
-                CONFIG_ADDR,
-                "boc",
-            ).await?;
-            Account::construct_from_base64(&acc)
-        }
-    }.map_err(|e| format!("Failed to construct config account: {}", e))?;
-    let bc_config = construct_blockchain_config(&config_account)?;
-
-
-    Ok(Box::new(
-        DebugTransactionExecutor::new(
-            bc_config,
-            debug_info,
-            if is_full_trace {
-                TraceLevel::Full
-            } else {
-                TraceLevel::Minimal
-            },
-            is_getter
-        )
-    ))
+            let config_account = Account::construct_from_file(bc_config)
+                .map_err(|e| format!("Failed to construct config account: {}", e))?;
+            Some(construct_blockchain_config(&config_account)?)
+        },
+        None => None
+    })
 }
-
 
 async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let tx_id = matches.value_of("TX_ID");
@@ -441,21 +421,10 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
     let trans = Transaction::construct_from_base64(boc)
         .map_err(|e| format!("Failed to parse transaction: {}", e))?;
 
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_full_trace, false).await?;
-
     let mut account = Account::construct_from_file(input.unwrap())
         .map_err(|e| format!("Failed to construct account from the file: {}", e))?
         .serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
-
-    let params = ExecuteParams {
-        state_libs: HashmapE::default(),
-        block_unixtime: trans.now(),
-        block_lt,
-        last_tr_lt: Arc::new(AtomicU64::new(trans.logical_time())),
-        seed_block: UInt256::default(),
-        debug: false,
-    };
 
     let msg = trans.in_msg_cell().map(|c| Message::construct_from_cell(c)
         .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
@@ -465,11 +434,18 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
         Box::new(DebugLogger::new(output.unwrap().to_string()))
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
-    let result_trans = executor.execute_with_libs_and_params(
-        msg.as_ref(),
+    let result_trans = execute_debug(
+        construct_bc_config(matches)?,
+        Some(ton_client),
         &mut account,
-        params
-    );
+        msg.as_ref(),
+        trans.now(),
+        block_lt,
+        trans.logical_time(),
+        debug_info,
+        is_full_trace,
+        false
+    ).await;
 
     if do_update && result_trans.is_ok() {
         Account::construct_from_cell(account.clone())
@@ -598,17 +574,6 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
     let message = Message::construct_from_base64(&message.message)
         .map_err(|e| format!("Failed to construct message: {}", e))?;
 
-    let params = ExecuteParams {
-        state_libs: HashmapE::default(),
-        block_unixtime: (now / 1000) as u32,
-        block_lt: now,
-        last_tr_lt: Arc::new(AtomicU64::new(now)),
-        seed_block: UInt256::default(),
-        debug: true,
-    };
-
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_full_trace, is_getter).await?;
-
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
@@ -619,11 +584,19 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         Box::new(DebugLogger::new(trace_path.clone()))
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
-    let trans = executor.execute_with_libs_and_params(
-        Some(&message),
+    let trans = execute_debug(
+        construct_bc_config(matches)?,
+        Some(ton_client),
         &mut acc_root,
-        params
-    );
+        Some(&message),
+        (now / 1000) as u32,
+        now,
+        now,
+        debug_info,
+        is_full_trace,
+        is_getter,
+    ).await;
+
     let msg_string = match trans {
         Ok(trans) => {
             decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
@@ -749,37 +722,57 @@ fn choose_transaction(transactions: Vec<TrDetails>) -> Result<String, String> {
     Ok(transactions[chosen-1].transaction_id.trim_start_matches(|c| c == '"').trim_end_matches(|c| c == '"').to_string())
 }
 
-pub fn execute_debug(
-    bc_config: BlockchainConfig,
-    mut account: Cell,
-    message: String,
-    now: u64,
-    tr_lt: u64,
-    is_run: bool,
+pub async fn execute_debug(
+    bc_config: Option<BlockchainConfig>,
+    ton_client: Option<TonClient>,
+    account: &mut Cell,
+    message: Option<&Message>,
+    block_unixtime: u32,
+    block_lt: u64,
+    last_tr_lt: u64,
+    dbg_info: Option<String>,
+    is_full_trace: bool,
+    is_getter: bool,
 ) -> Result<Transaction, String> {
-    let message = Message::construct_from_base64(&message)
-        .map_err(|e| format!("failed to construct message: {}", e))?;
+    let bc_config = match bc_config {
+        Some(bc_config) => bc_config,
+        None => {
+            let config_boc = query_account_field(
+                ton_client.unwrap(),
+                CONFIG_ADDR,
+                "boc",
+            ).await?;
+            let config_account = Account::construct_from_base64(&config_boc)
+                .map_err(|e| format!("failed to construct config account: {}", e))?;
+            construct_blockchain_config(&config_account)?
+        }
+    };
+
     let executor = Box::new(
         DebugTransactionExecutor::new(
             bc_config,
-            None,
-            TraceLevel::Minimal,
-            is_run
+            dbg_info,
+            if is_full_trace {
+                TraceLevel::Full
+            } else {
+                TraceLevel::Minimal
+            },
+            is_getter
         )
     );
     let params = ExecuteParams {
         state_libs: HashmapE::default(),
-        block_unixtime: (now / 1000) as u32,
-        block_lt: now,
-        last_tr_lt: Arc::new(AtomicU64::new(now)),
+        block_unixtime,
+        block_lt,
+        last_tr_lt: Arc::new(AtomicU64::new(last_tr_lt)),
         seed_block: UInt256::default(),
         debug: true,
         ..ExecuteParams::default()
     };
 
     executor.execute_with_libs_and_params(
-        Some(&message),
-        &mut account,
+        message,
+         account,
         params
     ).map_err(|e| format!("Debug failed: {}", e))
 }

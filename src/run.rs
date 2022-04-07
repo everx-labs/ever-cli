@@ -13,15 +13,14 @@
 
 use clap::ArgMatches;
 use serde_json::{Map, Value};
-use ton_block::{Account, Deserializable, Serializable};
+use ton_block::{Account, Deserializable, Message, Serializable};
 use ton_client::abi::{Abi, FunctionHeader};
 use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
 use crate::{abi_from_matches_or_config, AccountSource, Config, create_client_local, create_client_verbose, DebugLogger, load_abi, load_account, unpack_alternative_params};
 use crate::call::{print_json_result};
 use crate::debug::execute_debug;
-use crate::helpers::{create_client, now, now_ms, query_account_field, SDK_EXECUTION_ERROR_CODE, TonClient, TRACE_PATH};
+use crate::helpers::{create_client, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient, TRACE_PATH};
 use crate::message::prepare_message;
-use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 
 pub async fn run_command(matches: &ArgMatches<'_>, config: &Config, is_alternative: bool) -> Result<(), String> {
     let address = if is_alternative {
@@ -155,22 +154,15 @@ pub async fn run_local(
         if !config.is_json {
             println!("Execution failed. Starting debug...");
         }
-        let account = Account::construct_from_base64(&acc_boc)
+        let mut account = Account::construct_from_base64(&acc_boc)
             .map_err(|e| format!("Failed to construct account: {}", e))?
             .serialize()
             .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
-        let config_acc = query_account_field(
-            ton.clone(),
-            CONFIG_ADDR,
-            "boc",
-        ).await?;
-
-        let config_acc = Account::construct_from_base64(&config_acc)
-            .map_err(|e| format!("Failed to construct config account: {}", e))?;
-        let bc_config = construct_blockchain_config(&config_acc)?;
         let now = now_ms();
-        let _ = execute_debug(bc_config, account, msg, now, now, true)?;
+        let message = Message::construct_from_base64(&msg)
+            .map_err(|e| format!("failed to construct message: {}", e))?;
+        let _ = execute_debug(None, Some(ton), &mut account, Some(&message), (now / 1000) as u32, now,now, None,false, true).await?;
 
         if !config.is_json {
             println!("Debug finished.");

@@ -37,7 +37,7 @@ use ton_client::tvm::{
     ParamsOfRunExecutor,
     AccountForExecutor,
 };
-use ton_block::{Account, Serializable, Deserializable};
+use ton_block::{Account, Serializable, Deserializable, Message};
 use std::str::FromStr;
 use serde_json::{Value};
 use ton_client::error::ClientError;
@@ -370,8 +370,10 @@ pub async fn call_contract_with_client(
         if !config.is_json {
             println!("Execution failed. Starting debug...");
         }
-        let (bc_config, account, message, now) = dump.unwrap();
-        let _ = execute_debug(bc_config, account, message, now, now, false)?;
+        let (bc_config, mut account, message, now) = dump.unwrap();
+        let message = Message::construct_from_base64(&message)
+            .map_err(|e| format!("failed to construct message: {}", e))?;
+        let _ = execute_debug(Some(bc_config), None, &mut account, Some(&message), (now / 1000) as u32, now,now, None,false, false).await?;
 
         if !config.is_json {
             println!("Debug finished.");
