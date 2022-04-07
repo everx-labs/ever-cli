@@ -129,7 +129,7 @@ pub async fn run(
     Ok(())
 }
 
-pub async fn run_local(
+async fn run_local(
     ton: TonClient,
     abi: Abi,
     msg: String,
@@ -151,6 +151,8 @@ pub async fn run_local(
     ).await;
     if config.debug_fail && result.is_err()
         && result.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
+        // TODO: add code to use bc_config from file
+        // TODO: add functionality to load debug info near ABI
         if !config.is_json {
             println!("Execution failed. Starting debug...");
         }
