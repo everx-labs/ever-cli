@@ -58,6 +58,7 @@ pub async fn create_proposal(
 			&params,
 			keys,
 			false,
+			None,
 		).await
 	}
 }
@@ -98,6 +99,7 @@ pub async fn vote(
 			&params,
 			keys,
 			false,
+			None,
 		).await
 	}
 }
@@ -117,6 +119,7 @@ pub async fn decode_proposal(
 		"{}",
 		None,
 		false,
+		None,
 	).await?;
 
 	let txns = result["transactions"].as_array()

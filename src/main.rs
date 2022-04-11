@@ -63,7 +63,7 @@ use crate::account::dump_accounts;
 
 use crate::config::FullConfig;
 use crate::debug::DebugLogger;
-use crate::helpers::{AccountSource, create_client_verbose, load_account};
+use crate::helpers::{AccountSource, create_client_verbose, load_account, load_debug_info};
 use crate::message::generate_message;
 use crate::run::{run_command, run_get_method};
 
@@ -1157,7 +1157,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
     if !config.is_json {
         print_args!(address, method, params, abi, keys, lifetime, output);
     }
-
+    let dbg_info = load_debug_info(abi.as_ref().unwrap());
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let address = load_ton_address(address.unwrap(), &config)?;
@@ -1173,6 +1173,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
                 &params.unwrap(),
                 keys,
                 is_fee,
+                dbg_info
             ).await
         },
         CallType::Msg => {
@@ -1202,6 +1203,7 @@ async fn callx_command(matches: &ArgMatches<'_>, config: &Config, call_type: Cal
     let method = matches.value_of("METHOD");
     let address = Some(address_from_matches_or_config(matches, config)?);
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let dbg_info = load_debug_info(abi.as_ref().unwrap());
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
@@ -1232,6 +1234,7 @@ async fn callx_command(matches: &ArgMatches<'_>, config: &Config, call_type: Cal
         &params.unwrap(),
         keys,
         false,
+        dbg_info,
     ).await
 }
 
@@ -1245,6 +1248,7 @@ async fn callex_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(),
             .ok_or("ADDRESS is not defined. Supply it in the config file or in command line.".to_string())?
     );
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let dbg_info = load_debug_info(abi.as_ref().unwrap());
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let params = matches.values_of("PARAMS").ok_or("PARAMS is not defined")?;
@@ -1269,6 +1273,7 @@ async fn callex_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(),
         &params.unwrap(),
         keys,
         false,
+        dbg_info,
     ).await
 }
 

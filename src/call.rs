@@ -264,6 +264,7 @@ pub async fn call_contract_with_result(
     params: &str,
     keys: Option<String>,
     is_fee: bool,
+    dbg_info: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let ton = if config.debug_fail {
         log::set_max_level(log::LevelFilter::Trace);
@@ -274,20 +275,21 @@ pub async fn call_contract_with_result(
     } else {
         create_client_verbose(config)?
     };
-    call_contract_with_client(ton, config, addr, abi, method, params, keys, is_fee).await
+    call_contract_with_client(ton, config, addr, abi, method, params, keys, is_fee, dbg_info).await
 }
 
 pub async fn call_contract_with_client(
     ton: TonClient,
     config: &Config,
     addr: &str,
-    abi: String,
+    abi_string: String,
     method: &str,
     params: &str,
     keys: Option<String>,
     is_fee: bool,
+    dbg_info: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    let abi = load_abi(&abi)?;
+    let abi = load_abi(&abi_string)?;
 
     let expire_at = config.lifetime + now()?;
     let time = now_ms();
@@ -373,7 +375,7 @@ pub async fn call_contract_with_client(
         let (bc_config, mut account, message, now) = dump.unwrap();
         let message = Message::construct_from_base64(&message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        let _ = execute_debug(Some(bc_config), None, &mut account, Some(&message), (now / 1000) as u32, now,now, None,false, false).await?;
+        let _ = execute_debug(Some(bc_config), None, &mut account, Some(&message), (now / 1000) as u32, now,now, dbg_info,false, false).await?;
 
         if !config.is_json {
             println!("Debug finished.");
@@ -404,8 +406,9 @@ pub async fn call_contract(
     params: &str,
     keys: Option<String>,
     is_fee: bool,
+    dbg_info: Option<String>,
 ) -> Result<(), String> {
-    let result = call_contract_with_result(config, addr, abi, method, params, keys, is_fee).await?;
+    let result = call_contract_with_result(config, addr, abi, method, params, keys, is_fee, dbg_info).await?;
     if !config.is_json {
         println!("Succeeded.");
     }

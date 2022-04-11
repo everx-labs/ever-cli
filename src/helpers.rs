@@ -470,3 +470,11 @@ pub async fn load_account(
     }
 }
 
+pub fn load_debug_info(abi: &str) -> Option<String> {
+    let mut path = abi.trim_end_matches(".json").trim_end_matches(".abi").to_string();
+    path.push_str(".dbg.json");
+    if std::path::Path::new(&path).exists() {
+        return Some(path);
+    }
+    None
+}

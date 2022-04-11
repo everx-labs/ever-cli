@@ -14,12 +14,12 @@
 use clap::ArgMatches;
 use serde_json::{Map, Value};
 use ton_block::{Account, Deserializable, Message, Serializable};
-use ton_client::abi::{Abi, FunctionHeader};
+use ton_client::abi::{FunctionHeader};
 use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
 use crate::{abi_from_matches_or_config, AccountSource, Config, create_client_local, create_client_verbose, DebugLogger, load_abi, load_account, unpack_alternative_params};
 use crate::call::{print_json_result};
 use crate::debug::execute_debug;
-use crate::helpers::{create_client, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient, TRACE_PATH};
+use crate::helpers::{create_client, load_debug_info, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient, TRACE_PATH};
 use crate::message::prepare_message;
 
 pub async fn run_command(matches: &ArgMatches<'_>, config: &Config, is_alternative: bool) -> Result<(), String> {
@@ -72,7 +72,7 @@ pub async fn run(
     is_alternative: bool,
 ) -> Result<(), String> {
     let method = matches.value_of("METHOD").unwrap();
-    let abi = abi_from_matches_or_config(matches, &config)?;
+    let abi_path = abi_from_matches_or_config(matches, &config)?;
     let bc_config = matches.value_of("BCCONFIG");
 
     if !config.is_json {
@@ -84,7 +84,7 @@ pub async fn run(
             create_client_local()?
         }
     };
-    let abi = std::fs::read_to_string(abi)
+    let abi = std::fs::read_to_string(abi_path.clone())
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
 
     let params = if is_alternative {
@@ -112,43 +112,19 @@ pub async fn run(
         config.is_json,
     ).await?;
 
-    let res = run_local(
-        ton_client,
-        abi,
-        msg.message,
-        account_boc,
-        bc_config,
-        config,
-    ).await?;
-
-    if !config.is_json {
-        println!("Succeeded.");
-    }
-
-    print_json_result(res, config)?;
-    Ok(())
-}
-
-async fn run_local(
-    ton: TonClient,
-    abi: Abi,
-    msg: String,
-    acc_boc: String,
-    bc_config: Option<&str>,
-    config: &Config,
-) -> Result<serde_json::Value, String> {
     let execution_options = prepare_execution_options(bc_config)?;
     let result = run_tvm(
-        ton.clone(),
+        ton_client.clone(),
         ParamsOfRunTvm {
-            message: msg.clone(),
-            account: acc_boc.clone(),
+            message: msg.message.clone(),
+            account: account_boc.clone(),
             abi: Some(abi.clone()),
             return_updated_account: Some(true),
             execution_options,
             ..Default::default()
         },
     ).await;
+
     if config.debug_fail && result.is_err()
         && result.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
         // TODO: add code to use bc_config from file
@@ -156,25 +132,34 @@ async fn run_local(
         if !config.is_json {
             println!("Execution failed. Starting debug...");
         }
-        let mut account = Account::construct_from_base64(&acc_boc)
+        let mut account = Account::construct_from_base64(&account_boc)
             .map_err(|e| format!("Failed to construct account: {}", e))?
             .serialize()
             .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
         let now = now_ms();
-        let message = Message::construct_from_base64(&msg)
+        let message = Message::construct_from_base64(&msg.message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        let _ = execute_debug(None, Some(ton), &mut account, Some(&message), (now / 1000) as u32, now,now, None,false, true).await?;
+        let dbg_info = load_debug_info(&abi_path);
+        let _ = execute_debug(None, Some(ton_client), &mut account, Some(&message), (now / 1000) as u32, now,now, dbg_info,false, true).await?;
 
         if !config.is_json {
             println!("Debug finished.");
             println!("Log saved to {}", TRACE_PATH);
         }
     }
+
     let result = result.map_err(|e| format!("{:#}", e))?;
+
     let res = result.decoded.and_then(|d| d.output)
         .ok_or("Failed to decode the result. Check that abi matches the contract.")?;
-    Ok(res)
+
+    if !config.is_json {
+        println!("Succeeded.");
+    }
+
+    print_json_result(res, config)?;
+    Ok(())
 }
 
 fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<ExecutionOptions>, String> {
