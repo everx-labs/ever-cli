@@ -128,10 +128,14 @@ pub async fn run(
     if config.debug_fail && result.is_err()
         && result.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
         // TODO: add code to use bc_config from file
-        // TODO: add functionality to load debug info near ABI
-        if !config.is_json {
+
+        if config.is_json {
+            println!("{:#}", result.clone().err().unwrap());
+        } else {
+            println!("Error: {:#}", result.clone().err().unwrap());
             println!("Execution failed. Starting debug...");
         }
+
         let mut account = Account::construct_from_base64(&account_boc)
             .map_err(|e| format!("Failed to construct account: {}", e))?
             .serialize()
@@ -147,6 +151,7 @@ pub async fn run(
             println!("Debug finished.");
             println!("Log saved to {}", TRACE_PATH);
         }
+        return Err("".to_string());
     }
 
     let result = result.map_err(|e| format!("{:#}", e))?;

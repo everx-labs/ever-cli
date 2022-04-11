@@ -135,7 +135,7 @@ fn parse_lifetime(lifetime: Option<&str>, config: &Config) -> Result<u32, String
 #[tokio::main]
 async fn main() -> Result<(), i32> {
     main_internal().await.map_err(|err_str| {
-        println!("{}", err_str);
+        if !err_str.is_empty() { println!("{}", err_str); }
         1
     })
 }
@@ -853,13 +853,17 @@ async fn main_internal() -> Result <(), String> {
 
     command_parser(&matches, is_json).await
         .map_err(|e| {
-            if !is_json {
-                format!("Error: {}", e)
+            if e.is_empty() {
+                e
             } else {
-                let err: serde_json::Value = json!(e);
-                let res = json!({"Error": err});
-                serde_json::to_string_pretty(&res)
-                    .unwrap_or("{{ \"JSON serialization error\" }}".to_string())
+                if !is_json {
+                    format!("Error: {}", e)
+                } else {
+                    let err: serde_json::Value = json!(e);
+                    let res = json!({"Error": err});
+                    serde_json::to_string_pretty(&res)
+                        .unwrap_or("{{ \"JSON serialization error\" }}".to_string())
+                }
             }
         })
 }

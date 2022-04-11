@@ -369,7 +369,10 @@ pub async fn call_contract_with_client(
 
     if config.debug_fail && res.is_err()
         && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
-        if !config.is_json {
+        if config.is_json {
+            println!("{:#}", res.clone().err().unwrap());
+        } else {
+            println!("Error: {:#}", res.clone().err().unwrap());
             println!("Execution failed. Starting debug...");
         }
         let (bc_config, mut account, message, now) = dump.unwrap();
@@ -381,6 +384,7 @@ pub async fn call_contract_with_client(
             println!("Debug finished.");
             println!("Log saved to {}", TRACE_PATH);
         }
+        return Err("".to_string());
     }
     res.map_err(|e| format!("{:#}", e))
 }
