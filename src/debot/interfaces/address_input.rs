@@ -47,17 +47,17 @@ pub const ABI: &str = r#"
 "#;
 
 pub struct AddressInput {
-    conf: Config
+    config: Config
 }
 impl AddressInput {
-    pub fn new(conf: Config) -> Self {
-        Self {conf}
+    pub fn new(config: Config) -> Self {
+        Self {config}
     }
     fn get(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let prompt = decode_prompt(args)?;
         let value = terminal_input(&prompt, |val| {
-            let _ = load_ton_address(val, &self.conf).map_err(|e| format!("Invalid address: {}", e))?;
+            let _ = load_ton_address(val, &self.config).map_err(|e| format!("Invalid address: {}", e))?;
             Ok(())
         });
         Ok((answer_id, json!({ "value": value })))
@@ -65,7 +65,7 @@ impl AddressInput {
     fn select(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let value = terminal_input("", |val| {
-            let _ = load_ton_address(val, &self.conf).map_err(|e| format!("Invalid address: {}", e))?;
+            let _ = load_ton_address(val, &self.config).map_err(|e| format!("Invalid address: {}", e))?;
             Ok(())
         });
         Ok((answer_id, json!({ "value": value })))

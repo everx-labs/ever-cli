@@ -11,9 +11,8 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use crate::crypto::load_keypair;
 use crate::convert;
-use crate::helpers::{TonClient, now, now_ms, create_client_verbose, create_client_local, load_ton_address, load_abi, construct_account_from_tvc, query_account_field};
+use crate::helpers::{TonClient, now, now_ms, create_client_verbose, load_abi, query_account_field, TRACE_PATH, SDK_EXECUTION_ERROR_CODE, create_client};
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
 
@@ -23,9 +22,7 @@ use ton_client::abi::{
     ParamsOfDecodeMessage,
     ParamsOfEncodeMessage,
     Abi,
-    CallSet,
     FunctionHeader,
-    Signer
 };
 use ton_client::processing::{
     ParamsOfSendMessage,
@@ -36,155 +33,18 @@ use ton_client::processing::{
     send_message,
 };
 use ton_client::tvm::{
-    run_tvm,
-    run_get,
-    ParamsOfRunTvm,
-    ParamsOfRunGet,
     run_executor,
     ParamsOfRunExecutor,
     AccountForExecutor,
-    ExecutionOptions
 };
-use ton_block::{
-    Account,
-    Serializable,
-    Deserializable,
-};
+use ton_block::{Account, Serializable, Deserializable, Message};
 use std::str::FromStr;
-use serde_json::{Value, Map};
+use serde_json::{Value};
+use ton_client::error::ClientError;
+use crate::debug::{DebugLogger, execute_debug};
+use crate::message::{EncodedMessage, prepare_message_params, print_encoded_message, unpack_message};
+use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 
-pub struct EncodedMessage {
-    pub message_id: String,
-    pub message: String,
-    pub expire: Option<u32>,
-    pub address: String,
-}
-
-pub async fn prepare_message(
-    ton: TonClient,
-    addr: &str,
-    abi: Abi,
-    method: &str,
-    params: &str,
-    header: Option<FunctionHeader>,
-    keys: Option<String>,
-    is_json: bool,
-) -> Result<EncodedMessage, String> {
-    if !is_json {
-        println!("Generating external inbound message...");
-    }
-
-    let msg_params = prepare_message_params(addr, abi, method, params, header.clone(), keys)?;
-
-    let msg = encode_message(ton, msg_params).await
-        .map_err(|e| format!("failed to create inbound message: {}", e))?;
-
-    Ok(EncodedMessage {
-        message: msg.message,
-        message_id: msg.message_id,
-        expire: header.and_then(|h| h.expire),
-        address: addr.to_owned(),
-    })
-}
-
-pub fn prepare_message_params (
-    addr: &str,
-    abi: Abi,
-    method: &str,
-    params: &str,
-    header: Option<FunctionHeader>,
-    keys: Option<String>,
-) -> Result<ParamsOfEncodeMessage, String> {
-    let keys = keys.map(|k| load_keypair(&k)).transpose()?;
-    let params = serde_json::from_str(params)
-        .map_err(|e| format!("arguments are not in json format: {}", e))?;
-
-    let call_set = Some(CallSet {
-        function_name: method.into(),
-        input: Some(params),
-        header,
-    });
-
-    Ok(ParamsOfEncodeMessage {
-        abi,
-        address: Some(addr.to_owned()),
-        call_set,
-        signer: if let Some(keys) = keys {
-            Signer::Keys { keys }
-        } else {
-            Signer::None
-        },
-        ..Default::default()
-    })
-}
-
-pub fn print_encoded_message(msg: &EncodedMessage, is_json:bool) {
-    let expire = if msg.expire.is_some() {
-        let expire_at = Local.timestamp(msg.expire.unwrap() as i64, 0);
-        expire_at.to_rfc2822()
-    } else {
-        "unknown".to_string()
-    };
-    if !is_json {
-        println!();
-        println!("MessageId: {}", msg.message_id);
-        println!("Expire at: {}", expire);
-    } else {
-        println!("  \"MessageId\": \"{}\",", msg.message_id);
-        println!("  \"Expire at\": \"{}\",", expire);
-    }
-}
-
-fn pack_message(msg: &EncodedMessage, method: &str, is_raw: bool) -> Result<Vec<u8>, String> {
-    let res = if is_raw {
-        base64::decode(&msg.message)
-            .map_err(|e| format!("failed to decode message: {}", e))?
-    } else {
-        let json_msg = json!({
-            "msg": {
-                "message_id": msg.message_id,
-                "message": msg.message,
-                "expire": msg.expire,
-                "address": msg.address,
-            },
-            "method": method,
-        });
-        serde_json::to_string(&json_msg)
-            .map_err(|e| format!("failed to serialize message: {}", e))?
-            .into_bytes()
-    };
-    Ok(res)
-}
-
-fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String> {
-    let bytes = hex::decode(str_msg)
-        .map_err(|e| format!("couldn't unpack message: {}", e))?;
-
-    let str_msg = std::str::from_utf8(&bytes)
-        .map_err(|e| format!("message is corrupted: {}", e))?;
-
-    let json_msg: serde_json::Value = serde_json::from_str(str_msg)
-        .map_err(|e| format!("couldn't decode message: {}", e))?;
-
-    let method = json_msg["method"].as_str()
-        .ok_or(r#"couldn't find "method" key in message"#)?
-        .to_owned();
-    let message_id = json_msg["msg"]["message_id"].as_str()
-        .ok_or(r#"couldn't find "message_id" key in message"#)?
-        .to_owned();
-    let message = json_msg["msg"]["message"].as_str()
-        .ok_or(r#"couldn't find "message" key in message"#)?
-        .to_owned();
-    let expire = json_msg["msg"]["expire"].as_u64().map(|x| x as u32);
-    let address = json_msg["msg"]["address"].as_str()
-        .ok_or(r#"couldn't find "address" key in message"#)?
-        .to_owned();
-
-    let msg = EncodedMessage {
-        message_id, message, expire, address
-    };
-    Ok((msg, method))
-}
 
 async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) -> Result<(String, String), String> {
     let result = decode_message(
@@ -320,123 +180,14 @@ pub async fn emulate_locally(
     Ok(())
 }
 
-pub fn load_account(path: &str, from_tvc: bool) -> Result<Account, String> {
-    Ok(if from_tvc {
-        construct_account_from_tvc(path, None, None)?
-    } else {
-        Account::construct_from_file(path)
-            .map_err(|e| format!(" failed to load account from the file {}: {}", path, e))?
-    })
-}
-
-pub async fn run_local_for_account(
-    conf: Config,
-    account: &str,
-    abi: String,
-    method: &str,
-    params: &str,
-    bc_config: Option<&str>,
-    is_tvc: bool,
-) -> Result<(), String> {
-
-    if !conf.is_json {
-        println!("Running get-method...");
-    }
-
-    let ton = create_client_local()?;
-    let abi = load_abi(&abi)?;
-
-    let acc = load_account(account, is_tvc)?;
-
-    let acc_bytes = acc.write_to_bytes()
-        .map_err(|e| format!("failed to load data from the account: {}", e))?;
-    let acc_boc = base64::encode(&acc_bytes);
-
-    let addr = acc.get_addr()
-        .ok_or("failed to load address from the account.")?
-        .to_string();
-
-    let now = now()?;
-    let expire_at = conf.lifetime + now;
-    let header = FunctionHeader {
-        expire: Some(expire_at),
-        ..Default::default()
-    };
-
-    let msg = prepare_message(
-        ton.clone(),
-        &addr,
-        abi.clone(),
-        method,
-        params,
-        Some(header),
-        None,
-        conf.is_json,
-    ).await?;
-
-    let res = run_local(
-        ton,
-        abi,
-        msg.message,
-        acc_boc,
-        bc_config
-    ).await?;
-
-    if !conf.is_json {
-        println!("Succeeded.");
-    }
-
-    print_json_result(res, conf)?;
-    Ok(())
-}
-
-fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<ExecutionOptions>, String> {
-    if let Some(config) = bc_config {
-        let bytes = std::fs::read(config)
-            .map_err(|e| format!("Failed to read data from file {}: {}", config, e))?;
-        let config_boc = base64::encode(&bytes);
-        let ex_opt = ExecutionOptions{
-            blockchain_config: Some(config_boc),
-            ..Default::default()
-        };
-        return Ok(Some(ex_opt));
-    }
-    Ok(None)
-}
-
-async fn run_local(
-    ton: TonClient,
-    abi: Abi,
-    msg: String,
-    acc_boc: String,
-    bc_config: Option<&str>,
-) -> Result<serde_json::Value, String> {
-    let execution_options = prepare_execution_options(bc_config)?;
-    let result = run_tvm(
-        ton.clone(),
-        ParamsOfRunTvm {
-            message: msg,
-            account: acc_boc,
-            abi: Some(abi.clone()),
-            return_updated_account: Some(true),
-            execution_options,
-            ..Default::default()
-        },
-    ).await
-        .map_err(|e| format!("{:#}", e))?;
-    let res = result.decoded.and_then(|d| d.output)
-        .ok_or("Failed to decode the result. Check that abi matches the contract.")?;
-    Ok(res)
-}
-
 pub async fn send_message_and_wait(
     ton: TonClient,
     abi: Option<Abi>,
     msg: String,
-    conf: Config,
+    config: &Config,
 ) -> Result<serde_json::Value, String> {
 
-    if !conf.is_json {
+    if !config.is_json {
         println!("Processing... ");
     }
     let callback = |_| {
@@ -453,7 +204,7 @@ pub async fn send_message_and_wait(
     ).await
         .map_err(|e| format!("{:#}", e))?;
 
-    if !conf.async_call {
+    if !config.async_call {
         let result = wait_for_transaction(
             ton.clone(),
             ParamsOfWaitForTransaction {
@@ -475,66 +226,72 @@ pub async fn send_message_and_wait(
 pub async fn process_message(
     ton: TonClient,
     msg: ParamsOfEncodeMessage,
-    is_json: bool,
-) -> Result<serde_json::Value, String> {
+    config: &Config,
+) -> Result<serde_json::Value, ClientError> {
     let callback = |event| { async move {
         if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
             println!("MessageId: {}", message_id)
         }
     }};
-    let res = if !is_json {
+    let res = if !config.is_json {
         ton_client::processing::process_message(
-            ton,
+            ton.clone(),
             ParamsOfProcessMessage {
-                message_encode_params: msg,
+                message_encode_params: msg.clone(),
                 send_events: true,
             },
             callback,
         ).await
-            .map_err(|e| format!("{:#}", e))?
     } else {
         ton_client::processing::process_message(
-            ton,
+            ton.clone(),
             ParamsOfProcessMessage {
-                message_encode_params: msg,
+                message_encode_params: msg.clone(),
                 send_events: true,
             },
             |_| { async move {} },
         ).await
-            .map_err(|e| format!("{:#}", e))?
-    };
+    }?;
 
     Ok(res.decoded.and_then(|d| d.output).unwrap_or(json!({})))
 }
 
 pub async fn call_contract_with_result(
-    conf: Config,
+    config: &Config,
     addr: &str,
     abi: String,
     method: &str,
     params: &str,
     keys: Option<String>,
-    local: bool,
     is_fee: bool,
+    dbg_info: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    let ton = create_client_verbose(&conf)?;
-    call_contract_with_client(ton, conf, addr, abi, method, params, keys, local, is_fee).await
+    let ton = if config.debug_fail {
+        log::set_max_level(log::LevelFilter::Trace);
+        log::set_boxed_logger(
+            Box::new(DebugLogger::new(TRACE_PATH.to_string()))
+        ).map_err(|e| format!("Failed to set logger: {}", e))?;
+        create_client(config)?
+    } else {
+        create_client_verbose(config)?
+    };
+    call_contract_with_client(ton, config, addr, abi, method, params, keys, is_fee, dbg_info).await
 }
 
 pub async fn call_contract_with_client(
     ton: TonClient,
-    conf: Config,
+    config: &Config,
     addr: &str,
-    abi: String,
+    abi_string: String,
     method: &str,
     params: &str,
     keys: Option<String>,
-    local: bool,
     is_fee: bool,
+    dbg_info: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    let abi = load_abi(&abi)?;
+    let abi = load_abi(&abi_string)?;
 
-    let expire_at = conf.lifetime + now()?;
+    let expire_at = config.lifetime + now()?;
     let time = now_ms();
     let header = FunctionHeader {
         expire: Some(expire_at),
@@ -551,48 +308,92 @@ pub async fn call_contract_with_client(
     )?;
 
     let needs_encoded_msg = is_fee ||
-        local ||
-        conf.async_call ||
-        conf.local_run;
+        config.async_call ||
+        config.local_run ||
+        config.debug_fail;
 
-    if needs_encoded_msg {
+    let message = if needs_encoded_msg {
         let msg = encode_message(ton.clone(), msg_params.clone()).await
             .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
-        if local {
-            if !conf.is_json {
-                println!("Running get-method...");
-            }
-            let acc_boc = query_account_field(ton.clone(), addr, "boc").await?;
-            return run_local(ton.clone(), abi, msg.message.clone(), acc_boc, None).await;
-        }
-        if conf.local_run || is_fee {
+        if config.local_run || is_fee {
             emulate_locally(ton.clone(), addr, msg.message.clone(), is_fee).await?;
             if is_fee {
                 return Ok(Value::Null);
             }
         }
-        if conf.async_call {
+        if config.async_call {
             return send_message_and_wait(ton,
                                          Some(abi),
-                                         msg.message,
-                                         conf).await;
+                                         msg.message.clone(),
+                                         config).await;
         }
-    }
+        Some(msg.message)
+    } else {
+        None
+    };
 
-    if !conf.is_json {
+    if !config.is_json {
         print!("Expire at: ");
         let expire_at = Local.timestamp(expire_at as i64 , 0);
         println!("{}", expire_at.to_rfc2822());
     }
-    process_message(ton.clone(), msg_params, conf.is_json).await
+
+    let dump = if config.debug_fail {
+        let acc_boc = query_account_field(
+            ton.clone(),
+            addr,
+            "boc",
+        ).await?;
+        let account = Account::construct_from_base64(&acc_boc)
+            .map_err(|e| format!("Failed to construct account: {}", e))?
+            .serialize()
+            .map_err(|e| format!("Failed to serialize account: {}", e))?;
+
+        let config_acc = query_account_field(
+            ton.clone(),
+            CONFIG_ADDR,
+            "boc",
+        ).await?;
+
+        let config_acc = Account::construct_from_base64(&config_acc)
+            .map_err(|e| format!("Failed to construct config account: {}", e))?;
+        let bc_config = construct_blockchain_config(&config_acc)?;
+        let now = now_ms();
+        Some((bc_config, account, message.unwrap(), now))
+    } else {
+        None
+    };
+
+    let res = process_message(ton.clone(), msg_params, config).await;
+
+    if config.debug_fail && res.is_err()
+        && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
+        if config.is_json {
+            println!("{:#}", res.clone().err().unwrap());
+        } else {
+            println!("Error: {:#}", res.clone().err().unwrap());
+            println!("Execution failed. Starting debug...");
+        }
+        let (bc_config, mut account, message, now) = dump.unwrap();
+        let message = Message::construct_from_base64(&message)
+            .map_err(|e| format!("failed to construct message: {}", e))?;
+        let _ = execute_debug(Some(bc_config), None, &mut account, Some(&message), (now / 1000) as u32, now,now, dbg_info,false, false).await?;
+
+        if !config.is_json {
+            println!("Debug finished.");
+            println!("Log saved to {}", TRACE_PATH);
+        }
+        return Err("".to_string());
+    }
+    res.map_err(|e| format!("{:#}", e))
 }
 
-fn print_json_result(result: Value, conf: Config) -> Result<(), String> {
+pub fn print_json_result(result: Value, config: &Config) -> Result<(), String> {
     if !result.is_null() {
         let result = serde_json::to_string_pretty(&result)
             .map_err(|e| format!("Failed to serialize the result: {}", e))?;
-        if !conf.is_json {
+        if !config.is_json {
             println!("Result: {}", result);
         } else {
             println!("{}", result);
@@ -602,114 +403,37 @@ fn print_json_result(result: Value, conf: Config) -> Result<(), String> {
 }
 
 pub async fn call_contract(
-    conf: Config,
+    config: &Config,
     addr: &str,
     abi: String,
     method: &str,
     params: &str,
     keys: Option<String>,
-    local: bool,
     is_fee: bool,
+    dbg_info: Option<String>,
 ) -> Result<(), String> {
-    let result = call_contract_with_result(conf.clone(), addr, abi, method, params, keys, local, is_fee).await?;
-    if !conf.is_json {
+    let result = call_contract_with_result(config, addr, abi, method, params, keys, is_fee, dbg_info).await?;
+    if !config.is_json {
         println!("Succeeded.");
     }
-    print_json_result(result, conf)?;
+    print_json_result(result, config)?;
     Ok(())
 }
 
-pub fn display_generated_message(
-    msg: &EncodedMessage,
-    method: &str,
-    is_raw: bool,
-    output: Option<&str>,
-    is_json: bool,
-) -> Result<(), String> {
-    if is_json {
-        println!("{{");
-    }
-    print_encoded_message(msg, is_json);
 
-    let msg_bytes = pack_message(msg, method, is_raw)?;
-    if let Some(out_file) = output {
-        std::fs::write(out_file, msg_bytes)
-            .map_err(|e| format!("cannot write message to file: {}", e))?;
-        if !is_json {
-            println!("Message saved to file {}", out_file);
-        } else {
-            println!("  \"Message\": \"saved to file {}\"", out_file);
-        }
-    } else {
-        let msg_hex = hex::encode(&msg_bytes);
-        if !is_json {
-            println!("Message: {}", msg_hex);
-            println!();
-            qr2term::print_qr(msg_hex).map_err(|e| format!("failed to print QR code: {}", e))?;
-            println!();
-        } else {
-            println!("  \"Message\": \"{}\"", msg_hex);
-        }
-    }
-    if is_json {
-        println!("}}");
-    }
-    Ok(())
-}
-
-pub async fn generate_message(
-    _conf: Config,
-    addr: &str,
-    abi: String,
-    method: &str,
-    params: &str,
-    keys: Option<String>,
-    lifetime: u32,
-    is_raw: bool,
-    output: Option<&str>,
-) -> Result<(), String> {
-    let ton = create_client_local()?;
-
-    let ton_addr = load_ton_address(addr, &_conf)
-        .map_err(|e| format!("failed to parse address: {}", e))?;
-
-    let abi = load_abi(&abi)?;
-
-    let expire_at = lifetime + now()?;
-    let header = FunctionHeader {
-        expire: Some(expire_at),
-        ..Default::default()
-    };
-
-    let msg = prepare_message(
-        ton.clone(),
-        &ton_addr,
-        abi,
-        method,
-        params,
-        Some(header),
-        keys,
-        _conf.is_json,
-    ).await?;
-
-    display_generated_message(&msg, method, is_raw, output, _conf.is_json)?;
-
-    Ok(())
-}
-
-pub async fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi: String) -> Result<(), String> {
+    let ton = create_client_verbose(&config)?;
     let abi = load_abi(&abi)?;
 
     let (msg, _) = unpack_message(&str_msg)?;
-    if conf.is_json {
+    if config.is_json {
         println!("{{");
     }
-    print_encoded_message(&msg, conf.is_json);
+    print_encoded_message(&msg, config.is_json);
 
     let params = decode_call_parameters(ton.clone(), &msg, abi.clone()).await?;
 
-    if !conf.is_json {
+    if !config.is_json {
         println!("Calling method {} with parameters:", params.0);
         println!("{}", params.1);
         println!("Processing... ");
@@ -718,9 +442,9 @@ pub async fn call_contract_with_msg(conf: Config, str_msg: String, abi: String) 
         println!("  \"Parameters\": {},", params.1);
         println!("}}");
     }
-    let result = send_message_and_wait(ton, Some(abi), msg.message,  conf.clone()).await?;
+    let result = send_message_and_wait(ton, Some(abi), msg.message,  config).await?;
 
-    if !conf.is_json {
+    if !config.is_json {
         println!("Succeeded.");
         if !result.is_null() {
             println!("Result: {}", serde_json::to_string_pretty(&result)
@@ -737,64 +461,4 @@ pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<St
     } else {
         build_json_from_params(params_vec, abi, method)
     }
-}
-
-pub async fn run_get_method(conf: Config, addr: &str, method: &str, params: Option<String>, is_local: bool, is_tvc: bool, bc_config: Option<&str>) -> Result<(), String> {
-    let ton = if !is_local {
-        create_client_verbose(&conf)?
-    } else {
-        create_client_local()?
-    };
-
-    let acc_boc = if is_local {
-        let acc = load_account(addr, is_tvc)?;
-        let acc_bytes = acc.write_to_bytes()
-            .map_err(|e| format!("failed to load data from the account: {}", e))?;
-        base64::encode(&acc_bytes)
-    } else {
-        let addr = load_ton_address(addr, &conf)
-            .map_err(|e| format!("failed to parse address: {}", e))?;
-        query_account_field(ton.clone(), addr.as_str(), "boc").await?
-    };
-
-    let params = params.map(|p| serde_json::from_str(&p))
-        .transpose()
-        .map_err(|e| format!("arguments are not in json format: {}", e))?;
-
-    if !conf.is_json {
-        println!("Running get-method...");
-    }
-    let execution_options = prepare_execution_options(bc_config)?;
-    let result = run_get(
-        ton,
-        ParamsOfRunGet {
-            account: acc_boc,
-            function_name: method.to_owned(),
-            input: params,
-            execution_options,
-            ..Default::default()
-        },
-    ).await
-    .map_err(|e| format!("run failed: {}", e))?
-    .output;
-
-    if !conf.is_json {
-        println!("Succeeded.");
-        println!("Result: {}", result);
-    } else {
-        let mut res = Map::new();
-        match result {
-            Value::Array(array) => {
-                for (i, val) in array.iter().enumerate() {
-                    res.insert(format!("value{}", i), val.to_owned());
-                }
-            },
-            _ => {
-                res.insert("value0".to_owned(), result);
-            }
-        }
-        let res = Value::Object(res);
-        println!("{}", serde_json::to_string_pretty(&res).unwrap_or("Undefined".to_string()));
-    }
-    Ok(())
 }

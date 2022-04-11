@@ -30,10 +30,10 @@ const ACCOUNT_FIELDS: &str = r#"
 
 const DEFAULT_PATH: &str = ".";
 
-async fn query_accounts(conf: Config, addresses: Vec<String>, fields: &str) -> Result<Vec<Value>, String> {
-    let ton = create_client_verbose(&conf)?;
+async fn query_accounts(config: &Config, addresses: Vec<String>, fields: &str) -> Result<Vec<Value>, String> {
+    let ton = create_client_verbose(&config)?;
 
-    if !conf.is_json {
+    if !config.is_json {
         println!("Processing...");
     }
 
@@ -67,9 +67,9 @@ async fn query_accounts(conf: Config, addresses: Vec<String>, fields: &str) -> R
     Ok(res)
 }
 
-pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<&str>, dumpboc: Option<&str>) -> Result<(), String> {
-    let accounts = query_accounts(conf.clone(), addresses.clone(), ACCOUNT_FIELDS).await?;
-    if !conf.is_json {
+pub async fn get_account(config: &Config, addresses: Vec<String>, dumpfile: Option<&str>, dumpboc: Option<&str>) -> Result<(), String> {
+    let accounts = query_accounts(&config, addresses.clone(), ACCOUNT_FIELDS).await?;
+    if !config.is_json {
         println!("Succeeded.");
     }
     let mut found_addresses = vec![];
@@ -84,7 +84,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                 let balance =
                     if bal.is_some() {
                         let bal = bal.unwrap();
-                        if conf.balance_in_tons {
+                        if config.balance_in_tons {
                             let bal = u64::from_str_radix(bal, 10)
                                 .map_err(|e| format!("failed to decode balance: {}", e))?;
                             let int_bal = bal as f64 / 1e9;
@@ -98,7 +98,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                                 .collect::<Vec<String>>()
                                 .join(" "),
                                     frac_balance,
-                                    if conf.is_json {
+                                    if config.is_json {
                                         ""
                                     } else {
                                         " ton"
@@ -106,7 +106,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                             )
                         } else {
                             format!("{}{}", bal,
-                                    if conf.is_json {
+                                    if config.is_json {
                                         ""
                                     } else {
                                         " nanoton"
@@ -125,7 +125,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                     "null".to_owned()
                 };
                 let code_hash = acc["code_hash"].as_str().unwrap_or("null").to_owned();
-                if conf.is_json {
+                if config.is_json {
                     json_res[address.clone()] = json_account(
                         Some(acc_type),
                         Some(address.clone()),
@@ -138,7 +138,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                     );
                 } else {
                     print_account(
-                        &conf,
+                        &config,
                         Some(acc_type),
                         Some(address.clone()),
                         Some(balance),
@@ -149,18 +149,18 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                         None,
                     );
                 }
-            } else if conf.is_json {
+            } else if config.is_json {
                 json_res[address.clone()] = json_account(Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
             } else {
-                print_account(&conf, Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
+                print_account(&config, Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
             }
-            if !conf.is_json {
+            if !config.is_json {
                 println!();
             }
         }
         for address in addresses.iter() {
             if !found_addresses.contains(address) {
-                if conf.is_json {
+                if config.is_json {
                     json_res[address.clone()] = json!({
                        "acc_type": "NonExist"
                     });
@@ -170,14 +170,18 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                 }
             }
         }
-        if conf.is_json {
+        if config.is_json {
             println!("{}", serde_json::to_string_pretty(&json_res)
                 .map_err(|e| format!("Failed to serialize result: {}", e))?);
         }
-    } else if conf.is_json {
+    } else if config.is_json {
         println!("{{\n}}");
     } else {
-        println!("Account not found.");
+        if config.is_json {
+            println!("{{\n}}");
+        } else {
+            println!("Account not found.");
+        }
     }
 
     if dumpfile.is_some() || dumpboc.is_some() && addresses.len() == 1 && accounts.len() == 1 {
@@ -194,14 +198,14 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
             } else {
                 return Err("account doesn't contain state init.".to_owned());
             }
-            if !conf.is_json {
+            if !config.is_json {
                 println!("Saved contract to file {}", &dumpfile.unwrap());
             }
         }
         if dumpboc.is_some() {
             account.write_to_file(dumpboc.unwrap())
                 .map_err(|e| format!("failed to write data to the file {}: {}", dumpboc.unwrap(), e))?;
-            if !conf.is_json {
+            if !config.is_json {
                 println!("Saved account to file {}", &dumpboc.unwrap());
             }
         }
@@ -209,10 +213,10 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
     Ok(())
 }
 
-pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+pub async fn calc_storage(config: &Config, addr: &str, period: u32) -> Result<(), String> {
+    let ton = create_client_verbose(&config)?;
 
-    if !conf.is_json {
+    if !config.is_json {
         println!("Processing...");
     }
 
@@ -230,7 +234,7 @@ pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), S
         }
     ).await.map_err(|e| format!("failed to calculate storage fee: {}", e))?;
 
-    if !conf.is_json {
+    if !config.is_json {
         println!("Storage fee per {} seconds: {} nanotons", period, res.fee);
     } else {
         println!("{{");
@@ -241,8 +245,8 @@ pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), S
     Ok(())
 }
 
-pub async fn dump_accounts(conf:Config, addresses: Vec<String>, path: Option<&str>) -> Result<(), String> {
-    let accounts = query_accounts(conf.clone(), addresses.clone(), "id boc").await?;
+pub async fn dump_accounts(config: &Config, addresses: Vec<String>, path: Option<&str>) -> Result<(), String> {
+    let accounts = query_accounts(&config, addresses.clone(), "id boc").await?;
     let mut addresses = addresses.clone();
     check_dir(path.unwrap_or(""))?;
     for account in accounts.iter() {
@@ -262,12 +266,12 @@ pub async fn dump_accounts(conf:Config, addresses: Vec<String>, path: Option<&st
             .map_err(|e| format!("Failed to load account from the boc: {}", e))?
             .write_to_file(path.clone())
             .map_err(|e| format!("Failed to write data to the file {}: {}", path.clone(), e))?;
-        if !conf.is_json {
+        if !config.is_json {
             println!("{} successfully dumped.", path);
         }
     }
 
-    if !conf.is_json {
+    if !config.is_json {
         if !addresses.is_empty() {
             for address in addresses.iter() {
                 println!("{} was not found.", address);

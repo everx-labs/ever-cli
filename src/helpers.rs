@@ -22,7 +22,7 @@ use ton_client::crypto::{CryptoConfig, KeyPair};
 use ton_client::error::ClientError;
 use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection};
 use ton_client::{ClientConfig, ClientContext};
-use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit};
+use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
 use std::str::FromStr;
 use serde_json::Value;
 
@@ -31,6 +31,9 @@ const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
 
 pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
+
+pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
+pub const TRACE_PATH: &str = "./trace.log";
 
 struct SimpleLogger;
 
@@ -61,9 +64,9 @@ pub fn read_keys(filename: &str) -> Result<KeyPair, String> {
     Ok(keys)
 }
 
-pub fn load_ton_address(addr: &str, conf: &Config) -> Result<String, String> {
+pub fn load_ton_address(addr: &str, config: &Config) -> Result<String, String> {
     let addr = if addr.find(':').is_none() {
-        format!("{}:{}", conf.wc, addr)
+        format!("{}:{}", config.wc, addr)
     } else {
         addr.to_owned()
     };
@@ -92,11 +95,15 @@ pub fn create_client_local() -> Result<TonClient, String> {
     Ok(Arc::new(cli))
 }
 
-pub fn create_client(conf: &Config) -> Result<TonClient, String> {
+pub fn create_client(config: &Config) -> Result<TonClient, String> {
+    if !config.is_json {
+        println!("Connecting to:\n\tUrl: {}", config.url);
+        println!("\tEndpoints: {:?}\n", config.endpoints);
+    }
     let cli_conf = ClientConfig {
         abi: AbiConfig {
-            workchain: conf.wc,
-            message_expiration_timeout: conf.lifetime * 1000,
+            workchain: config.wc,
+            message_expiration_timeout: config.lifetime * 1000,
             message_expiration_timeout_grow_factor: 1.3,
         },
         crypto: CryptoConfig {
@@ -105,17 +112,17 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             hdkey_derivation_path: HD_PATH.to_string(),
         },
         network: ton_client::net::NetworkConfig {
-            server_address: Some(conf.url.to_owned()),
-            endpoints: if conf.endpoints.is_empty() {
+            server_address: Some(config.url.to_owned()),
+            endpoints: if config.endpoints.is_empty() {
                     None
                 } else {
-                    Some(conf.endpoints.to_owned())
+                    Some(config.endpoints.to_owned())
                 },
             // network_retries_count: 3,
-            message_retries_count: conf.retries as i8,
+            message_retries_count: config.retries as i8,
             message_processing_timeout: 30000,
-            wait_for_timeout: conf.timeout,
-            out_of_sync_threshold: conf.out_of_sync_threshold * 1000,
+            wait_for_timeout: config.timeout,
+            out_of_sync_threshold: config.out_of_sync_threshold * 1000,
             // max_reconnect_timeout: 1000,
             ..Default::default()
         },
@@ -126,12 +133,7 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
     Ok(Arc::new(cli))
 }
 
-pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
-    if !conf.is_json {
-        println!("Connecting to:\n\tUrl: {}", conf.url);
-        println!("\tEndpoints: {:?}\n", conf.endpoints);
-    }
-
+pub fn create_client_verbose(config: &Config) -> Result<TonClient, String> {
     let level = if std::env::var("RUST_LOG")
         .unwrap_or_default()
         .eq_ignore_ascii_case("debug")
@@ -143,8 +145,7 @@ pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
     log::set_max_level(level);
     log::set_boxed_logger(Box::new(SimpleLogger))
         .map_err(|e| format!("failed to init logger: {}", e))?;
-
-    create_client(conf)
+    create_client(config)
 }
 
 pub async fn query_with_limit(
@@ -427,4 +428,53 @@ pub fn check_dir(path: &str) -> Result<(), String> {
             .map_err(|e| format!("Failed to create folder {}: {}", path, e))?;
     }
     Ok(())
+}
+
+#[derive(PartialEq)]
+pub enum AccountSource {
+    NETWORK,
+    BOC,
+    TVC,
+}
+
+pub async fn load_account(
+    source_type: &AccountSource,
+    source: &str,
+    ton_client: Option<TonClient>,
+    config: &Config
+) -> Result<(Account, String), String> {
+    match source_type {
+        AccountSource::NETWORK => {
+            let ton_client = match ton_client {
+                Some(ton_client) => ton_client,
+                None => {
+                    create_client(&config)?
+                }
+            };
+            let boc = query_account_field(ton_client.clone(),source, "boc").await?;
+            Ok((Account::construct_from_base64(&boc)
+                .map_err(|e| format!("Failed to construct account: {}", e))?,
+                boc))
+        },
+        _ => {
+            let account = if source_type == &AccountSource::BOC {
+                Account::construct_from_file(source)
+                    .map_err(|e| format!(" failed to load account from the file {}: {}", source, e))?
+            } else {
+                construct_account_from_tvc(source, None, None)?
+            };
+            let account_bytes = account.write_to_bytes()
+                .map_err(|e| format!(" failed to load data from the account: {}", e))?;
+            Ok((account, base64::encode(&account_bytes)))
+        },
+    }
+}
+
+pub fn load_debug_info(abi: &str) -> Option<String> {
+    let mut path = abi.trim_end_matches(".json").trim_end_matches(".abi").to_string();
+    path.push_str(".dbg.json");
+    if std::path::Path::new(&path).exists() {
+        return Some(path);
+    }
+    None
 }

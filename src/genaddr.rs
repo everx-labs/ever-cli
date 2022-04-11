@@ -19,7 +19,7 @@ use crate::crypto::{gen_seed_phrase, generate_keypair_from_mnemonic};
 use ton_client::utils::{convert_address, ParamsOfConvertAddress, AddressStringFormat};
 
 pub async fn generate_address(
-    conf: Config,
+    config: &Config,
     tvc: &str,
     abi: &str,
     wc_str: Option<&str>,
@@ -57,7 +57,7 @@ pub async fn generate_address(
     let wc = wc_str.map(|wc| i32::from_str_radix(wc, 10))
         .transpose()
         .map_err(|e| format!("failed to parse workchain id: {}", e))?
-        .unwrap_or(conf.wc);
+        .unwrap_or(config.wc);
 
     let addr = calc_acc_address(
         &contract,
@@ -84,7 +84,7 @@ pub async fn generate_address(
         };
 
         update_contract_state(tvc, &key_bytes, initial_data, &abi_str)?;
-        if !conf.is_json {
+        if !config.is_json {
             println!("TVC file updated");
         }
     }
@@ -96,7 +96,7 @@ pub async fn generate_address(
             .map_err(|e| format!("failed to save the keypair: {}", e))?;
     }
 
-    if !conf.is_json {
+    if !config.is_json {
         println!();
         if !phrase.is_empty() {
             println!(r#"Seed phrase: "{}""#, phrase);
