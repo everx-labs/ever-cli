@@ -90,6 +90,8 @@ tonos-cli <subcommand> -h
   - [9.3. NodeID](#93-nodeid)
   - [9.4. Dump blockchain config](#94-dump-blockchain-config)
   - [9.5. Dump several account states](#95-dump-several-account-states)
+  - [9.6. Wait for account change](#96-account-wait)
+  - [9.7. Make a raw GraphQL query](#97-query-raw)
 - [10. Fetch and replay](#10-fetch-and-replay)
   - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 - [11. Debug commands](#11-debug-commands)
@@ -2198,6 +2200,50 @@ Processing...
 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 was not found.
 0:3333333333333333333333333333333333333333333333333333333333333333 was not found.
 Succeeded.
+```
+
+## 9.6. Wait for an account change
+
+The command `account-wait` waits for the change of the `last_trans_lt` account field. It exits with zero exit code upon success (the field has changed before timeout). Otherwise, it exits with non-zero code.
+
+```bash
+tonos-cli account-wait <address> [--timeout <timeout_in_secs>]
+```
+<address> - address of account to wait for.
+
+<timeout_in_secs> - timeout in seconds (the default is 30).
+
+Example:
+
+```bash
+$ tonos-cli account-wait --timeout 10 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
+...
+Succeeded.
+$ echo $?
+0
+```
+
+## 9.7. Make a raw GraphQL query
+
+The command `query-raw` executes a raw network query by directly calling the `ton_client::net::query_collection` SDK interface.
+
+```bash
+tonos-cli account-wait <collection> <result> [--filter <filter>] [--limit <limit>] [--order <order>]
+```
+
+Please follow relevant SDK documentation to learn about the command's parameters.
+
+Example:
+
+```bash
+$ tonos-cli --json query-raw accounts "id bits cells" --filter '{ "id": { "eq": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13" } }'
+[
+  {
+    "id": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13",
+    "bits": "0x20bc",
+    "cells": "0x25"
+  }
+]
 ```
 
 ## 10. Fetch and replay
