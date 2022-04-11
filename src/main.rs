@@ -41,7 +41,7 @@ mod debug_executor;
 mod run;
 mod message;
 
-use account::{get_account, calc_storage, wait_for_change};
+use account::{get_account, calc_storage, wait_for_change, query_raw};
 use call::{call_contract, call_contract_with_msg, parse_params};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings, App};
 use config::{Config, set_config, clear_config};
@@ -640,6 +640,31 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true)
             .help("Timeout in seconds (the default is 30)."));
 
+    let query_raw = SubCommand::with_name("query-raw")
+        .about("TODO.")
+        .version(&*version_string)
+        .author("TONLabs")
+        .arg(Arg::with_name("COLLECTION")
+            .required(true)
+            .takes_value(true)
+            .help("Collection to query."))
+        .arg(Arg::with_name("RESULT")
+            .required(true)
+            .takes_value(true)
+            .help("Result fields to print."))
+        .arg(Arg::with_name("FILTER")
+            .long("--filter")
+            .takes_value(true)
+            .help("Query filter parameter."))
+        .arg(Arg::with_name("LIMIT")
+            .long("--limit")
+            .takes_value(true)
+            .help("Query limit parameter."))
+        .arg(Arg::with_name("ORDER")
+            .long("--order")
+            .takes_value(true)
+            .help("Query order parameter."));
+
     let fee_cmd = SubCommand::with_name("fee")
         .about("Calculates fees for executing message or account storage fee.")
         .subcommand(SubCommand::with_name("storage")
@@ -844,6 +869,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(config_cmd)
         .subcommand(account_cmd)
         .subcommand(account_wait_cmd)
+        .subcommand(query_raw)
         .subcommand(fee_cmd)
         .subcommand(proposal_cmd)
         .subcommand(create_multisig_command())
@@ -1006,6 +1032,9 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
     if let Some(m) = matches.subcommand_matches("account-wait") {
         return account_wait_command(m, &config).await;
+    }
+    if let Some(m) = matches.subcommand_matches("query-raw") {
+        return query_raw_command(m, &config).await;
     }
     if let Some(m) = matches.subcommand_matches("nodeid") {
         return nodeid_command(m, &config);
@@ -1499,6 +1528,15 @@ async fn account_wait_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     let timeout = matches.value_of("TIMEOUT").unwrap_or("30").parse::<u64>()
         .map_err(|e| format!("failed to parse timeout: {}", e))?;
     wait_for_change(config, &address, timeout).await
+}
+
+async fn query_raw_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let collection = matches.value_of("COLLECTION").unwrap();
+    let filter = matches.value_of("FILTER");
+    let limit = matches.value_of("LIMIT");
+    let order = matches.value_of("ORDER");
+    let result = matches.value_of("RESULT").unwrap();
+    query_raw(config, collection, filter, limit, order, result).await
 }
 
 async fn storage_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
