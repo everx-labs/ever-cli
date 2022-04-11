@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params};
+use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params, load_debug_info};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field, query_with_limit};
@@ -497,13 +497,14 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: &Config) -> Option<String> 
 async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter: bool) -> Result<(), String> {
     let input = matches.value_of("ADDRESS");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
+    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
+        .or(load_debug_info(opt_abi.as_ref().unwrap()));
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
     let sign = matches.value_of("SIGN")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
-    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
     let params = Some(load_params(params.unwrap())?);
