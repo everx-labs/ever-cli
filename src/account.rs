@@ -388,11 +388,11 @@ pub async fn query_raw(
     let context = create_client_verbose(config)?;
 
     let filter = filter.map(|s| serde_json::from_str(s)).transpose()
-        .map_err(|e| format!("Failed to parse filter: {}", e))?;
+        .map_err(|e| format!("Failed to parse filter field: {}", e))?;
     let limit = limit.map(|s| s.parse::<u32>()).transpose()
-        .map_err(|e| format!("Failed to parse filter: {}", e))?;
+        .map_err(|e| format!("Failed to parse limit field: {}", e))?;
     let order = order.map(|s| serde_json::from_str(s)).transpose()
-        .map_err(|e| format!("Failed to parse filter: {}", e))?;
+        .map_err(|e| format!("Failed to parse order field: {}", e))?;
 
     let query = ton_client::net::query_collection(
         context.clone(),
