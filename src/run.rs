@@ -16,7 +16,7 @@ use serde_json::{Map, Value};
 use ton_block::{Account, Deserializable, Message, Serializable};
 use ton_client::abi::{FunctionHeader};
 use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
-use crate::{abi_from_matches_or_config, AccountSource, Config, create_client_local, create_client_verbose, DebugLogger, load_abi, load_account, unpack_alternative_params};
+use crate::{abi_from_matches_or_config, AccountSource, Config, create_client_local, create_client_verbose, DebugLogger, load_abi, load_account, load_params, unpack_alternative_params};
 use crate::call::{print_json_result};
 use crate::debug::execute_debug;
 use crate::helpers::{create_client, load_debug_info, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient, TRACE_PATH};
@@ -90,7 +90,7 @@ pub async fn run(
     let params = if is_alternative {
         unpack_alternative_params(matches, &abi, method)?
     } else {
-        matches.value_of("PARAMS").map(|s| s.to_string())
+        Some(load_params(matches.value_of("PARAMS").unwrap())?)
     };
 
     let abi = load_abi(&abi)?;
