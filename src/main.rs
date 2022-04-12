@@ -641,7 +641,7 @@ async fn main_internal() -> Result <(), String> {
             .help("Timeout in seconds (the default is 30)."));
 
     let query_raw = SubCommand::with_name("query-raw")
-        .about("TODO.")
+        .about("Executes a raw GraphQL query.")
         .version(&*version_string)
         .author("TONLabs")
         .arg(Arg::with_name("COLLECTION")

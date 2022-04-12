@@ -403,7 +403,7 @@ pub async fn query_raw(
             order,
             result: result.to_owned(),
         }
-    ).await.map_err(|e| format!("Failed to query the account: {}", e))?;
+    ).await.map_err(|e| format!("Failed to execute query: {}", e))?;
 
     println!("{:#}", Value::Array(query.result));
     Ok(())

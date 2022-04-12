@@ -2231,7 +2231,7 @@ The command `query-raw` executes a raw network query by directly calling the `to
 tonos-cli account-wait <collection> <result> [--filter <filter>] [--limit <limit>] [--order <order>]
 ```
 
-Please follow relevant SDK documentation to learn about the command's parameters.
+See relevant SDK documentation to learn about the command's parameters.
 
 Example:
 
