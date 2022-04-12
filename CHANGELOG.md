@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.25.5
+
+### New
+ - Fixed a bug with run parameters
+ - Fixed runget
+ - Refactored and improved debug on fail
+ - inverted min_trace flag
+
+
 ## Version: 0.25.4
 
 ### New
