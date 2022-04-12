@@ -39,14 +39,18 @@ pub async fn run_command(matches: &ArgMatches<'_>, config: &Config, is_alternati
         AccountSource::NETWORK
     };
 
-    let ton_client = if config.debug_fail {
-        log::set_max_level(log::LevelFilter::Trace);
-        log::set_boxed_logger(
-            Box::new(DebugLogger::new(TRACE_PATH.to_string()))
-        ).map_err(|e| format!("Failed to set logger: {}", e))?;
-        create_client(&config)?
+    let ton_client = if account_source == AccountSource::NETWORK {
+        if config.debug_fail {
+            log::set_max_level(log::LevelFilter::Trace);
+            log::set_boxed_logger(
+                Box::new(DebugLogger::new(TRACE_PATH.to_string()))
+            ).map_err(|e| format!("Failed to set logger: {}", e))?;
+            create_client(&config)?
+        } else {
+            create_client_verbose(&config)?
+        }
     } else {
-        create_client_verbose(&config)?
+        create_client_local()?
     };
 
     let (account, account_boc) = load_account(
