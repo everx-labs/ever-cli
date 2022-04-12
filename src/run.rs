@@ -182,7 +182,7 @@ fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<Execution
 }
 
 pub async fn run_get_method(config: &Config, addr: &str, method: &str, params: Option<String>, source_type: AccountSource, bc_config: Option<&str>) -> Result<(), String> {
-    let ton = if source_type == AccountSource::NETWORK {
+    let ton = if source_type != AccountSource::NETWORK {
         create_client_verbose(&config)?
     } else {
         create_client_local()?
