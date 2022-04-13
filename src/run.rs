@@ -16,7 +16,7 @@ use serde_json::{Map, Value};
 use ton_block::{Account, Deserializable, Message, Serializable};
 use ton_client::abi::{FunctionHeader};
 use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
-use crate::{abi_from_matches_or_config, AccountSource, Config, create_client_local, create_client_verbose, DebugLogger, load_abi, load_account, unpack_alternative_params};
+use crate::{abi_from_matches_or_config, AccountSource, Config, create_client_local, create_client_verbose, DebugLogger, load_abi, load_account, load_params, unpack_alternative_params};
 use crate::call::{print_json_result};
 use crate::debug::execute_debug;
 use crate::helpers::{create_client, load_debug_info, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient, TRACE_PATH};
@@ -39,14 +39,18 @@ pub async fn run_command(matches: &ArgMatches<'_>, config: &Config, is_alternati
         AccountSource::NETWORK
     };
 
-    let ton_client = if config.debug_fail {
-        log::set_max_level(log::LevelFilter::Trace);
-        log::set_boxed_logger(
-            Box::new(DebugLogger::new(TRACE_PATH.to_string()))
-        ).map_err(|e| format!("Failed to set logger: {}", e))?;
-        create_client(&config)?
+    let ton_client = if account_source == AccountSource::NETWORK {
+        if config.debug_fail {
+            log::set_max_level(log::LevelFilter::Trace);
+            log::set_boxed_logger(
+                Box::new(DebugLogger::new(TRACE_PATH.to_string()))
+            ).map_err(|e| format!("Failed to set logger: {}", e))?;
+            create_client(&config)?
+        } else {
+            create_client_verbose(&config)?
+        }
     } else {
-        create_client_verbose(&config)?
+        create_client_local()?
     };
 
     let (account, account_boc) = load_account(
@@ -90,7 +94,7 @@ pub async fn run(
     let params = if is_alternative {
         unpack_alternative_params(matches, &abi, method)?
     } else {
-        matches.value_of("PARAMS").map(|s| s.to_string())
+        Some(load_params(matches.value_of("PARAMS").unwrap())?)
     };
 
     let abi = load_abi(&abi)?;
@@ -182,7 +186,7 @@ fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<Execution
 }
 
 pub async fn run_get_method(config: &Config, addr: &str, method: &str, params: Option<String>, source_type: AccountSource, bc_config: Option<&str>) -> Result<(), String> {
-    let ton = if source_type != AccountSource::NETWORK {
+    let ton = if source_type == AccountSource::NETWORK {
         create_client_verbose(&config)?
     } else {
         create_client_local()?
