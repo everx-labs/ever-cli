@@ -2233,7 +2233,7 @@ tonos-cli query-raw <collection> <result> [--filter <filter>] [--limit <limit>] 
 
 See relevant SDK documentation to learn about the command's parameters.
 
-Example:
+Examples:
 
 ```bash
 $ tonos-cli --json query-raw accounts "id bits cells" --filter '{ "id": { "eq": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13" } }'
@@ -2244,7 +2244,28 @@ $ tonos-cli --json query-raw accounts "id bits cells" --filter '{ "id": { "eq": 
     "cells": "0x25"
   }
 ]
+
+$ tonos-cli --json query-raw accounts "id bits cells" --order '[ { "path": "balance", "direction": "DESC" } ]' --limit 3
+[
+  {
+    "id": "-1:7777777777777777777777777777777777777777777777777777777777777777",
+    "bits": "0xe635",
+    "cells": "0x6f"
+  },
+  {
+    "id": "0:5a70f26b94d500a5dc25c6f1b19d802beb97b89f702001dc46bfaf08922d4a6f",
+    "bits": "0x87",
+    "cells": "0x1"
+  },
+  {
+    "id": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13",
+    "bits": "0x20ba",
+    "cells": "0x25"
+  }
+]
 ```
+
+For more information and syntax read docs section on [playground](https://ever-live-playground.web.app/).
 
 ## 10. Fetch and replay
 
