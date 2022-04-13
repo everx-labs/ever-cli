@@ -85,6 +85,8 @@ pub struct Config {
     pub local_run: bool,
     #[serde(default = "default_false")]
     pub async_call: bool,
+    #[serde(default = "default_false")]
+    pub debug_fail: bool,
     #[serde(default = "default_endpoints")]
     pub endpoints: Vec<String>,
 }
@@ -119,6 +121,7 @@ impl Default for Config {
             async_call: default_false(),
             endpoints,
             out_of_sync_threshold: default_out_of_sync(),
+            debug_fail: default_false(),
         }
     }
 }
@@ -126,14 +129,14 @@ impl Default for Config {
 impl Config {
     pub fn from_file(path: &str) -> Option<Self> {
         let conf_str = std::fs::read_to_string(path).ok()?;
-        let conf: serde_json::error::Result<FullConfig>  = serde_json::from_str(&conf_str);
-        conf.map(|c| c.config).or_else(|_| serde_json::from_str(&conf_str)).ok()
+        let config: serde_json::error::Result<FullConfig>  = serde_json::from_str(&conf_str);
+        config.map(|c| c.config).or_else(|_| serde_json::from_str(&conf_str)).ok()
     }
 
-    pub fn to_file(path: &str, conf: &Config) -> Result<(), String> {
+    pub fn to_file(&self, path: &str) -> Result<(), String> {
         let mut fconf= FullConfig::from_file(path);
-        fconf.config = conf.to_owned();
-        FullConfig::to_file(path, &fconf)
+        fconf.config = self.clone();
+        fconf.to_file(path)
     }
 }
 
@@ -199,8 +202,8 @@ impl FullConfig {
         serde_json::from_str(&conf_str).ok().unwrap_or(FullConfig::new())
     }
 
-    pub fn to_file(path: &str, fconf: &FullConfig) -> Result<(), String>{
-        let conf_str = serde_json::to_string_pretty(fconf)
+    pub fn to_file(&self, path: &str) -> Result<(), String>{
+        let conf_str = serde_json::to_string_pretty(self)
             .map_err(|_| "failed to serialize config object".to_string())?;
         std::fs::write(path, conf_str).map_err(|e| format!("failed to write config file: {}", e))?;
         Ok(())
@@ -229,7 +232,7 @@ impl FullConfig {
         old_endpoints.append(&mut new_endpoints);
         old_endpoints.sort();
         old_endpoints.dedup();
-        FullConfig::to_file(path, &fconf)
+        fconf.to_file(path)
     }
 
     pub fn remove_endpoint(path: &str, url: &str) -> Result<(), String> {
@@ -238,18 +241,18 @@ impl FullConfig {
             return Err("Endpoints map doesn't contain such url.".to_owned());
         }
         fconf.endpoints_map.remove(url);
-        FullConfig::to_file(path, &fconf)
+        fconf.to_file(path)
     }
 
     pub fn reset_endpoints(path: &str) -> Result<(), String> {
         let mut fconf = FullConfig::from_file(path);
         fconf.endpoints_map = FullConfig::default_map();
-        FullConfig::to_file(path, &fconf)
+        fconf.to_file(path)
     }
 }
 
 pub fn clear_config(
-    mut conf: Config,
+    mut config: Config,
     path: &str,
     url: bool,
     addr: bool,
@@ -265,55 +268,55 @@ pub fn clear_config(
     balance_in_tons: bool,
     local_run: bool,
 ) -> Result<(), String> {
-    let is_json = conf.is_json;
+    let is_json = config.is_json;
     if url {
         let url = default_url();
-        conf.endpoints = FullConfig::default_map()[&url].clone();
-        conf.url = url;
+        config.endpoints = FullConfig::default_map()[&url].clone();
+        config.url = url;
     }
     if addr {
-        conf.addr = None;
+        config.addr = None;
     }
     if wallet {
-        conf.wallet = None;
+        config.wallet = None;
     }
     if abi {
-        conf.abi_path = None;
+        config.abi_path = None;
     }
     if keys {
-        conf.keys_path = None;
+        config.keys_path = None;
     }
     if retries {
-        conf.retries = default_retries();
+        config.retries = default_retries();
     }
     if lifetime {
-        conf.lifetime = default_lifetime();
+        config.lifetime = default_lifetime();
     }
     if timeout {
-        conf.timeout = default_timeout();
+        config.timeout = default_timeout();
     }
     if wc {
-        conf.wc = default_wc();
+        config.wc = default_wc();
     }
     if depool_fee {
-        conf.depool_fee = default_depool_fee();
+        config.depool_fee = default_depool_fee();
     }
     if no_answer {
-        conf.no_answer = default_true();
+        config.no_answer = default_true();
     }
     if balance_in_tons {
-        conf.balance_in_tons = default_false();
+        config.balance_in_tons = default_false();
     }
     if local_run {
-        conf.local_run = default_false();
+        config.local_run = default_false();
     }
 
     if !(url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime
         || no_answer || balance_in_tons || local_run) {
-        conf = Config::default();
+        config = Config::default();
     }
 
-    Config::to_file(path, &conf)?;
+    config.to_file(path)?;
     if !is_json {
         println!("Succeeded.");
     }
@@ -321,7 +324,7 @@ pub fn clear_config(
 }
 
 pub fn set_config(
-    mut conf: Config,
+    mut config: Config,
     path: &str,
     url: Option<&str>,
     addr: Option<&str>,
@@ -340,85 +343,90 @@ pub fn set_config(
     local_run: Option<&str>,
     async_call: Option<&str>,
     out_of_sync_threshold: Option<&str>,
+    debug_fail: Option<&str>,
 ) -> Result<(), String> {
     if let Some(s) = url {
         let resolved_url = resolve_net_name(s).unwrap_or(s.to_owned());
         let empty : Vec<String> = Vec::new();
-        conf.endpoints = FullConfig::get_map(path).get(&resolved_url).unwrap_or(&empty).clone();
-        conf.url = resolved_url;
+        config.endpoints = FullConfig::get_map(path).get(&resolved_url).unwrap_or(&empty).clone();
+        config.url = resolved_url;
     }
     if let Some(s) = addr {
-        conf.addr = Some(s.to_string());
+        config.addr = Some(s.to_string());
     }
     if let Some(s) = wallet {
-        conf.wallet = Some(s.to_string());
+        config.wallet = Some(s.to_string());
     }
     if let Some(s) = pubkey {
-        conf.pubkey = Some(s.to_string());
+        config.pubkey = Some(s.to_string());
     }
     if let Some(s) = abi {
-        conf.abi_path = Some(s.to_string());
+        config.abi_path = Some(s.to_string());
     }
     if let Some(s) = keys {
-        conf.keys_path = Some(s.to_string());
+        config.keys_path = Some(s.to_string());
     }
     if let Some(retries) = retries {
-        conf.retries = u8::from_str_radix(retries, 10)
+        config.retries = u8::from_str_radix(retries, 10)
             .map_err(|e| format!(r#"failed to parse "retries": {}"#, e))?;
     }
     if let Some(lifetime) = lifetime {
-        conf.lifetime = u32::from_str_radix(lifetime, 10)
+        config.lifetime = u32::from_str_radix(lifetime, 10)
             .map_err(|e| format!(r#"failed to parse "lifetime": {}"#, e))?;
-        if conf.lifetime < 2 * conf.out_of_sync_threshold {
-            conf.out_of_sync_threshold = conf.lifetime >> 1;
+        if config.lifetime < 2 * config.out_of_sync_threshold {
+            config.out_of_sync_threshold = config.lifetime >> 1;
         }
     }
     if let Some(timeout) = timeout {
-        conf.timeout = u32::from_str_radix(timeout, 10)
+        config.timeout = u32::from_str_radix(timeout, 10)
             .map_err(|e| format!(r#"failed to parse "timeout": {}"#, e))?;
     }
     if let Some(message_processing_timeout) = message_processing_timeout {
-        conf.message_processing_timeout = u32::from_str_radix(message_processing_timeout, 10)
+        config.message_processing_timeout = u32::from_str_radix(message_processing_timeout, 10)
             .map_err(|e| format!(r#"failed to parse "message_processing_timeout": {}"#, e))?;
     }
     if let Some(wc) = wc {
-        conf.wc = i32::from_str_radix(wc, 10)
+        config.wc = i32::from_str_radix(wc, 10)
             .map_err(|e| format!(r#"failed to parse "workchain id": {}"#, e))?;
     }
     if let Some(depool_fee) = depool_fee {
-        conf.depool_fee = depool_fee.parse::<f32>()
+        config.depool_fee = depool_fee.parse::<f32>()
             .map_err(|e| format!(r#"failed to parse "depool_fee": {}"#, e))?;
     }
-    if conf.depool_fee < 0.5 {
+    if config.depool_fee < 0.5 {
         return Err("Minimal value for depool fee is 0.5".to_string());
     }
     if let Some(no_answer) = no_answer {
-        conf.no_answer = no_answer.parse::<bool>()
+        config.no_answer = no_answer.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "no_answer": {}"#, e))?;
     }
     if let Some(balance_in_tons) = balance_in_tons {
-        conf.balance_in_tons = balance_in_tons.parse::<bool>()
+        config.balance_in_tons = balance_in_tons.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "balance_in_tons": {}"#, e))?;
     }
     if let Some(local_run) = local_run {
-        conf.local_run = local_run.parse::<bool>()
+        config.local_run = local_run.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "local_run": {}"#, e))?;
     }
     if let Some(async_call) = async_call {
-        conf.async_call = async_call.parse::<bool>()
+        config.async_call = async_call.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "async_call": {}"#, e))?;
     }
     if let Some(out_of_sync_threshold) = out_of_sync_threshold {
         let time = u32::from_str_radix(out_of_sync_threshold, 10)
             .map_err(|e| format!(r#"failed to parse "out_of_sync_threshold": {}"#, e))?;
-        if time * 2 > conf.lifetime {
+        if time * 2 > config.lifetime {
             return  Err("\"out_of_sync\" should not exceed 0.5 * \"lifetime\".".to_string());
         }
-        conf.out_of_sync_threshold = time;
+        config.out_of_sync_threshold = time;
+    }
+    if let Some(debug_fail) = debug_fail {
+        config.debug_fail = debug_fail.parse::<bool>()
+            .map_err(|e| format!(r#"failed to parse "debug_fail": {}"#, e))?;
     }
 
-    Config::to_file(path, &conf)?;
-    if !conf.is_json {
+    config.to_file(path)?;
+    if !config.is_json {
         println!("Succeeded.");
     }
     Ok(())

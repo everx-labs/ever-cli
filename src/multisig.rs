@@ -235,7 +235,7 @@ pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
                 .help("Number of confirmations required for executing transaction. Default value is 1.")))
 }
 
-pub async fn multisig_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+pub async fn multisig_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     if let Some(m) = m.subcommand_matches("send") {
         return multisig_send_command(m, config).await;
     }
@@ -245,7 +245,7 @@ pub async fn multisig_command(m: &ArgMatches<'_>, config: Config) -> Result<(), 
     Err("unknown multisig command".to_owned())
 }
 
-async fn multisig_send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn multisig_send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS")
         .ok_or("--addr parameter is not defined".to_string())?;
     let dest = matches.value_of("DEST")
@@ -281,7 +281,7 @@ pub async fn encode_transfer_body(text: &str) -> Result<String, String> {
 }
 
 async fn send(
-    conf: Config,
+    config: &Config,
     addr: &str,
     dest: &str,
     value: &str,
@@ -294,11 +294,11 @@ async fn send(
         "".to_owned()
     };
 
-    send_with_body(conf, addr, dest, value, keys, &body).await
+    send_with_body(config, addr, dest, value, keys, &body).await
 }
 
 pub async fn send_with_body(
-    conf: Config,
+    config: &Config,
     addr: &str,
     dest: &str,
     value: &str,
@@ -314,18 +314,18 @@ pub async fn send_with_body(
     }).to_string();
 
     call::call_contract(
-        conf,
+        config,
         addr,
         MSIG_ABI.to_string(),
         "submitTransaction",
         &params,
         Some(keys.to_owned()),
         false,
-        false,
+        None,
     ).await
 }
 
-async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let keys = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone())
@@ -378,18 +378,19 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
         let params = format!(r#"{{"dest":"{}","amount":"{}"}}"#, address, value);
         call::call_contract_with_client(
             ton.clone(),
-            config.clone(),
+            config,
             LOCAL_GIVER_ADDR,
             LOCAL_GIVER_TRANSFER.to_string(),
             "sendGrams",
             &params,
             None,
             false,
-            false,
+            None,
         ).await?;
     }
 
-    let res = call::process_message(ton.clone(), msg, config.is_json).await;
+    let res = call::process_message(ton.clone(), msg, config).await
+        .map_err(|e| format!("{:#}", e));
 
     if res.is_err() {
         if res.clone().err().unwrap().contains("Account does not exist.") {
