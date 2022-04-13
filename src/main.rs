@@ -592,7 +592,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("DEBUG_FAIL")
             .long("--debug_fail")
             .takes_value(true)
-            .help("When enabled tonos-cli executes debug command on fail of run or call command."))
+            .help("When enabled tonos-cli executes debug command on fail of run or call command. Can be enabled with values 'full' or 'minimal' which set the trace level for debug run and disabled with value 'none'."))
         .arg(Arg::with_name("OUT_OF_SYNC")
             .long("--out_of_sync")
             .takes_value(true)

@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use lazy_static::lazy_static;
 use regex::Regex;
+use crate::debug_executor::TraceLevel;
 
 const TESTNET: &str = "net.ton.dev";
 fn default_url() -> String {
@@ -49,8 +50,10 @@ fn default_lifetime() -> u32 {
 }
 
 fn default_endpoints() -> Vec<String> {
-    return vec!();
+    vec!()
 }
+
+fn default_trace() -> TraceLevel { TraceLevel::None }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -85,8 +88,8 @@ pub struct Config {
     pub local_run: bool,
     #[serde(default = "default_false")]
     pub async_call: bool,
-    #[serde(default = "default_false")]
-    pub debug_fail: bool,
+    #[serde(default = "default_trace")]
+    pub debug_fail: TraceLevel,
     #[serde(default = "default_endpoints")]
     pub endpoints: Vec<String>,
 }
@@ -121,7 +124,7 @@ impl Default for Config {
             async_call: default_false(),
             endpoints,
             out_of_sync_threshold: default_out_of_sync(),
-            debug_fail: default_false(),
+            debug_fail: default_trace(),
         }
     }
 }
@@ -421,8 +424,16 @@ pub fn set_config(
         config.out_of_sync_threshold = time;
     }
     if let Some(debug_fail) = debug_fail {
-        config.debug_fail = debug_fail.parse::<bool>()
-            .map_err(|e| format!(r#"failed to parse "debug_fail": {}"#, e))?;
+        let debug_fail = debug_fail.to_lowercase();
+        config.debug_fail = if debug_fail == "full" {
+            TraceLevel::Full
+        } else if debug_fail == "minimal" {
+            TraceLevel::Minimal
+        } else if debug_fail == "none" {
+            TraceLevel::None
+        } else {
+            return Err(r#"Wrong value for "debug_fail" config."#.to_string())
+        };
     }
 
     config.to_file(path)?;
