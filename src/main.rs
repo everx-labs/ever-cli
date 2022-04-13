@@ -41,7 +41,7 @@ mod debug_executor;
 mod run;
 mod message;
 
-use account::{get_account, calc_storage};
+use account::{get_account, calc_storage, wait_for_change};
 use call::{call_contract, call_contract_with_msg, parse_params};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings, App};
 use config::{Config, set_config, clear_config};
@@ -51,7 +51,7 @@ use decode::{create_decode_command, decode_command};
 use debug::{create_debug_command, debug_command};
 use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
-use helpers::{load_ton_address, load_abi, create_client_local};
+use helpers::{load_ton_address, load_abi, create_client_local, query_raw};
 use genaddr::generate_address;
 use getconfig::{query_global_config, dump_blockchain_config};
 use multisig::{create_multisig_command, multisig_command};
@@ -623,6 +623,42 @@ async fn main_internal() -> Result <(), String> {
             .conflicts_with("DUMPTVC")
             .help("Dumps the whole account state boc to the specified file. Works only if one address was given. Use 'tonos-cli dump account` to dump several accounts."));
 
+    let account_wait_cmd = SubCommand::with_name("account-wait")
+        .setting(AppSettings::AllowLeadingHyphen)
+        .about("Waits for account change (based on last_trans_lt).")
+        .version(&*version_string)
+        .author("TONLabs")
+        .arg(address_arg.clone())
+        .arg(Arg::with_name("TIMEOUT")
+            .long("--timeout")
+            .takes_value(true)
+            .help("Timeout in seconds (default value is 30)."));
+
+    let query_raw = SubCommand::with_name("query-raw")
+        .about("Executes a raw GraphQL query.")
+        .version(&*version_string)
+        .author("TONLabs")
+        .arg(Arg::with_name("COLLECTION")
+            .required(true)
+            .takes_value(true)
+            .help("Collection to query."))
+        .arg(Arg::with_name("RESULT")
+            .required(true)
+            .takes_value(true)
+            .help("Result fields to print."))
+        .arg(Arg::with_name("FILTER")
+            .long("--filter")
+            .takes_value(true)
+            .help("Query filter parameter."))
+        .arg(Arg::with_name("LIMIT")
+            .long("--limit")
+            .takes_value(true)
+            .help("Query limit parameter."))
+        .arg(Arg::with_name("ORDER")
+            .long("--order")
+            .takes_value(true)
+            .help("Query order parameter."));
+
     let fee_cmd = SubCommand::with_name("fee")
         .about("Calculates fees for executing message or account storage fee.")
         .subcommand(SubCommand::with_name("storage")
@@ -826,6 +862,8 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(runget_cmd)
         .subcommand(config_cmd)
         .subcommand(account_cmd)
+        .subcommand(account_wait_cmd)
+        .subcommand(query_raw)
         .subcommand(fee_cmd)
         .subcommand(proposal_cmd)
         .subcommand(create_multisig_command())
@@ -985,6 +1023,12 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         if let Some(m) = matches.subcommand_matches("account") {
             return dump_accounts_command(m, &config).await;
         }
+    }
+    if let Some(m) = matches.subcommand_matches("account-wait") {
+        return account_wait_command(m, &config).await;
+    }
+    if let Some(m) = matches.subcommand_matches("query-raw") {
+        return query_raw_command(m, &config).await;
     }
     if let Some(m) = matches.subcommand_matches("nodeid") {
         return nodeid_command(m, &config);
@@ -1478,6 +1522,23 @@ async fn dump_accounts_command(matches: &ArgMatches<'_>, config: &Config) -> Res
         print_args!(addresses, path);
     }
     dump_accounts(config, formatted_list, path).await
+}
+
+async fn account_wait_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let address = matches.value_of("ADDRESS").unwrap();
+    let address = load_ton_address(address, &config)?;
+    let timeout = matches.value_of("TIMEOUT").unwrap_or("30").parse::<u64>()
+        .map_err(|e| format!("failed to parse timeout: {}", e))?;
+    wait_for_change(config, &address, timeout).await
+}
+
+async fn query_raw_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let collection = matches.value_of("COLLECTION").unwrap();
+    let filter = matches.value_of("FILTER");
+    let limit = matches.value_of("LIMIT");
+    let order = matches.value_of("ORDER");
+    let result = matches.value_of("RESULT").unwrap();
+    query_raw(config, collection, filter, limit, order, result).await
 }
 
 async fn storage_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {

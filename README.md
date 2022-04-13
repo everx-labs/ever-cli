@@ -90,6 +90,8 @@ tonos-cli <subcommand> -h
   - [9.3. NodeID](#93-nodeid)
   - [9.4. Dump blockchain config](#94-dump-blockchain-config)
   - [9.5. Dump several account states](#95-dump-several-account-states)
+  - [9.6. Wait for account change](#96-account-wait)
+  - [9.7. Make a raw GraphQL query](#97-query-raw)
 - [10. Fetch and replay](#10-fetch-and-replay)
   - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 - [11. Debug commands](#11-debug-commands)
@@ -496,7 +498,7 @@ Config: /home/user/tonos-cli.conf.json
 Succeeded.
 Public key: 88c541e9a1c173069c89bcbcc21fa2a073158c1bd21ca56b3eb264bba12d9340
 
-<QR code with key>                                         
+<QR code with key>
 
 ```
 
@@ -775,7 +777,7 @@ Generating external inbound message...
 
 MessageId: c6baac843fefe6b9e8dc3609487a63ef21207e4fdde9ec253b9a47f7f5a88d01
 Expire at: Sat, 08 May 2021 14:52:23 +0300
-Processing... 
+Processing...
 Succeeded.
 Result: {
   "transId": "6959885776551137793"
@@ -834,7 +836,7 @@ Generating external inbound message...
 
 MessageId: a38f37bfbe3c7427c869b3ee97c3b2d7f4421ca1427ace4e7a92f1a61d7ef234
 Expire at: Sat, 08 May 2021 15:10:15 +0300
-Processing... 
+Processing...
 Succeeded.
 Result: {
   "transId": "6959890394123980993"
@@ -909,7 +911,7 @@ tonos-cli runget [--boc] [--tvc] <address> <method> [<params>...] [--bc_config <
 `<params>` - parameters of the called method. Can have multiple values: one for each function parameter.
 Parameters should be specified separately without json wrap and argument names.
 
-`--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config 
+`--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config
 BOC. It can be obtained with [dump blockchain config](#94-dump-blockchain-config) command.
 
 Example:
@@ -960,7 +962,7 @@ tonos-cli run [--boc] [--tvc] [--abi <contract.abi.json>] <account> <method> <pa
 `<contract.abi.json>` - contract interface file.
 
 `<account>` - path to the file with account boc for flag `--boc` or account state init for flag `--tvc`
-(they can be obtained from the network with `account` command). 
+(they can be obtained from the network with `account` command).
 
 `<method>` - the method being called.
 
@@ -972,7 +974,7 @@ BOC. It can be obtained with [dump blockchain config](#94-dump-blockchain-config
 Example:
 
 ```bash
-$ tonos-cli run --boc tests/depool_acc.boc getData '{}' --abi tests/samples/fakeDepool.abi.json 
+$ tonos-cli run --boc tests/depool_acc.boc getData '{}' --abi tests/samples/fakeDepool.abi.json
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
  account: tests/depool_acc.boc
@@ -991,7 +993,7 @@ Result: {
   "value": "1000000000"
 }
 
-$ tonos-cli run --tvc tests/depool_acc.tvc getData '{}' --abi tests/samples/fakeDepool.abi.json 
+$ tonos-cli run --tvc tests/depool_acc.tvc getData '{}' --abi tests/samples/fakeDepool.abi.json
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
  account: tests/depool_acc.boc
@@ -1098,8 +1100,8 @@ Calling method submitTransaction with parameters:
   "allBalance": false,
   "payload": "te6ccgEBAQEAAgAAAA=="
 }
-Processing... 
-Processing... 
+Processing...
+Processing...
 Succeded.
 Result: {
   "transId": "6959904904053506881"
@@ -1210,7 +1212,7 @@ Contract address on blockchain or path to the file with contract's StateInit can
 with options `--addr` and `--tvc` respectively.
 
 ```bash
-$ tonos-cli decode account data --abi tests/test_abi_v2.1.abi.json --tvc tests/decode_fields.tvc 
+$ tonos-cli decode account data --abi tests/test_abi_v2.1.abi.json --tvc tests/decode_fields.tvc
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
      tvc: tests/decode_fields.tvc
@@ -1242,7 +1244,7 @@ StateInit to a separate file if needed.
 tonos-cli decode account boc <boc_file> [--dumptvc <tvc_path>]
 ```
 
-`<boc_file>` - path to the file with BOC of the account. E.g. it can be obtained from  
+`<boc_file>` - path to the file with BOC of the account. E.g. it can be obtained from
 the TON Live.
 `--dumptvc <tvc_path>` - this flag can be specified to dump account StateInit to the <tvc_path> file.
 
@@ -1258,12 +1260,12 @@ balance:       908097175476967754
 last_paid:     1626706323
 last_trans_lt: 246923000003
 code_hash:     4e92716de61d456e58f16e4e867e3e93a7548321eace86301b51c8b80ca6239b
-state_init: 
+state_init:
  split_depth: None
  special: None
  data: te6ccgEBAgEAUAABQZXAaqdD0fkADdZLdUmPEGr0t+dEQjTX3mfqJpiPYYHf4AEAU6AFqBJgJG7Ncw9arsqLrQ5Aoeenp6RgXcbQ7vUibecz0mAAAAAMHrI00A==
  code: te6ccgECFAEAA6EAAib/APSkICLAAZL0oOGK7VNYMPShAwEBCvSkIPShAgAAAgEgBgQB/P9/Ie1E0CDXScIBn9P/0wD0Bfhqf/hh+Gb4Yo4b9AVt+GpwAYBA9A7yvdcL//hicPhjcPhmf/hh4tMAAY4SgQIA1xgg+QFY+EIg+GX5EPKo3iP4QvhFIG6SMHDeuvLgZSHTP9MfNDH4IyEBvvK5IfkAIPhKgQEA9A4gkTHeswUATvLgZvgAIfhKIgFVAcjLP1mBAQD0Q/hqIwRfBNMfAfAB+EdukvI83gIBIAwHAgFYCwgBCbjomPxQCQH++EFujhLtRNDT/9MA9AX4an/4Yfhm+GLe0XBtbwL4SoEBAPSGlQHXCz9/k3BwcOKRII43IyMjbwJvIsgizwv/Ic8LPzExAW8iIaQDWYAg9ENvAjQi+EqBAQD0fJUB1ws/f5NwcHDiAjUzMehfA8iCEHdEx+KCEIAAAACxzwsfIQoAom8iAssf9ADIglhgAAAAAAAAAAAAAAAAzwtmgQOYIs8xAbmWcc9AIc8XlXHPQSHN4iDJcfsAWzDA/44S+ELIy//4Rs8LAPhKAfQAye1U3n/4ZwDFuRar5/8ILdHG3aiaBBrpOEAz+n/6YB6Avw1P/ww/DN8MUcN+gK2/DU4AMAgegd5XuuF//wxOHwxuHwzP/ww8W98I0l5Gcm4/DNxfABo/CFkZf/8I2eFgHwlAPoAZPaqP/wzwAgEgDw0B17sV75NfhBbo4S7UTQ0//TAPQF+Gp/+GH4Zvhi3vpA1w1/ldTR0NN/39cMAJXU0dDSAN/RIiIic8hxzwsBIs8KAHPPQCTPFiP6AoBpz0Byz0AgySL7AF8F+EqBAQD0hpUB1ws/f5NwcHDikSCA4Ako4t+CMiAbuf+EojASEBgQEA9FswMfhq3iL4SoEBAPR8lQHXCz9/k3BwcOICNTMx6F8DXwP4QsjL//hGzwsA+EoB9ADJ7VR/+GcCASAREADHuORhh18ILdHCXaiaGn/6YB6Avw1P/ww/DN8MW9qaPwhfCKQN0kYOG9deXAy/AB8IWRl//wjZ4WAfCUA+gBk9qp8B5B9ghBodo92qfgBGHwhZGX//CNnhYB8JQD6AGT2qj/8M8AIC2hMSAC2vhCyMv/+EbPCwD4SgH0AMntVPgP8gCAB1pwIccAnSLQc9ch1wsAwAGQkOLgIdcNH5LyPOFTEcAAkODBAyKCEP////28sZLyPOAB8AH4R26S8jzeg=
- lib:  
+ lib:
 
 ```
 
@@ -1281,7 +1283,7 @@ tonos-cli decode stateinit [--tvc] [--boc] <input>
 - contract network address otherwise.
 
 ```bash
-$ tonos-cli decode stateinit --boc account.boc 
+$ tonos-cli decode stateinit --boc account.boc
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
    input: account.boc
@@ -1299,7 +1301,7 @@ Decoded data:
   "lib":  ""
 }
 
-$ tonos-cli decode stateinit --tvc fakeDepool.tvc 
+$ tonos-cli decode stateinit --tvc fakeDepool.tvc
 Config: default
 Input arguments:
    input: fakeDepool.tvc
@@ -1368,7 +1370,7 @@ Message body: te6ccgEBAgEAOwABaxMdgs2f4YuqQqYv2R3eNwmIeX4QpHhn7SzubLvRH8ey1BZjaz
 
 To facilitate usage of tonos-cli use commands `callx`, `runx` and `deployx` instead of `call`, `run` and `deploy`.
 These alternative syntax commands have almost the same syntax as classic, but allow to specify address, abi and keys
-options in the config file. Also, this commands allow to skip params option if command doesn't need it.  
+options in the config file. Also, this commands allow to skip params option if command doesn't need it.
 Examples:
 
 ```bash
@@ -1391,7 +1393,7 @@ TONOS-CLI has a built-in DeBot <link to DeBots repo> browser, which is regularly
 To call a DeBot, use the following command:
 
 ```bash
-tonos-cli debot fetch <--debug> <debot_address> 
+tonos-cli debot fetch <--debug> <debot_address>
 ```
 
 `<debot_address>` - address of the DeBot contract.
@@ -1452,7 +1454,7 @@ Generating external inbound message...
 
 MessageId: 62b1420ac98e586f29bf79bc2917a0981bb3f15c4757e8dca65370c19146e327
 Expire at: Thu, 13 May 2021 13:26:06 +0300
-Processing... 
+Processing...
 Succeeded.
 Result: {
   "transId": "0"
@@ -1541,7 +1543,7 @@ Generating external inbound message...
 
 MessageId: bf3cfc02dd8eff3edbd7a70e63ce3e91e61340676bf46c43cf534ccbebc9865a
 Expire at: unknown
-Multisig message processing... 
+Multisig message processing...
 
 Message was successfully sent to the multisig, waiting for message to be sent to the depool...
 
@@ -1549,7 +1551,7 @@ Request was successfully sent to depool.
 
 Waiting for depool answer...
 
-Answer: 
+Answer:
 Id: 453c03c3ad4985330237ed16998e3f7a5b6936c717b2aac753967fd9c03f2926
 Value: 25.489215000
 Created at: 1620907654 (2021-05-13 12:07:34.000)
@@ -1577,7 +1579,7 @@ Generating external inbound message...
 
 MessageId: e1b0aba39233e07daf6a65c2426e273e9d68a75e3b440893251fbce56c6a756d
 Expire at: Thu, 13 May 2021 15:09:43 +0300
-Processing... 
+Processing...
 Succeeded.
 Result: {
   "transId": "0"
@@ -1993,7 +1995,7 @@ Generating external inbound message...
 
 MessageId: 43f45f2590ba3c7afec1974f3a2bcc726f98d8ed0bcf216656ea321606f5bf60
 Expire at: Thu, 13 May 2021 14:17:44 +0300
-Processing... 
+Processing...
 Succeeded.
 Result: {
   "transId": "0"
@@ -2028,7 +2030,7 @@ Generating external inbound message...
 
 MessageId: 903bb44b8286fc679e4cd08178fcaac1fb126519ecf6f7cea5794db7337645c4
 Expire at: Thu, 20 May 2021 12:59:25 +0300
-Processing... 
+Processing...
 Succeeded.
 Result: {
   "transId": "0"
@@ -2047,9 +2049,9 @@ Use the following command:
 tonos-cli proposal create <msig_address> <proposal_address> "<comment>" <path_to_keyfile_or_seed_phrase>
 ```
 
-`<msig_address>` -  address of judge wallet. 
+`<msig_address>` -  address of judge wallet.
 
-`<proposal_address>` - address of proposal contract. 
+`<proposal_address>` - address of proposal contract.
 
 `"<comment>"` - proposal description (max symbols: 382). Should be enclosed in double quotes.
 
@@ -2067,13 +2069,13 @@ Receive proposal transaction ID and use the following command to cast a vote:
 tonos-cli proposal vote <msig_address> <proposal_id> <path_to_keyfile_or_seed_phrase>
 ```
 
-`<msig_address>` - address of judge wallet. 
+`<msig_address>` - address of judge wallet.
 
 `<proposal_id>` - proposal transaction ID.
 
 `"<seed_phrase>"` - path to key file or seed phrase for the judge wallet. Seed phrase should be enclosed in double quotes.
 
-Once the proposal transaction receives the required amount of votes (depends on judge wallet configuration), the transaction is executed and the proposal is considered approved. 
+Once the proposal transaction receives the required amount of votes (depends on judge wallet configuration), the transaction is executed and the proposal is considered approved.
 
 ## 8.3. Decode proposal comment
 
@@ -2200,6 +2202,71 @@ Processing...
 Succeeded.
 ```
 
+## 9.6. Wait for an account change
+
+The command `account-wait` waits for the change of the `last_trans_lt` account field. It exits with zero exit code upon success (the field has changed before timeout). Otherwise, it exits with non-zero code.
+
+```bash
+tonos-cli account-wait <address> [--timeout <timeout_in_secs>]
+```
+<address> - address of account to wait for.
+
+<timeout_in_secs> - timeout in seconds (the default is 30).
+
+Example:
+
+```bash
+$ tonos-cli account-wait --timeout 10 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
+...
+Succeeded.
+$ echo $?
+0
+```
+
+## 9.7. Make a raw GraphQL query
+
+The command `query-raw` executes a raw network query by directly calling the `ton_client::net::query_collection` SDK interface.
+
+```bash
+tonos-cli query-raw <collection> <result> [--filter <filter>] [--limit <limit>] [--order <order>]
+```
+
+See relevant SDK documentation to learn about the command's parameters.
+
+Examples:
+
+```bash
+$ tonos-cli --json query-raw accounts "id bits cells" --filter '{ "id": { "eq": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13" } }'
+[
+  {
+    "id": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13",
+    "bits": "0x20bc",
+    "cells": "0x25"
+  }
+]
+
+$ tonos-cli --json query-raw accounts "id bits cells" --order '[ { "path": "balance", "direction": "DESC" } ]' --limit 3
+[
+  {
+    "id": "-1:7777777777777777777777777777777777777777777777777777777777777777",
+    "bits": "0xe635",
+    "cells": "0x6f"
+  },
+  {
+    "id": "0:5a70f26b94d500a5dc25c6f1b19d802beb97b89f702001dc46bfaf08922d4a6f",
+    "bits": "0x87",
+    "cells": "0x1"
+  },
+  {
+    "id": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13",
+    "bits": "0x20ba",
+    "cells": "0x25"
+  }
+]
+```
+
+For more information and syntax read docs section on [playground](https://ever-live-playground.web.app/).
+
 ## 10. Fetch and replay
 
 These two commands are commonly used in pairs to recover a state of the account at the specific point before a given transaction.
@@ -2239,9 +2306,9 @@ Note 2: to get StateInit (tvc) from Account state use `tonos-cli decode account 
 
 1) Use contract deployer (address in mainnet: `0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64`) to deploy the extracted tvc to the frozen account. Send 1 ton to its address and then run its `deploy` method.
 
-    Example: 
+    Example:
     `tonos-cli --url main.ton.dev call 0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64 deploy --abi deployer.abi.json "{\"stateInit\":\"$(cat state.tvc | base64 -w 0)\",\"value\":500000000,\"dest\":\"-1:618272d6b15fd8f1eaa3cdb61ab9d77ae47ebbfcf7f28d495c727d0e98d523eb\"}"`
-    where `dest` - an address of frozen account, `state.tvc` - extracted account StateInit in step 2. 
+    where `dest` - an address of frozen account, `state.tvc` - extracted account StateInit in step 2.
 
 Deployer.abi.json:
 ```json
@@ -2447,7 +2514,7 @@ This command allows replay transaction on the saved account state. This can be u
 transaction execution on the contract state, whose code was replaced to a new one using TVM_LINKER.
 
 ```bash
-$ tonos-cli debug replay --min_trace --update_state -d 2_StorageClient.dbg.json2 --decode_abi 2_UintStorage.abi.json -o trace2.log 82733d3ddf7cae1d3fa07ec5ce288b7febf3bffd9d229a8e538f62fac10eec3e contract.boc 
+$ tonos-cli debug replay --min_trace --update_state -d 2_StorageClient.dbg.json2 --decode_abi 2_UintStorage.abi.json -o trace2.log 82733d3ddf7cae1d3fa07ec5ce288b7febf3bffd9d229a8e538f62fac10eec3e contract.boc
 Config: default
 Input arguments:
    input: contract.boc
@@ -2475,7 +2542,7 @@ Error: Failed: {
 
 ```
 tonos-cli debug transaction 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 \
---dump_contract -e --min_trace -d <contract>.dbg.json -o trace_old_code.log 
+--dump_contract -e --min_trace -d <contract>.dbg.json -o trace_old_code.log
 ```
 
 4) Explore the output for contract dump:
