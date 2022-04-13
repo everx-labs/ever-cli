@@ -63,7 +63,7 @@ use crate::account::dump_accounts;
 
 use crate::config::FullConfig;
 use crate::debug::DebugLogger;
-use crate::helpers::{AccountSource, create_client_verbose, load_account, load_debug_info};
+use crate::helpers::{AccountSource, create_client_verbose, load_abi_from_tvc, load_account, load_debug_info};
 use crate::message::generate_message;
 use crate::run::{run_command, run_get_method};
 
@@ -323,10 +323,7 @@ async fn main_internal() -> Result <(), String> {
         .version(&*version_string)
         .author("TONLabs")
         .arg(tvc_arg.clone())
-        .arg(Arg::with_name("ABI")
-            .takes_value(true)
-            .required(true)
-            .help("Path to the contract ABI file."))
+        .arg(abi_arg.clone())
         .arg(wc_arg.clone())
         .arg(Arg::with_name("GENKEY")
             .takes_value(true)
@@ -1480,12 +1477,20 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
     let new_keys = matches.is_present("GENKEY") ;
     let init_data = matches.value_of("DATA");
     let update_tvc = matches.is_present("SAVE");
-    let abi = matches.value_of("ABI");
+    let abi = match abi_from_matches_or_config(matches, config) {
+        Ok(abi) => Some(abi),
+        Err(err) => {
+            match load_abi_from_tvc(tvc.clone().unwrap()) {
+                Some(abi) => Some(abi),
+                None => return Err(err)
+            }
+        }
+    };
     let is_update_tvc = if update_tvc { Some("true") } else { None };
     if !config.is_json {
-        print_args!(tvc, wc, keys, init_data, is_update_tvc);
+        print_args!(tvc, abi, wc, keys, init_data, is_update_tvc);
     }
-    generate_address(config, tvc.unwrap(), abi.unwrap(), wc, keys, new_keys, init_data, update_tvc).await
+    generate_address(config, tvc.unwrap(), &abi.unwrap(), wc, keys, new_keys, init_data, update_tvc).await
 }
 
 async fn account_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {

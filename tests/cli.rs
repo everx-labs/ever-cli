@@ -66,6 +66,7 @@ fn generate_key_and_address(
         .arg("--setkey")
         .arg(key_path)
         .arg(tvc_path)
+        .arg("--abi")
         .arg(abi_path)
         .output()
         .expect("Failed to generate address.");
@@ -359,7 +360,6 @@ fn test_genaddr_genkey() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("genaddr")
         .arg("tests/samples/wallet.tvc")
-        .arg("tests/samples/wallet.abi.json")
         .arg("--genkey")
         .arg("tests/samples/wallet.keys.json");
     cmd.assert()
@@ -375,7 +375,6 @@ fn test_genaddr() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("genaddr")
         .arg("tests/samples/wallet.tvc")
-        .arg("tests/samples/wallet.abi.json")
         .arg("--genkey")
         .arg("/dev/null");
     cmd.assert()
@@ -395,7 +394,6 @@ fn test_genaddr_setkey() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("genaddr")
         .arg("tests/samples/wallet.tvc")
-        .arg("tests/samples/wallet.abi.json")
         .arg("--setkey")
         .arg("tests/samples/wallet.keys.json");
     cmd.assert()
@@ -410,7 +408,6 @@ fn test_genaddr_wc() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("genaddr")
         .arg("tests/samples/wallet.tvc")
-        .arg("tests/samples/wallet.abi.json")
         .arg("--wc")
         .arg("-1");
     cmd.assert()
@@ -426,6 +423,7 @@ fn test_genaddr_initdata() -> Result<(), Box<dyn std::error::Error>> {
     fs::copy("tests/data.tvc", "tests/data2.tvc")?;
     cmd.arg("genaddr")
         .arg("tests/data2.tvc")
+        .arg("--abi")
         .arg("tests/data.abi.json")
         .arg("--genkey")
         .arg("key1")
@@ -571,6 +569,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     let out = cmd.arg("genaddr")
         .arg(tvc_path2)
+        .arg("--abi")
         .arg(abi_path)
         .arg("--data")
         .arg(data_str)
@@ -601,7 +600,6 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_genaddr_seed() -> Result<(), Box<dyn std::error::Error>> {
-    let msig_abi = "tests/samples/SafeMultisigWallet.abi.json";
     let msig_tvc = "tests/samples/SafeMultisigWallet.tvc";
     let key_path = "tests/deploy_test.key";
 
@@ -612,7 +610,6 @@ fn test_genaddr_seed() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--setkey")
         .arg(key_path)
         .arg(msig_tvc)
-        .arg(msig_abi)
         .output()
         .expect("Failed to generate address.");
 
@@ -625,7 +622,6 @@ fn test_genaddr_seed() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--setkey")
         .arg(seed)
         .arg(msig_tvc)
-        .arg(msig_abi)
         .output()
         .expect("Failed to generate address.");
 
@@ -1019,7 +1015,6 @@ fn test_depool_0() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--setkey")
         .arg(key_path)
         .arg(depool_tvc)
-        .arg(depool_abi)
         .output()
         .expect("Failed to generate address.");
 
@@ -2213,7 +2208,6 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--setkey")
         .arg(key_path)
         .arg(wallet_tvc)
-        .arg(wallet_abi)
         .output()
         .expect("Failed to generate address.");
 
@@ -2353,7 +2347,7 @@ fn _test_json_output() -> Result<(), Box<dyn std::error::Error>> {
     run_command_and_decode_json(r#"fee storage 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94"#)?;
     run_command_and_decode_json(r#"fee call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGrams {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1111111} --abi tests/samples/giver.abi.json"#)?;
     // run_command_and_decode_json(r#"fetch 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 fakeDepool.msg"#)?;
-    run_command_and_decode_json(r#"genaddr tests/samples/wallet.tvc tests/samples/wallet.abi.json --genkey tests/deploy_test.key"#)?;
+    run_command_and_decode_json(r#"genaddr tests/samples/wallet.tvc --genkey tests/deploy_test.key"#)?;
     run_command_and_decode_json(r#"genphrase"#)?;
     // run_command_and_decode_json(r#"genpubkey "jar denial ozone coil heart tattoo science stay wire about act equip""#)?;
     run_command_and_decode_json(r#"message 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendTransaction {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":1000000000,"bounce":true} --abi tests/samples/wallet.abi.json --raw --output fakeDepool.msg"#)?;
@@ -2396,7 +2390,7 @@ fn _test_json_output() -> Result<(), Box<dyn std::error::Error>> {
     run_command_and_decode_json(r#"dump config 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94.boc"#)?;
     run_command_and_decode_json(r#"fee storage 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a11"#)?;
     run_command_and_decode_json(r#"fee call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 sendGrams {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1111111} --abi tests/samples/giver.abi.json"#)?;
-    run_command_and_decode_json(r#"genaddr tests/account.boc tests/samples/wallet.abi.json --genkey tests/deploy_test.key"#)?;
+    run_command_and_decode_json(r#"genaddr tests/account.boc --abi tests/samples/wallet.abi.json --genkey tests/deploy_test.key"#)?;
     // run_command_and_decode_json(r#"genpubkey "jar denial ozone coil heart tattoo science stay wire about act""#)?;
     run_command_and_decode_json(r#"getconfig 1"#)?;
     run_command_and_decode_json(r#"message 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendansaction {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":1000000000,"bounce":true} --abi tests/samples/wallet.abi.json --raw"#)?;

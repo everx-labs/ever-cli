@@ -544,26 +544,26 @@ Contract address is generated based on contract TVC file and selected keys. To g
 Use the following command to generate the contract address:
 
 ```bash
-tonos-cli genaddr [--genkey|--setkey <keyfile.json>] [--wc <int8>] <contract.tvc> <contract.abi.json>
+tonos-cli genaddr [--genkey|--setkey <keyfile.json>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc>
 ```
 
 - `--genkey <keyfile.json>` - generate new `keyfile.json` key pair file and use it to calculate the contract address.
 
 > Note: if you use --genkey, the corresponding seed phrase will be displayed. Write it down, if you mean to keep using this key pair.
 
+- `--abi <contract.abi.json>` - contract ABI interface file. If not specified tonos-cli can use ABI path from config of obtained from tvc path (for `<contrac>.tvc` checks `<contract>.abi.json`).
 - `--setkey <keyfile.json>` - use already [existing](#33-generate-key-pair-file) `keyfile.json` key pair file to calculate the contract address. Seed phrase cannot be used instead of the file.
 - `--wc <int8>`  ID of the workchain the contract will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
 
-`<contract.tvc>` - compiled smart contract file.
+  `<contract.tvc>` - compiled smart contract file.
 
-`<contract.abi.json>` - contract interface file.
 
 As result the utility displays the new contract address (`Raw address`).
 
 Example ([multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) address generation for the masterchain):
 
 ```bash
-$ tonos-cli genaddr --genkey key.json --wc -1 SafeMultisigWallet.tvc SafeMultisigWallet.abi.json
+$ tonos-cli genaddr --genkey key.json --wc -1 SafeMultisigWallet.tvc --abi SafeMultisigWallet.abi.json
 Config: /home/user/tonos-cli.conf.json
 Input arguments:
      tvc: SafeMultisigWallet.tvc

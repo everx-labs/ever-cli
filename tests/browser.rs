@@ -29,6 +29,7 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
     let out = cmd
         .arg("genaddr")
         .arg(&tvc)
+        .arg("--abi")
         .arg(&abi)
         .arg("--genkey")
         .arg(&keys)
