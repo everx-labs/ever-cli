@@ -2228,7 +2228,7 @@ $ echo $?
 The command `query-raw` executes a raw network query by directly calling the `ton_client::net::query_collection` SDK interface.
 
 ```bash
-tonos-cli account-wait <collection> <result> [--filter <filter>] [--limit <limit>] [--order <order>]
+tonos-cli query-raw <collection> <result> [--filter <filter>] [--limit <limit>] [--order <order>]
 ```
 
 See relevant SDK documentation to learn about the command's parameters.

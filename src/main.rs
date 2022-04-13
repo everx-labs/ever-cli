@@ -41,7 +41,7 @@ mod debug_executor;
 mod run;
 mod message;
 
-use account::{get_account, calc_storage, wait_for_change, query_raw};
+use account::{get_account, calc_storage, wait_for_change};
 use call::{call_contract, call_contract_with_msg, parse_params};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings, App};
 use config::{Config, set_config, clear_config};
@@ -51,7 +51,7 @@ use decode::{create_decode_command, decode_command};
 use debug::{create_debug_command, debug_command};
 use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
-use helpers::{load_ton_address, load_abi, create_client_local};
+use helpers::{load_ton_address, load_abi, create_client_local, query_raw};
 use genaddr::generate_address;
 use getconfig::{query_global_config, dump_blockchain_config};
 use multisig::{create_multisig_command, multisig_command};
@@ -631,14 +631,11 @@ async fn main_internal() -> Result <(), String> {
         .about("Waits for account change (based on last_trans_lt).")
         .version(&*version_string)
         .author("TONLabs")
-        .arg(Arg::with_name("ADDRESS")
-            .required(true)
-            .takes_value(true)
-            .help("Account address."))
+        .arg(address_arg.clone())
         .arg(Arg::with_name("TIMEOUT")
             .long("--timeout")
             .takes_value(true)
-            .help("Timeout in seconds (the default is 30)."));
+            .help("Timeout in seconds (default value is 30)."));
 
     let query_raw = SubCommand::with_name("query-raw")
         .about("Executes a raw GraphQL query.")
