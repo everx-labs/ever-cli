@@ -470,9 +470,22 @@ pub async fn load_account(
     }
 }
 
+
 pub fn load_debug_info(abi: &str) -> Option<String> {
-    let mut path = abi.trim_end_matches(".json").trim_end_matches(".abi").to_string();
-    path.push_str(".dbg.json");
+    check_file_exists(abi, &[".json", ".abi"], ".dbg.json")
+}
+
+pub fn load_abi_from_tvc(tvc: &str) -> Option<String> {
+    check_file_exists(tvc, &[".tvc"], ".abi.json")
+}
+
+pub fn check_file_exists(path: &str, trim: &[&str], ending: &str) -> Option<String> {
+    let mut path = path;
+    for end in trim {
+        path = path.trim_end_matches(end);
+    }
+    let mut path = path.to_string();
+    path.push_str(ending);
     if std::path::Path::new(&path).exists() {
         return Some(path);
     }
