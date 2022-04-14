@@ -31,12 +31,19 @@ use ton_block::GetRepresentationHash;
 use ton_labs_assembler::DbgInfo;
 use std::fs::File;
 use ton_vm::executor::{EngineTraceInfo, EngineTraceInfoType};
+use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 pub enum TraceLevel {
     Full,
     Minimal,
     None
+}
+
+impl TraceLevel {
+    pub fn enabled(&self) -> bool {
+        self != &TraceLevel::None
+    }
 }
 
 pub struct DebugTransactionExecutor {

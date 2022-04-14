@@ -256,15 +256,14 @@ List of available options:
 --addr <ADDR>                                 Contract address.
 --async_call <ASYNC_CALL>                     Disables wait for transaction to appear in the network after call command.
 --balance_in_tons <BALANCE_IN_TONS>           Print balance for account command in tons. If false balance is printed in nanotons.
---depool_fee <DEPOOL_FEE>                     Value added to the message sent to depool to cover it's fees (change will be returned).
+--debug_fail <DEBUG_FAIL>                     When enabled tonos-cli executes debug command on fail of run or call command. Can be enabled with values 'full' or 'minimal' which set the trace level for debug run and disabled with value 'none'.
+--depool_fee <DEPOOL_FEE>                     Value added to the message sent to depool to cover its fees (change will be returned).
 --keys <KEYS>                                 Path to the file with keypair.
---lifetime <LIFETIME>                         Period of time in seconds while message is valid. Change of this parameter may affect "out_of_sync"
-                                              parameter, because "lifetime" should be at least 2 times greater than "out_of_sync".
+--lifetime <LIFETIME>                         Period of time in seconds while message is valid. Change of this parameter may affect "out_of_sync" parameter, because "lifetime" should be at least 2 times greater than "out_of_sync".
 --local_run <LOCAL_RUN>                       Enable preliminary local run before deploy and call commands.
 --message_processing_timeout <MSG_TIMEOUT>    Network message processing timeout in ms.
 --no-answer <NO_ANSWER>                       Flag whether to wait for depool answer when calling a depool function.
---out_of_sync <OUT_OF_SYNC>                   Network connection "out_of_sync_threshold" parameter in seconds. Mind that it cant exceed half of the
-                                              "lifetime" parameter.
+--out_of_sync <OUT_OF_SYNC>                   Network connection "out_of_sync_threshold" parameter in seconds. Mind that it cant exceed half of the "lifetime" parameter.
 --pubkey <PUBKEY>                             User public key. Used by DeBot Browser.
 --retries <RETRIES>                           Number of attempts to call smart contract function if previous attempt was unsuccessful.
 --timeout <TIMEOUT>                           Network `wait_for` timeout in ms.
@@ -276,35 +275,35 @@ List of available options:
 Example:
 
 ```bash
-$ tonos-cli config --url https://main.ton.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600 --delimiters true
-Config: /home/user/tonos-cli.conf.json
+$ tonos-cli config --url https://main.ton.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600 
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Succeeded.
 {
   "url": "main.ton.dev",
-  "wc": 0,
-  "addr": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13",
-  "wallet": "0:0fd085c2457e0f284a96ddbcb746d157d3e796a6b4d6dd3224f38699faf5b8d8",
+  "wc": -1,
+  "addr": null,
+  "wallet": null,
   "pubkey": null,
-  "abi_path": "tests/samples/wallet.abi.json",
-  "keys_path": null,
-  "retries": 5,
-  "timeout": 40000,
+  "abi_path": "SafeMultisigWallet.abi.json",
+  "keys_path": "key.json",
+  "retries": 3,
+  "timeout": 600,
   "message_processing_timeout": 40000,
   "out_of_sync_threshold": 15,
   "is_json": false,
-  "depool_fee": 0.8,
-  "lifetime": 60,
+  "depool_fee": 0.5,
+  "lifetime": 3600,
   "no_answer": true,
   "balance_in_tons": false,
-  "local_run": false,
+  "local_run": true,
   "async_call": false,
+  "debug_fail": "None",
   "endpoints": [
     "https://main2.ton.dev",
     "https://main3.ton.dev",
     "https://main4.ton.dev"
   ]
 }
-
 ```
 
 Some frequently used networks:
@@ -460,6 +459,19 @@ You can force TONOS-CLi to print output in json format. To do so, add `--json` f
 ```bash
 tonos-cli --json <any_subcommand>
 ```
+
+## 2.8. Debug on fail option
+
+You can force TONOS-CLi to debug call and run executions if they fail with error code 414.  
+
+```bash
+tonos-cli config --debug_fail <trace_level>
+```
+
+Possible <trace_level> values:
+- 'full'
+- 'minimal'
+- 'none'
 
 # 3. Cryptographic commands
 

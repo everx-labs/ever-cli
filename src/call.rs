@@ -42,6 +42,7 @@ use std::str::FromStr;
 use serde_json::{Value};
 use ton_client::error::ClientError;
 use crate::debug::{DebugLogger, execute_debug};
+use crate::debug_executor::TraceLevel;
 use crate::message::{EncodedMessage, prepare_message_params, print_encoded_message, unpack_message};
 use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 
@@ -266,7 +267,7 @@ pub async fn call_contract_with_result(
     is_fee: bool,
     dbg_info: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    let ton = if config.debug_fail {
+    let ton = if config.debug_fail.enabled() {
         log::set_max_level(log::LevelFilter::Trace);
         log::set_boxed_logger(
             Box::new(DebugLogger::new(TRACE_PATH.to_string()))
@@ -310,7 +311,7 @@ pub async fn call_contract_with_client(
     let needs_encoded_msg = is_fee ||
         config.async_call ||
         config.local_run ||
-        config.debug_fail;
+        config.debug_fail.enabled();
 
     let message = if needs_encoded_msg {
         let msg = encode_message(ton.clone(), msg_params.clone()).await
@@ -339,7 +340,7 @@ pub async fn call_contract_with_client(
         println!("{}", expire_at.to_rfc2822());
     }
 
-    let dump = if config.debug_fail {
+    let dump = if config.debug_fail.enabled() {
         let acc_boc = query_account_field(
             ton.clone(),
             addr,
@@ -367,7 +368,7 @@ pub async fn call_contract_with_client(
 
     let res = process_message(ton.clone(), msg_params, config).await;
 
-    if config.debug_fail && res.is_err()
+    if config.debug_fail.enabled() && res.is_err()
         && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
         if config.is_json {
             println!("{:#}", res.clone().err().unwrap());
@@ -378,7 +379,7 @@ pub async fn call_contract_with_client(
         let (bc_config, mut account, message, now) = dump.unwrap();
         let message = Message::construct_from_base64(&message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        let _ = execute_debug(Some(bc_config), None, &mut account, Some(&message), (now / 1000) as u32, now,now, dbg_info,false, false).await?;
+        let _ = execute_debug(Some(bc_config), None, &mut account, Some(&message), (now / 1000) as u32, now,now, dbg_info,config.debug_fail == TraceLevel::Full, false).await?;
 
         if !config.is_json {
             println!("Debug finished.");
