@@ -160,15 +160,22 @@ pub async fn run(
     }
 
     let result = result.map_err(|e| format!("{:#}", e))?;
-
-    let res = result.decoded.and_then(|d| d.output)
-        .ok_or("Failed to decode the result. Check that abi matches the contract.")?;
-
     if !config.is_json {
         println!("Succeeded.");
     }
+    if !result.out_messages.is_empty() {
+        let res = result.decoded.and_then(|d| d.output);
+        match res {
+            Some(data) => {
+                print_json_result(data, config)?;
+            },
+            None => {
+                println!("Failed to decode output messages. Check that abi matches the contract.");
+                println!("Messages in base64:\n{:?}", result.out_messages);
+            }
+        }
+    }
 
-    print_json_result(res, config)?;
     Ok(())
 }
 
