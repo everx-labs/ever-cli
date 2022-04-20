@@ -63,7 +63,7 @@ tonos-cli <subcommand> -h
 - [5. DeBot commands](#5-debot-commands)
 - [6. Multisig commands](#6-multisig-commands)
   - [6.1. Send tokens](#61-send-tokens)
-- [6.2. Deploy wallet](#62-deploy-wallet)
+  - [6.2. Deploy wallet](#62-deploy-wallet)
 - [7. DePool commands](#7-depool-commands)
   - [7.1. Configure TONOS-CLI for DePool operations](#71-configure-tonos-cli-for-depool-operations)
   - [7.2. Deposit stakes](#72-deposit-stakes)
@@ -90,8 +90,8 @@ tonos-cli <subcommand> -h
   - [9.3. NodeID](#93-nodeid)
   - [9.4. Dump blockchain config](#94-dump-blockchain-config)
   - [9.5. Dump several account states](#95-dump-several-account-states)
-  - [9.6. Wait for account change](#96-account-wait)
-  - [9.7. Make a raw GraphQL query](#97-query-raw)
+  - [9.6. Wait for account change](#96-wait-for-account-change)
+  - [9.7. Make a raw GraphQL query](#97-make-a-raw-graphql-query)
 - [10. Fetch and replay](#10-fetch-and-replay)
   - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 - [11. Debug commands](#11-debug-commands)
@@ -99,7 +99,8 @@ tonos-cli <subcommand> -h
   - [11.2. Debug call](#112-debug-call)
   - [11.3. Debug run](#113-debug-run)
   - [11.4. Debug replay transaction on the saved account state](#114-debug-replay-transaction-on-the-saved-account-state)
-  - [11.5. HOWTO debug a contract with tonos-cli](#115-howto-debug-a-contract-with-tonos-cli)
+  - [11.5. Debug deploy](#115-debug-deploy)
+  - [11.6. HOWTO debug a contract with tonos-cli](#116-howto-debug-a-contract-with-tonos-cli)
 
 # 1. Installation
 
@@ -2214,16 +2215,17 @@ Processing...
 Succeeded.
 ```
 
-## 9.6. Wait for an account change
+## 9.6. Wait for account change
 
 The command `account-wait` waits for the change of the `last_trans_lt` account field. It exits with zero exit code upon success (the field has changed before timeout). Otherwise, it exits with non-zero code.
 
 ```bash
 tonos-cli account-wait <address> [--timeout <timeout_in_secs>]
 ```
-<address> - address of account to wait for.
 
-<timeout_in_secs> - timeout in seconds (the default is 30).
+`<address>` - address of account to wait for.
+
+`<timeout_in_secs>` - timeout in seconds (the default is 30).
 
 Example:
 
@@ -2539,7 +2541,39 @@ Execution finished.
 Log saved to trace2.log
 ```
 
-## 11.5. HOWTO debug a contract with tonos-cli
+## 11.5. Debug deploy
+
+```bash
+tonos-cli debug deploy [FLAGS] [OPTIONS] <tvc> <params>
+```
+
+FLAGS:
+--full_trace      Flag that changes trace to full version.
+--init_balance    Do not fetch account from the network, but create dummy account with big balance.
+
+OPTIONS:
+--abi <ABI>                       Path to the contract ABI file. Can be specified in the config file.
+-c, --config <CONFIG_PATH>        Path to the file with saved config contract state.
+-d, --dbg_info <DBG_INFO>         Path to the file with debug info.
+--decode_abi <DECODE_ABI>         Path to the ABI file used to decode output messages. Can be specified in the config
+file.
+-o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
+be removed.
+--now <NOW>                       Now timestamp (in milliseconds) for execution. If not set it is equal to the
+current timestamp.
+--sign <SIGN>                     Seed phrase or path to the file with keypair used to sign the message. Can be
+specified in the config.
+--wc <WC>                         Workchain ID
+
+ARGUMENTS:
+`<tvc>`       Path to the tvc file with contract StateInit.
+`<params>`    Constructor arguments.
+
+This command allows user locally emulate contract deploy.
+Command can work with prepared network account or create a dummy one with big balance (if --init_balance flag is
+specified).
+
+## 11.6. HOWTO debug a contract with tonos-cli
 
 1) Call a function that fails.
 2) Explore the error message, look for these strings:
