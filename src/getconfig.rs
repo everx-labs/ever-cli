@@ -227,8 +227,8 @@ master {
   }
 "#;
 
-pub async fn query_global_config(conf: Config, index: Option<&str>) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result<(), String> {
+    let ton = create_client_verbose(&config)?;
 
     let last_key_block_query = query_with_limit(
         ton.clone(),
@@ -239,9 +239,9 @@ pub async fn query_global_config(conf: Config, index: Option<&str>) -> Result<()
         Some(1),
     ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
 
-    if last_key_block_query.len() == 0  ||
+    if last_key_block_query.is_empty()  ||
         last_key_block_query[0]["prev_key_block_seqno"].as_u64() == Some(0) {
-        Err("Key block not found".to_string())?;
+        return Err("Key block not found".to_string());
     }
 
     let config_query = query_with_limit(
@@ -261,30 +261,30 @@ pub async fn query_global_config(conf: Config, index: Option<&str>) -> Result<()
         Some(1),
     ).await.map_err(|e| format!("failed to query master block config: {}", e))?;
 
-    if config_query.len() == 0 {
-        Err("Config was not set".to_string())?;
+    if config_query.is_empty() {
+        return Err("Config was not set".to_string());
     }
 
     match index {
         None => {
-            let config = &config_query[0]["master"]["config"];
-            println!("{}{}", if !conf.is_json {
+            let config_value = &config_query[0]["master"]["config"];
+            println!("{}{}", if !config.is_json {
                 "Config: "
             } else {
                 ""
-            }, serde_json::to_string_pretty(&config)
+            }, serde_json::to_string_pretty(&config_value)
                 .map_err(|e| format!("failed to parse config body from sdk: {}", e))?);
         },
         Some(index) => {
             let _i = i32::from_str_radix(index, 10)
                 .map_err(|e| format!(r#"failed to parse "index": {}"#, e))?;
             let config_name = format!("p{}", index);
-            let config = &config_query[0]["master"]["config"][&config_name];
-            println!("{}{}", if !conf.is_json {
+            let config_value = &config_query[0]["master"]["config"][&config_name];
+            println!("{}{}", if !config.is_json {
                 format!("Config {}: ", config_name)
             } else {
                 "".to_string()
-            }, serde_json::to_string_pretty(&config)
+            }, serde_json::to_string_pretty(&config_value)
                          .map_err(|e| format!("failed to parse config body from sdk: {}", e))?);
         }
     }
@@ -326,8 +326,8 @@ pub async fn gen_update_config_message(
     Ok(())
 }
 
-pub async fn dump_blockchain_config(conf: Config, path: &str) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), String> {
+    let ton = create_client_verbose(&config)?;
 
     let last_key_block_query = query_with_limit(
         ton.clone(),
@@ -338,8 +338,8 @@ pub async fn dump_blockchain_config(conf: Config, path: &str) -> Result<(), Stri
         Some(1),
     ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
 
-    if last_key_block_query.len() == 0 {
-        Err("Key block not found".to_string())?;
+    if last_key_block_query.is_empty() {
+        return Err("Key block not found".to_string());
     }
 
     let block = last_key_block_query[0]["boc"].as_str()
@@ -357,7 +357,7 @@ pub async fn dump_blockchain_config(conf: Config, path: &str) -> Result<(), Stri
         .map_err(|e| format!("Failed to decode BOC: {}", e))?;
     std::fs::write(path, bc_config)
         .map_err(|e| format!("Failed to write data to the file {}: {}", path, e))?;
-    if !conf.is_json {
+    if !config.is_json {
         println!("Config successfully saved to {}", path);
     } else {
         println!("{{}}");

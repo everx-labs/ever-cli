@@ -17,3 +17,6 @@ debot_err.log
 *.keys.json
 
 tests/PipechainTest1.chain
+*.txns
+*.log
+*.boc

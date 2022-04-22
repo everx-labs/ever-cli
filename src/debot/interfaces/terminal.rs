@@ -7,7 +7,7 @@ use crate::convert::convert_token;
 use ton_client::encoding::decode_abi_bigint;
 use std::io::{Read};
 
-pub(super) const ID: &'static str = "8796536366ee21852db56dccb60bc564598b618c865fc50c8b1ab740bba128e3";
+pub(super) const ID: &str = "8796536366ee21852db56dccb60bc564598b618c865fc50c8b1ab740bba128e3";
 
 const ABI: &str = r#"
 {
@@ -134,7 +134,7 @@ impl Terminal {
             yes_no = match val.as_str() {
                 "y" => true,
                 "n" => false,
-                _ => Err(format!("invalid enter"))?,
+                _ => return Err("invalid enter".to_string()),
             };
             Ok(())
         });

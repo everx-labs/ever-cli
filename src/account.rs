@@ -13,7 +13,8 @@
 use crate::helpers::{check_dir, create_client_verbose, json_account, print_account, query_account_field};
 use crate::config::Config;
 use serde_json::{json, Value};
-use ton_client::net::{ParamsOfQueryCollection, query_collection};
+use ton_client::error::ClientError;
+use ton_client::net::{ParamsOfQueryCollection, query_collection, ResultOfSubscription, ParamsOfSubscribeCollection};
 use ton_client::utils::{calc_storage_fee, ParamsOfCalcStorageFee};
 use ton_block::{Account, Deserializable, Serializable};
 
@@ -30,10 +31,10 @@ const ACCOUNT_FIELDS: &str = r#"
 
 const DEFAULT_PATH: &str = ".";
 
-async fn query_accounts(conf: Config, addresses: Vec<String>, fields: &str) -> Result<Vec<Value>, String> {
-    let ton = create_client_verbose(&conf)?;
+async fn query_accounts(config: &Config, addresses: Vec<String>, fields: &str) -> Result<Vec<Value>, String> {
+    let ton = create_client_verbose(&config)?;
 
-    if !conf.is_json {
+    if !config.is_json {
         println!("Processing...");
     }
 
@@ -45,9 +46,9 @@ async fn query_accounts(conf: Config, addresses: Vec<String>, fields: &str) -> R
         }
         let mut filter = json!({ "id": { "eq": addresses[it] } });
         let mut cnt = 1;
-        for i in it..usize::min(addresses.len(), it + 49) {
+        for address in addresses.iter().skip(it).take(50) {
             cnt += 1;
-            filter = json!({ "id": { "eq": addresses[i] },
+            filter = json!({ "id": { "eq": address },
                 "OR": filter
             });
         }
@@ -67,13 +68,13 @@ async fn query_accounts(conf: Config, addresses: Vec<String>, fields: &str) -> R
     Ok(res)
 }
 
-pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<&str>, dumpboc: Option<&str>) -> Result<(), String> {
-    let accounts = query_accounts(conf.clone(), addresses.clone(), ACCOUNT_FIELDS).await?;
-    if !conf.is_json {
+pub async fn get_account(config: &Config, addresses: Vec<String>, dumpfile: Option<&str>, dumpboc: Option<&str>) -> Result<(), String> {
+    let accounts = query_accounts(&config, addresses.clone(), ACCOUNT_FIELDS).await?;
+    if !config.is_json {
         println!("Succeeded.");
     }
     let mut found_addresses = vec![];
-    if accounts.len() != 0 {
+    if !accounts.is_empty() {
         let mut json_res = json!({ });
         for acc in accounts.iter() {
             let address = acc["id"].as_str().unwrap_or("Undefined").to_owned();
@@ -84,7 +85,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                 let balance =
                     if bal.is_some() {
                         let bal = bal.unwrap();
-                        if conf.balance_in_tons {
+                        if config.balance_in_tons {
                             let bal = u64::from_str_radix(bal, 10)
                                 .map_err(|e| format!("failed to decode balance: {}", e))?;
                             let int_bal = bal as f64 / 1e9;
@@ -98,7 +99,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                                 .collect::<Vec<String>>()
                                 .join(" "),
                                     frac_balance,
-                                    if conf.is_json {
+                                    if config.is_json {
                                         ""
                                     } else {
                                         " ton"
@@ -106,7 +107,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                             )
                         } else {
                             format!("{}{}", bal,
-                                    if conf.is_json {
+                                    if config.is_json {
                                         ""
                                     } else {
                                         " nanoton"
@@ -125,7 +126,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                     "null".to_owned()
                 };
                 let code_hash = acc["code_hash"].as_str().unwrap_or("null").to_owned();
-                if conf.is_json {
+                if config.is_json {
                     json_res[address.clone()] = json_account(
                         Some(acc_type),
                         Some(address.clone()),
@@ -138,7 +139,7 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                     );
                 } else {
                     print_account(
-                        &conf,
+                        &config,
                         Some(acc_type),
                         Some(address.clone()),
                         Some(balance),
@@ -149,20 +150,18 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                         None,
                     );
                 }
+            } else if config.is_json {
+                json_res[address.clone()] = json_account(Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
             } else {
-                if conf.is_json {
-                    json_res[address.clone()] = json_account(Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
-                } else {
-                    print_account(&conf, Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
-                }
+                print_account(&config, Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
             }
-            if !conf.is_json {
+            if !config.is_json {
                 println!();
             }
         }
         for address in addresses.iter() {
             if !found_addresses.contains(address) {
-                if conf.is_json {
+                if config.is_json {
                     json_res[address.clone()] = json!({
                        "acc_type": "NonExist"
                     });
@@ -172,12 +171,14 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
                 }
             }
         }
-        if conf.is_json {
+        if config.is_json {
             println!("{}", serde_json::to_string_pretty(&json_res)
                 .map_err(|e| format!("Failed to serialize result: {}", e))?);
         }
+    } else if config.is_json {
+        println!("{{\n}}");
     } else {
-        if conf.is_json {
+        if config.is_json {
             println!("{{\n}}");
         } else {
             println!("Account not found.");
@@ -198,14 +199,14 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
             } else {
                 return Err("account doesn't contain state init.".to_owned());
             }
-            if !conf.is_json {
+            if !config.is_json {
                 println!("Saved contract to file {}", &dumpfile.unwrap());
             }
         }
         if dumpboc.is_some() {
             account.write_to_file(dumpboc.unwrap())
                 .map_err(|e| format!("failed to write data to the file {}: {}", dumpboc.unwrap(), e))?;
-            if !conf.is_json {
+            if !config.is_json {
                 println!("Saved account to file {}", &dumpboc.unwrap());
             }
         }
@@ -213,10 +214,10 @@ pub async fn get_account(conf: Config, addresses: Vec<String>, dumpfile: Option<
     Ok(())
 }
 
-pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+pub async fn calc_storage(config: &Config, addr: &str, period: u32) -> Result<(), String> {
+    let ton = create_client_verbose(&config)?;
 
-    if !conf.is_json {
+    if !config.is_json {
         println!("Processing...");
     }
 
@@ -224,7 +225,7 @@ pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), S
         ton.clone(),
         addr,
         "boc",
-    ).await.map_err(|e| format!("{}", e))?;
+    ).await.map_err(|e| e)?;
 
     let res = calc_storage_fee(
         ton.clone(),
@@ -234,7 +235,7 @@ pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), S
         }
     ).await.map_err(|e| format!("failed to calculate storage fee: {}", e))?;
 
-    if !conf.is_json {
+    if !config.is_json {
         println!("Storage fee per {} seconds: {} nanotons", period, res.fee);
     } else {
         println!("{{");
@@ -245,8 +246,8 @@ pub async fn calc_storage(conf: Config, addr: &str, period: u32) -> Result<(), S
     Ok(())
 }
 
-pub async fn dump_accounts(conf:Config, addresses: Vec<String>, path: Option<&str>) -> Result<(), String> {
-    let accounts = query_accounts(conf.clone(), addresses.clone(), "id boc").await?;
+pub async fn dump_accounts(config: &Config, addresses: Vec<String>, path: Option<&str>) -> Result<(), String> {
+    let accounts = query_accounts(&config, addresses.clone(), "id boc").await?;
     let mut addresses = addresses.clone();
     check_dir(path.unwrap_or(""))?;
     for account in accounts.iter() {
@@ -258,7 +259,7 @@ pub async fn dump_accounts(conf:Config, addresses: Vec<String>, path: Option<&st
             None => { return Err("Query contains an unexpected address.".to_string()); }
         };
 
-        address.replace_range(..address.find(":").unwrap_or(0) + 1, "");
+        address.replace_range(..address.find(':').unwrap_or(0) + 1, "");
         let path = format!("{}/{}.boc", path.unwrap_or(DEFAULT_PATH), address);
         let boc = account["boc"].as_str()
             .ok_or("Failed to parse boc in the query result".to_owned())?;
@@ -266,12 +267,12 @@ pub async fn dump_accounts(conf:Config, addresses: Vec<String>, path: Option<&st
             .map_err(|e| format!("Failed to load account from the boc: {}", e))?
             .write_to_file(path.clone())
             .map_err(|e| format!("Failed to write data to the file {}: {}", path.clone(), e))?;
-        if !conf.is_json {
+        if !config.is_json {
             println!("{} successfully dumped.", path);
         }
     }
 
-    if !conf.is_json {
+    if !config.is_json {
         if !addresses.is_empty() {
             for address in addresses.iter() {
                 println!("{} was not found.", address);
@@ -282,4 +283,95 @@ pub async fn dump_accounts(conf:Config, addresses: Vec<String>, path: Option<&st
         println!("{{}}");
     }
     Ok(())
+}
+
+lazy_static::lazy_static! {
+    static ref TX: tokio::sync::Mutex<Option<tokio::sync::mpsc::Sender<Result<(), String>>>> =
+        tokio::sync::Mutex::new(None);
+}
+
+async fn terminate(res: Result<(), String>) {
+    let lock = TX.lock().await;
+    let mut tx = lock.as_ref().unwrap().clone();
+    tx.send(res).await.unwrap();
+}
+
+fn extract_last_trans_lt(v: &serde_json::Value) -> Option<&str> {
+    v.as_object()?["last_trans_lt"].as_str()
+}
+
+pub async fn wait_for_change(config: &Config, account_address: &str, wait_secs: u64) -> Result<(), String> {
+    let context = create_client_verbose(config)?;
+
+    let query = ton_client::net::query_collection(
+        context.clone(),
+        ParamsOfQueryCollection {
+            collection: "accounts".to_owned(),
+            filter: Some(serde_json::json!({
+                "id": {
+                    "eq": account_address
+                }
+            })),
+            limit: None,
+            order: None,
+            result: "last_trans_lt".to_owned(),
+        }
+    ).await.map_err(|e| format!("Failed to query the account: {}", e))?;
+
+    let last_trans_lt = extract_last_trans_lt(&query.result[0])
+        .ok_or_else(|| format!("Failed to parse query result: {}", query.result[0]))?;
+
+    let (s, mut r) = tokio::sync::mpsc::channel(1);
+    *TX.lock().await = Some(s);
+
+    let callback = |result: Result<ResultOfSubscription, ClientError>| async {
+        let res = match result {
+            Ok(res) => {
+                if extract_last_trans_lt(&res.result).is_some() {
+                    Ok(())
+                } else {
+                    Err(format!("Can't parse the result: {}", res.result))
+                }
+            }
+            Err(e) => {
+                Err(format!("Client error: {}", e))
+            }
+        };
+        terminate(res).await
+    };
+
+    let subscription = ton_client::net::subscribe_collection(
+        context.clone(),
+        ParamsOfSubscribeCollection {
+            collection: "accounts".to_owned(),
+            filter: Some(serde_json::json!({
+                "id": {
+                    "eq": account_address
+                },
+                "last_trans_lt": {
+                    "gt": last_trans_lt
+                },
+            })),
+            result: "last_trans_lt".to_owned(),
+        },
+        callback
+    ).await.map_err(|e| format!("Failed to subscribe: {}", e))?;
+
+    tokio::spawn(async move {
+        tokio::time::delay_for(std::time::Duration::from_secs(wait_secs)).await;
+        terminate(Err("Timeout".to_owned())).await
+    });
+
+    let res = r.recv().await.ok_or_else(|| "Sender has dropped".to_owned())?;
+    ton_client::net::unsubscribe(context.clone(), subscription).await
+        .map_err(|e| format!("Failed to unsubscribe: {}", e))?;
+
+    if !config.is_json {
+        if res.is_ok() {
+            println!("Succeeded.");
+        }
+    } else {
+        println!("{{}}");
+    }
+    res
 }

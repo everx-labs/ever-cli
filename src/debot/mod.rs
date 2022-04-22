@@ -153,8 +153,6 @@ async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String>
 async fn invoke_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
     load_ton_address(addr.unwrap(), &config)?;
-    let message = m.value_of("MESSAGE").unwrap().to_owned();
-    let mut pipechain = PipeChain::default();
-    pipechain.init_msg = Some(message);
+    let _ = m.value_of("MESSAGE").unwrap().to_owned();
     Ok(())
 }

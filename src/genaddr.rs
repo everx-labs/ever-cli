@@ -14,12 +14,12 @@ use crate::config::Config;
 use crate::helpers::{create_client_local, read_keys, load_abi, calc_acc_address};
 use ed25519_dalek::PublicKey;
 use std::fs::OpenOptions;
-use ton_sdk;
+
 use crate::crypto::{gen_seed_phrase, generate_keypair_from_mnemonic};
 use ton_client::utils::{convert_address, ParamsOfConvertAddress, AddressStringFormat};
 
 pub async fn generate_address(
-    conf: Config,
+    config: &Config,
     tvc: &str,
     abi: &str,
     wc_str: Option<&str>,
@@ -45,7 +45,7 @@ pub async fn generate_address(
         "".to_owned()
     };
 
-    let keys = if phrase.len() != 0 {
+    let keys = if !phrase.is_empty() {
         Some(generate_keypair_from_mnemonic(&phrase)?)
     } else if keys_file.is_some() {
         Some(read_keys(keys_file.unwrap())?)
@@ -57,24 +57,24 @@ pub async fn generate_address(
     let wc = wc_str.map(|wc| i32::from_str_radix(wc, 10))
         .transpose()
         .map_err(|e| format!("failed to parse workchain id: {}", e))?
-        .unwrap_or(conf.wc);
+        .unwrap_or(config.wc);
 
     let addr = calc_acc_address(
         &contract,
         wc,
         if keys.is_some() {
-            Some(keys.clone().unwrap().public.clone())
+            Some(keys.clone().unwrap().public)
         } else {
             None
         },
-        initial_data.clone(),
+        initial_data,
         abi.clone()
     ).await?;
 
     if update_tvc {
         let initial_data = initial_data.map(|s| s.to_string());
         let key_bytes = match keys.as_ref() {
-            Some(ref keys) => {
+            Some(keys) => {
                 hex::decode(&keys.public)
                     .map_err(|e| format!("failed to decode public key: {}", e))?
             }
@@ -84,7 +84,7 @@ pub async fn generate_address(
         };
 
         update_contract_state(tvc, &key_bytes, initial_data, &abi_str)?;
-        if !conf.is_json {
+        if !config.is_json {
             println!("TVC file updated");
         }
     }
@@ -96,9 +96,9 @@ pub async fn generate_address(
             .map_err(|e| format!("failed to save the keypair: {}", e))?;
     }
 
-    if !conf.is_json {
+    if !config.is_json {
         println!();
-        if phrase.len() != 0 {
+        if !phrase.is_empty() {
             println!(r#"Seed phrase: "{}""#, phrase);
         }
         println!("Raw address: {}", addr);
@@ -112,7 +112,7 @@ pub async fn generate_address(
         println!("Succeeded");
     } else {
         let mut res = json!({});
-        if phrase.len() != 0 {
+        if !phrase.is_empty() {
             res["seed_phrase"] = json!(phrase);
         }
         res["raw_address"] = json!(addr);
@@ -136,7 +136,6 @@ fn calc_userfriendly_address(address: &str, bounce: bool, test: bool) -> Result<
         ParamsOfConvertAddress {
             address: address.to_owned(),
             output_format: AddressStringFormat::Base64{ url: true, bounce, test },
-            ..Default::default()
         }
     )
     .map(|r| r.address)

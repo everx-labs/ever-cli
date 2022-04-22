@@ -29,12 +29,19 @@ use ton_block::GetRepresentationHash;
 use ton_labs_assembler::DbgInfo;
 use std::fs::File;
 use ton_vm::executor::{EngineTraceInfo, EngineTraceInfoType};
+use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 pub enum TraceLevel {
     Full,
     Minimal,
     None
+}
+
+impl TraceLevel {
+    pub fn enabled(&self) -> bool {
+        self != &TraceLevel::None
+    }
 }
 
 pub struct DebugTransactionExecutor {
@@ -249,12 +256,9 @@ impl TransactionExecutor for DebugTransactionExecutor {
             Some(phase) => {
                 log::debug!(target: "executor",
                     "action_phase: present: success={}, err_code={}", phase.success, phase.result_code);
-                match phase.status_change {
-                    AccStatusChange::Deleted => {
-                        *account = Account::default();
-                        description.destroyed = true;
-                    },
-                    _ => ()
+                if phase.status_change == AccStatusChange::Deleted {
+                    *account = Account::default();
+                    description.destroyed = true;
                 }
                 !phase.success
             }
@@ -269,7 +273,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
             if !action_phase_processed {
                 log::debug!(target: "executor", "bounce_phase");
                 let my_addr = account.get_addr().unwrap_or(&in_msg.dst().ok_or_else(|| ExecutorError::TrExecutorError(
-                    format!("Or account address or in_msg dst address should be present")
+                    "Or account address or in_msg dst address should be present".to_string()
                 ))?).clone();
                 description.bounce = match self.bounce_phase(
                     msg_balance.clone(),
@@ -296,19 +300,17 @@ impl TransactionExecutor for DebugTransactionExecutor {
             if let Some(TrBouncePhase::Ok(_)) = description.bounce {
                 log::debug!(target: "executor", "restore balance {} => {}", acc_balance.grams, original_acc_balance.grams);
                 acc_balance = original_acc_balance;
-            } else {
-                if account.is_none() && !acc_balance.is_zero()? {
-                    *account = Account::uninit(
-                        in_msg.dst().ok_or(
-                            ExecutorError::TrExecutorError(
-                                "cannot create bounce phase of a new transaction for smart contract".to_string()
-                            )
-                        )?.clone(),
-                        0,
-                        last_paid,
-                        acc_balance.clone()
-                    );
-                }
+            } else if account.is_none() && !acc_balance.is_zero()? {
+                *account = Account::uninit(
+                    in_msg.dst().ok_or(
+                        ExecutorError::TrExecutorError(
+                            "cannot create bounce phase of a new transaction for smart contract".to_string()
+                        )
+                    )?,
+                    0,
+                    last_paid,
+                    acc_balance.clone()
+                );
             }
         }
         if (account.status() == AccountStatus::AccStateUninit) && acc_balance.is_zero()? {
@@ -417,7 +419,7 @@ impl DebugTransactionExecutor {
             if let Some(state_init) = msg.state_init() {
                 libs.push(state_init.libraries().inner());
             }
-            if let Some(reason) = compute_new_state(&mut result_acc, &acc_balance, msg, init_code_hash) {
+            if let Some(reason) = compute_new_state(&mut result_acc, acc_balance, msg, init_code_hash) {
                 if !init_code_hash {
                     *acc = result_acc;
                 }
@@ -453,7 +455,7 @@ impl DebugTransactionExecutor {
         libs.push(state_libs);
 
         if let Some(init_code_hash) = result_acc.init_code_hash() {
-            smc_info.set_init_code_hash(init_code_hash.clone());
+            smc_info.set_init_code_hash(*init_code_hash);
         }
         let mut vm = VMSetup::with_capabilites(code.into(), self.config().capabilites())
             .set_contract_info(smc_info, self.config().raw_config().has_capability(ton_block::GlobalCapabilities::CapInitCodeHash))?
@@ -511,7 +513,7 @@ impl DebugTransactionExecutor {
                     }
                     error_code
                 };
-                vm_phase.exit_arg = match exception.value.as_integer().and_then(|value| value.into(std::i32::MIN..=std::i32::MAX)) {
+                vm_phase.exit_arg = match exception.value.as_integer().and_then(|value| value.into(i32::MIN..=i32::MAX)) {
                     Err(_) | Ok(0) => None,
                     Ok(exit_arg) => Some(exit_arg)
                 };

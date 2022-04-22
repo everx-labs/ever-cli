@@ -4,7 +4,7 @@ use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use super::dinterface::{decode_answer_id, decode_prompt};
 
-const ID: &'static str = "16653eaf34c921467120f2685d425ff963db5cbb5aa676a62a2e33bfc3f6828a";
+const ID: &str = "16653eaf34c921467120f2685d425ff963db5cbb5aa676a62a2e33bfc3f6828a";
 
 pub const ABI: &str = r#"
 {
@@ -58,7 +58,7 @@ impl ConfirmInput {
             yes_no = match val.as_str() {
                 "y" => true,
                 "n" => false,
-                _ => Err(format!("invalid enter"))?,
+                _ => return Err("invalid enter".to_string()),
             };
             Ok(())
         });

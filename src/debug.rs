@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params};
+use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params, load_debug_info};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field, query_with_limit};
@@ -19,22 +19,22 @@ use crate::replay::{
 };
 use std::io::{Write};
 use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction};
-use ton_types::{UInt256, HashmapE};
+use ton_types::{UInt256, HashmapE, Cell};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
-use ton_executor::{ExecuteParams, TransactionExecutor};
+use ton_executor::{BlockchainConfig, ExecuteParams, TransactionExecutor};
 use std::sync::{Arc, atomic::AtomicU64};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDirection};
 use crate::crypto::load_keypair;
 use crate::debug_executor::{DebugTransactionExecutor, TraceLevel};
 use std::fmt;
 
-const DEFAULT_TRACE_PATH: &'static str = "./trace.log";
-const DEFAULT_CONFIG_PATH: &'static str = "config.txns";
-const DEFAULT_CONTRACT_PATH: &'static str = "contract.txns";
+const DEFAULT_TRACE_PATH: &str = "./trace.log";
+const DEFAULT_CONFIG_PATH: &str = "config.txns";
+const DEFAULT_CONTRACT_PATH: &str = "contract.txns";
 const TRANSACTION_QUANTITY: u32 = 10;
 
 
-struct DebugLogger {
+pub struct DebugLogger {
     tvm_trace: String,
 }
 
@@ -132,9 +132,9 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .help("Path to the ABI file used to decode output messages. Can be specified in the config file.");
 
-    let min_trace_arg = Arg::with_name("MIN_TRACE")
-        .long("--min_trace")
-        .help("Flag that changes trace to minimal version.");
+    let full_trace_arg = Arg::with_name("FULL_TRACE")
+        .long("--full_trace")
+        .help("Flag that changes trace to full version.");
 
     let boc_arg = Arg::with_name("BOC")
         .long("--boc")
@@ -185,7 +185,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .arg(method_arg.clone())
         .arg(params_arg.clone())
         .arg(abi_arg.clone())
-        .arg(min_trace_arg.clone())
+        .arg(full_trace_arg.clone())
         .arg(decode_abi_arg.clone())
         .arg(boc_arg.clone())
         .arg(Arg::with_name("TVC")
@@ -216,7 +216,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(contract_path_arg.clone())
             .arg(output_arg.clone())
             .arg(dbg_info_arg.clone())
-            .arg(min_trace_arg.clone())
+            .arg(full_trace_arg.clone())
             .arg(decode_abi_arg.clone())
             .arg(tx_id_arg.clone())
             .arg(dump_config_arg.clone())
@@ -228,7 +228,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(contract_path_arg.clone())
             .arg(output_arg.clone())
             .arg(dbg_info_arg.clone())
-            .arg(min_trace_arg.clone())
+            .arg(full_trace_arg.clone())
             .arg(decode_abi_arg.clone())
             .arg(address_arg.clone())
             .arg(dump_config_arg.clone())
@@ -237,7 +237,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .about("Replay transaction on the saved account state.")
             .arg(output_arg.clone())
             .arg(dbg_info_arg.clone())
-            .arg(min_trace_arg.clone())
+            .arg(full_trace_arg.clone())
             .arg(tx_id_arg.clone())
             .arg(config_path_arg.clone())
             .arg(decode_abi_arg.clone())
@@ -252,7 +252,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(run_cmd)
 }
 
-pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+pub async fn debug_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     if let Some(matches) = matches.subcommand_matches("transaction") {
         return debug_transaction_command(matches, config, false).await;
     }
@@ -271,7 +271,7 @@ pub async fn debug_command(matches: &ArgMatches<'_>, config: Config) -> Result<(
     Err("unknown command".to_owned())
 }
 
-async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_account: bool) -> Result<(), String> {
+async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is_account: bool) -> Result<(), String> {
     let trace_path = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
     let config_path = matches.value_of("CONFIG_PATH");
@@ -283,7 +283,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
         if !config.is_json {
             print_args!(tx_id, trace_path, config_path, contract_path);
         }
-        let address = query_address(tx_id.clone().unwrap(), &config).await?;
+        let address = query_address(tx_id.unwrap(), &config).await?;
         (tx_id.unwrap().to_string(), address)
     } else {
         let address = matches.value_of("ADDRESS");
@@ -304,7 +304,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
             if !config.is_json {
                 println!("Fetching config contract transactions...");
             }
-            fetch(&config.url,CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config).await?;
+            fetch(&config.url, CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config, None, true).await?;
             DEFAULT_CONFIG_PATH
         }
     };
@@ -316,7 +316,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
             if !config.is_json {
                 println!("Fetching contract transactions...");
             }
-            fetch(&config.url, &address, DEFAULT_CONTRACT_PATH, false).await?;
+            fetch(&config.url, &address, DEFAULT_CONTRACT_PATH, false, None, true).await?;
             DEFAULT_CONTRACT_PATH
         }
     };
@@ -330,10 +330,10 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
         Ok(())
     };
 
-    let trace_level = if matches.is_present("MIN_TRACE") {
-        TraceLevel::Minimal
-    } else {
+    let trace_level = if matches.is_present("FULL_TRACE") {
         TraceLevel::Full
+    } else {
+        TraceLevel::Minimal
     };
 
     let mut dump_mask = DUMP_NONE;
@@ -346,51 +346,41 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: Config, is_
     if !config.is_json {
         println!("Replaying the last transactions...");
     }
-    let tr = replay(contract_path, config_path, &tx_id,false, false, false, trace_level, init_logger, debug_info, dump_mask).await?;
+    let tr = replay(
+        contract_path,
+        config_path,
+        &tx_id,
+        false,
+        trace_level,
+        init_logger,
+        debug_info,
+        dump_mask,
+        if is_empty_config { Some(&config) } else { None },
+    ).await?;
 
-    decode_messages(tr.out_msgs, load_decode_abi(matches, config.clone())).await?;
+    decode_messages(tr.out_msgs, load_decode_abi(matches, config)).await?;
     if !config.is_json {
         println!("Log saved to {}.", trace_path);
     }
     Ok(())
 }
 
-async fn construct_bc_config_and_executor(matches: &ArgMatches<'_>, ton_client: TonClient, debug_info: Option<String>, is_min_trace: bool, is_getter: bool) -> Result<Box<DebugTransactionExecutor>, String> {
-    let config_account = match matches.value_of("CONFIG_PATH") {
+fn construct_bc_config(matches: &ArgMatches<'_>) -> Result<Option<BlockchainConfig>, String> {
+    Ok(match matches.value_of("CONFIG_PATH") {
         Some(bc_config) => {
-            Account::construct_from_file(bc_config)
-        }
-        _ => { let acc = query_account_field(
-                ton_client.clone(),
-                CONFIG_ADDR,
-                "boc",
-            ).await?;
-            Account::construct_from_base64(&acc)
-        }
-    }.map_err(|e| format!("Failed to construct config account: {}", e))?;
-    let bc_config = construct_blockchain_config(&config_account)?;
-
-
-    Ok(Box::new(
-        DebugTransactionExecutor::new(
-            bc_config.clone(),
-            debug_info,
-            if is_min_trace {
-                TraceLevel::Minimal
-            } else {
-                TraceLevel::Full
-            },
-            is_getter
-        )
-    ))
+            let config_account = Account::construct_from_file(bc_config)
+                .map_err(|e| format!("Failed to construct config account: {}", e))?;
+            Some(construct_blockchain_config(&config_account)?)
+        },
+        None => None
+    })
 }
 
-
-async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let tx_id = matches.value_of("TX_ID");
     let config_path = matches.value_of("CONFIG_PATH");
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
-    let is_min_trace = matches.is_present("MIN_TRACE");
+    let is_full_trace = matches.is_present("FULL_TRACE");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let input = matches.value_of("INPUT");
     let do_update = matches.is_present("UPDATE_STATE");
@@ -416,51 +406,46 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
     ).await
         .map_err(|e| format!("Failed to query transaction: {}", e))?;
 
-    if trans.result.len() == 0 {
+    if trans.result.is_empty() {
         return Err("Transaction with specified id was not found".to_string());
     }
 
     let trans = trans.result[0].clone();
     let block_lt = trans["block"]["start_lt"].as_str()
-        .ok_or(format!("Failed to parse block_lt."))?;
+        .ok_or("Failed to parse block_lt.".to_string())?;
     let block_lt = u64::from_str_radix(&block_lt[2..], 16)
         .map_err(|e| format!("Failed to convert block_lt: {}", e))?;
     let boc = trans["boc"].as_str()
-        .ok_or(format!("Failed to parse boc."))?;
+        .ok_or("Failed to parse boc.".to_string())?;
 
     let trans = Transaction::construct_from_base64(boc)
         .map_err(|e| format!("Failed to parse transaction: {}", e))?;
-
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, false).await?;
 
     let mut account = Account::construct_from_file(input.unwrap())
         .map_err(|e| format!("Failed to construct account from the file: {}", e))?
         .serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
-    let params = ExecuteParams {
-        state_libs: HashmapE::default(),
-        block_unixtime: trans.now(),
-        block_lt,
-        last_tr_lt: Arc::new(AtomicU64::new(trans.logical_time())),
-        seed_block: UInt256::default(),
-        debug: false,
-        ..ExecuteParams::default()
-    };
-
     let msg = trans.in_msg_cell().map(|c| Message::construct_from_cell(c)
         .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
 
     log::set_max_level(log::LevelFilter::Trace);
     log::set_boxed_logger(
-        Box::new(DebugLogger::new(output.unwrap().to_string().clone()))
+        Box::new(DebugLogger::new(output.unwrap().to_string()))
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
-    let result_trans = executor.execute_with_libs_and_params(
-        msg.as_ref(),
+    let result_trans = execute_debug(
+        construct_bc_config(matches)?,
+        Some(ton_client),
         &mut account,
-        params
-    );
+        msg.as_ref(),
+        trans.now(),
+        block_lt,
+        trans.logical_time(),
+        debug_info,
+        is_full_trace,
+        false
+    ).await;
 
     if do_update && result_trans.is_ok() {
         Account::construct_from_cell(account.clone())
@@ -474,7 +459,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
 
     match result_trans {
         Ok(result_trans) => {
-            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
+            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config)).await?;
             if !config.is_json {
                 println!("Execution finished.");
             }
@@ -491,7 +476,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: Config) ->
     Ok(())
 }
 
-fn load_decode_abi(matches: &ArgMatches<'_>, config: Config) -> Option<String> {
+fn load_decode_abi(matches: &ArgMatches<'_>, config: &Config) -> Option<String> {
     let abi = matches.value_of("DECODE_ABI")
         .map(|s| s.to_owned())
         .or(abi_from_matches_or_config(matches, &config).ok());
@@ -509,16 +494,17 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: Config) -> Option<String> {
     }
 }
 
-async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter: bool) -> Result<(), String> {
+async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter: bool) -> Result<(), String> {
     let input = matches.value_of("ADDRESS");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
+    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
+        .or(load_debug_info(opt_abi.as_ref().unwrap()));
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
     let sign = matches.value_of("SIGN")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
-    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
     let params = Some(load_params(params.unwrap())?);
@@ -527,7 +513,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
         print_args!(input, method, params, sign, opt_abi, output, debug_info);
     }
 
-    let is_min_trace = matches.is_present("MIN_TRACE");
+    let is_full_trace = matches.is_present("FULL_TRACE");
     let ton_client = create_client(&config)?;
     let input = input.unwrap();
     let account = if is_tvc {
@@ -570,7 +556,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
     };
     let msg_params = ParamsOfEncodeMessage {
         abi,
-        address: Some(format!("0:{}", std::iter::repeat("0").take(64).collect::<String>())),  // TODO: add option or get from input
+        address: Some(format!("0:{}", "0".repeat(64))),  // TODO: add option or get from input
         call_set: Some(call_set),
         signer: if keys.is_some() {
             Signer::Keys { keys: keys.unwrap() }
@@ -589,18 +575,6 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
     let message = Message::construct_from_base64(&message.message)
         .map_err(|e| format!("Failed to construct message: {}", e))?;
 
-    let params = ExecuteParams {
-        state_libs: HashmapE::default(),
-        block_unixtime: (now / 1000) as u32,
-        block_lt: now,
-        last_tr_lt: Arc::new(AtomicU64::new(now)),
-        seed_block: UInt256::default(),
-        debug: true,
-        ..ExecuteParams::default()
-    };
-
-    let executor = construct_bc_config_and_executor(matches, ton_client.clone(), debug_info, is_min_trace, is_getter).await?;
-
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
@@ -611,14 +585,22 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: Config, is_getter:
         Box::new(DebugLogger::new(trace_path.clone()))
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
-    let trans = executor.execute_with_libs_and_params(
-        Some(&message),
+    let trans = execute_debug(
+        construct_bc_config(matches)?,
+        Some(ton_client),
         &mut acc_root,
-        params
-    );
+        Some(&message),
+        (now / 1000) as u32,
+        now,
+        now,
+        debug_info,
+        is_full_trace,
+        is_getter,
+    ).await;
+
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config.clone())).await?;
+            decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -687,10 +669,10 @@ struct TrDetails {
 
 impl fmt::Display for TrDetails {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\ttransaction_id: {}\n", self.transaction_id)?;
-        write!(f, "\ttimestamp     : {}\n", self.timestamp)?;
-        write!(f, "\tmessage_type  : {}\n", self.message_type)?;
-        write!(f, "\tsource_address: {}\n", self.source_address)
+        writeln!(f, "\ttransaction_id: {}", self.transaction_id)?;
+        writeln!(f, "\ttimestamp     : {}", self.timestamp)?;
+        writeln!(f, "\tmessage_type  : {}", self.message_type)?;
+        writeln!(f, "\tsource_address: {}", self.source_address)
     }
 }
 
@@ -739,4 +721,59 @@ fn choose_transaction(transactions: Vec<TrDetails>) -> Result<String, String> {
         return Err("Wrong transaction number".to_string());
     }
     Ok(transactions[chosen-1].transaction_id.trim_start_matches(|c| c == '"').trim_end_matches(|c| c == '"').to_string())
+}
+
+pub async fn execute_debug(
+    bc_config: Option<BlockchainConfig>,
+    ton_client: Option<TonClient>,
+    account: &mut Cell,
+    message: Option<&Message>,
+    block_unixtime: u32,
+    block_lt: u64,
+    last_tr_lt: u64,
+    dbg_info: Option<String>,
+    is_full_trace: bool,
+    is_getter: bool,
+) -> Result<Transaction, String> {
+    let bc_config = match bc_config {
+        Some(bc_config) => bc_config,
+        None => {
+            let config_boc = query_account_field(
+                ton_client.unwrap(),
+                CONFIG_ADDR,
+                "boc",
+            ).await?;
+            let config_account = Account::construct_from_base64(&config_boc)
+                .map_err(|e| format!("failed to construct config account: {}", e))?;
+            construct_blockchain_config(&config_account)?
+        }
+    };
+
+    let executor = Box::new(
+        DebugTransactionExecutor::new(
+            bc_config,
+            dbg_info,
+            if is_full_trace {
+                TraceLevel::Full
+            } else {
+                TraceLevel::Minimal
+            },
+            is_getter
+        )
+    );
+    let params = ExecuteParams {
+        state_libs: HashmapE::default(),
+        block_unixtime,
+        block_lt,
+        last_tr_lt: Arc::new(AtomicU64::new(last_tr_lt)),
+        seed_block: UInt256::default(),
+        debug: true,
+        ..ExecuteParams::default()
+    };
+
+    executor.execute_with_libs_and_params(
+        message,
+         account,
+        params
+    ).map_err(|e| format!("Debug failed: {}", e))
 }

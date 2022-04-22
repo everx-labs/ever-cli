@@ -29,6 +29,7 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
     let out = cmd
         .arg("genaddr")
         .arg(&tvc)
+        .arg("--abi")
         .arg(&abi)
         .arg("--genkey")
         .arg(&keys)
@@ -118,7 +119,7 @@ fn test_userinfo() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
-        .write_stdin(format!("y\n"))
+        .write_stdin("y\n".to_string())
         .arg("debot")
         .arg("start")
         .arg(&addr);
@@ -158,7 +159,7 @@ fn test_pipechain_inputs() -> Result<(), Box<dyn std::error::Error>> {
 
     let out_value: serde_json::Value = serde_json::from_slice(&assert.get_output().stdout).unwrap();
     let eq = predicate::eq(return_value);
-    assert_eq!(true,  eq.eval(&out_value["ret1"]));
+    assert!(eq.eval(&out_value["ret1"]));
     // uncomment for debug
     // let out = cmd.get_output();
     // std::io::stdout().lock().write_all(&out.stdout)?;
@@ -169,7 +170,7 @@ fn test_pipechain_inputs() -> Result<(), Box<dyn std::error::Error>> {
 fn test_encryptionboxes() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("sample3")?;
     let (_, _, keys) = get_debot_paths("sample3");
-    
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
         .write_stdin(format!("y\n{}\n{}\n{}", keys, keys, keys))
@@ -186,7 +187,7 @@ fn test_encryptionboxes() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("SecretNaCl works"))
         .stdout(predicate::str::contains("run naclbox"))
         .stdout(predicate::str::contains("NaCl works"));
-    // uncomment for debug 
+    // uncomment for debug
     // let out = cmd.get_output();
     // std::io::stdout().lock().write_all(&out.stdout)?;
     Ok(())
@@ -195,7 +196,7 @@ fn test_encryptionboxes() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_address_input() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("AddressInput")?;
-    
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
         .write_stdin(format!("y\n{}", "0:ea5be6a13f20fcdfddc2c2b0d317dfeab56718249b090767e5940137b7af89f1"))
@@ -213,7 +214,7 @@ fn test_address_input() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_amount_input() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("AmountInput")?;
-    
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
         .write_stdin(format!("y\n{}", "99.456654321"))
@@ -232,7 +233,7 @@ fn test_amount_input() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_confirm_input() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("ConfirmInput")?;
-    
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
         .write_stdin(format!("y\n{}", "y"))
@@ -250,7 +251,7 @@ fn test_confirm_input() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_number_input() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("NumberInput")?;
-    
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
         .write_stdin(format!("y\n{}", "79"))
@@ -268,7 +269,7 @@ fn test_number_input() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_terminal() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("Terminal")?;
-    
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
         .write_stdin(format!("y\n{}", "Test value"))

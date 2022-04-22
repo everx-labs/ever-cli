@@ -18,8 +18,8 @@ pub fn convert_token(amount: &str) -> Result<String, String> {
 }
 
 pub fn convert_amount(amount: &str, decimals: usize) -> Result<String, String> {
-    let parts: Vec<&str> = amount.split(".").collect();
-    if parts.len() >= 1 && parts.len() <= 2 {
+    let parts: Vec<&str> = amount.split('.').collect();
+    if !parts.is_empty() && parts.len() <= 2 {
         let mut result = String::new();
         result += parts[0];
         if parts.len() == 2 {
