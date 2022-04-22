@@ -13,11 +13,12 @@
 use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params, load_debug_info, wc_from_matches_or_config};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field, query_with_limit};
+use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field, query_with_limit, create_client_verbose};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
-use std::io::{Write};
+use std::io::{Write, BufRead};
+use std::collections::{HashSet, HashMap};
 use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction, MsgAddressInt, CurrencyCollection, GasLimitsPrices, ConfigParamEnum};
 use ton_types::{UInt256, HashmapE, Cell, AccountId};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
@@ -302,6 +303,13 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
                 .help("Path to the saved account state.")
                 .required(true)
                 .takes_value(true)))
+        .subcommand(SubCommand::with_name("sequence-diagram")
+            .setting(clap::AppSettings::AllowLeadingHyphen)
+            .about("Produces UML sequence diagram for provided accounts.")
+            .arg(Arg::with_name("ADDRESSES")
+                .required(true)
+                .takes_value(true)
+                .help("File with a list of addresses, one per line.")))
         .subcommand(call_cmd)
         .subcommand(run_cmd)
         .subcommand(deploy_cmd)
@@ -330,7 +338,9 @@ pub async fn debug_command(matches: &ArgMatches<'_>, config: &Config) -> Result<
     if let Some(matches) = matches.subcommand_matches("deploy") {
         return debug_deploy_command(matches, config).await;
     }
-
+    if let Some(matches) = matches.subcommand_matches("sequence-diagram") {
+        return sequence_diagram_command(matches, config).await;
+    }
     Err("unknown command".to_owned())
 }
 
@@ -1163,4 +1173,272 @@ fn generate_callback(matches: Option<&ArgMatches<'_>>, config: &Config) -> Optio
         }
     }
 
+}
+
+const RENDER_NONE: u8    = 0x00;
+const RENDER_GAS: u8     = 0x01;
+
+pub async fn sequence_diagram_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let filename = matches.value_of("ADDRESSES").unwrap();
+    let file = std::fs::File::open(filename)
+        .map_err(|e| format!("Failed to open file: {}", e))?;
+
+    let mut addresses = vec!();
+    let lines = std::io::BufReader::new(file).lines();
+    for line in lines {
+        if let Ok(line) = line {
+            if !line.is_empty() && !line.starts_with('#'){
+                addresses.push(load_ton_address(&line, config)?);
+            }
+        }
+    }
+    if addresses.iter().collect::<HashSet<_>>().len() < addresses.len() {
+        return Err("Addresses are not unique".to_owned())
+    }
+    let mut output = std::fs::File::create(format!("{}.plantuml", filename))
+        .map_err(|e| format!("Failed to create file: {}", e))?;
+    make_sequence_diagram(config, addresses, RENDER_NONE, &mut output).await.map(|res| {
+        println!("{}", res);
+    })
+}
+
+fn infer_address_width(input: &Vec<String>, min_width: usize) -> Result<usize, String> {
+    let max_width = input.iter().fold(0, |acc, item| {
+        std::cmp::max(acc, item.len())
+    });
+    let addresses = input.iter().map(|address|
+        format!("{:>max_width$}", address)
+    ).collect::<Vec<_>>();
+
+    let mut width = min_width;
+    loop {
+        let set = addresses.iter().map(|s| s.split_at(width).1).collect::<HashSet<_>>();
+        if set.len() == addresses.len() {
+            break;
+        }
+        width += 1;
+    }
+    Ok(width)
+}
+
+static ACCOUNT_WIDTH: usize = 8;
+static MESSAGE_WIDTH: usize = 6;
+
+struct TransactionExt {
+    id: String,
+    address: String,
+    tr: Transaction,
+}
+
+async fn fetch_transactions(config: &Config, addresses: &Vec<String>) -> Result<Vec<TransactionExt>, String> {
+    let context = create_client_verbose(config)?;
+    let retry_strategy = tokio_retry::strategy::ExponentialBackoff::from_millis(10).take(5);
+
+    let mut txns = vec!();
+    for address in addresses {
+        let mut lt = String::from("0x0");
+        loop {
+            let action = || async {
+                query_collection(
+                    context.clone(),
+                    ParamsOfQueryCollection {
+                        collection: "transactions".to_owned(),
+                        filter: Some(serde_json::json!({
+                            "account_addr": {
+                                "eq": address.clone()
+                            },
+                            "lt": {
+                                "gt": lt
+                            }
+                        })),
+                        result: "lt boc id workchain_id".to_owned(),
+                        order: Some(vec![
+                            OrderBy { path: "lt".to_owned(), direction: SortDirection::ASC }
+                        ]),
+                        limit: None,
+                    },
+                ).await
+            };
+
+            let transactions = tokio_retry::Retry::spawn(retry_strategy.clone(), action).await
+                .map_err(|e| format!("Failed to fetch transactions: {}", e))?;
+
+            if transactions.result.is_empty() {
+                break;
+            }
+
+            for txn in &transactions.result {
+                let boc = txn["boc"].as_str().unwrap();
+                let id = txn["id"].as_str().unwrap();
+                let workchain_id = txn["workchain_id"].as_i64().unwrap();
+                let txn = Transaction::construct_from_base64(boc)
+                    .map_err(|e| format!("Failed to deserialize txn: {}", e))?;
+                txns.push(TransactionExt {
+                    id: id.to_owned(),
+                    address: format!("{}:{}", workchain_id, txn.account_id().to_hex_string()),
+                    tr: txn,
+                });
+            }
+
+            let last = transactions.result.last().ok_or("Failed to get last txn".to_string())?;
+            lt = last["lt"].as_str().ok_or("Failed to parse value".to_string())?.to_owned();
+        }
+    }
+    txns.sort_by(|tr1, tr2| tr1.tr.logical_time().partial_cmp(&tr2.tr.logical_time()).unwrap());
+    Ok(txns)
+}
+
+fn map_inbound_messages_onto_tr(txns: &Vec<TransactionExt>) -> HashMap<UInt256, Transaction> {
+    let mut map = HashMap::default();
+    for txn in txns {
+        let hash = txn.tr.in_msg.as_ref().unwrap().hash();
+        map.insert(hash, txn.tr.clone());
+    }
+    map
+}
+
+fn sort_outbound_messages(tr: &Transaction, map: &HashMap<UInt256, Transaction>) -> Result<Vec<Message>, String> {
+    let mut messages = vec!();
+    tr.iterate_out_msgs(|msg| {
+        let hash = msg.serialize().unwrap().repr_hash();
+        let lt = if let Some(tr) = map.get(&hash) {
+            tr.logical_time()
+        } else {
+            u64::MAX
+        };
+        messages.push((lt, msg));
+        Ok(true)
+    }).unwrap();
+    messages.sort_by(|(lt1, _), (lt2, _)| lt2.partial_cmp(lt1).unwrap());
+    Ok(messages.iter().map(|(_, v)| v.clone()).collect())
+}
+
+async fn make_sequence_diagram(
+    config: &Config,
+    addresses: Vec<String>,
+    render_flags: u8,
+    output: &mut File
+) -> Result<String, String> {
+    let _name_length = infer_address_width(&addresses, 6)?;
+    let name_length = ACCOUNT_WIDTH;
+
+    let name_map = addresses.iter().enumerate().map(|(index, address)| {
+        (address.clone(), (index, address.split_at(name_length).0.to_owned()))
+    }).collect::<HashMap<String, (usize, String)>>();
+
+    let txns = fetch_transactions(config, &addresses).await?;
+    let inbound_map = map_inbound_messages_onto_tr(&txns);
+
+    let mut url = config.url.replace(".dev", ".live");
+    if !url.starts_with("https://") {
+        url = format!("https://{}", url);
+    }
+
+    let url_account_prefix = format!("{}/accounts/accountDetails?id=", url);
+    let url_message_prefix = format!("{}/messages/messageDetails?id=", url);
+    let url_txn_prefix = format!("{}/transactions/transactionDetails?id=", url);
+
+    writeln!(output, "@startuml").unwrap();
+    for address in addresses {
+        let (index, name) = &name_map[&address];
+        writeln!(output, "participant \"[[{url_account_prefix}{} {}]]\" as {}", address, name, index).unwrap();
+    }
+
+    let mut last_own_index = None;
+    let mut last_tr_id: Option<String> = None;
+    let mut rendered = HashSet::<UInt256>::default();
+    for TransactionExt { id, address, tr } in txns {
+        writeln!(output, "' {}", id).unwrap();
+
+        let is_separate = last_tr_id.as_ref() != Some(&id);
+        let tr_name = id.split_at(MESSAGE_WIDTH).0;
+        let (own_index, _) = &name_map[&address];
+        let in_msg_cell = tr.in_msg.as_ref().unwrap();
+
+        if rendered.insert(in_msg_cell.hash()) || is_separate {
+            let in_msg = in_msg_cell.read_struct().unwrap();
+            let msg_id = in_msg_cell.hash().to_hex_string();
+            let msg_name = msg_id.split_at(MESSAGE_WIDTH).0;
+            if let Some(src) = in_msg.src_ref() { // internal message
+                let src_address = src.to_string();
+                if let Some((src_index, _)) = name_map.get(&src_address) {
+                    // message from an inner account
+                    writeln!(output, "{} ->> {} : m:[[{url_message_prefix}{} {}]]\\nt:[[{url_txn_prefix}{} {}]]",
+                        src_index, own_index, msg_id, msg_name, id, tr_name).unwrap();
+                } else {
+                    // message from an out of the scope account
+                    writeln!(output, "[->> {} : m:[[{url_message_prefix}{} {}]]\\nt:[[{url_txn_prefix}{} {}]]",
+                        own_index, msg_id, msg_name, id, tr_name).unwrap();
+                }
+            } else { // external message
+                assert!(in_msg.is_inbound_external());
+                writeln!(output, "[o->> {} : m:[[{url_message_prefix}{} {}]]\\nt:[[{url_txn_prefix}{} {}]]",
+                    own_index, msg_id, msg_name, id, tr_name).unwrap();
+            }
+        } else if last_own_index == Some(own_index) { // rendered, adjacent, and active participant stays unchanged
+            writeln!(output, "{} [hidden]-> {}", own_index, own_index).unwrap();
+        }
+
+        let desc = tr.read_description().map_err(|e| format!("Failed to read tr desc: {}", e))?;
+        let (tr_color, tr_gas) = match desc.compute_phase_ref() {
+            None | Some(ton_block::TrComputePhase::Skipped(_)) => ("", None),
+            Some(ton_block::TrComputePhase::Vm(tr_compute_phase_vm)) => {
+                let gas = tr_compute_phase_vm.gas_used.to_string();
+                if tr_compute_phase_vm.success {
+                    ("#YellowGreen", Some(gas))
+                } else {
+                    ("#Tomato", Some(gas))
+                }
+            }
+        };
+
+        writeln!(output, "activate {} {}", own_index, tr_color).unwrap();
+        last_tr_id = None;
+        let out_msgs = sort_outbound_messages(&tr, &inbound_map)?;
+        for out_msg in out_msgs {
+            let out_hash = out_msg.serialize().unwrap().repr_hash();
+            let out_id = out_hash.to_hex_string();
+            let out_name = out_id.split_at(MESSAGE_WIDTH).0;
+            if let Some(out_address) = out_msg.dst_ref() { // internal message
+                let out_address = out_address.to_string();
+                if let Some((out_index, _)) = name_map.get(&out_address) {
+                    // message to an inner account
+                    if let Some(tr) = inbound_map.get(&out_hash) {
+                        // message spawns a known transaction
+                        let tr_id =  tr.serialize().unwrap().repr_hash().to_hex_string();
+                        let tr_name = tr_id.split_at(MESSAGE_WIDTH).0;
+                        writeln!(output, "{} ->> {} : m:[[{url_message_prefix}{} {}]]\\nt:[[{url_txn_prefix}{} {}]]",
+                            own_index, out_index, out_id, out_name, tr_id, tr_name).unwrap();
+                        last_tr_id = Some(tr_id);
+                    } else {
+                        // transaction spawned by the message is out of the scope
+                        writeln!(output, "{} ->> {} : m:[[{url_message_prefix}{} {}]]",
+                            own_index, out_index, out_id, out_name).unwrap();
+                    }
+                } else {
+                    // message to an out of the scope account
+                    writeln!(output, "{} ->>] : m:[[{url_message_prefix}{} {}]] to [[{url_account_prefix}{} {}]]",
+                        own_index, out_id, out_name,
+                        out_address, out_address.split_at(ACCOUNT_WIDTH).0).unwrap();
+                }
+            } else { // external message
+                assert!(out_msg.is_outbound_external());
+                writeln!(output, "{} ->>o] : m:[[{url_message_prefix}{} {}]]", own_index, out_id, out_name).unwrap();
+            }
+            rendered.insert(out_hash);
+        }
+        if tr.msg_count() == 0 {
+            writeln!(output, "{} [hidden]-> {}", own_index, own_index).unwrap();
+        }
+        if render_flags & RENDER_GAS != 0 {
+            if let Some(tr_gas) = tr_gas {
+                writeln!(output, "note over {}: {}", own_index, tr_gas).unwrap();
+            }
+        }
+        writeln!(output, "deactivate {}", own_index).unwrap();
+        last_own_index = Some(own_index);
+    }
+
+    writeln!(output, "@enduml").unwrap();
+    Ok("{{}}".to_owned())
 }

@@ -106,6 +106,7 @@ tonos-cli <subcommand> -h
   - [11.4. Debug replay transaction on the saved account state](#114-debug-replay-transaction-on-the-saved-account-state)
   - [11.5. Debug deploy](#115-debug-deploy)
   - [11.6. Debug message](#116-debug-message)
+  - [11.7. Render UML sequence diagram](#117-sequence-diagram)
 
 # 1. Installation
 
@@ -322,7 +323,7 @@ List of available options:
 Example:
 
 ```bash
-$ tonos-cli config --url https://main.ton.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600 
+$ tonos-cli config --url https://main.ton.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Succeeded.
 {
@@ -514,7 +515,7 @@ tonos-cli --json <any_subcommand>
 
 ## 2.8. Debug on fail option
 
-You can force TONOS-CLi to debug call and run executions if they fail with error code 414.  
+You can force TONOS-CLi to debug call and run executions if they fail with error code 414.
 
 ```bash
 tonos-cli config --debug_fail <trace_level>
@@ -2281,10 +2282,10 @@ Dumps the list of accounts. Files will have address without workchain id as a na
 tonos-cli dump account <list_of_addresses> [--path <dir_path>]
 ```
 
-<list_of_addresses> - list of account addresses. Addresses should be specified separately with space delimiter.
+`<list_of_addresses>` - list of account addresses. Addresses should be specified separately with space delimiter.
 Example: `0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 3333333333333333333333333333333333333333333333333333333333333333`.
 
-<dir_path> - path to the directory where to save dumps. Defaults to current directory.
+`<dir_path>` - path to the directory where to save dumps. Defaults to current directory.
 
 Example:
 
@@ -2647,9 +2648,9 @@ OPTIONS:
 -o, --output <LOG_PATH>          Path where to store the trace. Default path is "./trace.log". Note: old file will
                                  be removed.
 
-ARGS:
-<TX_ID>    ID of the transaction that should be replayed.
-<INPUT>    Path to the saved account state.
+ARGUMENTS:
+  `<TX_ID>`    ID of the transaction that should be replayed.
+  `<INPUT>`    Path to the saved account state.
 
 This command allows replay transaction on the saved account state. This can be useful if user wants to check
 transaction execution on the contract state, whose code was replaced to a new one using TVM_LINKER.
@@ -2752,3 +2753,25 @@ Output messages:
 ```
 
 `Message_base64` then can be passed to `tonos-cli debug message` to play it on another account.
+
+## 11.7. Render UML sequence diagram
+
+```bash
+    tonos-cli debug sequence-diagram <address_list>
+```
+
+`<address_list>`    File containing a list of account addresses, one address per line. Blank lines and lines starting with # character are ignored.
+
+This command generates a `.plantuml` text file which describes a sequence diagram of messages and transactions
+for a provided list of accounts. See PlantUML documentation for a complete guide on rendering an image out of .plantuml.
+To render an SVG the following command can be used:
+
+```bash
+    java -jar plantuml.jar accounts.plantuml -tsvg
+```
+
+### Caveat
+
+Sequence diagrams are well suited for describing synchronous interactions. However, transactions (and messages which spawn them) of the blockchain are inherently asynchronous. In particular, sequence diagram arrows can only be horizontal, and there is no way to make them curve down towards the destination, skipping other transactions and thus depicting asynchronicity.
+
+Practically, this means that one should look cautiously at the point of transaction spawn, being aware that the spawning message can be located somewhere above.
