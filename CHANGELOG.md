@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.25.15
+
+### New
+ - Add support copyleft
+
+
 ## Version: 0.25.7
 
 ### New
