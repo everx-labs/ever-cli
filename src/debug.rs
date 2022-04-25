@@ -233,7 +233,12 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
 
     let call_cmd = run_cmd.clone().name("call")
         .about("Play call locally with trace")
-        .arg(sign_arg.clone());
+        .arg(sign_arg.clone())
+        .arg(Arg::with_name("UPDATE_BOC")
+            .long("--update")
+            .short("-u")
+            .requires("BOC")
+            .help("Update contract BOC after execution"));
 
     SubCommand::with_name("debug")
         .about("Debug commands.")
@@ -640,6 +645,17 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
             format!("Execution failed: {}", e)
         }
     };
+
+    if matches.is_present("UPDATE_BOC") {
+        Account::construct_from_cell(acc_root)
+            .map_err(|e| format!("Failed to construct account: {}", e))?
+            .write_to_file(input)
+            .map_err(|e| format!("Failed to dump account: {}", e))?;
+        if !config.is_json {
+            println!("{} successfully updated", input);
+        }
+    }
+
     if !config.is_json {
         println!("{}", msg_string);
         println!("Log saved to {}", trace_path);
