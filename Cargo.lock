@@ -2858,7 +2858,7 @@ dependencies = [
 
 [[package]]
 name = "tonos-cli"
-version = "0.25.12"
+version = "0.25.19"
 dependencies = [
  "assert_cmd",
  "async-trait",
