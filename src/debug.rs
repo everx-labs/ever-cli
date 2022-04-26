@@ -179,6 +179,28 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .help("Dump the replayed target contract account state.")
         .long("--dump_contract");
 
+    let update_arg = Arg::with_name("UPDATE_BOC")
+        .long("--update")
+        .short("-u")
+        .requires("BOC")
+        .help("Update contract BOC after execution");
+
+    let msg_cmd = SubCommand::with_name("message")
+        .about("Play message locally with trace")
+        .arg(output_arg.clone())
+        .arg(dbg_info_arg.clone())
+        .arg(address_arg.clone())
+        .arg(full_trace_arg.clone())
+        .arg(decode_abi_arg.clone())
+        .arg(boc_arg.clone())
+        .arg(config_path_arg.clone())
+        .arg(update_arg.clone())
+        .arg(Arg::with_name("MESSAGE")
+            .takes_value(true)
+            .required(true)
+            .help("Message in Base64.")
+        );
+
     let run_cmd = SubCommand::with_name("run")
         .about("Play getter locally with trace")
         .arg(output_arg.clone())
@@ -234,11 +256,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
     let call_cmd = run_cmd.clone().name("call")
         .about("Play call locally with trace")
         .arg(sign_arg.clone())
-        .arg(Arg::with_name("UPDATE_BOC")
-            .long("--update")
-            .short("-u")
-            .requires("BOC")
-            .help("Update contract BOC after execution"));
+        .arg(update_arg.clone());
 
     SubCommand::with_name("debug")
         .about("Debug commands.")
@@ -284,6 +302,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(call_cmd)
         .subcommand(run_cmd)
         .subcommand(deploy_cmd)
+        .subcommand(msg_cmd)
 }
 
 pub async fn debug_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
@@ -298,6 +317,9 @@ pub async fn debug_command(matches: &ArgMatches<'_>, config: &Config) -> Result<
     }
     if let Some(matches) = matches.subcommand_matches("run") {
         return debug_call_command(matches, config, true).await;
+    }
+    if let Some(matches) = matches.subcommand_matches("message") {
+        return debug_message_command(matches, config).await;
     }
     if let Some(matches) = matches.subcommand_matches("replay") {
         return replay_transaction_command(matches, config).await;
@@ -552,7 +574,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
     }
 
     let is_full_trace = matches.is_present("FULL_TRACE");
-    let ton_client = create_client(&config)?;
+    let ton_client = create_client(&config)?;  // TODO: create local for boc and tvc
     let input = input.unwrap();
     let account = if is_tvc {
         construct_account_from_tvc(input,
@@ -634,6 +656,84 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         debug_info,
         is_full_trace,
         is_getter,
+    ).await;
+
+    let msg_string = match trans {
+        Ok(trans) => {
+            decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            "Execution finished.".to_string()
+        }
+        Err(e) => {
+            format!("Execution failed: {}", e)
+        }
+    };
+
+    if matches.is_present("UPDATE_BOC") {
+        Account::construct_from_cell(acc_root)
+            .map_err(|e| format!("Failed to construct account: {}", e))?
+            .write_to_file(input)
+            .map_err(|e| format!("Failed to dump account: {}", e))?;
+        if !config.is_json {
+            println!("{} successfully updated", input);
+        }
+    }
+
+    if !config.is_json {
+        println!("{}", msg_string);
+        println!("Log saved to {}", trace_path);
+    } else {
+        println!("{{}}");
+    }
+    Ok(())
+}
+
+async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let input = matches.value_of("ADDRESS");
+    let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
+    let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
+    let is_boc = matches.is_present("BOC");
+    let message = matches.value_of("MESSAGE");
+    if !config.is_json {
+        print_args!(input, message, output, debug_info);
+    }
+
+    let is_full_trace = matches.is_present("FULL_TRACE");
+    let ton_client = create_client(&config)?;
+    let input = input.unwrap();
+    let account = if is_boc {
+        Account::construct_from_file(input)
+            .map_err(|e| format!(" failed to load account from the file {}: {}", input, e))?
+    } else {
+        let address = load_ton_address(input, &config)?;
+        let account = query_account_field(ton_client.clone(), &address, "boc").await?;
+        Account::construct_from_base64(&account)
+            .map_err(|e| format!("Failed to construct account: {}", e))?
+    };
+
+    let message = Message::construct_from_base64(message.unwrap())
+        .map_err(|e| format!("Failed to decode message: {}", e))?;
+    let mut acc_root = account.serialize()
+        .map_err(|e| format!("Failed to serialize account: {}", e))?;
+
+    let trace_path = output.unwrap().to_string();
+
+    log::set_max_level(log::LevelFilter::Trace);
+    log::set_boxed_logger(
+        Box::new(DebugLogger::new(trace_path.clone()))
+    ).map_err(|e| format!("Failed to set logger: {}", e))?;
+
+    let now = now_ms();
+    let trans = execute_debug(
+        construct_bc_config(matches)?,
+        Some(ton_client),
+        &mut acc_root,
+        Some(&message),
+        (now / 1000) as u32,
+        now,
+        now,
+        debug_info,
+        is_full_trace,
+        false,
     ).await;
 
     let msg_string = match trans {
@@ -774,8 +874,16 @@ async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<(), S
 
     for msg in msgs {
 
-        let ser_msg = serialize_msg(&msg.0, abi.clone()).await
+        let mut ser_msg = serialize_msg(&msg.0, abi.clone()).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
+        let msg_str = base64::encode(
+            &ton_types::cells_serialization::serialize_toc(
+                &msg.0
+                    .serialize()
+                    .map_err(|e| format!("Failed to serialize out message: {}", e))?
+            ).map_err(|e| format!("failed to encode out message: {}", e))?
+        );
+        ser_msg["Message_base64"] = serde_json::Value::String(msg_str);
         log::debug!(target: "executor", "\n{}\n", serde_json::to_string_pretty(&ser_msg)
             .map_err(|e| format!("Failed to serialize json: {}", e))?);
     }
