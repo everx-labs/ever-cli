@@ -198,7 +198,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("MESSAGE")
             .takes_value(true)
             .required(true)
-            .help("Message in Base64.")
+            .help("Message in Base64 or path to fil with message.")
         );
 
     let run_cmd = SubCommand::with_name("run")
@@ -710,8 +710,12 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };
 
-    let message = Message::construct_from_base64(message.unwrap())
-        .map_err(|e| format!("Failed to decode message: {}", e))?;
+    let message = message.unwrap();
+    let message = if std::path::Path::new(message).exists() {
+        Message::construct_from_file(message)
+    } else {
+        Message::construct_from_base64(message)
+    }.map_err(|e| format!("Failed to decode message: {}", e))?;
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
