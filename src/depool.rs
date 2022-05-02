@@ -408,6 +408,7 @@ async fn print_event(ton: TonClient, event: &serde_json::Value) -> Result<(), St
             abi: load_abi(DEPOOL_ABI).map_err(|e| format!("failed to load depool abi: {}", e))?,
             body: body.to_owned(),
             is_internal: false,
+            ..Default::default()
         },
     ).await;
     let (name, args) = if result.is_err() {

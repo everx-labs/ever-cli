@@ -493,6 +493,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
             result: "workchain_id end_lt boc".to_owned(),
             limit: None,
             order: None,
+            ..Default::default()
         },
     ).await?;
 
