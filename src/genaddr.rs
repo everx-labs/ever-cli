@@ -136,6 +136,7 @@ fn calc_userfriendly_address(address: &str, bounce: bool, test: bool) -> Result<
         ParamsOfConvertAddress {
             address: address.to_owned(),
             output_format: AddressStringFormat::Base64{ url: true, bounce, test },
+            ..Default::default()
         }
     )
     .map(|r| r.address)

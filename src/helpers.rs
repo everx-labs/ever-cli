@@ -175,6 +175,7 @@ pub async fn query_raw(
             limit,
             order,
             result: result.to_owned(),
+            ..Default::default()
         }
     ).await.map_err(|e| format!("Failed to execute query: {}", e))?;
 
@@ -199,6 +200,7 @@ pub async fn query_with_limit(
             result: result.to_owned(),
             order,
             limit,
+            ..Default::default()
         },
     )
         .await
@@ -239,6 +241,7 @@ pub async fn decode_msg_body(
             abi,
             body: body.to_owned(),
             is_internal,
+            ..Default::default()
         },
     )
     .await
@@ -329,6 +332,7 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
                 abi: load_abi(abi)?,
                 body: body.to_owned(),
                 is_internal,
+                ..Default::default()
             },
         ).await;
         let (name, args) = if result.is_err() {

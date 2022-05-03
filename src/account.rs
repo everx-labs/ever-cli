@@ -232,6 +232,7 @@ pub async fn calc_storage(config: &Config, addr: &str, period: u32) -> Result<()
         ParamsOfCalcStorageFee {
             account: boc,
             period,
+            ..Default::default()
         }
     ).await.map_err(|e| format!("failed to calculate storage fee: {}", e))?;
 
@@ -315,6 +316,7 @@ pub async fn wait_for_change(config: &Config, account_address: &str, wait_secs: 
             limit: None,
             order: None,
             result: "last_trans_lt".to_owned(),
+            ..Default::default()
         }
     ).await.map_err(|e| format!("Failed to query the account: {}", e))?;
 
@@ -353,6 +355,7 @@ pub async fn wait_for_change(config: &Config, account_address: &str, wait_secs: 
                 },
             })),
             result: "last_trans_lt".to_owned(),
+            ..Default::default()
         },
         callback
     ).await.map_err(|e| format!("Failed to subscribe: {}", e))?;
