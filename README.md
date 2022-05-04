@@ -519,20 +519,51 @@ Public key: 88c541e9a1c173069c89bcbcc21fa2a073158c1bd21ca56b3eb264bba12d9340
 To create a key pair file from a seed phrase use the following command:
 
 ```bash
-tonos-cli getkeypair <keyfile.json> "<seed_phrase>"
+tonos-cli getkeypair [-o <keyfile.json>] [-p "<seed_phrase>"]
 ```
 
-`<keyfile.json>` - the file the key pair will be written to.
-
+`<keyfile.json>` - the file the key pair will be written to. If not specified keys will be printed to the stdout.
+`"<seed_phrase>"` - seed phrase or secret key. If not specified a new phrase will be generated.
 Example:
 
 ```bash
-$ tonos-cli getkeypair key.json "rule script joy unveil chaos replace fox recipe hedgehog heavy surge online"
-Config: /home/user/tonos-cli.conf.json
+$ tonos-cli getkeypair -o key.json -p "rule script joy unveil chaos replace fox recipe hedgehog heavy surge online"
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
 key_file: key.json
   phrase: rule script joy unveil chaos replace fox recipe hedgehog heavy surge online
+Keypair successfully saved to key.json.
 Succeeded.
+
+$ tonos-cli getkeypair -o key.json 
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+key_file: key.json
+  phrase: None
+Generating seed phrase.
+Seed phrase: "elephant tone error jazz scrap wise kick walk panda snake right feature"
+Keypair successfully saved to key.json.
+Succeeded.
+
+
+$ tonos-cli getkeypair 
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+Input arguments:
+key_file: None
+  phrase: None
+Generating seed phrase.
+Seed phrase: "behave early mammal cart grape wolf pulse once helmet shop kit this"
+Keypair: {
+  "public": "d5218be1502c98019a2c08ae588f73abd56b4c72411e8d2ee37e5c2d821e075f",
+  "secret": "842bd2b9df2ec4ed07b6b66d6d0c2858769ba4ed9005ffe58cba26783504a3ff"
+}
+Succeeded.
+
+$ tonos-cli -j getkeypair
+{
+  "public": "09889cd2f085a693ef04a6dad4b6533c7019014a7e0ca9b5b146e66e550973d9",
+  "secret": "021196259435d54dfb5c41970db5bcfc2306d59877665c3b573486d441cf021a"
+}
 ```
 
 # 4. Smart contract commands
