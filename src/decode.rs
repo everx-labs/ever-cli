@@ -249,6 +249,7 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
         ParamsOfDecodeAccountData {
                 abi: Abi::Json(abi),
                 data: b64,
+                ..Default::default()
             }
         )
         .await
@@ -279,6 +280,7 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<()
         ParamsOfDecodeAccountData {
                 abi: Abi::Json(abi),
                 data,
+                ..Default::default()
             }
         )
         .await
@@ -418,7 +420,8 @@ pub mod msg_printer {
         let result = get_compiler_version(
             ton,
             ParamsOfGetCompilerVersion {
-                code
+                code,
+                ..Default::default()
             }
         ).await;
 
