@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.26.1
+
+### New
+ - Breaking change for getkeypair command: arguments are now specified with flags and can be omitted.
+
+
 ## Version: 0.25.23
 
 ### New
