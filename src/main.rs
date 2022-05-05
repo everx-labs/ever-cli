@@ -1637,7 +1637,9 @@ async fn update_config_command(matches: &ArgMatches<'_>, config: &Config) -> Res
     let seqno = matches.value_of("SEQNO");
     let config_master = matches.value_of("CONFIG_MASTER_KEY_FILE");
     let new_param = matches.value_of("NEW_PARAM_FILE");
-    print_args!(seqno, config_master, new_param);
+    if !config.is_json {
+        print_args!(seqno, config_master, new_param);
+    }
     gen_update_config_message(seqno.unwrap(), config_master.unwrap(), new_param.unwrap(), config.is_json).await
 }
 
