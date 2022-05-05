@@ -10,14 +10,17 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
+use std::time::{SystemTime, UNIX_EPOCH};
 use crate::helpers::{create_client_verbose, query_with_limit};
 use crate::config::Config;
 use serde_json::{json};
-use ton_block::{Serializable};
+use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, Serializable};
+use ton_block::MsgAddressExt::AddrNone;
 use ton_client::net::{OrderBy, SortDirection};
 use ton_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
-use ton_types::{BuilderData, Cell};
-use crate::call::{prepare_message_new_config_param};
+use ton_types::{BuilderData, Cell, IBitstring, SliceData};
+
+const PREFIX_UPDATE_CONFIG_MESSAGE_DATA: &str = "43665021";
 
 const QUERY_FIELDS: &str = r#"
 master { 
@@ -363,6 +366,46 @@ pub fn serialize_config_param(config_str: String) -> Result<(Cell, u32), String>
     let config_cell = cell.references()[0].clone();
 
     Ok((config_cell, key_number))
+}
+
+fn prepare_message_new_config_param(
+    config_param: Cell,
+    seqno: u32,
+    key_number: u32,
+    config_account: SliceData,
+    private_key_of_config_account: Vec<u8>
+) -> Result<Message, String> {
+    let prefix = hex::decode(PREFIX_UPDATE_CONFIG_MESSAGE_DATA).unwrap();
+    let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32 + 100; // timestamp + 100 secs
+
+    let mut cell = BuilderData::default();
+    cell.append_raw(prefix.as_slice(), 32).unwrap();
+    cell.append_u32(seqno).unwrap();
+    cell.append_u32(since_the_epoch).unwrap();
+    cell.append_i32(key_number as i32).unwrap();
+    cell.append_reference_cell(config_param.clone());
+
+    let exp_key = ed25519_dalek::ExpandedSecretKey::from(
+        &ed25519_dalek::SecretKey::from_bytes(private_key_of_config_account.as_slice()
+        )
+            .map_err(|e| format!(r#"failed to read private key from config-master file": {}"#, e))?);
+    let pub_key = ed25519_dalek::PublicKey::from(&exp_key);
+    let msg_signature = exp_key.sign(cell.finalize(0).unwrap().repr_hash().into_vec().as_slice(), &pub_key).to_bytes().to_vec();
+
+    let mut cell = BuilderData::default();
+    cell.append_raw(msg_signature.as_slice(), 64*8).unwrap();
+    cell.append_raw(prefix.as_slice(), 32).unwrap();
+    cell.append_u32(seqno).unwrap();
+    cell.append_u32(since_the_epoch).unwrap();
+    cell.append_i32(key_number as i32).unwrap();
+    cell.append_reference_cell(config_param);
+
+    let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
+    let mut header = ExternalInboundMessageHeader::new(AddrNone, config_contract_address);
+    header.import_fee = Grams::zero();
+    let message = Message::with_ext_in_header_and_body(header, cell.into());
+
+    Ok(message)
 }
 
 pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), String> {
