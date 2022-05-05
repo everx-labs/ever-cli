@@ -54,44 +54,6 @@ use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 
 const PREFIX_UPDATE_CONFIG_MESSAGE_DATA: &str = "43665021";
 
-pub fn serialize_config_param(config_str: String) -> Result<(Cell, u32), String> {
-    let config_json: serde_json::Value = serde_json::from_str(&*config_str)
-        .map_err(|e| format!(r#"failed to parse "new_param_file": {}"#, e))?;
-    let config_json = config_json.as_object()
-        .ok_or(format!(r#""new_param_file" is not json object"#))?;
-    if config_json.len() != 1 {
-        Err(r#""new_param_file" is not a valid json"#.to_string())?;
-    }
-
-    let mut key_number = None;
-    for key in config_json.keys() {
-        if !key.starts_with("p") {
-            Err(r#""new_param_file" is not a valid json"#.to_string())?;
-        }
-        key_number = Some(key.trim_start_matches("p").to_string());
-        break;
-    }
-
-    let key_number = key_number
-        .ok_or(format!(r#""new_param_file" is not a valid json"#))?
-        .parse::<u32>()
-        .map_err(|e| format!(r#""new_param_file" is not a valid json: {}"#, e))?;
-
-    let config_params = ton_block_json::parse_config(config_json)
-        .map_err(|e| format!(r#"failed to parse config params from "new_param_file": {}"#, e))?;
-
-    let config_param = config_params.config(key_number)
-        .map_err(|e| format!(r#"failed to parse config params from "new_param_file": {}"#, e))?
-        .ok_or(format!(r#"Not found config number {} in parsed config_params"#, key_number))?;
-
-    let mut cell = BuilderData::default();
-    config_param.write_to_cell(&mut cell)
-        .map_err(|e| format!(r#"failed to serialize config param": {}"#, e))?;
-    let config_cell = cell.references()[0].clone();
-
-    Ok((config_cell, key_number))
-}
-
 pub fn prepare_message_new_config_param(
     config_param: Cell,
     seqno: u32,
