@@ -124,7 +124,7 @@ pub fn generate_mnemonic(keypath: Option<&str>, config: &Config) -> Result<(), S
         println!("}}");
     }
     if let Some(path) = keypath {
-        generate_keypair(path, &mnemonic, config)?;
+        generate_keypair(Some(path), Some(&mnemonic), config)?;
         if !config.is_json {
             println!("Keypair saved to {}", path);
         }
@@ -149,20 +149,44 @@ pub fn extract_pubkey(mnemonic: &str, is_json: bool) -> Result<(), String> {
     Ok(())
 }
 
-pub fn generate_keypair(keys_path: &str, mnemonic: &str, config: &Config) -> Result<(), String> {
+pub fn generate_keypair(keys_path: Option<&str>, mnemonic: Option<&str>, config: &Config) -> Result<(), String> {
+    let mnemonic = match mnemonic {
+        Some(mnemonic) => mnemonic.to_owned(),
+        None => {
+            if !config.is_json {
+                println!("Generating seed phrase.");
+            }
+            let phrase = gen_seed_phrase()?;
+            if !config.is_json {
+                println!(r#"Seed phrase: "{}""#, phrase);
+            }
+            phrase
+        }
+    };
+
     let keys = if mnemonic.contains(" ") {
-        generate_keypair_from_mnemonic(mnemonic)?
+        generate_keypair_from_mnemonic(&mnemonic)?
     } else {
-        generate_keypair_from_secret(mnemonic.to_string())?
+        generate_keypair_from_secret(mnemonic)?
     };
     let keys_json = serde_json::to_string_pretty(&keys)
         .map_err(|e| format!("failed to serialize the keypair: {}", e))?;
-    let folder_path = keys_path
-        .trim_end_matches(|c| c != '/')
-        .trim_end_matches(|c| c == '/');
-    check_dir(folder_path)?;
-    std::fs::write(keys_path, &keys_json)
-        .map_err(|e| format!("failed to create file with keys: {}", e))?;
+    if let Some(keys_path) = keys_path {
+        let folder_path = keys_path
+            .trim_end_matches(|c| c != '/')
+            .trim_end_matches(|c| c == '/');
+        check_dir(folder_path)?;
+        std::fs::write(keys_path, &keys_json)
+            .map_err(|e| format!("failed to create file with keys: {}", e))?;
+        if !config.is_json {
+            println!("Keypair successfully saved to {}.", keys_path);
+        }
+    } else {
+        if !config.is_json {
+            print!("Keypair: ");
+        }
+        println!("{}", keys_json);
+    }
     if !config.is_json {
         println!("Succeeded.");
     }
