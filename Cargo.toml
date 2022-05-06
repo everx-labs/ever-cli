@@ -16,7 +16,7 @@ license = 'Apache-2.0'
 name = 'tonos-cli'
 readme = 'README.md'
 repository = 'https://github.com/tonlabs/tonos-cli'
-version = '0.26.1'
+version = '0.26.2'
 
 [dependencies]
 async-trait = '0.1.42'
@@ -51,6 +51,7 @@ ton_labs_assembler = { git = 'https://github.com/tonlabs/ton-labs-assembler.git'
 ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.33.0' }
 ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.10.14' }
 ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.33' }
+ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git' }
 
 [dev-dependencies]
 assert_cmd = '1.0.3'

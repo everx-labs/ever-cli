@@ -10,11 +10,17 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
+use std::time::{SystemTime, UNIX_EPOCH};
 use crate::helpers::{create_client_verbose, query_with_limit};
 use crate::config::Config;
 use serde_json::{json};
+use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, Serializable};
+use ton_block::MsgAddressExt::AddrNone;
 use ton_client::net::{OrderBy, SortDirection};
 use ton_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
+use ton_types::{BuilderData, Cell, IBitstring, SliceData};
+
+const PREFIX_UPDATE_CONFIG_MESSAGE_DATA: &str = "43665021";
 
 const QUERY_FIELDS: &str = r#"
 master { 
@@ -287,6 +293,119 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
         }
     }
     Ok(())
+}
+
+pub async fn gen_update_config_message(
+    seqno: &str,
+    config_master_file: &str,
+    new_param_file: &str,
+    is_json: bool
+) -> Result<(), String> {
+    let seqno = u32::from_str_radix(seqno, 10)
+        .map_err(|e| format!(r#"failed to parse "seqno": {}"#, e))?;
+
+    let config_master_address = std::fs::read(&*(config_master_file.to_string() + ".addr"))
+        .map_err(|e| format!(r#"failed to read "config_master": {}"#, e))?;
+    let config_account = ton_types::AccountId::from_raw(config_master_address, 32*8);
+
+    let private_key = std::fs::read(&*(config_master_file.to_string() + ".pk"))
+        .map_err(|e| format!(r#"failed to read "config_master": {}"#, e))?;
+
+    let config_str = std::fs::read_to_string(new_param_file)
+        .map_err(|e| format!(r#"failed to read "new_param_file": {}"#, e))?;
+
+    let (config_cell, key_number) = serialize_config_param(config_str)?;
+    let message = prepare_message_new_config_param(config_cell, seqno, key_number, config_account, private_key)?;
+
+    let msg_bytes = message.write_to_bytes()
+        .map_err(|e| format!(r#"failed to serialize message": {}"#, e))?;
+    let msg_hex = hex::encode(&msg_bytes);
+
+    if is_json {
+        println!("{{\"Message\": \"{}\"}}", msg_hex);
+    } else {
+        println!("Message: {}", msg_hex);
+    }
+
+    Ok(())
+}
+
+pub fn serialize_config_param(config_str: String) -> Result<(Cell, u32), String> {
+    let config_json: serde_json::Value = serde_json::from_str(&*config_str)
+        .map_err(|e| format!(r#"failed to parse "new_param_file": {}"#, e))?;
+    let config_json = config_json.as_object()
+        .ok_or(format!(r#""new_param_file" is not json object"#))?;
+    if config_json.len() != 1 {
+        Err(r#""new_param_file" is not a valid json"#.to_string())?;
+    }
+
+    let mut key_number = None;
+    for key in config_json.keys() {
+        if !key.starts_with("p") {
+            Err(r#""new_param_file" is not a valid json"#.to_string())?;
+        }
+        key_number = Some(key.trim_start_matches("p").to_string());
+        break;
+    }
+
+    let key_number = key_number
+        .ok_or(format!(r#""new_param_file" is not a valid json"#))?
+        .parse::<u32>()
+        .map_err(|e| format!(r#""new_param_file" is not a valid json: {}"#, e))?;
+
+    let config_params = ton_block_json::parse_config(config_json)
+        .map_err(|e| format!(r#"failed to parse config params from "new_param_file": {}"#, e))?;
+
+    let config_param = config_params.config(key_number)
+        .map_err(|e| format!(r#"failed to parse config params from "new_param_file": {}"#, e))?
+        .ok_or(format!(r#"Not found config number {} in parsed config_params"#, key_number))?;
+
+    let mut cell = BuilderData::default();
+    config_param.write_to_cell(&mut cell)
+        .map_err(|e| format!(r#"failed to serialize config param": {}"#, e))?;
+    let config_cell = cell.references()[0].clone();
+
+    Ok((config_cell, key_number))
+}
+
+fn prepare_message_new_config_param(
+    config_param: Cell,
+    seqno: u32,
+    key_number: u32,
+    config_account: SliceData,
+    private_key_of_config_account: Vec<u8>
+) -> Result<Message, String> {
+    let prefix = hex::decode(PREFIX_UPDATE_CONFIG_MESSAGE_DATA).unwrap();
+    let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32 + 100; // timestamp + 100 secs
+
+    let mut cell = BuilderData::default();
+    cell.append_raw(prefix.as_slice(), 32).unwrap();
+    cell.append_u32(seqno).unwrap();
+    cell.append_u32(since_the_epoch).unwrap();
+    cell.append_i32(key_number as i32).unwrap();
+    cell.append_reference_cell(config_param.clone());
+
+    let exp_key = ed25519_dalek::ExpandedSecretKey::from(
+        &ed25519_dalek::SecretKey::from_bytes(private_key_of_config_account.as_slice()
+        )
+            .map_err(|e| format!(r#"failed to read private key from config-master file": {}"#, e))?);
+    let pub_key = ed25519_dalek::PublicKey::from(&exp_key);
+    let msg_signature = exp_key.sign(cell.finalize(0).unwrap().repr_hash().into_vec().as_slice(), &pub_key).to_bytes().to_vec();
+
+    let mut cell = BuilderData::default();
+    cell.append_raw(msg_signature.as_slice(), 64*8).unwrap();
+    cell.append_raw(prefix.as_slice(), 32).unwrap();
+    cell.append_u32(seqno).unwrap();
+    cell.append_u32(since_the_epoch).unwrap();
+    cell.append_i32(key_number as i32).unwrap();
+    cell.append_reference_cell(config_param);
+
+    let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
+    let mut header = ExternalInboundMessageHeader::new(AddrNone, config_contract_address);
+    header.import_fee = Grams::zero();
+    let message = Message::with_ext_in_header_and_body(header, cell.into());
+
+    Ok(message)
 }
 
 pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), String> {
