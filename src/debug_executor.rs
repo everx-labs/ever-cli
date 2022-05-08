@@ -19,7 +19,7 @@ use std::sync::{atomic::Ordering, Arc};
 use ton_block::{
     AddSub, Grams, Serializable, Account, AccStatusChange, CommonMsgInfo, Message, Transaction,
     TransactionDescrOrdinary, TransactionDescr, TrComputePhase, TrBouncePhase, CurrencyCollection,
-    GlobalCapabilities, ComputeSkipReason, TrComputePhaseVm, AccountStatus, GasLimitsPrices,
+    GlobalCapabilities, ComputeSkipReason, TrComputePhaseVm, AccountStatus, GasLimitsPrices, VarUInteger7, VarUInteger3,
 };
 use ton_types::{
     error, fail, Result, HashmapE, Cell, ExceptionCode
@@ -91,7 +91,9 @@ impl TransactionExecutor for DebugTransactionExecutor {
         let mut msg_balance = in_msg.get_value().cloned().unwrap_or_default();
         let ihr_delivered = false;  // ihr is disabled because it does not work
         if !ihr_delivered {
-            msg_balance.grams.0 += in_msg.int_header().map_or(0, |h| h.ihr_fee.0);
+            if let Some(h) = in_msg.int_header() {
+                msg_balance.grams += h.ihr_fee;
+            }
         }
         log::debug!(target: "executor", "acc_balance: {}, msg_balance: {}, credit_first: {}",
             acc_balance.grams, msg_balance.grams, !bounce);
@@ -147,8 +149,8 @@ impl TransactionExecutor for DebugTransactionExecutor {
             )
         };
 
-        if description.credit_first && msg_balance.grams.0 > acc_balance.grams.0 {
-            msg_balance.grams.0 = acc_balance.grams.0;
+        if description.credit_first && msg_balance.grams.as_u128() > acc_balance.grams.as_u128() {
+            msg_balance.grams = acc_balance.grams;
         }
 
         log::debug!(target: "executor",
@@ -175,8 +177,8 @@ impl TransactionExecutor for DebugTransactionExecutor {
         let smci = self.build_contract_info(&acc_balance, account_address, params.block_unixtime, params.block_lt, lt, params.seed_block);
         let mut stack = Stack::new();
         stack
-            .push(int!(acc_balance.grams.0))
-            .push(int!(msg_balance.grams.0))
+            .push(int!(acc_balance.grams.as_u128()))
+            .push(int!(msg_balance.grams.as_u128()))
             .push(StackItem::Cell(in_msg_cell))
             .push(StackItem::Slice(in_msg.body().unwrap_or_default()))
             .push(boolean!(is_ext_msg));
@@ -208,7 +210,7 @@ impl TransactionExecutor for DebugTransactionExecutor {
         };
         let mut out_msgs = vec![];
         let mut action_phase_processed = false;
-        let mut compute_phase_gas_fees = Grams(0);
+        let mut compute_phase_gas_fees = Grams::zero();
         description.compute_ph = compute_ph;
         description.action = match &description.compute_ph {
             TrComputePhase::Vm(phase) => {
@@ -337,8 +339,8 @@ impl TransactionExecutor for DebugTransactionExecutor {
             Some(in_msg) => in_msg,
             None => return stack
         };
-        let acc_balance = int!(account.balance().map(|value| value.grams.0).unwrap_or_default());
-        let msg_balance = int!(in_msg.get_value().map(|value| value.grams.0).unwrap_or_default());
+        let acc_balance = int!(account.balance().map_or(0, |value| value.grams.as_u128()));
+        let msg_balance = int!(in_msg.get_value().map_or(0, |value| value.grams.as_u128()));
         let function_selector = boolean!(in_msg.is_inbound_external());
         let body_slice = in_msg.body().unwrap_or_default();
         let in_msg_cell = in_msg.serialize().unwrap_or_default();
@@ -410,7 +412,7 @@ impl DebugTransactionExecutor {
             return Ok((TrComputePhase::skipped(ComputeSkipReason::NoGas), None, None))
         }
         let gas_config = self.config().get_gas_config(is_masterchain);
-        let gas = init_gas(acc_balance.grams.0, msg_balance.grams.0, is_external, is_special, is_ordinary, gas_config, self.is_getter);
+        let gas = init_gas(acc_balance.grams.as_u128(), msg_balance.grams.as_u128(), is_external, is_special, is_ordinary, gas_config, self.is_getter);
         if gas.get_gas_limit() == 0 && gas.get_gas_credit() == 0 {
             log::debug!(target: "executor", "skip computing phase no gas");
             return Ok((TrComputePhase::skipped(ComputeSkipReason::NoGas), None, None))
@@ -431,9 +433,9 @@ impl DebugTransactionExecutor {
 
         vm_phase.gas_credit = match gas.get_gas_credit() as u32 {
             0 => None,
-            value => Some(value.into())
+            value => Some(VarUInteger3::new(value)?)
         };
-        vm_phase.gas_limit = (gas.get_gas_limit() as u64).into();
+        vm_phase.gas_limit = VarUInteger7::new(gas.get_gas_limit() as u64)?;
 
         if result_acc.get_code().is_none() {
             vm_phase.exit_code = -13;
@@ -442,7 +444,7 @@ impl DebugTransactionExecutor {
             } else {
                 vm_phase.exit_arg = None;
                 vm_phase.success = false;
-                vm_phase.gas_fees = Grams::from(if is_special { 0 } else { gas_config.calc_gas_fee(0) });
+                vm_phase.gas_fees = Grams::new(if is_special { 0 } else { gas_config.calc_gas_fee(0) })?;
                 if !self.is_getter && !acc_balance.grams.sub(&vm_phase.gas_fees)? {
                     log::debug!(target: "executor", "can't sub funds: {} from acc_balance: {}", vm_phase.gas_fees, acc_balance.grams);
                     fail!("can't sub funds: from acc_balance")
@@ -531,7 +533,7 @@ impl DebugTransactionExecutor {
         let credit = gas.get_gas_credit() as u32;
         //for external messages gas will not be exacted if VM throws the exception and gas_credit != 0
         let used = gas.get_gas_used() as u64;
-        vm_phase.gas_used = used.into();
+        vm_phase.gas_used = VarUInteger7::new(used)?;
         if credit != 0 {
             if is_external && !self.is_getter {
                 fail!(ExecutorError::NoAcceptError(vm_phase.exit_code, raw_exit_arg))
@@ -539,7 +541,7 @@ impl DebugTransactionExecutor {
             vm_phase.gas_fees = Grams::zero();
         } else { // credit == 0 means contract accepted
             let gas_fees = if is_special { 0 } else { gas_config.calc_gas_fee(used) };
-            vm_phase.gas_fees = gas_fees.into();
+            vm_phase.gas_fees = Grams::new(gas_fees)?;
         };
 
         log::debug!(
