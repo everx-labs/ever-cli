@@ -27,6 +27,7 @@ use ton_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDi
 use crate::crypto::load_keypair;
 use crate::debug_executor::{DebugTransactionExecutor, TraceLevel};
 use std::fmt;
+use serde_json::Value;
 use crate::decode::msg_printer::serialize_msg;
 use crate::deploy::prepare_deploy_message;
 
@@ -659,9 +660,10 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         is_getter,
     ).await;
 
+    let mut out_res = vec![];
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -679,10 +681,21 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         }
     }
 
+    let print_res = is_getter && !out_res.is_empty();
+    if print_res {
+        if !config.is_json {
+            print!("Output: ");
+        }
+        for msg in out_res {
+            println!("{}", serde_json::to_string_pretty(&msg)
+                .map_err(|e| format!("Failed to serialize result: {}", e))?);
+        }
+    }
+
     if !config.is_json {
         println!("{}", msg_string);
         println!("Log saved to {}", trace_path);
-    } else {
+    } else if !print_res {
         println!("{{}}");
     }
     Ok(())
@@ -870,15 +883,15 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     Ok(())
 }
 
-async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<(), String> {
+async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<Vec<Value>, String> {
     if !msgs.is_empty() {
         log::debug!(target: "executor", "Output messages:\n----------------");
     }
     let msgs = msgs.export_vector()
         .map_err(|e| format!("Failed to parse out messages: {}", e))?;
 
+    let mut res = vec![];
     for msg in msgs {
-
         let mut ser_msg = serialize_msg(&msg.0, abi.clone()).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
         let msg_str = base64::encode(
@@ -889,10 +902,13 @@ async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<(), S
             ).map_err(|e| format!("failed to encode out message: {}", e))?
         );
         ser_msg["Message_base64"] = serde_json::Value::String(msg_str);
+        if ser_msg["BodyCall"].is_object() {
+            res.push(ser_msg["BodyCall"].clone());
+        }
         log::debug!(target: "executor", "\n{}\n", serde_json::to_string_pretty(&ser_msg)
             .map_err(|e| format!("Failed to serialize json: {}", e))?);
     }
-    Ok(())
+    Ok(res)
 }
 
 async fn query_address(tr_id: &str, config: &Config) -> Result<String, String> {

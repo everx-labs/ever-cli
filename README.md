@@ -100,7 +100,7 @@ tonos-cli <subcommand> -h
   - [11.3. Debug run](#113-debug-run)
   - [11.4. Debug replay transaction on the saved account state](#114-debug-replay-transaction-on-the-saved-account-state)
   - [11.5. Debug deploy](#115-debug-deploy)
-  - [11.6. HOWTO debug a contract with tonos-cli](#116-howto-debug-a-contract-with-tonos-cli)
+  - [11.6. Debug message](#116-debug-message)
 
 # 1. Installation
 
