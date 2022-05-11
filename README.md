@@ -2604,47 +2604,55 @@ This command allows user locally emulate contract deploy.
 Command can work with prepared network account or create a dummy one with big balance (if --init_balance flag is
 specified).
 
-## 11.6. HOWTO debug a contract with tonos-cli
+## 11.6. Debug message
 
-1) Call a function that fails.
-2) Explore the error message, look for these strings:
-
-```
-Error: Failed: {
-...
-    "transaction_id": "69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88"
+```bash
+$ tonos-cli debug message [--boc] <address_or_path> [-u] [-o <log_path>] <message_in_base64_or_path_to_file>
 ```
 
-3) Run the tonos-cli debug transaction command with the obtained values to get TVM trace:
+FLAGS:
+--boc               Flag that changes behavior of the command to work with the saved account state (account BOC).
+--full_trace        Flag that changes trace to full version.
+-u, --update        Update contract BOC after execution
 
-```
-tonos-cli debug transaction 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 \
---dump_contract -e --min_trace -d <contract>.dbg.json -o trace_old_code.log
+OPTIONS:
+-c, --config <CONFIG_PATH>        Path to the file with saved config contract state.
+-d, --dbg_info <DBG_INFO>         Path to the file with debug info.
+--decode_abi <DECODE_ABI>         Path to the ABI file used to decode output messages. Can be specified in the config
+                                  file.
+-o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
+                                  be removed.
+
+ARGUMENTS:
+<address_or_path>                       Contract address or path the file with saved contract state if corresponding flag is used.
+<message_in_base64_or_path_to_file>     Message in Base64 or path to fil with message.
+
+This command allows to play message on the contract state locally with trace.
+It can be useful when user wants to play contract interaction locally. User can call one contract locally with
+`tonos-cli debug call` and find output messages in trace log:
+
+```log
+Output messages:
+----------------
+
+{
+  "Type": "internal message",
+  "Header": {
+    "ihr_disabled": "true",
+    "bounce": "true",
+    "bounced": "false",
+    "source": "0:c015125ec7788fe31c8ff246ad58ca3dda476f74d544f6b161535b7e8ad995e3",
+    "destination": "0:9677580d26bd9d316323470526d94186354698092f62ea63e65cebcd5c6ad7a8",
+    "value": "9000000",
+    "ihr_fee": "0",
+    "fwd_fee": "666672",
+    "created_lt": "4786713000003",
+    "created_at": "1652270294"
+  },
+  "Body": "te6ccgEBAQEAJgAASEhEWrgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3g==",
+  "BodyCall": "Undefined",
+  "Message_base64": "te6ccgEBAQEAfgAA92gBgCokvY7xH8Y5H+SNWrGUe7SO3umqie1iwqa2/RWzK8cAJZ3WA0mvZ0xYyNHBSbZQYY1RpgJL2LqY+Zc681cateoOJVEABhRYYAAACLT8p/CGxPdJrCQiLVwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAb0A="
+}
 ```
 
-4) Explore the output for contract dump:
-
-```
-...
-Contract account was dumped to 0:8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa-69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88.boc
-...
-```
-
-5) Rewrite your contract to fix the error and compile a new version of the contract.
-6) Replace code in the account dump using tvm_linker:
-
-```
-tvm_linker replace_code -a <new_contract>.abi.json --debug-map <new_contract>.dbg.json -o contract.boc <new_contract>.code "0:8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa-69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88.boc"
-```
-
-7.1) Run debug replay to replay the transaction on the modified account state:
-
-```
-tonos-cli debug replay --update_state -d <new_contract>.dbg.json -o new_trace.log 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 contract.boc"
-```
-
-7.2) Run debug call locally on the new account to test new version of the contract on a new generated call message:
-
-```
-tonos-cli debug call --boc --abi <new_contract>.abi.json -d <new_contract>.dbg.json -o new_trace.log --sign <key> contract.boc <function> <params>
-```
+`Message_base64` then can be passed to `tonos-cli debug message` to play it on another account.
