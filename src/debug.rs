@@ -198,7 +198,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("MESSAGE")
             .takes_value(true)
             .required(true)
-            .help("Message in Base64 or path to fil with message.")
+            .help("Message in Base64 or path to file with message.")
         );
 
     let run_cmd = SubCommand::with_name("run")
