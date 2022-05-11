@@ -216,7 +216,11 @@ impl TerminalBrowser {
         let arg = if let Some(abi) = abi {
             let decoded = decode_message(
                 self.client.clone(),
-                ParamsOfDecodeMessage { abi, message },
+                ParamsOfDecodeMessage { 
+                    abi,
+                    message,
+                    ..Default::default()
+                 },
             ).await.map_err(|e| format!("{}", e))?;
             decoded.value.unwrap_or(json!({}))
         } else {
@@ -322,7 +326,7 @@ pub async fn run_debot_browser(
         while let Some(msg) = next_msg {
             let parsed = parse_message(
                 ton.clone(),
-                ParamsOfParse { boc: msg.clone() },
+                ParamsOfParse { boc: msg.clone(), ..Default::default() },
             )
             .await
             .map_err(|e| format!("{}", e))?

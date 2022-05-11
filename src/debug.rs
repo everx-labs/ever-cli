@@ -462,6 +462,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
             result: "lt block { start_lt } boc".to_string(),
             limit: Some(1),
             order: None,
+            ..Default::default()
         },
     ).await
         .map_err(|e| format!("Failed to query transaction: {}", e))?;

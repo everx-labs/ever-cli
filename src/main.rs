@@ -311,12 +311,14 @@ async fn main_internal() -> Result <(), String> {
         .author("TONLabs")
         .arg(Arg::with_name("KEY_FILE")
             .takes_value(true)
-            .required(true)
+            .long("--output")
+            .short("-o")
             .help("Path to the file where to store the keypair."))
         .arg(Arg::with_name("PHRASE")
             .takes_value(true)
-            .required(true)
-            .help("Seed phrase (12 words) or secret (private) key. Seed phrase should be specified in quotes, secret key as 64 chars of hex."));
+            .long("--phrase")
+            .short("-p")
+            .help("Seed phrase (12 words) or secret (private) key. Seed phrase should be specified in quotes, secret key as 64 hex chars."));
 
     let genaddr_cmd = SubCommand::with_name("genaddr")
         .setting(AppSettings::AllowNegativeNumbers)
@@ -1107,7 +1109,7 @@ fn getkeypair_command(matches: &ArgMatches, config: &Config) -> Result<(), Strin
     if !config.is_json {
         print_args!(key_file, phrase);
     }
-    generate_keypair(key_file.unwrap(), phrase.unwrap(), config)
+    generate_keypair(key_file, phrase, config)
 }
 
 async fn send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {

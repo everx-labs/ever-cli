@@ -24,7 +24,9 @@ fn generate_phrase_and_key(key_path: &str) -> Result<String, Box<dyn std::error:
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("getkeypair")
+        .arg("-o")
         .arg(key_path)
+        .arg("-p")
         .arg(seed.clone())
         .assert()
         .success();
@@ -442,7 +444,9 @@ fn test_genaddr_initdata() -> Result<(), Box<dyn std::error::Error>> {
 fn test_getkeypair() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("getkeypair")
+        .arg("-o")
         .arg("tests/samples/tmp.json")
+        .arg("-p")
         .arg("ghost frost pool buzz rival mad naive rare shell tooth smart praise");
     cmd.assert()
         .success()
@@ -2198,7 +2202,9 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("getkeypair")
+        .arg("-o")
         .arg(key_path)
+        .arg("-p")
         .arg(seed)
         .assert()
         .success();

@@ -53,6 +53,7 @@ async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) 
         ParamsOfDecodeMessage {
             abi,
             message: msg.message.clone(),
+            ..Default::default()
         },
     )
     .await
@@ -200,6 +201,7 @@ pub async fn send_message_and_wait(
             message: msg.clone(),
             abi: abi.clone(),
             send_events: false,
+            ..Default::default()
         },
         callback,
     ).await
@@ -240,6 +242,7 @@ pub async fn process_message(
             ParamsOfProcessMessage {
                 message_encode_params: msg.clone(),
                 send_events: true,
+                ..Default::default()
             },
             callback,
         ).await
@@ -249,6 +252,7 @@ pub async fn process_message(
             ParamsOfProcessMessage {
                 message_encode_params: msg.clone(),
                 send_events: true,
+                ..Default::default()
             },
             |_| { async move {} },
         ).await

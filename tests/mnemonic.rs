@@ -33,7 +33,7 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
     
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("getkeypair").arg("test.json").arg(WRONG_SEED);
+    cmd.arg("getkeypair").arg("-o").arg("test.json").arg("-p").arg(WRONG_SEED);
     cmd.assert()
         .failure()     
         .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
