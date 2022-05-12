@@ -17,6 +17,7 @@ use ton_client::error::ClientError;
 use ton_client::net::{ParamsOfQueryCollection, query_collection, ResultOfSubscription, ParamsOfSubscribeCollection};
 use ton_client::utils::{calc_storage_fee, ParamsOfCalcStorageFee};
 use ton_block::{Account, Deserializable, Serializable};
+use crate::decode::print_account_data;
 
 const ACCOUNT_FIELDS: &str = r#"
     id
@@ -68,7 +69,22 @@ async fn query_accounts(config: &Config, addresses: Vec<String>, fields: &str) -
     Ok(res)
 }
 
-pub async fn get_account(config: &Config, addresses: Vec<String>, dumpfile: Option<&str>, dumpboc: Option<&str>) -> Result<(), String> {
+pub async fn get_account(config: &Config, addresses: Vec<String>, dumptvc: Option<&str>, dumpboc: Option<&str>, is_boc: bool) -> Result<(), String> {
+    if is_boc {
+        let mut accounts = vec![];
+        for path in addresses {
+            let account = Account::construct_from_file(&path)
+                .map_err(|e| format!(" failed to load account from the boc file {}: {}", path, e))?;
+            accounts.push(account);
+        }
+        if !config.is_json {
+            println!("\nSucceeded.\n");
+        }
+        for account in accounts {
+            print_account_data(&account, dumptvc, config, false).await?;
+        }
+        return Ok(());
+    }
     let accounts = query_accounts(&config, addresses.clone(), ACCOUNT_FIELDS).await?;
     if !config.is_json {
         println!("Succeeded.");
@@ -185,22 +201,22 @@ pub async fn get_account(config: &Config, addresses: Vec<String>, dumpfile: Opti
         }
     }
 
-    if dumpfile.is_some() || dumpboc.is_some() && addresses.len() == 1 && accounts.len() == 1 {
+    if dumptvc.is_some() || dumpboc.is_some() && addresses.len() == 1 && accounts.len() == 1 {
         let acc = &accounts[0];
         let boc = acc["boc"].as_str()
             .ok_or("failed to get boc of the account".to_owned())?;
         let account = Account::construct_from_base64(boc)
             .map_err(|e| format!("failed to load account from the boc: {}", e))?;
-        if dumpfile.is_some() {
+        if dumptvc.is_some() {
             if account.state_init().is_some() {
                 account.state_init().unwrap()
-                    .write_to_file(dumpfile.unwrap())
-                    .map_err(|e| format!("failed to write data to the file {}: {}", dumpfile.unwrap(), e))?;
+                    .write_to_file(dumptvc.unwrap())
+                    .map_err(|e| format!("failed to write data to the file {}: {}", dumptvc.unwrap(), e))?;
             } else {
                 return Err("account doesn't contain state init.".to_owned());
             }
             if !config.is_json {
-                println!("Saved contract to file {}", &dumpfile.unwrap());
+                println!("Saved contract to file {}", &dumptvc.unwrap());
             }
         }
         if dumpboc.is_some() {

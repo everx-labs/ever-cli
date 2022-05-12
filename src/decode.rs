@@ -145,10 +145,10 @@ async fn decode_account_from_boc(m: &ArgMatches<'_>, config: &Config) -> Result<
     let account = Account::construct_from_file(boc.unwrap())
         .map_err(|e| format!(" failed to load account from the boc file: {}", e))?;
 
-    print_account_data(&account, tvc_path, config).await
+    print_account_data(&account, tvc_path, config, true).await
 }
 
-pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, config: &Config) -> Result<(), String> {
+pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, config: &Config, decode_stateinit: bool) -> Result<(), String> {
     if account.is_none() {
         if !config.is_json {
             println!("\nAccount is None");
@@ -179,7 +179,7 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
     };
 
     let trans_lt = account.last_tr_time()
-        .map_or("Undefined".to_owned(), |v| format!("{}", v));
+        .map_or("Undefined".to_owned(), |v| format!("{:#x}", v));
     let paid = format!("{}", account.last_paid());
 
     let (si, code_hash) = match state_init {
@@ -198,6 +198,9 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
         _ => ("Undefined".to_owned(), None)
     };
 
+    let data = tree_of_cells_into_base64(account.get_data().as_ref())?;
+    let data = hex::encode(base64::decode(&data)
+        .map_err(|e| format!("Failed to decode base64: {}", e))?);
     print_account(
         &config,
         Some(state),
@@ -205,9 +208,9 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
         Some(balance),
         Some(paid),
         Some(trans_lt),
-        None,
+        Some(data),
         code_hash,
-        Some(si),
+        if decode_stateinit { Some(si) } else { None },
     );
 
     if tvc_path.is_some() && state_init.is_some() {
