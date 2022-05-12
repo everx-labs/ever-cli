@@ -18,6 +18,7 @@
 extern crate clap;
 #[macro_use] extern crate log;
 #[macro_use] extern crate serde_json;
+extern crate core;
 
 mod account;
 mod call;

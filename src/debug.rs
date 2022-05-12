@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params, load_debug_info};
+use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params, load_debug_info, wc_from_matches_or_config};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field, query_with_limit};
@@ -18,8 +18,8 @@ use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
 use std::io::{Write};
-use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction};
-use ton_types::{UInt256, HashmapE, Cell};
+use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction, MsgAddressInt, CurrencyCollection};
+use ton_types::{UInt256, HashmapE, Cell, AccountId};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
 use ton_executor::{BlockchainConfig, ExecuteParams, TransactionExecutor};
 use std::sync::{Arc, atomic::AtomicU64};
@@ -27,6 +27,9 @@ use ton_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDi
 use crate::crypto::load_keypair;
 use crate::debug_executor::{DebugTransactionExecutor, TraceLevel};
 use std::fmt;
+use serde_json::Value;
+use crate::decode::msg_printer::serialize_msg;
+use crate::deploy::prepare_deploy_message;
 
 const DEFAULT_TRACE_PATH: &str = "./trace.log";
 const DEFAULT_CONFIG_PATH: &str = "config.txns";
@@ -177,6 +180,28 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .help("Dump the replayed target contract account state.")
         .long("--dump_contract");
 
+    let update_arg = Arg::with_name("UPDATE_BOC")
+        .long("--update")
+        .short("-u")
+        .requires("BOC")
+        .help("Update contract BOC after execution");
+
+    let msg_cmd = SubCommand::with_name("message")
+        .about("Play message locally with trace")
+        .arg(output_arg.clone())
+        .arg(dbg_info_arg.clone())
+        .arg(address_arg.clone())
+        .arg(full_trace_arg.clone())
+        .arg(decode_abi_arg.clone())
+        .arg(boc_arg.clone())
+        .arg(config_path_arg.clone())
+        .arg(update_arg.clone())
+        .arg(Arg::with_name("MESSAGE")
+            .takes_value(true)
+            .required(true)
+            .help("Message in Base64 or path to file with message.")
+        );
+
     let run_cmd = SubCommand::with_name("run")
         .about("Play getter locally with trace")
         .arg(output_arg.clone())
@@ -203,9 +228,36 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp."))
         .arg(config_path_arg.clone());
 
+    let deploy_cmd = SubCommand::with_name("deploy")
+        .about("Play deploy locally with trace")
+        .arg(output_arg.clone())
+        .arg(dbg_info_arg.clone())
+        .arg(abi_arg.clone())
+        .arg(full_trace_arg.clone())
+        .arg(decode_abi_arg.clone())
+        .arg(sign_arg.clone())
+        .arg(Arg::with_name("NOW")
+            .takes_value(true)
+            .long("--now")
+            .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp."))
+        .arg(config_path_arg.clone())
+        .arg(Arg::with_name("TVC")
+            .required(true)
+            .takes_value(true)
+            .help("Path to the TVC file with contract stateinit."))
+        .arg(Arg::with_name("WC")
+            .takes_value(true)
+            .long("--wc")
+            .help("Workchain ID"))
+        .arg(params_arg.clone())
+        .arg(Arg::with_name("INIT_BALANCE")
+            .long("--init_balance")
+            .help("Do not fetch account from the network, but create dummy account with big balance."));
+
     let call_cmd = run_cmd.clone().name("call")
         .about("Play call locally with trace")
-        .arg(sign_arg.clone());
+        .arg(sign_arg.clone())
+        .arg(update_arg.clone());
 
     SubCommand::with_name("debug")
         .about("Debug commands.")
@@ -250,6 +302,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
                 .takes_value(true)))
         .subcommand(call_cmd)
         .subcommand(run_cmd)
+        .subcommand(deploy_cmd)
+        .subcommand(msg_cmd)
 }
 
 pub async fn debug_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
@@ -265,9 +319,16 @@ pub async fn debug_command(matches: &ArgMatches<'_>, config: &Config) -> Result<
     if let Some(matches) = matches.subcommand_matches("run") {
         return debug_call_command(matches, config, true).await;
     }
+    if let Some(matches) = matches.subcommand_matches("message") {
+        return debug_message_command(matches, config).await;
+    }
     if let Some(matches) = matches.subcommand_matches("replay") {
         return replay_transaction_command(matches, config).await;
     }
+    if let Some(matches) = matches.subcommand_matches("deploy") {
+        return debug_deploy_command(matches, config).await;
+    }
+
     Err("unknown command".to_owned())
 }
 
@@ -515,7 +576,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
     }
 
     let is_full_trace = matches.is_present("FULL_TRACE");
-    let ton_client = create_client(&config)?;
+    let ton_client = create_client(&config)?;  // TODO: create local for boc and tvc
     let input = input.unwrap();
     let account = if is_tvc {
         construct_account_from_tvc(input,
@@ -599,6 +660,210 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         is_getter,
     ).await;
 
+    let mut out_res = vec![];
+    let msg_string = match trans {
+        Ok(trans) => {
+            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            "Execution finished.".to_string()
+        }
+        Err(e) => {
+            format!("Execution failed: {}", e)
+        }
+    };
+
+    if matches.is_present("UPDATE_BOC") {
+        Account::construct_from_cell(acc_root)
+            .map_err(|e| format!("Failed to construct account: {}", e))?
+            .write_to_file(input)
+            .map_err(|e| format!("Failed to dump account: {}", e))?;
+        if !config.is_json {
+            println!("{} successfully updated", input);
+        }
+    }
+
+    let print_res = is_getter && !out_res.is_empty();
+    if print_res {
+        if !config.is_json {
+            print!("Output: ");
+        }
+        for msg in out_res {
+            println!("{}", serde_json::to_string_pretty(&msg)
+                .map_err(|e| format!("Failed to serialize result: {}", e))?);
+        }
+    }
+
+    if !config.is_json {
+        println!("{}", msg_string);
+        println!("Log saved to {}", trace_path);
+    } else if !print_res {
+        println!("{{}}");
+    }
+    Ok(())
+}
+
+async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let input = matches.value_of("ADDRESS");
+    let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
+    let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
+    let is_boc = matches.is_present("BOC");
+    let message = matches.value_of("MESSAGE");
+    if !config.is_json {
+        print_args!(input, message, output, debug_info);
+    }
+
+    let is_full_trace = matches.is_present("FULL_TRACE");
+    let ton_client = create_client(&config)?;
+    let input = input.unwrap();
+    let account = if is_boc {
+        Account::construct_from_file(input)
+            .map_err(|e| format!(" failed to load account from the file {}: {}", input, e))?
+    } else {
+        let address = load_ton_address(input, &config)?;
+        let account = query_account_field(ton_client.clone(), &address, "boc").await?;
+        Account::construct_from_base64(&account)
+            .map_err(|e| format!("Failed to construct account: {}", e))?
+    };
+
+    let message = message.unwrap();
+    let message = if std::path::Path::new(message).exists() {
+        Message::construct_from_file(message)
+    } else {
+        Message::construct_from_base64(message)
+    }.map_err(|e| format!("Failed to decode message: {}", e))?;
+    let mut acc_root = account.serialize()
+        .map_err(|e| format!("Failed to serialize account: {}", e))?;
+
+    let trace_path = output.unwrap().to_string();
+
+    log::set_max_level(log::LevelFilter::Trace);
+    log::set_boxed_logger(
+        Box::new(DebugLogger::new(trace_path.clone()))
+    ).map_err(|e| format!("Failed to set logger: {}", e))?;
+
+    let now = now_ms();
+    let trans = execute_debug(
+        construct_bc_config(matches)?,
+        Some(ton_client),
+        &mut acc_root,
+        Some(&message),
+        (now / 1000) as u32,
+        now,
+        now,
+        debug_info,
+        is_full_trace,
+        false,
+    ).await;
+
+    let msg_string = match trans {
+        Ok(trans) => {
+            decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            "Execution finished.".to_string()
+        }
+        Err(e) => {
+            format!("Execution failed: {}", e)
+        }
+    };
+
+    if matches.is_present("UPDATE_BOC") {
+        Account::construct_from_cell(acc_root)
+            .map_err(|e| format!("Failed to construct account: {}", e))?
+            .write_to_file(input)
+            .map_err(|e| format!("Failed to dump account: {}", e))?;
+        if !config.is_json {
+            println!("{} successfully updated", input);
+        }
+    }
+
+    if !config.is_json {
+        println!("{}", msg_string);
+        println!("Log saved to {}", trace_path);
+    } else {
+        println!("{{}}");
+    }
+    Ok(())
+}
+
+async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let tvc = matches.value_of("TVC");
+    let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
+    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
+        .or(load_debug_info(opt_abi.as_ref().unwrap()));
+    let params = matches.value_of("PARAMS");
+    let sign = matches.value_of("SIGN")
+        .map(|s| s.to_string())
+        .or(config.keys_path.clone());
+    let params = Some(load_params(params.unwrap())?);
+    let wc = Some(wc_from_matches_or_config(matches, config)?);
+    if !config.is_json {
+        print_args!(tvc, params, sign, opt_abi, output, debug_info);
+    }
+
+    let is_full_trace = matches.is_present("FULL_TRACE");
+    let (msg, address) = prepare_deploy_message(
+        tvc.unwrap(),
+        opt_abi.as_ref().unwrap(),
+        params.as_ref().unwrap(),
+        sign,
+        wc.unwrap()
+    ).await?;
+    let init_balance = matches.is_present("INIT_BALANCE");
+    let ton_client = create_client(config)?;
+    let enc_msg = encode_message(ton_client.clone(), msg.clone()).await
+        .map_err(|e| format!("failed to create inbound message: {}", e))?;
+
+    let account = if init_balance {
+        Account::with_address_and_ballance(
+            &MsgAddressInt::with_standart(
+                None,
+                wc.unwrap() as i8,
+                AccountId::from_string(address.split(':').collect::<Vec<&str>>()[1])
+                    .map_err(|e| format!("{}", e))?)
+                .map_err(|e| format!("{}", e))?,
+            &CurrencyCollection::with_grams(u64::MAX)
+        )
+    } else {
+        let account = query_account_field(
+            ton_client.clone(),
+            &address,
+            "boc"
+        ).await?;
+        Account::construct_from_base64(&account)
+            .map_err(|e| format!("Failed to construct account: {}", e))?
+    };
+
+    let message = Message::construct_from_base64(&enc_msg.message)
+        .map_err(|e| format!("Failed to construct message: {}", e))?;
+
+    let mut acc_root = account.serialize()
+        .map_err(|e| format!("Failed to serialize account: {}", e))?;
+
+    let trace_path = output.unwrap().to_string();
+
+    log::set_max_level(log::LevelFilter::Trace);
+    log::set_boxed_logger(
+        Box::new(DebugLogger::new(trace_path.clone()))
+    ).map_err(|e| format!("Failed to set logger: {}", e))?;
+
+    let now = match matches.value_of("NOW") {
+        Some(now) => u64::from_str_radix(now, 10)
+            .map_err(|e| format!("Failed to convert now to u64: {}", e))?,
+        _ => now_ms()
+    };
+
+    let trans = execute_debug(
+        construct_bc_config(matches)?,
+        Some(ton_client),
+        &mut acc_root,
+        Some(&message),
+        (now / 1000) as u32,
+        now,
+        now,
+        debug_info,
+        is_full_trace,
+        false,
+    ).await;
+
     let msg_string = match trans {
         Ok(trans) => {
             decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
@@ -614,26 +879,36 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
     } else {
         println!("{{}}");
     }
+
     Ok(())
 }
 
-use crate::decode::msg_printer::serialize_msg;
-
-async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<(), String> {
+async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<Vec<Value>, String> {
     if !msgs.is_empty() {
         log::debug!(target: "executor", "Output messages:\n----------------");
     }
     let msgs = msgs.export_vector()
         .map_err(|e| format!("Failed to parse out messages: {}", e))?;
 
+    let mut res = vec![];
     for msg in msgs {
-
-        let ser_msg = serialize_msg(&msg.0, abi.clone()).await
+        let mut ser_msg = serialize_msg(&msg.0, abi.clone()).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
+        let msg_str = base64::encode(
+            &ton_types::cells_serialization::serialize_toc(
+                &msg.0
+                    .serialize()
+                    .map_err(|e| format!("Failed to serialize out message: {}", e))?
+            ).map_err(|e| format!("failed to encode out message: {}", e))?
+        );
+        ser_msg["Message_base64"] = serde_json::Value::String(msg_str);
+        if ser_msg["BodyCall"].is_object() {
+            res.push(ser_msg["BodyCall"].clone());
+        }
         log::debug!(target: "executor", "\n{}\n", serde_json::to_string_pretty(&ser_msg)
             .map_err(|e| format!("Failed to serialize json: {}", e))?);
     }
-    Ok(())
+    Ok(res)
 }
 
 async fn query_address(tr_id: &str, config: &Config) -> Result<String, String> {
