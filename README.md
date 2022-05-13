@@ -300,9 +300,11 @@ Succeeded.
   "async_call": false,
   "debug_fail": "None",
   "endpoints": [
-    "https://main2.ton.dev",
-    "https://main3.ton.dev",
-    "https://main4.ton.dev"
+    "https://eri01.main.everos.dev",
+    "https://gra01.main.everos.dev",
+    "https://gra02.main.everos.dev",
+    "https://lim01.main.everos.dev",
+    "https://rbx01.main.everos.dev"
   ]
 }
 ```
@@ -370,13 +372,16 @@ Default state of the map:
 ```bash
 {
   "net.ton.dev": [
-    "https://net1.ton.dev",
-    "https://net5.ton.dev"
+    "https://eri01.net.everos.dev",
+    "https://rbx01.net.everos.dev"
+    "https://gra01.net.everos.dev"
   ],
   "main.ton.dev": [
-    "https://main2.ton.dev",
-    "https://main3.ton.dev",
-    "https://main4.ton.dev"
+    "https://eri01.main.everos.dev",
+    "https://gra01.main.everos.dev",
+    "https://gra02.main.everos.dev",
+    "https://lim01.main.everos.dev",
+    "https://rbx01.main.everos.dev"
   ],
   "http://127.0.0.1/": [
     "http://0.0.0.0/",
@@ -397,7 +402,7 @@ Example:
 
 ```bash
 tonos-cli config endpoint remove main.ton.dev
-tonos-cli config endpoint add main.ton.dev "https://main2.ton.dev","https://main3.ton.dev","https://main4.ton.dev"
+tonos-cli config endpoint add main.ton.dev "https://eri01.main.everos.dev","https://gra01.main.everos.dev","https://gra02.main.everos.dev","https://lim01.main.everos.dev","https://rbx01.main.everos.dev"
 ```
 
 > **Note**: If url used in add command already exists, endpoints lists will be merged.

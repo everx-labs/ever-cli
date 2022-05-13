@@ -141,10 +141,10 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("main.ton.dev"))
-        .stdout(predicate::str::contains("https://main2.ton.dev"))
+        .stdout(predicate::str::contains("https://rbx01.main.everos.dev"))
         .stdout(predicate::str::contains("http://127.0.0.1/"))
         .stdout(predicate::str::contains("net.ton.dev"))
-        .stdout(predicate::str::contains("https://net1.ton.dev"));
+        .stdout(predicate::str::contains("https://gra01.net.everos.dev"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
@@ -161,9 +161,11 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#""url": "main.ton.dev","#))
         .stdout(predicate::str::contains(r#""endpoints": [
-    "https://main2.ton.dev",
-    "https://main3.ton.dev",
-    "https://main4.ton.dev"
+    "https://eri01.main.everos.dev",
+    "https://gra01.main.everos.dev",
+    "https://gra02.main.everos.dev",
+    "https://lim01.main.everos.dev",
+    "https://rbx01.main.everos.dev"
   ]"#));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -175,10 +177,10 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("main.ton.dev"))
-        .stdout(predicate::str::contains("https://main2.ton.dev"))
+        .stdout(predicate::str::contains("https://rbx01.main.everos.dev"))
         .stdout(predicate::str::contains("http://127.0.0.1/"))
         .stdout(predicate::str::contains("net.ton.dev"))
-        .stdout(predicate::str::contains("https://net1.ton.dev"))
+        .stdout(predicate::str::contains("https://gra01.net.everos.dev"))
         .stdout(predicate::str::contains("myownhost"))
         .stdout(predicate::str::contains("1.1.1.1"))
         .stdout(predicate::str::contains("my.net.com"));
@@ -204,10 +206,10 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("main.ton.dev"))
-        .stdout(predicate::str::contains("https://main2.ton.dev"))
+        .stdout(predicate::str::contains("https://rbx01.main.everos.dev"))
         .stdout(predicate::str::contains("http://127.0.0.1/"))
         .stdout(predicate::str::contains("net.ton.dev"))
-        .stdout(predicate::str::contains("https://net1.ton.dev"))
+        .stdout(predicate::str::contains("https://gra01.net.everos.dev"))
         .stdout(predicate::str::contains("myownhost"))
         .stdout(predicate::str::contains("1.1.1.1"))
         .stdout(predicate::str::contains("my.net.com"))
@@ -232,10 +234,10 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::function(|s: &str| !s.contains("main.ton.dev")))
-        .stdout(predicate::function(|s: &str| !s.contains("https://main2.ton.dev")))
+        .stdout(predicate::function(|s: &str| !s.contains("https://rbx01.main.everos.dev")))
         .stdout(predicate::str::contains("http://127.0.0.1/"))
         .stdout(predicate::str::contains("net.ton.dev"))
-        .stdout(predicate::str::contains("https://net1.ton.dev"))
+        .stdout(predicate::str::contains("https://gra01.net.everos.dev"))
         .stdout(predicate::str::contains("myownhost"))
         .stdout(predicate::str::contains("1.1.1.1"))
         .stdout(predicate::str::contains("my.net.com"));
@@ -247,10 +249,10 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::function(|s: &str| !s.contains("main.ton.dev")))
-        .stdout(predicate::function(|s: &str| !s.contains("https://main2.ton.dev")))
+        .stdout(predicate::function(|s: &str| !s.contains("https://rbx01.main.everos.dev")))
         .stdout(predicate::str::contains("http://127.0.0.1/"))
         .stdout(predicate::str::contains("net.ton.dev"))
-        .stdout(predicate::str::contains("https://net1.ton.dev"))
+        .stdout(predicate::str::contains("https://gra01.net.everos.dev"))
         .stdout(predicate::str::contains("myownhost"))
         .stdout(predicate::str::contains("1.1.1.1"))
         .stdout(predicate::str::contains("my.net.com"));
@@ -265,9 +267,9 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::function(|s: &str| !s.contains("my.net.com")))
         .stdout(predicate::str::contains("http://127.0.0.1/"))
         .stdout(predicate::str::contains("net.ton.dev"))
-        .stdout(predicate::str::contains("https://net1.ton.dev"))
+        .stdout(predicate::str::contains("https://gra01.net.everos.dev"))
         .stdout(predicate::str::contains("main.ton.dev"))
-        .stdout(predicate::str::contains("https://main2.ton.dev"));
+        .stdout(predicate::str::contains("https://rbx01.main.everos.dev"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
