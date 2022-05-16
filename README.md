@@ -63,7 +63,7 @@ tonos-cli <subcommand> -h
 - [5. DeBot commands](#5-debot-commands)
 - [6. Multisig commands](#6-multisig-commands)
   - [6.1. Send tokens](#61-send-tokens)
-- [6.2. Deploy wallet](#62-deploy-wallet)
+  - [6.2. Deploy wallet](#62-deploy-wallet)
 - [7. DePool commands](#7-depool-commands)
   - [7.1. Configure TONOS-CLI for DePool operations](#71-configure-tonos-cli-for-depool-operations)
   - [7.2. Deposit stakes](#72-deposit-stakes)
@@ -90,8 +90,8 @@ tonos-cli <subcommand> -h
   - [9.3. NodeID](#93-nodeid)
   - [9.4. Dump blockchain config](#94-dump-blockchain-config)
   - [9.5. Dump several account states](#95-dump-several-account-states)
-  - [9.6. Wait for account change](#96-account-wait)
-  - [9.7. Make a raw GraphQL query](#97-query-raw)
+  - [9.6. Wait for account change](#96-wait-for-account-change)
+  - [9.7. Make a raw GraphQL query](#97-make-a-raw-graphql-query)
 - [10. Fetch and replay](#10-fetch-and-replay)
   - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 - [11. Debug commands](#11-debug-commands)
@@ -99,7 +99,8 @@ tonos-cli <subcommand> -h
   - [11.2. Debug call](#112-debug-call)
   - [11.3. Debug run](#113-debug-run)
   - [11.4. Debug replay transaction on the saved account state](#114-debug-replay-transaction-on-the-saved-account-state)
-  - [11.5. HOWTO debug a contract with tonos-cli](#115-howto-debug-a-contract-with-tonos-cli)
+  - [11.5. Debug deploy](#115-debug-deploy)
+  - [11.6. Debug message](#116-debug-message)
 
 # 1. Installation
 
@@ -299,9 +300,11 @@ Succeeded.
   "async_call": false,
   "debug_fail": "None",
   "endpoints": [
-    "https://main2.ton.dev",
-    "https://main3.ton.dev",
-    "https://main4.ton.dev"
+    "https://eri01.main.everos.dev",
+    "https://gra01.main.everos.dev",
+    "https://gra02.main.everos.dev",
+    "https://lim01.main.everos.dev",
+    "https://rbx01.main.everos.dev"
   ]
 }
 ```
@@ -369,13 +372,16 @@ Default state of the map:
 ```bash
 {
   "net.ton.dev": [
-    "https://net1.ton.dev",
-    "https://net5.ton.dev"
+    "https://eri01.net.everos.dev",
+    "https://rbx01.net.everos.dev"
+    "https://gra01.net.everos.dev"
   ],
   "main.ton.dev": [
-    "https://main2.ton.dev",
-    "https://main3.ton.dev",
-    "https://main4.ton.dev"
+    "https://eri01.main.everos.dev",
+    "https://gra01.main.everos.dev",
+    "https://gra02.main.everos.dev",
+    "https://lim01.main.everos.dev",
+    "https://rbx01.main.everos.dev"
   ],
   "http://127.0.0.1/": [
     "http://0.0.0.0/",
@@ -396,7 +402,7 @@ Example:
 
 ```bash
 tonos-cli config endpoint remove main.ton.dev
-tonos-cli config endpoint add main.ton.dev "https://main2.ton.dev","https://main3.ton.dev","https://main4.ton.dev"
+tonos-cli config endpoint add main.ton.dev "https://eri01.main.everos.dev","https://gra01.main.everos.dev","https://gra02.main.everos.dev","https://lim01.main.everos.dev","https://rbx01.main.everos.dev"
 ```
 
 > **Note**: If url used in add command already exists, endpoints lists will be merged.
@@ -2245,16 +2251,17 @@ Processing...
 Succeeded.
 ```
 
-## 9.6. Wait for an account change
+## 9.6. Wait for account change
 
 The command `account-wait` waits for the change of the `last_trans_lt` account field. It exits with zero exit code upon success (the field has changed before timeout). Otherwise, it exits with non-zero code.
 
 ```bash
 tonos-cli account-wait <address> [--timeout <timeout_in_secs>]
 ```
-<address> - address of account to wait for.
 
-<timeout_in_secs> - timeout in seconds (the default is 30).
+`<address>` - address of account to wait for.
+
+`<timeout_in_secs>` - timeout in seconds (the default is 30).
 
 Example:
 
@@ -2570,47 +2577,87 @@ Execution finished.
 Log saved to trace2.log
 ```
 
-## 11.5. HOWTO debug a contract with tonos-cli
+## 11.5. Debug deploy
 
-1) Call a function that fails.
-2) Explore the error message, look for these strings:
-
-```
-Error: Failed: {
-...
-    "transaction_id": "69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88"
+```bash
+tonos-cli debug deploy [FLAGS] [OPTIONS] <tvc> <params>
 ```
 
-3) Run the tonos-cli debug transaction command with the obtained values to get TVM trace:
+FLAGS:
+--full_trace      Flag that changes trace to full version.
+--init_balance    Do not fetch account from the network, but create dummy account with big balance.
 
-```
-tonos-cli debug transaction 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 \
---dump_contract -e --min_trace -d <contract>.dbg.json -o trace_old_code.log
+OPTIONS:
+--abi <ABI>                       Path to the contract ABI file. Can be specified in the config file.
+-c, --config <CONFIG_PATH>        Path to the file with saved config contract state.
+-d, --dbg_info <DBG_INFO>         Path to the file with debug info.
+--decode_abi <DECODE_ABI>         Path to the ABI file used to decode output messages. Can be specified in the config
+file.
+-o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
+be removed.
+--now <NOW>                       Now timestamp (in milliseconds) for execution. If not set it is equal to the
+current timestamp.
+--sign <SIGN>                     Seed phrase or path to the file with keypair used to sign the message. Can be
+specified in the config.
+--wc <WC>                         Workchain ID
+
+ARGUMENTS:
+`<tvc>`       Path to the tvc file with contract StateInit.
+`<params>`    Constructor arguments.
+
+This command allows user locally emulate contract deploy.
+Command can work with prepared network account or create a dummy one with big balance (if --init_balance flag is
+specified).
+
+## 11.6. Debug message
+
+```bash
+$ tonos-cli debug message [--boc] <address_or_path> [-u] [-o <log_path>] <message_in_base64_or_path_to_file>
 ```
 
-4) Explore the output for contract dump:
+FLAGS:
+--boc               Flag that changes behavior of the command to work with the saved account state (account BOC).
+--full_trace        Flag that changes trace to full version.
+-u, --update        Update contract BOC after execution
 
-```
-...
-Contract account was dumped to 0:8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa-69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88.boc
-...
+OPTIONS:
+-c, --config <CONFIG_PATH>        Path to the file with saved config contract state.
+-d, --dbg_info <DBG_INFO>         Path to the file with debug info.
+--decode_abi <DECODE_ABI>         Path to the ABI file used to decode output messages. Can be specified in the config
+                                  file.
+-o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
+                                  be removed.
+
+ARGUMENTS:
+<address_or_path>                       Contract address or path the file with saved contract state if corresponding flag is used.
+<message_in_base64_or_path_to_file>     Message in Base64 or path to fil with message.
+
+This command allows to play message on the contract state locally with trace.
+It can be useful when user wants to play contract interaction locally. User can call one contract locally with
+`tonos-cli debug call` and find output messages in trace log:
+
+```log
+Output messages:
+----------------
+
+{
+  "Type": "internal message",
+  "Header": {
+    "ihr_disabled": "true",
+    "bounce": "true",
+    "bounced": "false",
+    "source": "0:c015125ec7788fe31c8ff246ad58ca3dda476f74d544f6b161535b7e8ad995e3",
+    "destination": "0:9677580d26bd9d316323470526d94186354698092f62ea63e65cebcd5c6ad7a8",
+    "value": "9000000",
+    "ihr_fee": "0",
+    "fwd_fee": "666672",
+    "created_lt": "4786713000003",
+    "created_at": "1652270294"
+  },
+  "Body": "te6ccgEBAQEAJgAASEhEWrgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3g==",
+  "BodyCall": "Undefined",
+  "Message_base64": "te6ccgEBAQEAfgAA92gBgCokvY7xH8Y5H+SNWrGUe7SO3umqie1iwqa2/RWzK8cAJZ3WA0mvZ0xYyNHBSbZQYY1RpgJL2LqY+Zc681cateoOJVEABhRYYAAACLT8p/CGxPdJrCQiLVwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAb0A="
+}
 ```
 
-5) Rewrite your contract to fix the error and compile a new version of the contract.
-6) Replace code in the account dump using tvm_linker:
-
-```
-tvm_linker replace_code -a <new_contract>.abi.json --debug-map <new_contract>.dbg.json -o contract.boc <new_contract>.code "0:8be07ec3f8f25ebb35ce1a29d48b0cbbf1d41aa00249f34e89f136c561cae3fa-69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88.boc"
-```
-
-7.1) Run debug replay to replay the transaction on the modified account state:
-
-```
-tonos-cli debug replay --update_state -d <new_contract>.dbg.json -o new_trace.log 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 contract.boc"
-```
-
-7.2) Run debug call locally on the new account to test new version of the contract on a new generated call message:
-
-```
-tonos-cli debug call --boc --abi <new_contract>.abi.json -d <new_contract>.dbg.json -o new_trace.log --sign <key> contract.boc <function> <params>
-```
+`Message_base64` then can be passed to `tonos-cli debug message` to play it on another account.
