@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.26.9
+
+### New
+ - Added a hint to fix windows debug build
+ - Update endpoints
+ - Added --boc flag for account command
+
+
 ## Version: 0.26.8
 
 ### New
