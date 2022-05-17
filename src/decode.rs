@@ -471,7 +471,7 @@ pub mod msg_printer {
         }
         let mut other = json!({});
         cc.other.iterate_with_keys(|key: u32, value| {
-            other[key.to_string()] = json!(value.value().to_string());
+            other[key.to_string()] = json!(value.to_string());
             Ok(true)
         }).ok();
         json!({
