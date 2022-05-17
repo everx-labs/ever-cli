@@ -176,6 +176,34 @@ Build TONOS-CLI tool from source:
 
 The `tonos-cli` executable is built in the `tonos-cli/target/release` folder. Create a folder elsewhere. Copy the `tonos-cli` executable into the new folder you have created.
 
+### Windows debug build troubleshooting
+
+Default debug executable built after `cargo build` command may have an issue with binary default stack size:
+
+```bash
+> cargo build
+Finished dev [unoptimized + debuginfo] target(s) in 0.66s
+> .\target\debug\tonos-cli.exe --version
+
+thread 'main' has overflowed its stack
+```
+
+User can fix this issue by using [editbin tool from MSVC Tools](https://docs.microsoft.com/ru-ru/cpp/build/reference/editbin-reference?view=msvc-170). This tool allows user to
+increase binary stack reserve. Increase it by 2 times will help to fix tonos-cli:
+
+```bash
+> editbin /STACK:2097152 tonos-cli.exe
+Microsoft (R) COFF/PE Editor Version 14.28.29914.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+> tonos-cli.exe --version
+tonos_cli 0.26.7
+COMMIT_ID: 1e1397b5561ea79d2fd7cce47cd033450b123f25
+BUILD_DATE: Unknown
+COMMIT_DATE: 2022-05-13 14:15:47 +0300
+GIT_BRANCH: master
+```
+
 ### Tails OS secure environment
 
 For maximum security while working with offline TONOS-CLI features (such as cryptographic commands or encrypted message generation), you can use the [Tails OS](https://tails.boum.org/).
