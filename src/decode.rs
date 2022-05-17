@@ -461,7 +461,7 @@ pub mod msg_printer {
     }
 
     fn serialize_grams(grams: &Grams) -> Value {
-        json!(grams.as_u128().to_string())
+        json!(grams.to_string())
     }
 
     fn serialize_currency_collection(cc: &CurrencyCollection) -> Value {
