@@ -2,13 +2,6 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.26.9
-
-### New
- - Update endpoints
- - Added --boc flag for account command
-
-
 ## Version: 0.26.8
 
 ### New
