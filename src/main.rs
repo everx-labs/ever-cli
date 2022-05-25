@@ -18,6 +18,7 @@
 extern crate clap;
 #[macro_use] extern crate log;
 #[macro_use] extern crate serde_json;
+extern crate core;
 
 mod account;
 mod call;
@@ -608,10 +609,11 @@ async fn main_internal() -> Result <(), String> {
         .about("Obtains and prints account information.")
         .version(&*version_string)
         .author("TONLabs")
+        .arg(boc_flag.clone())
         .arg(Arg::with_name("ADDRESS")
             .required(true)
             .takes_value(true)
-            .help("List of addresses.")
+            .help("List of addresses or file paths (if flag --boc is used).")
             .multiple(true))
         .arg(Arg::with_name("DUMPTVC")
             .long("--dumptvc")
@@ -624,6 +626,7 @@ async fn main_internal() -> Result <(), String> {
             .short("-b")
             .takes_value(true)
             .conflicts_with("DUMPTVC")
+            .conflicts_with("BOC")
             .help("Dumps the whole account state boc to the specified file. Works only if one address was given. Use 'tonos-cli dump account` to dump several accounts."));
 
     let account_wait_cmd = SubCommand::with_name("account-wait")
@@ -1514,10 +1517,22 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
 
 async fn account_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let addresses_list = matches.values_of("ADDRESS").unwrap().collect::<Vec<_>>();
+    if addresses_list.len() > 1 &&
+        (matches.is_present("DUMPTVC") || matches.is_present("DUMPTVC")) {
+        return Err("`DUMPTVC` and `DUMPBOC` options are not applicable to a list of addresses.".to_string());
+    }
+    let is_boc = matches.is_present("BOC");
     let mut formatted_list = vec![];
     for address in addresses_list.iter() {
-        let formatted = load_ton_address(address, &config)?;
-        formatted_list.push(formatted);
+        if !is_boc {
+            let formatted = load_ton_address(address, &config)?;
+            formatted_list.push(formatted);
+        } else {
+            if !std::path::Path::new(address).exists() {
+                return  Err(format!("File {} doesn't exist.", address));
+            }
+            formatted_list.push(address.to_string());
+        }
     }
     let tvcname = matches.value_of("DUMPTVC");
     let bocname = matches.value_of("DUMPBOC");
@@ -1525,7 +1540,7 @@ async fn account_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
     if !config.is_json {
         print_args!(addresses);
     }
-    get_account(&config, formatted_list, tvcname, bocname).await
+    get_account(&config, formatted_list, tvcname, bocname, is_boc).await
 }
 
 async fn dump_accounts_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {

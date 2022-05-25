@@ -146,14 +146,17 @@ impl Config {
 
 lazy_static! {
     static ref MAIN_ENDPOINTS: Vec<String> = vec![
-        "https://main2.ton.dev".to_string(),
-        "https://main3.ton.dev".to_string(),
-        "https://main4.ton.dev".to_string(),
+        "https://eri01.main.everos.dev".to_string(),
+        "https://gra01.main.everos.dev".to_string(),
+        "https://gra02.main.everos.dev".to_string(),
+        "https://lim01.main.everos.dev".to_string(),
+        "https://rbx01.main.everos.dev".to_string(),
     ];
 
     static ref NET_ENDPOINTS: Vec<String> = vec![
-        "https://net1.ton.dev".to_string(),
-        "https://net5.ton.dev".to_string(),
+        "https://eri01.net.everos.dev".to_string(),
+        "https://rbx01.net.everos.dev".to_string(),
+        "https://gra01.net.everos.dev".to_string(),
     ];
 
     static ref SE_ENDPOINTS: Vec<String> = vec![
