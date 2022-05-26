@@ -101,17 +101,13 @@ fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Res
                 json!(parse_integer_param(&value)?)
             },
             ParamType::Array(ref x) => {
-                if let ParamType::Uint(_) = **x {
-                    let mut result_vec: Vec<String> = vec![];
-                    for i in value.split(|c| c == ',' || c == '[' || c == ']') {
-                        if !i.is_empty() {
-                            result_vec.push(parse_integer_param(i)?)
-                        }
+                let mut result_vec: Vec<String> = vec![];
+                for i in value.split(|c| c == ',' || c == '[' || c == ']') {
+                    if !i.is_empty() {
+                        result_vec.push(parse_integer_param(i)?)
                     }
-                    json!(result_vec)
-                } else {
-                    json!(value)
                 }
+                json!(result_vec)
             },
             _ => {
                 json!(value)
