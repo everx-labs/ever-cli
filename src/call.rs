@@ -100,7 +100,7 @@ fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Res
             ParamType::Uint(_) | ParamType::Int(_) => {
                 json!(parse_integer_param(&value)?)
             },
-            ParamType::Array(ref x) => {
+            ParamType::Array(ref _x) => {
                 let mut result_vec: Vec<String> = vec![];
                 for i in value.split(|c| c == ',' || c == '[' || c == ']') {
                     if !i.is_empty() {

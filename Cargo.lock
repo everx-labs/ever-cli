@@ -2638,7 +2638,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sha2 0.8.2",
- "ton_block",
+ "ton_block 1.7.48",
  "ton_types",
 ]
 
@@ -2657,7 +2657,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "ton_block",
+ "ton_block 1.7.48",
  "ton_tl_codegen",
  "ton_types",
 ]
@@ -2666,6 +2666,25 @@ dependencies = [
 name = "ton_block"
 version = "1.7.48"
 source = "git+https://github.com/tonlabs/ton-labs-block.git?tag=1.7.48#1c3648dedb9e98f1e30f84fa9beadabfe252582b"
+dependencies = [
+ "base64 0.13.0",
+ "crc",
+ "ed25519",
+ "ed25519-dalek",
+ "failure",
+ "hex 0.4.3",
+ "log",
+ "num",
+ "num-traits",
+ "rand 0.7.3",
+ "sha2 0.8.2",
+ "ton_types",
+]
+
+[[package]]
+name = "ton_block"
+version = "1.7.49"
+source = "git+https://github.com/tonlabs/ton-labs-block?tag=1.7.49#71f9aeb2a0c25cbbe191776e1c84acb3eefadca5"
 dependencies = [
  "base64 0.13.0",
  "crc",
@@ -2695,7 +2714,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "ton_api",
- "ton_block",
+ "ton_block 1.7.48",
  "ton_types",
 ]
 
@@ -2746,7 +2765,7 @@ dependencies = [
  "tokio 0.2.25",
  "tokio-tungstenite",
  "ton_abi",
- "ton_block",
+ "ton_block 1.7.48",
  "ton_block_json",
  "ton_executor",
  "ton_sdk",
@@ -2769,8 +2788,8 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "ton_block",
- "ton_labs_assembler",
+ "ton_block 1.7.48",
+ "ton_labs_assembler 1.2.38",
  "ton_types",
  "ton_vm",
 ]
@@ -2779,6 +2798,21 @@ dependencies = [
 name = "ton_labs_assembler"
 version = "1.2.38"
 source = "git+https://github.com/tonlabs/ton-labs-assembler.git?tag=1.2.38#4274d926cc77e07488cf371b3ac24c344c70da8d"
+dependencies = [
+ "failure",
+ "hex 0.4.3",
+ "log",
+ "num",
+ "num-traits",
+ "serde",
+ "serde_json",
+ "ton_types",
+]
+
+[[package]]
+name = "ton_labs_assembler"
+version = "1.2.39"
+source = "git+https://github.com/tonlabs/ton-labs-assembler.git?tag=1.2.39#a0a41dc8859784a2683f097f1d7adf7802d953cd"
 dependencies = [
  "failure",
  "hex 0.4.3",
@@ -2812,7 +2846,7 @@ dependencies = [
  "serde_json",
  "sha2 0.8.2",
  "ton_abi",
- "ton_block",
+ "ton_block 1.7.48",
  "ton_types",
  "ton_vm",
 ]
@@ -2835,7 +2869,7 @@ dependencies = [
 [[package]]
 name = "ton_types"
 version = "1.11.1"
-source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.1#112033dfab92b066735679770934b55208aa6466"
+source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.1#27836abc9febac9e593cf7b1c5696e53454391db"
 dependencies = [
  "base64 0.13.0",
  "crc",
@@ -2855,7 +2889,7 @@ dependencies = [
 [[package]]
 name = "ton_vm"
 version = "1.8.35"
-source = "git+https://github.com/tonlabs/ton-labs-vm.git?tag=1.8.35#81a4cbc1539f745f89cc982f951a9e8f8f5e91b2"
+source = "git+https://github.com/tonlabs/ton-labs-vm.git?tag=1.8.35#b3578f3d6df1ce7c1e5798875cad7406fa825ac5"
 dependencies = [
  "criterion",
  "ed25519",
@@ -2868,14 +2902,14 @@ dependencies = [
  "num-traits",
  "rand 0.7.3",
  "sha2 0.9.9",
- "ton_block",
- "ton_labs_assembler",
+ "ton_block 1.7.49",
+ "ton_labs_assembler 1.2.39",
  "ton_types",
 ]
 
 [[package]]
 name = "tonos-cli"
-version = "0.26.20"
+version = "0.26.22"
 dependencies = [
  "assert_cmd",
  "async-trait",
@@ -2904,11 +2938,11 @@ dependencies = [
  "tokio 0.2.25",
  "tokio-retry",
  "ton_abi",
- "ton_block",
+ "ton_block 1.7.48",
  "ton_block_json",
  "ton_client",
  "ton_executor",
- "ton_labs_assembler",
+ "ton_labs_assembler 1.2.38",
  "ton_sdk",
  "ton_types",
  "ton_vm",
