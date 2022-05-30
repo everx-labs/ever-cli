@@ -16,11 +16,13 @@ tonos-cli <subcommand> -h
 - [Table of contents](#table-of-contents)
 - [1. Installation](#1-installation)
   - [Install compiled executable](#install-compiled-executable)
+    - [Ubuntu 22 troubleshooting](#ubuntu-22-troubleshooting)
   - [Install through EVERDEV](#install-through-everdev)
   - [Build from source](#build-from-source)
     - [Prerequisites](#prerequisites)
     - [Build from source on Linux and Mac OS](#build-from-source-on-linux-and-mac-os)
     - [Build from source on Windows](#build-from-source-on-windows)
+    - [Windows debug build troubleshooting](#windows-debug-build-troubleshooting)
     - [Tails OS secure environment](#tails-os-secure-environment)
     - [Put TONOS-CLI into system environment](#put-tonos-cli-into-system-environment)
   - [Check version](#check-version)
@@ -110,6 +112,16 @@ tonos-cli <subcommand> -h
 ## Install compiled executable
 
 Create a folder. Download the `.zip` file from the latest release from here: [https://github.com/tonlabs/tonos-cli/releases](https://github.com/tonlabs/tonos-cli/releases) to this folder. Extract it.
+
+### Ubuntu 22 troubleshooting
+
+Ubuntu 22 has upgraded to OpenSSL 3.0 and this breaks execution of compiled tonos-cli releases. To fix this problem one
+should install old version of libssl. To do it one can download amd64 package from
+(packages.debian.org)[https://packages.debian.org/stretch/libssl1.1] and install it with dpkg:
+
+```bash
+sudo dpkg -i libssl1.1*.deb
+```
 
 ## Install through EVERDEV
 
