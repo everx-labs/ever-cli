@@ -42,10 +42,10 @@ use ton_client::tvm::{
 };
 use ton_block::{Account, Serializable, Deserializable, Message};
 use std::str::FromStr;
+use clap::ArgMatches;
 use serde_json::{Value};
 use ton_client::error::ClientError;
 use crate::debug::execute_debug;
-use crate::debug_executor::TraceLevel;
 use crate::message::{EncodedMessage, prepare_message_params, print_encoded_message, unpack_message};
 use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 
@@ -271,9 +271,9 @@ pub async fn call_contract_with_result(
     params: &str,
     keys: Option<String>,
     is_fee: bool,
-    dbg_info: Option<String>,
+    matches: Option<&ArgMatches<'_>>,
 ) -> Result<serde_json::Value, String> {
-    let ton = if config.debug_fail.enabled() {
+    let ton = if config.debug_fail != "None".to_string() {
         log::set_max_level(log::LevelFilter::Trace);
         log::set_boxed_logger(
             Box::new(DebugLogger::new(TRACE_PATH.to_string()))
@@ -282,7 +282,7 @@ pub async fn call_contract_with_result(
     } else {
         create_client_verbose(config)?
     };
-    call_contract_with_client(ton, config, addr, abi, method, params, keys, is_fee, dbg_info).await
+    call_contract_with_client(ton, config, addr, abi, method, params, keys, is_fee, matches).await
 }
 
 pub async fn call_contract_with_client(
@@ -294,7 +294,7 @@ pub async fn call_contract_with_client(
     params: &str,
     keys: Option<String>,
     is_fee: bool,
-    dbg_info: Option<String>,
+    matches: Option<&ArgMatches<'_>>,
 ) -> Result<serde_json::Value, String> {
     let abi = load_abi(&abi_string)?;
 
@@ -317,7 +317,7 @@ pub async fn call_contract_with_client(
     let needs_encoded_msg = is_fee ||
         config.async_call ||
         config.local_run ||
-        config.debug_fail.enabled();
+        config.debug_fail != "None".to_string();
 
     let message = if needs_encoded_msg {
         let msg = encode_message(ton.clone(), msg_params.clone()).await
@@ -346,7 +346,7 @@ pub async fn call_contract_with_client(
         println!("{}", expire_at.to_rfc2822());
     }
 
-    let dump = if config.debug_fail.enabled() {
+    let dump = if config.debug_fail != "None".to_string() {
         let acc_boc = query_account_field(
             ton.clone(),
             addr,
@@ -374,7 +374,7 @@ pub async fn call_contract_with_client(
 
     let res = process_message(ton.clone(), msg_params, config).await;
 
-    if config.debug_fail.enabled() && res.is_err()
+    if config.debug_fail != "None".to_string() && res.is_err()
         && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
         if config.is_json {
             println!("{:#}", res.clone().err().unwrap());
@@ -382,10 +382,10 @@ pub async fn call_contract_with_client(
             println!("Error: {:#}", res.clone().err().unwrap());
             println!("Execution failed. Starting debug...");
         }
-        let (bc_config, mut account, message, now) = dump.unwrap();
+        let (_, mut account, message, now) = dump.unwrap();
         let message = Message::construct_from_base64(&message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        let _ = execute_debug(Some(bc_config), None, &mut account, Some(&message), (now / 1000) as u32, now,now, dbg_info,config.debug_fail == TraceLevel::Full, false).await?;
+        let _ = execute_debug(matches, None, &mut account, Some(&message), (now / 1000) as u32, now,now, false, config).await?;
 
         if !config.is_json {
             println!("Debug finished.");
@@ -417,9 +417,9 @@ pub async fn call_contract(
     params: &str,
     keys: Option<String>,
     is_fee: bool,
-    dbg_info: Option<String>,
+    matches: Option<&ArgMatches<'_>>,
 ) -> Result<(), String> {
-    let result = call_contract_with_result(config, addr, abi, method, params, keys, is_fee, dbg_info).await?;
+    let result = call_contract_with_result(config, addr, abi, method, params, keys, is_fee, matches).await?;
     if !config.is_json {
         println!("Succeeded.");
     }

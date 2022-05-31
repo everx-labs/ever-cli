@@ -19,8 +19,7 @@ use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get,
 use crate::{abi_from_matches_or_config, AccountSource, Config, create_client_local, create_client_verbose, DebugLogger, load_abi, load_account, load_params, unpack_alternative_params};
 use crate::call::{print_json_result};
 use crate::debug::execute_debug;
-use crate::debug_executor::TraceLevel;
-use crate::helpers::{create_client, load_debug_info, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient, TRACE_PATH};
+use crate::helpers::{create_client, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient, TRACE_PATH};
 use crate::message::prepare_message;
 
 pub async fn run_command(matches: &ArgMatches<'_>, config: &Config, is_alternative: bool) -> Result<(), String> {
@@ -41,7 +40,7 @@ pub async fn run_command(matches: &ArgMatches<'_>, config: &Config, is_alternati
     };
 
     let ton_client = if account_source == AccountSource::NETWORK {
-        if config.debug_fail.enabled() {
+        if config.debug_fail != "None".to_string() {
             log::set_max_level(log::LevelFilter::Trace);
             log::set_boxed_logger(
                 Box::new(DebugLogger::new(TRACE_PATH.to_string()))
@@ -130,7 +129,7 @@ pub async fn run(
         },
     ).await;
 
-    if config.debug_fail.enabled() && result.is_err()
+    if config.debug_fail != "None".to_string() && result.is_err()
         && result.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
         // TODO: add code to use bc_config from file
 
@@ -149,8 +148,7 @@ pub async fn run(
         let now = now_ms();
         let message = Message::construct_from_base64(&msg.message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        let dbg_info = load_debug_info(&abi_path);
-        let _ = execute_debug(None, Some(ton_client), &mut account, Some(&message), (now / 1000) as u32, now,now, dbg_info,config.debug_fail == TraceLevel::Full, true).await?;
+        let _ = execute_debug(Some(matches), Some(ton_client), &mut account, Some(&message), (now / 1000) as u32, now,now, true, config).await?;
 
         if !config.is_json {
             println!("Debug finished.");
