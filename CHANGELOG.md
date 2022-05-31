@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.26.26
+
+### New
+ - Fixed tests to work in parallel
+
+
 ## Version: 0.26.24
 
 ### New
