@@ -2,11 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.26.16
+## Version: 0.26.24
 
 ### New
- - Fixed tests to work in parallel
-
+  - Libraries update
 
 ## Version: 0.26.8
 
@@ -35,7 +34,13 @@ All notable changes to this project will be documented in this file.
 
 ### New
 
+## Version: 0.25.15
 
+
+### New
+ - Add support copyleft
+
+ 
 ## Version: 0.25.11
 
 ### New

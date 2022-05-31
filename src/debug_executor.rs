@@ -11,15 +11,13 @@
  * limitations under the License.
  */
 
-use ton_executor::{
-    BlockchainConfig, CalcMsgFwdFees, ExecutorError, TransactionExecutor, ExecuteParams, VMSetup
-};
+use ton_executor::{BlockchainConfig, CalcMsgFwdFees, ExecutorError, TransactionExecutor, ExecuteParams, VMSetup};
 
 use std::sync::{atomic::Ordering, Arc};
 use ton_block::{
     AddSub, Grams, Serializable, Account, AccStatusChange, CommonMsgInfo, Message, Transaction,
     TransactionDescrOrdinary, TransactionDescr, TrComputePhase, TrBouncePhase, CurrencyCollection,
-    GlobalCapabilities, ComputeSkipReason, TrComputePhaseVm, AccountStatus, GasLimitsPrices,
+    GlobalCapabilities, ComputeSkipReason, TrComputePhaseVm, AccountStatus, GasLimitsPrices
 };
 use ton_types::{
     error, fail, Result, HashmapE, Cell, ExceptionCode
