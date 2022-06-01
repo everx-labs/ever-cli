@@ -227,6 +227,10 @@ master {
         signature_r
         signature_s
       }
+      p42 {
+        threshold
+        payouts
+      }
     }
   }
 "#;
