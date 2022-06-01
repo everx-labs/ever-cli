@@ -913,10 +913,8 @@ async fn main_internal() -> Result <(), String> {
                 if !is_json {
                     format!("Error: {}", e)
                 } else {
-                    let err: serde_json::Value = match serde_json::from_str(&e) {
-                        Ok(res) => {res},
-                        Err(_) => { serde_json::Value::String(e)}
-                    };
+                    let err: serde_json::Value = serde_json::from_str(&e)
+                        .unwrap_or(serde_json::Value::String(e));
                     let res = json!({"Error": err});
                     serde_json::to_string_pretty(&res)
                         .unwrap_or("{{ \"JSON serialization error\" }}".to_string())
