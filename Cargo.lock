@@ -61,7 +61,7 @@ dependencies = [
 [[package]]
 name = "api_derive"
 version = "1.34.2"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#8d3ab0d2382d2122c3bd26ac079c11bec92cdd16"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#37cf8db05fc99c8464cbdea5d3cf2cf7c6813f27"
 dependencies = [
  "api_info",
  "quote",
@@ -72,7 +72,7 @@ dependencies = [
 [[package]]
 name = "api_info"
 version = "1.34.2"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#8d3ab0d2382d2122c3bd26ac079c11bec92cdd16"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#37cf8db05fc99c8464cbdea5d3cf2cf7c6813f27"
 dependencies = [
  "serde",
  "serde_derive",
@@ -1367,9 +1367,9 @@ dependencies = [
 
 [[package]]
 name = "miniz_oxide"
-version = "0.5.1"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2b29bd4bc3f33391105ebee3589c19197c4271e3e5a9ec9bfe8127eeff8f082"
+checksum = "6f5c75688da582b8ffc1f1799e9db273f32133c49e048f614d22ec3256773ccc"
 dependencies = [
  "adler",
 ]
@@ -1685,9 +1685,9 @@ checksum = "30fceb411f9a12ff9222c5f824026be368ff15dc2f13468d850c7d3f502205d6"
 
 [[package]]
 name = "parking_lot"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87f5ec2493a61ac0506c0f4199f99070cbe83857b0337006a30f3e6719b8ef58"
+checksum = "3742b2c103b9f06bc9fff0a37ff4912935851bee6d36f3c02bcc755bcfec228f"
 dependencies = [
  "lock_api",
  "parking_lot_core",
@@ -2702,7 +2702,7 @@ dependencies = [
 [[package]]
 name = "ton_client"
 version = "1.34.2"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#8d3ab0d2382d2122c3bd26ac079c11bec92cdd16"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#37cf8db05fc99c8464cbdea5d3cf2cf7c6813f27"
 dependencies = [
  "aes",
  "api_derive",
@@ -2793,7 +2793,7 @@ dependencies = [
 [[package]]
 name = "ton_sdk"
 version = "1.34.2"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#8d3ab0d2382d2122c3bd26ac079c11bec92cdd16"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#37cf8db05fc99c8464cbdea5d3cf2cf7c6813f27"
 dependencies = [
  "api_derive",
  "api_info",
@@ -2875,7 +2875,7 @@ dependencies = [
 
 [[package]]
 name = "tonos-cli"
-version = "0.26.26"
+version = "0.26.27"
 dependencies = [
  "assert_cmd",
  "async-trait",
