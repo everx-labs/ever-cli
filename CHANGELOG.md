@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.26.27
+
+### New
+ - Added Ubuntu 22 hint
+
+
 ## Version: 0.26.25
 
 ### New
