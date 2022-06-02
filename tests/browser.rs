@@ -1,10 +1,12 @@
+use std::thread::sleep;
+use std::time::Duration;
 use assert_cmd::Command;
 use predicates::prelude::*;
 // uncomment for debug
 // use std::io::Write;
 use serde_json::json;
 mod common;
-use common::{BIN_NAME, NETWORK, giver, grep_address};
+use common::{BIN_NAME, NETWORK, giver_v2, grep_address};
 
 fn get_debot_paths(name: &str) -> (String, String, String) {
     (
@@ -36,8 +38,8 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
         .output()
         .expect("Failed to generate address.");
     let addr = grep_address(&out.stdout);
-    giver(&addr);
-
+    giver_v2(&addr);
+    sleep(Duration::new(1, 0));
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("deploy")
         .arg(&tvc)
@@ -50,6 +52,7 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(&addr))
         .stdout(predicate::str::contains("Transaction succeeded."));
+    sleep(Duration::new(1, 0));
 
     let abi_string = std::fs::read_to_string(&abi).unwrap();
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -287,8 +290,8 @@ fn test_terminal() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_pipechain_signing() -> Result<(), Box<dyn std::error::Error>> {
     let path_to_pipechain = "tests/PipechainTest2.chain";
-    let addr = deploy_debot("PipechainTest")?;
-    let (_, _, keys) = get_debot_paths("PipechainTest");
+    let addr = deploy_debot("PipechainTest_2")?;
+    let (_, _, keys) = get_debot_paths("PipechainTest_2");
     let chain = std::fs::read_to_string(path_to_pipechain)?;
     let mut val: serde_json::Value = serde_json::from_str(&chain)?;
     val["debotAddress"] = json!(addr);
