@@ -253,7 +253,6 @@ pub async fn depool_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     let mut set_wait_answer = |m: &ArgMatches|  {
         if m.is_present("WAIT_ANSWER") {
             config.no_answer = false;
-            println!("Set no answer false");
         }
     };
     set_wait_answer(m);
