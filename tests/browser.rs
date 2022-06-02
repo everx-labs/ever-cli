@@ -1,3 +1,5 @@
+use std::thread::sleep;
+use std::time::Duration;
 use assert_cmd::Command;
 use predicates::prelude::*;
 // uncomment for debug
@@ -37,7 +39,7 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
         .expect("Failed to generate address.");
     let addr = grep_address(&out.stdout);
     giver_v2(&addr);
-
+    sleep(Duration::new(1, 0));
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("deploy")
         .arg(&tvc)
@@ -50,6 +52,7 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(&addr))
         .stdout(predicate::str::contains("Transaction succeeded."));
+    sleep(Duration::new(1, 0));
 
     let abi_string = std::fs::read_to_string(&abi).unwrap();
     let mut cmd = Command::cargo_bin(BIN_NAME)?;

@@ -1193,7 +1193,7 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"Succeeded."#));
 
-    sleep(Duration::new(2, 0));
+    sleep(Duration::new(1, 0));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -1219,7 +1219,7 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"Succeeded."#));
 
-    sleep(Duration::new(2, 0));
+    sleep(Duration::new(1, 0));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")

@@ -4,8 +4,7 @@ use std::fs;
 
 mod common;
 use common::{BIN_NAME, NETWORK, giver_v2, generate_key_and_address, GIVER_ADDR,
-             GIVER_V2_ADDR, GIVER_ABI, generate_phrase_and_key};
-use crate::common::GIVER_V2_KEY;
+             GIVER_V2_ADDR, GIVER_ABI, generate_phrase_and_key, GIVER_V2_KEY};
 
 const DEPOOL_ABI: &str = "tests/samples/fakeDepool.abi.json";
 const DEPOOL_TVC: &str = "tests/samples/fakeDepool.tvc";
@@ -99,18 +98,19 @@ fn test_json_output_3() -> Result<(), Box<dyn std::error::Error>> {
     // run_command_and_decode_json(r#"genpubkey "jar denial ozone coil heart tattoo science stay wire about act equip""#)?;
     let key_path = "json3_test.key";
     let _ = generate_phrase_and_key(key_path)?;
-    run_command_and_decode_json(r#"message 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendTransaction {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":1000000000,"bounce":true} --abi tests/samples/wallet.abi.json --raw --output fakeDepool.msg"#)?;
+    run_command_and_decode_json(r#"message 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendTransaction {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":1000000000,"bounce":true} --abi tests/samples/wallet.abi.json --raw --output fakeDepool1.msg"#)?;
     run_command_and_decode_json(r#"message 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendTransaction {"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":1000000000,"bounce":true} --abi tests/samples/wallet.abi.json --raw"#)?;
     run_command_and_decode_json(&format!("multisig deploy -k {} -l 1000000000", key_path))?;
     run_command_and_decode_json(r#"nodeid --pubkey cde8fbf86c44e4ed2095f83b6f3c97b7aec55a77e06e843f8b9ffeab66ad4b32"#)?;
     run_command_and_decode_json(r#"nodeid --keypair tests/samples/exp.json"#)?;
     run_command_and_decode_json(&format!("proposal vote 0:28a3738f08f5b3410e92aab20f702d64160e2891aaaed881f27d59ff518078d1 12313 {}", key_path))?;
     run_command_and_decode_json(r#"runget --boc tests/account_fift.boc past_election_ids"#)?;
-    run_command_and_decode_json(r#"sendfile fakeDepool.msg"#)?;
+    run_command_and_decode_json(r#"sendfile fakeDepool1.msg"#)?;
     run_command_and_decode_json(&format!("debug call {} sendGrams {{\"dest\":\"{}\",\"amount\":1111111}} --abi {} -c tests/config.boc", GIVER_ADDR, GIVER_ADDR, GIVER_ABI))?;
     run_command_and_decode_json("convert tokens 0.123456789")?;
     run_command_and_decode_json("version")?;
     fs::remove_file(key_path)?;
+    fs::remove_file("fakeDepool1.msg")?;
     Ok(())
 }
 
