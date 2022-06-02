@@ -16,7 +16,7 @@ license = 'Apache-2.0'
 name = 'tonos-cli'
 readme = 'README.md'
 repository = 'https://github.com/tonlabs/tonos-cli'
-version = '0.26.26'
+version = '0.26.28'
 
 [dependencies]
 async-trait = '0.1.42'
@@ -57,3 +57,4 @@ ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git', t
 assert_cmd = '1.0.3'
 lazy_static = '1.4.0'
 predicates = '1'
+string-error = '0.1.0'
