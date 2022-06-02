@@ -381,7 +381,7 @@ pub async fn call_contract_with_client(
         let (_, mut account, message, now) = dump.unwrap();
         let message = Message::construct_from_base64(&message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        let _ = execute_debug(matches, None, &mut account, Some(&message), (now / 1000) as u32, now,now, false, config).await?;
+        let _ = execute_debug(matches, Some(ton.clone()), &mut account, Some(&message), (now / 1000) as u32, now,now, false, config).await?;
 
         if !config.is_json {
             println!("Debug finished.");

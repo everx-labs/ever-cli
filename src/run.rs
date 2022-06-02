@@ -148,7 +148,24 @@ pub async fn run(
         let now = now_ms();
         let message = Message::construct_from_base64(&msg.message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        let _ = execute_debug(Some(matches), Some(ton_client), &mut account, Some(&message), (now / 1000) as u32, now,now, true, config).await?;
+        match execute_debug(
+            Some(matches),
+            Some(ton_client),
+            &mut account,
+            Some(&message),
+            (now / 1000) as u32,
+            now,
+            now,
+            true,
+            config
+        ).await {
+            Err(e) => {
+                if !e.contains("Contract did not accept message") {
+                    return Err(e);
+                }
+            },
+            Ok(_) => {}
+        }
 
         if !config.is_json {
             println!("Debug finished.");
