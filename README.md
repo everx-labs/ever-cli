@@ -2505,7 +2505,7 @@ ARGUMENTS:
 This command allows user to replay remote transaction locally and obtain TVM trace.
 Full replay requires transactions dump of the debugged contract and of the config contract.
 This command fetches them automatically, but config contract may have too many transactions and full dump of them can
-take a very long time, that's why user can use option `--empty-config` to limit number of the queried transactions and
+take a very long time, that's why user can use option `--empty_config` to limit number of the queried transactions and
 speed up the execution if the debugged contract doesn't check network configuration parameters. Another way to speed up
 execution if the contract needs config is to reuse dump of config transactions by passing the file with
 `--config <CONFIG_PATH>` option.

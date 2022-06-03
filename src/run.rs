@@ -134,7 +134,12 @@ pub async fn run(
         // TODO: add code to use bc_config from file
 
         if config.is_json {
-            println!("{:#}", result.clone().err().unwrap());
+            let e = format!("{:#}", result.clone().err().unwrap());
+            let err: serde_json::Value = serde_json::from_str(&e)
+                .unwrap_or(serde_json::Value::String(e));
+            let res = json!({"Error": err});
+            println!("{}", serde_json::to_string_pretty(&res)
+                .unwrap_or("{{ \"JSON serialization error\" }}".to_string()));
         } else {
             println!("Error: {:#}", result.clone().err().unwrap());
             println!("Execution failed. Starting debug...");

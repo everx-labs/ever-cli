@@ -47,7 +47,6 @@ use serde_json::{Value};
 use ton_client::error::ClientError;
 use crate::debug::execute_debug;
 use crate::message::{EncodedMessage, prepare_message_params, print_encoded_message, unpack_message};
-use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 
 async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) -> Result<(String, String), String> {
     let result = decode_message(
@@ -353,17 +352,8 @@ pub async fn call_contract_with_client(
             .serialize()
             .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
-        let config_acc = query_account_field(
-            ton.clone(),
-            CONFIG_ADDR,
-            "boc",
-        ).await?;
-
-        let config_acc = Account::construct_from_base64(&config_acc)
-            .map_err(|e| format!("Failed to construct config account: {}", e))?;
-        let bc_config = construct_blockchain_config(&config_acc)?;
         let now = now_ms();
-        Some((bc_config, account, message.unwrap(), now))
+        Some((account, message.unwrap(), now))
     } else {
         None
     };
@@ -373,12 +363,17 @@ pub async fn call_contract_with_client(
     if config.debug_fail != "None".to_string() && res.is_err()
         && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
         if config.is_json {
-            println!("{:#}", res.clone().err().unwrap());
+            let e = format!("{:#}", res.clone().err().unwrap());
+            let err: serde_json::Value = serde_json::from_str(&e)
+                .unwrap_or(serde_json::Value::String(e));
+            let res = json!({"Error": err});
+            println!("{}", serde_json::to_string_pretty(&res)
+                .unwrap_or("{{ \"JSON serialization error\" }}".to_string()));
         } else {
             println!("Error: {:#}", res.clone().err().unwrap());
             println!("Execution failed. Starting debug...");
         }
-        let (_, mut account, message, now) = dump.unwrap();
+        let (mut account, message, now) = dump.unwrap();
         let message = Message::construct_from_base64(&message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
         let _ = execute_debug(matches, Some(ton.clone()), &mut account, Some(&message), (now / 1000) as u32, now,now, false, config).await?;

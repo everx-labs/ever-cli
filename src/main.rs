@@ -171,6 +171,11 @@ async fn main_internal() -> Result <(), String> {
         .takes_value(true)
         .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config file.");
 
+    let config_path_arg = Arg::with_name("CONFIG_PATH")
+        .help("Path to the file with saved config contract state. Is used for debug on fail.")
+        .long("--saved_config")
+        .takes_value(true);
+
     let callx_cmd = SubCommand::with_name("callx")
         .about("Sends an external message with encoded function call to the contract (alternative syntax).")
         .version(&*version_string)
@@ -190,7 +195,8 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true))
         .arg(Arg::with_name("PARAMS")
             .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
-            .multiple(true));
+            .multiple(true))
+        .arg(config_path_arg.clone());
 
     let tvc_arg = Arg::with_name("TVC")
         .takes_value(true)
@@ -258,7 +264,8 @@ async fn main_internal() -> Result <(), String> {
             .multiple(true))
         .arg(boc_flag.clone())
         .arg(tvc_flag.clone())
-        .arg(bc_config_arg.clone());
+        .arg(bc_config_arg.clone())
+        .arg(config_path_arg.clone());
 
     let runget_cmd = SubCommand::with_name("runget")
         .about("Runs get-method of a FIFT contract.")
@@ -402,7 +409,8 @@ async fn main_internal() -> Result <(), String> {
         .arg(method_arg.clone())
         .arg(params_arg.clone())
         .arg(abi_arg.clone())
-        .arg(sign_arg.clone());
+        .arg(sign_arg.clone())
+        .arg(config_path_arg.clone());
 
     let send_cmd = SubCommand::with_name("send")
         .about("Sends a prepared message to the contract.")
@@ -451,7 +459,8 @@ async fn main_internal() -> Result <(), String> {
         .arg(abi_arg.clone())
         .arg(boc_flag.clone())
         .arg(tvc_flag.clone())
-        .arg(bc_config_arg.clone());
+        .arg(bc_config_arg.clone())
+        .arg(config_path_arg.clone());
 
     let config_clear_cmd = SubCommand::with_name("clear")
         .setting(AppSettings::AllowLeadingHyphen)
