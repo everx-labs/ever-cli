@@ -52,9 +52,43 @@ ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.35.0' }
 ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.11.2' }
 ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.38' }
 ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git', tag = '0.7.20' }
+zeroize = "1.5.5"
+zeroize_derive = "1.3.2"
 
 [dev-dependencies]
 assert_cmd = '1.0.3'
 lazy_static = '1.4.0'
 predicates = '1'
 string-error = '0.1.0'
+
+[patch.'https://github.com/tonlabs/ton-labs-block.git']
+ton_block = { branch = 'feature-use-bls-key', git = 'ssh://git@github.com:22/tonlabs/ton-block.git' }
+#ton_block = { path = '../ton-block' }
+
+[patch.'ssh://git@github.com/tonlabs/ton-block.git']
+ton_block = { branch = 'feature-use-bls-key', git = 'ssh://git@github.com:22/tonlabs/ton-block.git' }
+#ton_block = { path = '../ton-block' }
+
+[patch.'https://github.com/tonlabs/ton-labs-block-json.git']
+ton_block_json = { branch = 'feature-use-bls-key', git = 'ssh://git@github.com:22/tonlabs/ton-block-json.git' }
+#ton_block_json = { path = '../ton-block-json' }
+
+[patch.'ssh://git@github.com/tonlabs/ton-block-json.git']
+ton_block_json = { branch = 'feature-use-bls-key', git = 'ssh://git@github.com:22/tonlabs/ton-block-json.git' }
+#ton_block_json = { path = '../ton-block-json' }
+
+[patch.'https://github.com/tonlabs/ton-labs-executor.git']
+ton_executor = { git = 'ssh://git@github.com/tonlabs/ton-executor.git' }
+
+[patch.'https://github.com/tonlabs/ton-labs-types.git']
+ton_types = { git = 'ssh://git@github.com/tonlabs/ton-types.git' }
+
+[patch.'https://github.com/tonlabs/ton-labs-vm.git']
+ton_vm = { git = 'ssh://git@github.com:22/tonlabs/ton-vm.git', branch = "feature-use-bls-key" }
+
+[patch.'ssh://git@github.com/tonlabs/ton-vm.git']
+ton_vm = { git = 'ssh://git@github.com:22/tonlabs/ton-vm.git', branch = "feature-use-bls-key" }
+
+[patch.'ssh://git@github.com/tonlabs/ton-tl.git']
+ton_api = { branch = 'feature-use-bls-keys', git = 'ssh://git@github.com:22/tonlabs/ton-tl.git', package = 'ton_api' }
+
