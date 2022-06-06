@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.26.30
+
+### New
+ - Bumps [tokio](https://github.com/tokio-rs/tokio) from 0.2.25 to 1.18.2.
+ - - [Release notes](https://github.com/tokio-rs/tokio/releases)
+ - - [Commits](https://github.com/tokio-rs/tokio/compare/tokio-0.2.25...tokio-1.18.2)
+ - ---
+ - updated-dependencies:
+ - - dependency-name: tokio
+ - dependency-type: direct:production
+ - ...
+ - Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+
+
 ## Version: 0.26.28
 
 ### New
