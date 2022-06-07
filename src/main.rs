@@ -56,6 +56,7 @@ use genaddr::generate_address;
 use getconfig::{query_global_config, dump_blockchain_config};
 use multisig::{create_multisig_command, multisig_command};
 use std::{env, path::PathBuf};
+use std::process::exit;
 use voting::{create_proposal, decode_proposal, vote};
 use replay::{fetch_block_command, fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
@@ -909,7 +910,15 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(runx_cmd)
         .subcommand(update_config_param_cmd)
         .setting(AppSettings::SubcommandRequired)
-        .get_matches();
+        .get_matches_safe()
+        .map_err(|e| match e.kind {
+            clap::ErrorKind::VersionDisplayed => { println!(); exit(0); },
+            clap::ErrorKind::HelpDisplayed => { println!("{}", e); exit(0); },
+            _ => {
+                eprintln!("{}", e);
+                format!("{{\n  \"Error\": \"{}\"\n}}", e.message.replace("\n", "\\n"))
+            }
+        })?;
 
     let is_json = matches.is_present("JSON");
 
