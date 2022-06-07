@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.26.28
+
+### New
+ - Added network test and improved giver for parallel debot tests
+ - Added Ubuntu 22 hint
+ - Fixed tests to work in parallel
+
+
+## Version: 0.26.26
+
+### New
+ - Fixed tests to work in parallel
+
+
 ## Version: 0.26.24
 
 ### New

@@ -38,7 +38,6 @@ mod sendfile;
 mod voting;
 mod replay;
 mod debug;
-mod debug_executor;
 mod run;
 mod message;
 
@@ -172,6 +171,11 @@ async fn main_internal() -> Result <(), String> {
         .takes_value(true)
         .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config file.");
 
+    let config_path_arg = Arg::with_name("CONFIG_PATH")
+        .help("Path to the file with saved config contract state. Is used for debug on fail.")
+        .long("--saved_config")
+        .takes_value(true);
+
     let callx_cmd = SubCommand::with_name("callx")
         .about("Sends an external message with encoded function call to the contract (alternative syntax).")
         .version(&*version_string)
@@ -191,7 +195,8 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true))
         .arg(Arg::with_name("PARAMS")
             .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
-            .multiple(true));
+            .multiple(true))
+        .arg(config_path_arg.clone());
 
     let tvc_arg = Arg::with_name("TVC")
         .takes_value(true)
@@ -259,7 +264,8 @@ async fn main_internal() -> Result <(), String> {
             .multiple(true))
         .arg(boc_flag.clone())
         .arg(tvc_flag.clone())
-        .arg(bc_config_arg.clone());
+        .arg(bc_config_arg.clone())
+        .arg(config_path_arg.clone());
 
     let runget_cmd = SubCommand::with_name("runget")
         .about("Runs get-method of a FIFT contract.")
@@ -403,7 +409,8 @@ async fn main_internal() -> Result <(), String> {
         .arg(method_arg.clone())
         .arg(params_arg.clone())
         .arg(abi_arg.clone())
-        .arg(sign_arg.clone());
+        .arg(sign_arg.clone())
+        .arg(config_path_arg.clone());
 
     let send_cmd = SubCommand::with_name("send")
         .about("Sends a prepared message to the contract.")
@@ -452,7 +459,8 @@ async fn main_internal() -> Result <(), String> {
         .arg(abi_arg.clone())
         .arg(boc_flag.clone())
         .arg(tvc_flag.clone())
-        .arg(bc_config_arg.clone());
+        .arg(bc_config_arg.clone())
+        .arg(config_path_arg.clone());
 
     let config_clear_cmd = SubCommand::with_name("clear")
         .setting(AppSettings::AllowLeadingHyphen)
@@ -913,7 +921,8 @@ async fn main_internal() -> Result <(), String> {
                 if !is_json {
                     format!("Error: {}", e)
                 } else {
-                    let err: serde_json::Value = json!(e);
+                    let err: serde_json::Value = serde_json::from_str(&e)
+                        .unwrap_or(serde_json::Value::String(e));
                     let res = json!({"Error": err});
                     serde_json::to_string_pretty(&res)
                         .unwrap_or("{{ \"JSON serialization error\" }}".to_string())
@@ -1224,7 +1233,6 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
     if !config.is_json {
         print_args!(address, method, params, abi, keys, lifetime, output);
     }
-    let dbg_info = load_debug_info(abi.as_ref().unwrap());
     let abi = std::fs::read_to_string(abi.unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let address = load_ton_address(address.unwrap(), &config)?;
@@ -1240,7 +1248,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
                 &params.unwrap(),
                 keys,
                 is_fee,
-                dbg_info
+                Some(matches)
             ).await
         },
         CallType::Msg => {
@@ -1270,7 +1278,6 @@ async fn callx_command(matches: &ArgMatches<'_>, config: &Config, call_type: Cal
     let method = matches.value_of("METHOD");
     let address = Some(address_from_matches_or_config(matches, config)?);
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
-    let dbg_info = load_debug_info(abi.as_ref().unwrap());
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
@@ -1301,7 +1308,7 @@ async fn callx_command(matches: &ArgMatches<'_>, config: &Config, call_type: Cal
         &params.unwrap(),
         keys,
         false,
-        dbg_info,
+        Some(matches),
     ).await
 }
 
@@ -1315,7 +1322,6 @@ async fn callex_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(),
             .ok_or("ADDRESS is not defined. Supply it in the config file or in command line.".to_string())?
     );
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
-    let dbg_info = load_debug_info(abi.as_ref().unwrap());
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let params = matches.values_of("PARAMS").ok_or("PARAMS is not defined")?;
@@ -1340,7 +1346,7 @@ async fn callex_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(),
         &params.unwrap(),
         keys,
         false,
-        dbg_info,
+        Some(matches),
     ).await
 }
 
