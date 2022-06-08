@@ -610,6 +610,10 @@ async fn main_internal() -> Result <(), String> {
             .long("--out_of_sync")
             .takes_value(true)
             .help("Network connection \"out_of_sync_threshold\" parameter in seconds. Mind that it cant exceed half of the \"lifetime\" parameter."))
+        .arg(Arg::with_name("IS_JSON")
+            .long("--is_json")
+            .takes_value(true)
+            .help("Cli prints output in json format."))
         .subcommand(config_clear_cmd)
         .subcommand(config_endpoint_cmd);
 
@@ -947,7 +951,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
 
     let mut config = match Config::from_file(&config_file) {
         Some(c) => {
-            if !is_json { println!("Config: {}", config_file); }
+            if !is_json && !c.is_json { println!("Config: {}", config_file); }
             c
         },
         None => {
@@ -955,7 +959,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
             Config::default()
         },
     };
-    config.is_json = is_json;
+    config.is_json = is_json || config.is_json;
 
     if let Some(url) = matches.value_of("NETWORK") {
         config.url = url.to_string();
@@ -1488,7 +1492,8 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let async_call = matches.value_of("ASYNC_CALL");
             let out_of_sync = matches.value_of("OUT_OF_SYNC");
             let debug_fail = matches.value_of("DEBUG_FAIL");
-            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, msg_timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, async_call, out_of_sync, debug_fail);
+            let is_json = matches.value_of("IS_JSON");
+            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, msg_timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, async_call, out_of_sync, debug_fail, is_json);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {

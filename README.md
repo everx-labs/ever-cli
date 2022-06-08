@@ -302,6 +302,7 @@ List of available options:
 --balance_in_tons <BALANCE_IN_TONS>           Print balance for account command in tons. If false balance is printed in nanotons.
 --debug_fail <DEBUG_FAIL>                     When enabled tonos-cli executes debug command on fail of run or call command. Can be enabled with values 'full' or 'minimal' which set the trace level for debug run and disabled with value 'none'.
 --depool_fee <DEPOOL_FEE>                     Value added to the message sent to depool to cover its fees (change will be returned).
+--is_json <IS_JSON>                           Cli prints output in json format.
 --keys <KEYS>                                 Path to the file with keypair.
 --lifetime <LIFETIME>                         Period of time in seconds while message is valid. Change of this parameter may affect "out_of_sync" parameter, because "lifetime" should be at least 2 times greater than "out_of_sync".
 --local_run <LOCAL_RUN>                       Enable preliminary local run before deploy and call commands.

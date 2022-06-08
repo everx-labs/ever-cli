@@ -349,6 +349,7 @@ pub fn set_config(
     async_call: Option<&str>,
     out_of_sync_threshold: Option<&str>,
     debug_fail: Option<&str>,
+    is_json: Option<&str>,
 ) -> Result<(), String> {
     if let Some(s) = url {
         let resolved_url = resolve_net_name(s).unwrap_or(s.to_owned());
@@ -436,6 +437,10 @@ pub fn set_config(
         } else {
             return Err(r#"Wrong value for "debug_fail" config."#.to_string())
         };
+    }
+    if let Some(is_json) = is_json {
+        config.is_json = is_json.parse::<bool>()
+            .map_err(|e| format!(r#"failed to parse "is_json": {}"#, e))?;
     }
 
     config.to_file(path)?;
