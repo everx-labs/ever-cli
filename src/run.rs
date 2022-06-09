@@ -99,8 +99,10 @@ pub async fn run(
     let params = if is_alternative {
         unpack_alternative_params(matches, &abi, method, config)?
     } else {
-        Some(load_params(matches.value_of("PARAMS").unwrap())?)
+        matches.value_of("PARAMS").map(|s| s.to_owned())
     };
+
+    let params = Some(load_params(params.unwrap().as_ref())?);
 
     let abi = load_abi(&abi)?;
     let now = now()?;

@@ -1312,6 +1312,7 @@ async fn callx_command(matches: &ArgMatches<'_>, config: &Config, call_type: Cal
         method.unwrap(),
         config
     )?;
+    let params = Some(load_params(params.unwrap().as_ref())?);
     let keys = if let CallType::Call = call_type {
         matches.value_of("KEYS")
             .map(|s| s.to_string())

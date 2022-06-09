@@ -2251,8 +2251,7 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
 
     set_config(
         &["--method", "--keys", "--abi", "--addr", "--parameters"],
-        &["sendTransaction", GIVER_V2_KEY, GIVER_V2_ABI, GIVER_V2_ADDR,
-            &format!("{{\"dest\":\"{}\",\"value\":1000000000,\"bounce\":\"false\"}}", GIVER_V2_ADDR)],
+        &["sendTransaction", GIVER_V2_KEY, GIVER_V2_ABI, GIVER_V2_ADDR, "tests/test.args"],
         Some(config_path))?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
