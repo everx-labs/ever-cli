@@ -177,6 +177,12 @@ async fn main_internal() -> Result <(), String> {
         .long("--saved_config")
         .takes_value(true);
 
+    let method_opt_arg = Arg::with_name("METHOD")
+        .takes_value(true)
+        .long("--method")
+        .short("-m")
+        .help("Name of the function being called.");
+
     let callx_cmd = SubCommand::with_name("callx")
         .about("Sends an external message with encoded function call to the contract (alternative syntax).")
         .version(&*version_string)
@@ -190,10 +196,7 @@ async fn main_internal() -> Result <(), String> {
             .help("Contract address. Can be specified in the config file."))
         .arg(abi_arg.clone())
         .arg(keys_arg.clone())
-        .arg(Arg::with_name("METHOD")
-            .help("Name of the function being called.")
-            .required(true)
-            .takes_value(true))
+        .arg(method_opt_arg.clone())
         .arg(Arg::with_name("PARAMS")
             .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
             .multiple(true))
@@ -259,7 +262,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(address_boc_tvc_arg.clone()
             .long("--addr"))
         .arg(abi_arg.clone())
-        .arg(method_arg.clone())
+        .arg(method_opt_arg.clone())
         .arg(Arg::with_name("PARAMS")
             .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
             .multiple(true))
@@ -550,6 +553,14 @@ async fn main_internal() -> Result <(), String> {
             .long("--addr")
             .takes_value(true)
             .help("Contract address."))
+        .arg(Arg::with_name("METHOD")
+            .long("--method")
+            .takes_value(true)
+            .help("Method name that can be saved to be used by some commands (runx, callx)."))
+        .arg(Arg::with_name("PARAMETERS")
+            .long("--parameters")
+            .takes_value(true)
+            .help("Function parameters that can be saved to be used by some commands (runx, callx)."))
         .arg(Arg::with_name("WALLET")
             .long("--wallet")
             .takes_value(true)
@@ -1218,13 +1229,13 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     Ok(())
 }
 
-fn unpack_alternative_params(matches: &ArgMatches<'_>, abi: &str, method: &str) -> Result<Option<String>, String> {
-    let params = if matches.is_present("PARAMS") {
-        matches.values_of("PARAMS").unwrap().collect::<Vec<_>>()
+fn unpack_alternative_params(matches: &ArgMatches<'_>, abi: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
+    if matches.is_present("PARAMS") {
+        let params = matches.values_of("PARAMS").unwrap().collect::<Vec<_>>();
+        Ok(Some(parse_params(params, abi, method)?))
     } else {
-        vec!("{}")
-    };
-    Ok(Some(parse_params(params, abi, method)?))
+        Ok(config.parameters.clone().or(Some("{}".to_string())))
+    }
 }
 
 async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType) -> Result<(), String> {
@@ -1288,7 +1299,8 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
 }
 
 async fn callx_command(matches: &ArgMatches<'_>, config: &Config, call_type: CallType) -> Result<(), String> {
-    let method = matches.value_of("METHOD");
+    let method = Some(matches.value_of("METHOD").or(config.method.as_deref())
+        .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let address = Some(address_from_matches_or_config(matches, config)?);
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
@@ -1297,7 +1309,8 @@ async fn callx_command(matches: &ArgMatches<'_>, config: &Config, call_type: Cal
     let params = unpack_alternative_params(
         matches,
         &loaded_abi,
-        method.unwrap()
+        method.unwrap(),
+        config
     )?;
     let keys = if let CallType::Call = call_type {
         matches.value_of("KEYS")
@@ -1429,7 +1442,8 @@ async fn deployx_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
     let params = unpack_alternative_params(
         matches,
         &loaded_abi,
-        "constructor"
+        "constructor",
+        config
     )?;
     let keys = matches.value_of("KEYS")
         .map(|s| s.to_string())
@@ -1483,17 +1497,23 @@ fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> 
             let wc = matches.value_of("WC");
             let retries = matches.value_of("RETRIES");
             let timeout = matches.value_of("TIMEOUT");
-            let msg_timeout = matches.value_of("MSG_TIMEOUT");
+            let message_processing_timeout = matches.value_of("MSG_TIMEOUT");
             let depool_fee = matches.value_of("DEPOOL_FEE");
             let lifetime = matches.value_of("LIFETIME");
             let no_answer = matches.value_of("NO_ANSWER");
             let balance_in_tons = matches.value_of("BALANCE_IN_TONS");
             let local_run = matches.value_of("LOCAL_RUN");
             let async_call = matches.value_of("ASYNC_CALL");
-            let out_of_sync = matches.value_of("OUT_OF_SYNC");
+            let out_of_sync_threshold = matches.value_of("OUT_OF_SYNC");
             let debug_fail = matches.value_of("DEBUG_FAIL");
             let is_json = matches.value_of("IS_JSON");
-            result = set_config(config, config_file.as_str(), url, address, wallet, pubkey, abi, keys, wc, retries, timeout, msg_timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run, async_call, out_of_sync, debug_fail, is_json);
+            let method = matches.value_of("METHOD");
+            let parameters = matches.value_of("PARAMETERS");
+            result = set_config(config, config_file.as_str(), url, address, wallet,
+                                pubkey, abi, keys, wc, retries, timeout,
+                                message_processing_timeout, depool_fee, lifetime, no_answer,
+                                balance_in_tons, local_run, async_call, out_of_sync_threshold,
+                                debug_fail, is_json, method, parameters);
         }
     }
     let config = match Config::from_file(config_file.as_str()) {

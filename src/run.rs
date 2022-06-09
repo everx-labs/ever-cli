@@ -75,7 +75,12 @@ pub async fn run(
     account_boc: String,
     is_alternative: bool,
 ) -> Result<(), String> {
-    let method = matches.value_of("METHOD").unwrap();
+    let method = if is_alternative {
+        matches.value_of("METHOD").or(config.method.as_deref())
+        .ok_or("Method is not defined. Supply it in the config file or command line.")?
+    } else {
+        matches.value_of("METHOD").unwrap()
+    };
     let abi_path = abi_from_matches_or_config(matches, &config)?;
     let bc_config = matches.value_of("BCCONFIG");
 
@@ -92,7 +97,7 @@ pub async fn run(
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
 
     let params = if is_alternative {
-        unpack_alternative_params(matches, &abi, method)?
+        unpack_alternative_params(matches, &abi, method, config)?
     } else {
         Some(load_params(matches.value_of("PARAMS").unwrap())?)
     };

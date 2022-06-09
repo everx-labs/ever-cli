@@ -306,9 +306,11 @@ List of available options:
 --keys <KEYS>                                 Path to the file with keypair.
 --lifetime <LIFETIME>                         Period of time in seconds while message is valid. Change of this parameter may affect "out_of_sync" parameter, because "lifetime" should be at least 2 times greater than "out_of_sync".
 --local_run <LOCAL_RUN>                       Enable preliminary local run before deploy and call commands.
+--method <METHOD>                             Method name that can be saved to be used by some commands (runx, callx).
 --message_processing_timeout <MSG_TIMEOUT>    Network message processing timeout in ms.
 --no-answer <NO_ANSWER>                       Flag whether to wait for depool answer when calling a depool function.
 --out_of_sync <OUT_OF_SYNC>                   Network connection "out_of_sync_threshold" parameter in seconds. Mind that it cant exceed half of the "lifetime" parameter.
+--parameters <PARAMETERS>                     Function parameters that can be saved to be used by some commands (runx, callx).
 --pubkey <PUBKEY>                             User public key. Used by DeBot Browser.
 --retries <RETRIES>                           Number of attempts to call smart contract function if previous attempt was unsuccessful.
 --timeout <TIMEOUT>                           Network `wait_for` timeout in ms.
