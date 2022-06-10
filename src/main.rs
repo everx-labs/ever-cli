@@ -173,7 +173,7 @@ async fn main_internal() -> Result <(), String> {
 
     let config_path_arg = Arg::with_name("CONFIG_PATH")
         .help("Path to the file with saved config contract state. Is used for debug on fail.")
-        .long("--saved_config")
+        .long("--saved_config1")
         .takes_value(true);
 
     let callx_cmd = SubCommand::with_name("callx")
