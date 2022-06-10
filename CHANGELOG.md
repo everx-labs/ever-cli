@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.26.33
+
+### New
+
+
 ## Version: 0.26.28
 
 ### New
