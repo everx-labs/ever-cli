@@ -29,9 +29,9 @@ use ton_client::{
 };
 use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
 use ton_types::{UInt256, serialize_tree_of_cells};
+use ton_vm::executor::{Engine, EngineTraceInfo};
 
 use crate::config::Config;
-use crate::debug_executor::{TraceLevel, DebugTransactionExecutor};
 use crate::helpers::{create_client, query_account_field};
 
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
@@ -304,9 +304,8 @@ pub async fn replay(
     config_filename: &str,
     txnid: &str,
     trace_execution: bool,
-    trace_last_transaction: TraceLevel,
+    trace_callback: Option<Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync>>,
     init_trace_last_logger: impl Fn() -> Result<(), String>,
-    debug_info:  Option<String>,
     dump_mask: u8,
     cli_config: Option<&Config>,
 ) -> Result<Transaction, String> {
@@ -403,10 +402,25 @@ pub async fn replay(
                     .write_to_file(&path);
                 println!("Config for executor was dumped to {}", path);
             }
-        }
-        let trace_last = (trace_last_transaction != TraceLevel::None) && tr.id == txnid;
-        if trace_last {
-            init_trace_last_logger()?;
+            if trace_callback.is_some() {
+                init_trace_last_logger()?;
+                let executor = Box::new(OrdinaryTransactionExecutor::new(config.clone()));
+                let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c)
+                    .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
+                let params = ExecuteParams {
+                    block_unixtime: tr.tr.now(),
+                    block_lt: tr.tr.logical_time(),
+                    last_tr_lt: Arc::new(AtomicU64::new(tr.tr.logical_time())),
+                    debug: trace_execution,
+                    trace_callback,
+                    ..ExecuteParams::default()
+                };
+                let tr = executor.execute_with_libs_and_params(
+                    msg.as_ref(),
+                    &mut account_root,
+                    params).map_err(|e| format!("Failed to execute txn: {}", e))?;
+                return Ok(tr);
+            }
         }
         let executor: Box<dyn TransactionExecutor> =
             match tr.tr.read_description()
@@ -415,11 +429,7 @@ pub async fn replay(
                     Box::new(TickTockTransactionExecutor::new(config.clone(), desc.tt))
                 }
                 TransactionDescr::Ordinary(_) => {
-                    if trace_last {
-                        Box::new(DebugTransactionExecutor::new(config.clone(), debug_info.clone(), trace_last_transaction.clone(), false))
-                    } else {
-                        Box::new(OrdinaryTransactionExecutor::new(config.clone()))
-                    }
+                    Box::new(OrdinaryTransactionExecutor::new(config.clone()))
                 }
                 _ => {
                     panic!("Unknown transaction type");
@@ -555,8 +565,8 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
         println!("Computing config: replaying {} up to {}", acc, txnid);
         replay(format!("{}.txns", acc).as_str(),
             config_txns_path.as_str(), txnid,
-            false, TraceLevel::None,
-            || Ok(()), None, DUMP_CONFIG, None).await.map_err(err_msg)?;
+            false, None,
+            || Ok(()), DUMP_CONFIG, None).await.map_err(err_msg)?;
     } else {
         println!("Using pre-computed config {}", config_path);
     }
@@ -572,9 +582,8 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
                     format!("{}.txns", CONFIG_ADDR).as_str(),
                     &txnid,
                     false,
-                    TraceLevel::None,
-                    || Ok(()),
                     None,
+                    || Ok(()),
                     DUMP_ACCOUNT,
                     None
                 ).await.map_err(err_msg).unwrap();
@@ -660,7 +669,7 @@ pub async fn replay_command(m: &ArgMatches<'_>, cli_config: &Config) -> Result<(
     };
     let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         config_txns, m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, TraceLevel::None, ||{Ok(())}, None, DUMP_ALL, cli_config
+        false, None, ||{Ok(())}, DUMP_ALL, cli_config
     ).await?;
     Ok(())
 }
