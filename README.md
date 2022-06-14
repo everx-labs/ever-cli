@@ -2202,11 +2202,10 @@ Config: /home/user/tonos-cli.conf.json
 ## 9.2. Get global config
 
 ```bash
-tonos-cli getconfig [--old_net] <index>
+tonos-cli getconfig <index>
 ```
 
 `<index>` - number of the [global config parameter](https://docs.ton.dev/86757ecb2/v/0/p/35a3f3-field-descriptions) (equals the numeric part of the config parameter field name).
-`--old_net` option must be used if the network is running with old config structure.
 
 Example (requesting the maximum and minimum numbers of validators on the blockchain):
 

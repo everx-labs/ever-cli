@@ -229,16 +229,10 @@ master {
       }
 "#;
 
-pub async fn query_global_config(config: &Config, index: Option<&str>, is_old: bool) -> Result<(), String> {
+pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result<(), String> {
     let ton = create_client_verbose(&config)?;
     let mut result = QUERY_FIELDS.to_owned();
-    if is_old {
-        result.push_str(r#"
-    }
-  }
-"#)
-    } else {
-        result.push_str(r#"
+    result.push_str(r#"
       p40 {
         collations_score_weight
         min_samples_count
@@ -259,8 +253,8 @@ pub async fn query_global_config(config: &Config, index: Option<&str>, is_old: b
     }
   }
 "#);
-    }
-    let config_query = query_with_limit(
+
+    let config_query = match query_with_limit(
         ton.clone(),
         "blocks",
         json!({ "key_block": { "eq": true },
@@ -268,7 +262,29 @@ pub async fn query_global_config(config: &Config, index: Option<&str>, is_old: b
         &result,
         Some(vec!(OrderBy{ path: "seq_no".to_string(), direction: SortDirection::DESC })),
         Some(1),
-    ).await.map_err(|e| format!("failed to query master block config: {}", e))?;
+    ).await {
+        Ok(result) => Ok(result),
+        Err(e) => {
+            if e.message.contains("Server responded with code 400") {
+                let mut result = QUERY_FIELDS.to_owned();
+                result.push_str(r#"
+    }
+  }
+"#);
+                query_with_limit(
+                    ton.clone(),
+                    "blocks",
+                    json!({ "key_block": { "eq": true },
+                        "workchain_id": { "eq": -1 } }),
+                    &result,
+                    Some(vec!(OrderBy{ path: "seq_no".to_string(), direction: SortDirection::DESC })),
+                    Some(1),
+                ).await.map_err(|e| format!("failed to query master block config: {}", e))
+            } else {
+                Err(format!("failed to query master block config: {}", e))
+            }
+        }
+    }?;
 
     if config_query.is_empty() {
         return Err("Config was not set".to_string());

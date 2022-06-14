@@ -751,12 +751,7 @@ async fn main_internal() -> Result <(), String> {
         .about("Reads the global configuration parameter with defined index.")
         .arg(Arg::with_name("INDEX")
             .takes_value(true)
-            .help("Parameter index. If not specified, command will print all config parameters."))
-        .arg(Arg::with_name("OLD_NET")
-            .long("--old_net")
-            .short("-o")
-            .help("Forces tool to ise old config structure. This option may be needed to query config on the networks with old configuration."))
-        ;
+            .help("Parameter index. If not specified, command will print all config parameters."));
 
     let update_config_param_cmd = SubCommand::with_name("update_config")
         .about("Generates message with update of config params.")
@@ -1658,8 +1653,7 @@ async fn getconfig_command(matches: &ArgMatches<'_>, config: &Config) -> Result<
     if !config.is_json {
         print_args!(index);
     }
-    let is_old = matches.is_present("OLD_NET");
-    query_global_config(config, index, is_old).await
+    query_global_config(config, index).await
 }
 
 async fn update_config_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
