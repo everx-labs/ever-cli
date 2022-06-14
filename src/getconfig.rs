@@ -227,9 +227,22 @@ master {
         signature_r
         signature_s
       }
+      p40 {
+        collations_score_weight
+        min_samples_count
+        min_slashing_protection_score
+        resend_mc_blocks_count
+        signing_score_weight
+        slashing_period_mc_blocks_count
+        z_param_numerator
+        z_param_denominator
+      }
       p42 {
         threshold
-        payouts
+        payouts {
+            license_type
+            payout_percent
+        }
       }
     }
   }
@@ -238,34 +251,13 @@ master {
 pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result<(), String> {
     let ton = create_client_verbose(&config)?;
 
-    let last_key_block_query = query_with_limit(
-        ton.clone(),
-        "blocks",
-        json!({ "workchain_id": { "eq":-1 } }),
-        "id prev_key_block_seqno",
-        Some(vec![OrderBy{ path: "seq_no".to_owned(), direction: SortDirection::DESC }]),
-        Some(1),
-    ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
-
-    if last_key_block_query.is_empty()  ||
-        last_key_block_query[0]["prev_key_block_seqno"].as_u64() == Some(0) {
-        return Err("Key block not found".to_string());
-    }
-
     let config_query = query_with_limit(
         ton.clone(),
         "blocks",
-        json!({
-            "seq_no": {
-                "eq": last_key_block_query[0]["prev_key_block_seqno"].as_u64()
-                    .ok_or("failed to decode prev_key_block_seqno")?
-            },
-            "workchain_id": {
-                "eq": -1 
-            }
-        }),
+        json!({ "key_block": { "eq": true },
+            "workchain_id": { "eq": -1 } }),
         QUERY_FIELDS,
-        None,
+        Some(vec!(OrderBy{ path: "gen_utime".to_string(), direction: SortDirection::DESC })),
         Some(1),
     ).await.map_err(|e| format!("failed to query master block config: {}", e))?;
 
