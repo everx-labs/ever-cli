@@ -60,8 +60,8 @@ dependencies = [
 
 [[package]]
 name = "api_derive"
-version = "1.34.2"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#37cf8db05fc99c8464cbdea5d3cf2cf7c6813f27"
+version = "1.34.3"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.3#ede684714db451423f5514c03b65144d8c305057"
 dependencies = [
  "api_info",
  "quote",
@@ -71,8 +71,8 @@ dependencies = [
 
 [[package]]
 name = "api_info"
-version = "1.34.2"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#37cf8db05fc99c8464cbdea5d3cf2cf7c6813f27"
+version = "1.34.3"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.3#ede684714db451423f5514c03b65144d8c305057"
 dependencies = [
  "serde",
  "serde_derive",
@@ -101,9 +101,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.53"
+version = "0.1.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed6aa3524a2dfcf9fe180c51eae2b58738348d819517ceadf95789c51fff7600"
+checksum = "96cf8829f67d2eab0b2dfa42c5d0ef737e0724e4a82b01b3e292456202b19716"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1043,9 +1043,9 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "0.2.7"
+version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff8670570af52249509a86f5e3e18a08c60b177071826898fde8997cf5f6bfbb"
+checksum = "75f43d41e26995c17e71ee126451dd3941010b0514a81a9d11f3b341debc2399"
 dependencies = [
  "bytes 1.1.0",
  "fnv",
@@ -2402,9 +2402,9 @@ checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
 name = "syn"
-version = "1.0.95"
+version = "1.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbaf6116ab8924f39d52792136fb74fd60a80194cf1b1c6ffa6453eef1c3f942"
+checksum = "0748dd251e24453cb8717f0354206b91557e4ec8703673a4b30208f2abaf1ebf"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2548,9 +2548,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.18.2"
+version = "1.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4903bf0427cf68dddd5aa6a93220756f8be0c34fcfa9f5e6191e103e15a31395"
+checksum = "c51a52ed6686dd62c320f9b89299e9dfb46f730c7a48e635c19f21d116cb1439"
 dependencies = [
  "pin-project-lite 0.2.9",
 ]
@@ -2584,7 +2584,7 @@ checksum = "7f57eb36ecbe0fc510036adff84824dd3c24bb781e21bfa67b69d556aa85214f"
 dependencies = [
  "pin-project 1.0.10",
  "rand 0.8.5",
- "tokio 1.18.2",
+ "tokio 1.19.2",
 ]
 
 [[package]]
@@ -2628,8 +2628,8 @@ dependencies = [
 
 [[package]]
 name = "ton_abi"
-version = "2.2.6"
-source = "git+https://github.com/tonlabs/ton-labs-abi.git?tag=2.2.6#3d009cbf874f92091d74826e1d10ae352f056099"
+version = "2.2.8"
+source = "git+https://github.com/tonlabs/ton-labs-abi.git?tag=2.2.8#8e143a32a34ff5836f5309767a14ed62ffedbcee"
 dependencies = [
  "base64 0.10.1",
  "byteorder",
@@ -2650,8 +2650,8 @@ dependencies = [
 
 [[package]]
 name = "ton_api"
-version = "0.2.127"
-source = "git+https://github.com/tonlabs/ton-labs-tl?tag=0.2.127#474b32dcd452536bc3e1543f93ee6ae9c5f6be0c"
+version = "0.2.128"
+source = "git+https://github.com/tonlabs/ton-labs-tl?tag=0.2.128#fa91f87c1372048320e91d49ebba7dde52605a87"
 dependencies = [
  "byteorder",
  "extfmt",
@@ -2670,8 +2670,8 @@ dependencies = [
 
 [[package]]
 name = "ton_block"
-version = "1.7.49"
-source = "git+https://github.com/tonlabs/ton-labs-block.git?tag=1.7.49#71f9aeb2a0c25cbbe191776e1c84acb3eefadca5"
+version = "1.7.51"
+source = "git+https://github.com/tonlabs/ton-labs-block.git?tag=1.7.51#7243ec8b0d827a6fab8ae2683cb7623d8ed2e93b"
 dependencies = [
  "base64 0.13.0",
  "crc",
@@ -2689,8 +2689,8 @@ dependencies = [
 
 [[package]]
 name = "ton_block_json"
-version = "0.7.16"
-source = "git+https://github.com/tonlabs/ton-labs-block-json.git?tag=0.7.16#ab526eb47bd54c4fb201a6dd3388af77bcd0ceca"
+version = "0.7.18"
+source = "git+https://github.com/tonlabs/ton-labs-block-json.git?tag=0.7.18#6bfb684649fbf722608e82cb9543f526769773ec"
 dependencies = [
  "base64 0.13.0",
  "failure",
@@ -2707,8 +2707,8 @@ dependencies = [
 
 [[package]]
 name = "ton_client"
-version = "1.34.2"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#37cf8db05fc99c8464cbdea5d3cf2cf7c6813f27"
+version = "1.34.3"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.3#ede684714db451423f5514c03b65144d8c305057"
 dependencies = [
  "aes",
  "api_derive",
@@ -2764,8 +2764,8 @@ dependencies = [
 
 [[package]]
 name = "ton_executor"
-version = "1.15.70"
-source = "git+https://github.com/tonlabs/ton-labs-executor.git?tag=1.15.70#90b7d704901d9a4dbe4baa96db480924205642d6"
+version = "1.15.72"
+source = "git+https://github.com/tonlabs/ton-labs-executor.git?tag=1.15.72#7eccfdc4691b7fa9bfffd3abdc77b68b9738e515"
 dependencies = [
  "base64 0.10.1",
  "criterion",
@@ -2783,8 +2783,8 @@ dependencies = [
 
 [[package]]
 name = "ton_labs_assembler"
-version = "1.2.39"
-source = "git+https://github.com/tonlabs/ton-labs-assembler.git?tag=1.2.39#a0a41dc8859784a2683f097f1d7adf7802d953cd"
+version = "1.2.42"
+source = "git+https://github.com/tonlabs/ton-labs-assembler.git?tag=1.2.42#68dcf1fbe5cfd8ccf922c800ffecc97be19765f8"
 dependencies = [
  "failure",
  "hex 0.4.3",
@@ -2798,8 +2798,8 @@ dependencies = [
 
 [[package]]
 name = "ton_sdk"
-version = "1.34.2"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.2#37cf8db05fc99c8464cbdea5d3cf2cf7c6813f27"
+version = "1.34.3"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.34.3#ede684714db451423f5514c03b65144d8c305057"
 dependencies = [
  "api_derive",
  "api_info",
@@ -2826,7 +2826,7 @@ dependencies = [
 [[package]]
 name = "ton_tl_codegen"
 version = "0.0.2"
-source = "git+https://github.com/tonlabs/ton-labs-tl?tag=0.2.127#474b32dcd452536bc3e1543f93ee6ae9c5f6be0c"
+source = "git+https://github.com/tonlabs/ton-labs-tl?tag=0.2.128#fa91f87c1372048320e91d49ebba7dde52605a87"
 dependencies = [
  "crc",
  "failure",
@@ -2840,8 +2840,8 @@ dependencies = [
 
 [[package]]
 name = "ton_types"
-version = "1.11.1"
-source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.1#27836abc9febac9e593cf7b1c5696e53454391db"
+version = "1.11.2"
+source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.2#1e8fab540649d4b0fe3713be64fa01ca73d2b9fe"
 dependencies = [
  "base64 0.13.0",
  "crc",
@@ -2860,8 +2860,8 @@ dependencies = [
 
 [[package]]
 name = "ton_vm"
-version = "1.8.37"
-source = "git+https://github.com/tonlabs/ton-labs-vm.git?tag=1.8.37#886c89e93212d81f2188e8f3f984e3153b973860"
+version = "1.8.38"
+source = "git+https://github.com/tonlabs/ton-labs-vm.git?tag=1.8.38#190a7564e108f91e664a9c4fe70e24b0c908fb37"
 dependencies = [
  "criterion",
  "ed25519",
@@ -2881,7 +2881,7 @@ dependencies = [
 
 [[package]]
 name = "tonos-cli"
-version = "0.26.28"
+version = "0.26.33"
 dependencies = [
  "assert_cmd",
  "async-trait",
@@ -2929,9 +2929,9 @@ checksum = "360dfd1d6d30e05fda32ace2c8c70e9c0a9da713275777f5a4dbb8a1893930c6"
 
 [[package]]
 name = "tracing"
-version = "0.1.34"
+version = "0.1.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d0ecdcb44a79f0fe9844f0c4f33a342cbcbb5117de8001e6ba0dc2351327d09"
+checksum = "a400e31aa60b9d44a52a8ee0343b5b18566b03a8321e0d321f695cf56e940160"
 dependencies = [
  "cfg-if 1.0.0",
  "log",
@@ -2941,11 +2941,11 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.26"
+version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f54c8ca710e81886d498c2fd3331b56c93aa248d49de2222ad2742247c60072f"
+checksum = "7709595b8878a4965ce5e87ebf880a7d39c9afc6837721b21a5a816a8117d921"
 dependencies = [
- "lazy_static",
+ "once_cell",
 ]
 
 [[package]]
