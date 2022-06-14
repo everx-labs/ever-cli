@@ -227,6 +227,18 @@ master {
         signature_r
         signature_s
       }
+"#;
+
+pub async fn query_global_config(config: &Config, index: Option<&str>, is_old: bool) -> Result<(), String> {
+    let ton = create_client_verbose(&config)?;
+    let mut result = QUERY_FIELDS.to_owned();
+    if is_old {
+        result.push_str(r#"
+    }
+  }
+"#)
+    } else {
+        result.push_str(r#"
       p40 {
         collations_score_weight
         min_samples_count
@@ -246,18 +258,15 @@ master {
       }
     }
   }
-"#;
-
-pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
-
+"#);
+    }
     let config_query = query_with_limit(
         ton.clone(),
         "blocks",
         json!({ "key_block": { "eq": true },
             "workchain_id": { "eq": -1 } }),
-        QUERY_FIELDS,
-        Some(vec!(OrderBy{ path: "gen_utime".to_string(), direction: SortDirection::DESC })),
+        &result,
+        Some(vec!(OrderBy{ path: "seq_no".to_string(), direction: SortDirection::DESC })),
         Some(1),
     ).await.map_err(|e| format!("failed to query master block config: {}", e))?;
 
