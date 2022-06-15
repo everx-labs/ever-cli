@@ -237,7 +237,7 @@ fn parse_wallet_data(m: &ArgMatches, config: &Config) -> Result<(String, String)
 fn parse_stake_data<'a>(m: &'a ArgMatches, config: &Config) -> Result<(String, &'a str, String), String> {
     let (wallet, keys) = parse_wallet_data(m, config)?;
     let stake = m.value_of("VALUE")
-        .ok_or("stake value is not defined.".to_string())?;
+        .ok_or("value is not defined.".to_string())?;
     Ok((wallet, stake, keys))
 }
 

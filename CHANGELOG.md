@@ -2,10 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.26.10
+## Version: 0.26.30
 
 ### New
 
+
+## Version: 0.26.28
+
+### New
+ - Added network test and improved giver for parallel debot tests
+ - Added Ubuntu 22 hint
+ - Fixed tests to work in parallel
+
+
+## Version: 0.26.26
+
+### New
+ - Fixed tests to work in parallel
+
+
+## Version: 0.26.24
+
+### New
+  - Libraries update
 
 ## Version: 0.26.8
 
@@ -34,7 +53,13 @@ All notable changes to this project will be documented in this file.
 
 ### New
 
+## Version: 0.25.15
 
+
+### New
+ - Add support copyleft
+
+ 
 ## Version: 0.25.11
 
 ### New

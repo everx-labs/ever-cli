@@ -14,7 +14,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use lazy_static::lazy_static;
 use regex::Regex;
-use crate::debug_executor::TraceLevel;
 
 const TESTNET: &str = "net.ton.dev";
 fn default_url() -> String {
@@ -53,7 +52,7 @@ fn default_endpoints() -> Vec<String> {
     vec!()
 }
 
-fn default_trace() -> TraceLevel { TraceLevel::None }
+fn default_trace() -> String { "None".to_string() }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -89,7 +88,7 @@ pub struct Config {
     #[serde(default = "default_false")]
     pub async_call: bool,
     #[serde(default = "default_trace")]
-    pub debug_fail: TraceLevel,
+    pub debug_fail: String,
     #[serde(default = "default_endpoints")]
     pub endpoints: Vec<String>,
 }
@@ -429,11 +428,11 @@ pub fn set_config(
     if let Some(debug_fail) = debug_fail {
         let debug_fail = debug_fail.to_lowercase();
         config.debug_fail = if debug_fail == "full" {
-            TraceLevel::Full
+            "Full".to_string()
         } else if debug_fail == "minimal" {
-            TraceLevel::Minimal
+            "Minimal".to_string()
         } else if debug_fail == "none" {
-            TraceLevel::None
+            "None".to_string()
         } else {
             return Err(r#"Wrong value for "debug_fail" config."#.to_string())
         };

@@ -16,11 +16,13 @@ tonos-cli <subcommand> -h
 - [Table of contents](#table-of-contents)
 - [1. Installation](#1-installation)
   - [Install compiled executable](#install-compiled-executable)
+    - [Ubuntu 22 troubleshooting](#ubuntu-22-troubleshooting)
   - [Install through EVERDEV](#install-through-everdev)
   - [Build from source](#build-from-source)
     - [Prerequisites](#prerequisites)
     - [Build from source on Linux and Mac OS](#build-from-source-on-linux-and-mac-os)
     - [Build from source on Windows](#build-from-source-on-windows)
+    - [Windows debug build troubleshooting](#windows-debug-build-troubleshooting)
     - [Tails OS secure environment](#tails-os-secure-environment)
     - [Put TONOS-CLI into system environment](#put-tonos-cli-into-system-environment)
   - [Check version](#check-version)
@@ -90,8 +92,11 @@ tonos-cli <subcommand> -h
   - [9.3. NodeID](#93-nodeid)
   - [9.4. Dump blockchain config](#94-dump-blockchain-config)
   - [9.5. Dump several account states](#95-dump-several-account-states)
-  - [9.6. Wait for account change](#96-wait-for-account-change)
-  - [9.7. Make a raw GraphQL query](#97-make-a-raw-graphql-query)
+  - [9.6. Update global config parameter](#96-update-global-config-parameter)
+  - [9.7. Wait for account change](#96-account-wait)
+  - [9.8. Make a raw GraphQL query](#97-query-raw)
+  - [9.9. Wait for account change](#96-wait-for-account-change)
+  - [9.10. Make a raw GraphQL query](#97-make-a-raw-graphql-query)
 - [10. Fetch and replay](#10-fetch-and-replay)
   - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 - [11. Debug commands](#11-debug-commands)
@@ -107,6 +112,16 @@ tonos-cli <subcommand> -h
 ## Install compiled executable
 
 Create a folder. Download the `.zip` file from the latest release from here: [https://github.com/tonlabs/tonos-cli/releases](https://github.com/tonlabs/tonos-cli/releases) to this folder. Extract it.
+
+### Ubuntu 22 troubleshooting
+
+Ubuntu 22 has upgraded to OpenSSL 3.0 and this breaks execution of compiled tonos-cli releases. To fix this problem one
+should install old version of libssl. To do it one can download amd64 package from
+(packages.debian.org)[https://packages.debian.org/stretch/libssl1.1] and install it with dpkg:
+
+```bash
+sudo dpkg -i libssl1.1*.deb
+```
 
 ## Install through EVERDEV
 
@@ -2279,7 +2294,46 @@ Processing...
 Succeeded.
 ```
 
-## 9.6. Wait for account change
+## 9.6. Update global config parameter
+
+Use the following command to update one parameter of global config, that is stored in a .json file:
+
+```bash
+tonos-cli update_config <seqno> <config_master_key_file> <new_param_file>
+```
+
+`<seqno>` – current seqno of config contract. It can get from command `seqno` on config account.
+
+`<config_master_key_file>` – prefix of config master files. There should be two files: `<config_master_key_file>.addr` with address of config master and `<config_master_key_file>.pk` with private key of config master.
+
+`<new_param_file>` – json with new config configuration. 
+
+Example of new_param_file
+
+```json
+{
+  "p8": {
+    "version": 10,
+    "capabilities": 8238
+  }
+}
+
+```
+
+Example:
+
+```bash
+$ tonos-cli update_config 9 config-master example.json
+Config: /home/user/tonos-cli/tonos-cli.conf.json
+Input arguments:
+   seqno: 9
+config_master: config-master
+new_param: example.json
+Message: b5ee9c720101020100850001e589feaaaaaaaaaaaaa...
+
+```
+
+## 9.7. Wait for an account change
 
 The command `account-wait` waits for the change of the `last_trans_lt` account field. It exits with zero exit code upon success (the field has changed before timeout). Otherwise, it exits with non-zero code.
 
@@ -2301,7 +2355,7 @@ $ echo $?
 0
 ```
 
-## 9.7. Make a raw GraphQL query
+## 9.8. Make a raw GraphQL query
 
 The command `query-raw` executes a raw network query by directly calling the `ton_client::net::query_collection` SDK interface.
 
@@ -2451,7 +2505,7 @@ ARGUMENTS:
 This command allows user to replay remote transaction locally and obtain TVM trace.
 Full replay requires transactions dump of the debugged contract and of the config contract.
 This command fetches them automatically, but config contract may have too many transactions and full dump of them can
-take a very long time, that's why user can use option `--empty-config` to limit number of the queried transactions and
+take a very long time, that's why user can use option `--empty_config` to limit number of the queried transactions and
 speed up the execution if the debugged contract doesn't check network configuration parameters. Another way to speed up
 execution if the contract needs config is to reuse dump of config transactions by passing the file with
 `--config <CONFIG_PATH>` option.
