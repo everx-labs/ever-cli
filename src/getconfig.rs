@@ -227,43 +227,64 @@ master {
         signature_r
         signature_s
       }
-    }
-  }
 "#;
 
 pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result<(), String> {
     let ton = create_client_verbose(&config)?;
-
-    let last_key_block_query = query_with_limit(
-        ton.clone(),
-        "blocks",
-        json!({ "workchain_id": { "eq":-1 } }),
-        "id prev_key_block_seqno",
-        Some(vec![OrderBy{ path: "seq_no".to_owned(), direction: SortDirection::DESC }]),
-        Some(1),
-    ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
-
-    if last_key_block_query.is_empty()  ||
-        last_key_block_query[0]["prev_key_block_seqno"].as_u64() == Some(0) {
-        return Err("Key block not found".to_string());
+    let mut result = QUERY_FIELDS.to_owned();
+    result.push_str(r#"
+      p40 {
+        collations_score_weight
+        min_samples_count
+        min_slashing_protection_score
+        resend_mc_blocks_count
+        signing_score_weight
+        slashing_period_mc_blocks_count
+        z_param_numerator
+        z_param_denominator
+      }
+      p42 {
+        threshold
+        payouts {
+            license_type
+            payout_percent
+        }
+      }
     }
+  }
+"#);
 
-    let config_query = query_with_limit(
+    let config_query = match query_with_limit(
         ton.clone(),
         "blocks",
-        json!({
-            "seq_no": {
-                "eq": last_key_block_query[0]["prev_key_block_seqno"].as_u64()
-                    .ok_or("failed to decode prev_key_block_seqno")?
-            },
-            "workchain_id": {
-                "eq": -1 
-            }
-        }),
-        QUERY_FIELDS,
-        None,
+        json!({ "key_block": { "eq": true },
+            "workchain_id": { "eq": -1 } }),
+        &result,
+        Some(vec!(OrderBy{ path: "seq_no".to_string(), direction: SortDirection::DESC })),
         Some(1),
-    ).await.map_err(|e| format!("failed to query master block config: {}", e))?;
+    ).await {
+        Ok(result) => Ok(result),
+        Err(e) => {
+            if e.message.contains("Server responded with code 400") {
+                let mut result = QUERY_FIELDS.to_owned();
+                result.push_str(r#"
+    }
+  }
+"#);
+                query_with_limit(
+                    ton.clone(),
+                    "blocks",
+                    json!({ "key_block": { "eq": true },
+                        "workchain_id": { "eq": -1 } }),
+                    &result,
+                    Some(vec!(OrderBy{ path: "seq_no".to_string(), direction: SortDirection::DESC })),
+                    Some(1),
+                ).await.map_err(|e| format!("failed to query master block config: {}", e))
+            } else {
+                Err(format!("failed to query master block config: {}", e))
+            }
+        }
+    }?;
 
     if config_query.is_empty() {
         return Err("Config was not set".to_string());
