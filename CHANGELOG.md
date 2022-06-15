@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.26.35
+
+### New
+ - Add config param 42
+ - Update libraries
+
+
 ## Version: 0.26.34
 
 ### New
