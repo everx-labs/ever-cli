@@ -33,7 +33,6 @@ pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
 
 pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
-pub const TRACE_PATH: &str = "./trace.log";
 
 struct SimpleLogger;
 

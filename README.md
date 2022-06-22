@@ -302,12 +302,15 @@ List of available options:
 --balance_in_tons <BALANCE_IN_TONS>           Print balance for account command in tons. If false balance is printed in nanotons.
 --debug_fail <DEBUG_FAIL>                     When enabled tonos-cli executes debug command on fail of run or call command. Can be enabled with values 'full' or 'minimal' which set the trace level for debug run and disabled with value 'none'.
 --depool_fee <DEPOOL_FEE>                     Value added to the message sent to depool to cover its fees (change will be returned).
+--is_json <IS_JSON>                           Cli prints output in json format.
 --keys <KEYS>                                 Path to the file with keypair.
 --lifetime <LIFETIME>                         Period of time in seconds while message is valid. Change of this parameter may affect "out_of_sync" parameter, because "lifetime" should be at least 2 times greater than "out_of_sync".
 --local_run <LOCAL_RUN>                       Enable preliminary local run before deploy and call commands.
+--method <METHOD>                             Method name that can be saved to be used by some commands (runx, callx).
 --message_processing_timeout <MSG_TIMEOUT>    Network message processing timeout in ms.
 --no-answer <NO_ANSWER>                       Flag whether to wait for depool answer when calling a depool function.
 --out_of_sync <OUT_OF_SYNC>                   Network connection "out_of_sync_threshold" parameter in seconds. Mind that it cant exceed half of the "lifetime" parameter.
+--parameters <PARAMETERS>                     Function parameters that can be saved to be used by some commands (runx, callx).
 --pubkey <PUBKEY>                             User public key. Used by DeBot Browser.
 --retries <RETRIES>                           Number of attempts to call smart contract function if previous attempt was unsuccessful.
 --timeout <TIMEOUT>                           Network `wait_for` timeout in ms.
@@ -1467,15 +1470,21 @@ Examples:
 
 ```bash
 # specify options manually
-tonos-cli callx --keys giver.key --abi giver.abi.json --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
+tonos-cli callx --keys giver.key --abi giver.abi.json --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 -m sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
 
 # options are taken from the config
 tonos-cli config --abi giver.abi.json --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --keys giver.key
-tonos-cli callx sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
+tonos-cli callx -m sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
 
 # if contract function or constructor doesn't take arguments, parameters can be skipped
 tonos-cli deployx contract.tvc
-tonos-cli runx getParameters
+tonos-cli runx -m getParameters
+
+# method and parameters can be specified in config
+tonos-cli config --method add --parameters '{"value":1}' --addr 0:41af055743c85ba58fcaead78fa45b017f265c9351b5275ad76bf58be11760fd --abi ../samples/1_Accumulator.abi.json --keys keys/key0
+tonos-cli callx
+tonos-cli config --method sum --parameters '{}'
+tonos-cli runx
 ```
 
 # 5. DeBot commands

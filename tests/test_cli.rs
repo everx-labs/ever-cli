@@ -2175,6 +2175,7 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--boc")
         .arg("--addr")
         .arg(boc_path)
+        .arg("-m")
         .arg("getData")
         .arg("--abi")
         .arg(DEPOOL_ABI)
@@ -2196,6 +2197,7 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
         .arg(GIVER_V2_ABI)
         .arg("--addr")
         .arg(GIVER_V2_ADDR)
+        .arg("-m")
         .arg("sendTransaction")
         .arg("--dest")
         .arg(address.clone())
@@ -2231,10 +2233,33 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("--config")
         .arg(config_path)
         .arg("runx")
+        .arg("-m")
         .arg("getParameters");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Succeeded."));
+
+    set_config(&["--method"], &["getParameters"], Some(config_path))?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("runx");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."));
+
+    set_config(
+        &["--method", "--keys", "--abi", "--addr", "--parameters"],
+        &["sendTransaction", GIVER_V2_KEY, GIVER_V2_ABI, GIVER_V2_ADDR, "tests/test.args"],
+        Some(config_path))?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("callx");
+    cmd.assert()
+        .success();
 
     fs::remove_file(config_path)?;
     fs::remove_file(key_path)?;

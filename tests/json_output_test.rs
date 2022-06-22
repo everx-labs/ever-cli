@@ -151,8 +151,8 @@ fn test_json_output_5() -> Result<(), Box<dyn std::error::Error>> {
     run_command_and_decode_json(&format!("multisig deploy -k {} -l 1000000000", GIVER_V2_KEY))?;
     run_command_and_decode_json(r#"nodeid --pubkey cde8fbf86c"#)?;
     run_command_and_decode_json(r#"nodeid --keypair tests/account.boc"#)?;
-    run_command_and_decode_json(&format!("proposal vote 0:28a3738f08f5b3410e92aab20f702d64160e2891aaaed881f27d59ff518078d1 12313 {}", GIVER_V2_KEY))?;
-    run_command_and_decode_json(r#"proposal decode 0:28a3738f08f5b3410e92aab20f702d64160e2891aaaed881f27d59ff518078d1 12313"#)?;
+    // run_command_and_decode_json(&format!("proposal vote 0:28a3738f08f5b3410e92aab20f702d64160e2891aaaed881f27d59ff518078d1 12313 {}", GIVER_V2_KEY))?;
+    // run_command_and_decode_json(r#"proposal decode 0:28a3738f08f5b3410e92aab20f702d64160e2891aaaed881f27d59ff518078d1 12313"#)?;
     let command = format!("run --abi tests/samples/fakeDepool.abi.json {} getDat {{}}", GIVER_ADDR);
     run_command_and_decode_json(&command)?;
     let command = format!("runx --abi tests/samples/fakeDepool.abi.json --addr {} gtData ", GIVER_ADDR);
@@ -160,5 +160,6 @@ fn test_json_output_5() -> Result<(), Box<dyn std::error::Error>> {
     run_command_and_decode_json(r#"runget --boc tests/account_fift.boc past_election_is"#)?;
     run_command_and_decode_json(r#"send --abi tests/samples/fakeDepool.abi.json 65465"#)?;
     run_command_and_decode_json(r#"debug call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGram1 '{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1111111}' --abi tests/samples/giver.abi.json -c tests/config.boc"#)?;
+    run_command_and_decode_json(r#" --optionss call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 sendGram '{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","amount":1111111}' --abi tests/samples/giver.abi.json"#)?;
     Ok(())
 }
