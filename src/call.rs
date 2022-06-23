@@ -14,7 +14,7 @@ use crate::config::Config;
 use crate::{convert, DebugLogger};
 use crate::helpers::{
     TonClient, now, now_ms, create_client_verbose, load_abi,
-    query_account_field, TRACE_PATH, SDK_EXECUTION_ERROR_CODE, create_client
+    query_account_field, SDK_EXECUTION_ERROR_CODE, create_client
 };
 use ton_abi::{Contract, ParamType};
 use chrono::{TimeZone, Local};
@@ -269,9 +269,10 @@ pub async fn call_contract_with_result(
     matches: Option<&ArgMatches<'_>>,
 ) -> Result<serde_json::Value, String> {
     let ton = if config.debug_fail != "None".to_string() {
+        let log_path = format!("call_{}_{}.log", addr, method);
         log::set_max_level(log::LevelFilter::Trace);
         log::set_boxed_logger(
-            Box::new(DebugLogger::new(TRACE_PATH.to_string()))
+            Box::new(DebugLogger::new(log_path))
         ).map_err(|e| format!("Failed to set logger: {}", e))?;
         create_client(config)?
     } else {
@@ -379,8 +380,9 @@ pub async fn call_contract_with_client(
         let _ = execute_debug(matches, Some(ton.clone()), &mut account, Some(&message), (now / 1000) as u32, now,now, false, config).await?;
 
         if !config.is_json {
+            let log_path = format!("call_{}_{}.log", addr, method);
             println!("Debug finished.");
-            println!("Log saved to {}", TRACE_PATH);
+            println!("Log saved to {}", log_path);
         }
         return Err("".to_string());
     }
