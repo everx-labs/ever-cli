@@ -40,6 +40,7 @@ mod replay;
 mod debug;
 mod run;
 mod message;
+mod compile;
 
 use account::{get_account, calc_storage, wait_for_change};
 use call::{call_contract, call_contract_with_msg, parse_params};
@@ -61,6 +62,7 @@ use voting::{create_proposal, decode_proposal, vote};
 use replay::{fetch_block_command, fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use crate::account::dump_accounts;
+use crate::compile::{compile_command, create_compile_command};
 
 use crate::config::FullConfig;
 use crate::getconfig::gen_update_config_message;
@@ -913,6 +915,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(create_decode_command())
         .subcommand(create_debot_command())
         .subcommand(create_debug_command())
+        .subcommand(create_compile_command())
         .subcommand(getconfig_cmd)
         .subcommand(bcconfig_cmd)
         .subcommand(nodeid_cmd)
@@ -1108,6 +1111,9 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
     if let Some(m) = matches.subcommand_matches("replay") {
         return replay_command(m, &config).await;
+    }
+    if let Some(m) = matches.subcommand_matches("compile") {
+        return compile_command(m, &config).await;
     }
     if matches.subcommand_matches("version").is_some() {
         if config.is_json {
@@ -1537,7 +1543,7 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
     let tvc = matches.value_of("TVC");
     let wc = matches.value_of("WC");
     let keys = matches.value_of("GENKEY").or(matches.value_of("SETKEY"));
-    let new_keys = matches.is_present("GENKEY") ;
+    let new_keys = matches.is_present("GENKEY");
     let init_data = matches.value_of("DATA");
     let update_tvc = matches.is_present("SAVE");
     let abi = match abi_from_matches_or_config(matches, config) {
