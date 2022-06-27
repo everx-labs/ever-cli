@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.26.43
+## Version: 0.26.45
 
 ### New
  - `tokio` library updated to `1.*` version
