@@ -704,7 +704,9 @@ or
 `<contract.tvc>` - compiled smart contract file.
 
 `<params>` - deploy command parameters, depend on the contract.
-
+Sometimes it can be not obvious in which way method parameters should be specified,
+especially if it is a large structure with different and complex fields.
+It is generally described in [abi doc](https://github.com/tonlabs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
 Example ([multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) contract deployment to the masterchain):
 
 ```bash
@@ -853,6 +855,9 @@ or
 `<method>` - the method being called.
 
 `<params>` - parameters of the called method.
+Sometimes it can be not obvious in which way method parameters should be specified,
+especially if it is a large structure with different and complex fields.
+It is generally described in [abi doc](https://github.com/tonlabs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
 
 Example (transaction creation in a [multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) contract):
 
@@ -951,6 +956,9 @@ tonos-cli run [--abi <contract.abi.json>] <address> <method> <params>
 `<method>` - the method being called.
 
 `<params>` - parameters of the called method.
+Sometimes it can be not obvious in which way method parameters should be specified,
+especially if it is a large structure with different and complex fields.
+It is generally described in [abi doc](https://github.com/tonlabs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
 
 Example of a transaction list request in a [multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig):
 

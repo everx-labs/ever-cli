@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ### New
  - `tokio` library updated to `1.*` version
+## Version: 0.26.44
+
+### New
+
 
 ## Version: 0.26.35
 
