@@ -353,7 +353,7 @@ pub fn serialize_config_param(config_str: String) -> Result<(Cell, u32), String>
         .parse::<u32>()
         .map_err(|e| format!(r#""new_param_file" is not a valid json: {}"#, e))?;
 
-    let config_params = ton_block_json::parse_config(config_json)
+    let config_params = ton_block_json::parse_config_with_mandatory_params(config_json, &[key_number])
         .map_err(|e| format!(r#"failed to parse config params from "new_param_file": {}"#, e))?;
 
     let config_param = config_params.config(key_number)
