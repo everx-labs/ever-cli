@@ -67,10 +67,6 @@ pub fn create_compile_command<'a, 'b>() -> App<'a, 'b> {
                 .long("--lib")
                 .short("-l")
                 .help("Library to use instead of default."))
-            .arg(Arg::with_name("INIT")
-                .takes_value(true)
-                .long("--init")
-                .help("Initialize static fields."))
             .arg(Arg::with_name("REFRESH_REMOTE")
                 .long("--refresh_remote")
                 .help("Force download and rewrite remote import files."))
@@ -108,10 +104,6 @@ async fn compile_solidity(matches: &ArgMatches<'_>, config: &Config) -> Result<(
         output_prefix: matches.value_of("OUTPUT_PREFIX").map(|s| s.to_owned()),
         include_path,
         lib: matches.value_of("LIB").map(|s| s.to_owned()),
-        ctor_params: None,
-        gen_key: None,
-        set_key: None,
-        init: matches.value_of("INIT").map(|s| s.to_owned()),
         function_ids: false,
         ast_json: false,
         ast_compact_json: false,

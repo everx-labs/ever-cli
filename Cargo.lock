@@ -697,9 +697,9 @@ dependencies = [
 
 [[package]]
 name = "either"
-version = "1.6.1"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
+checksum = "3f107b87b6afc2a64fd13cac55fe06d6c8859f12d4b14cbcdd2c67d0976781be"
 
 [[package]]
 name = "encode_unicode"
@@ -2269,9 +2269,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.81"
+version = "1.0.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b7ce2b32a1aed03c558dc61a5cd328f15aff2dbc17daad8fb8af04d2100e15c"
+checksum = "82c2c1fdcd807d1098552c5b9a36e425e42e9fbd7c6a37a8425f390f781f7fa7"
 dependencies = [
  "indexmap",
  "itoa 1.0.2",
@@ -2412,9 +2412,9 @@ checksum = "eb703cfe953bccee95685111adeedb76fabe4e97549a58d16f03ea7b9367bb32"
 
 [[package]]
 name = "smallvec"
-version = "1.8.1"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc88c725d61fc6c3132893370cac4a0200e3fedf5da8331c570664b1987f5ca2"
+checksum = "2fd0db749597d91ff862fd1d55ea87f7855a744a8425a64695b6fca237d1dad1"
 
 [[package]]
 name = "socket2"
@@ -2439,7 +2439,6 @@ dependencies = [
 [[package]]
 name = "sold"
 version = "0.1.0"
-source = "git+https://github.com/tonlabs/TON-Solidity-Compiler.git?branch=test_sold_for_tonos#c20c7b587f513cebae065043ef34a59ec81f4bc6"
 dependencies = [
  "ansi_term",
  "atty",
@@ -2451,7 +2450,7 @@ dependencies = [
  "once_cell",
  "serde",
  "serde_json",
- "ton_abi",
+ "ton_abi 2.2.9",
  "ton_block",
  "ton_types",
  "tvm_linker",
@@ -2744,6 +2743,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "ton_abi"
+version = "2.2.9"
+source = "git+https://github.com/tonlabs/ton-labs-abi.git?tag=2.2.9#c9d7823e74a1ac51359f48bd34ec74b566e3e972"
+dependencies = [
+ "base64 0.10.1",
+ "byteorder",
+ "chrono",
+ "ed25519",
+ "ed25519-dalek",
+ "failure",
+ "hex 0.3.2",
+ "num-bigint",
+ "num-traits",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "sha2 0.8.2",
+ "ton_block",
+ "ton_types",
+]
+
+[[package]]
 name = "ton_api"
 version = "0.2.128"
 source = "git+https://github.com/tonlabs/ton-labs-tl?tag=0.2.128#f16ff19f5dd4ccf73f65d830ab6dc782ea2127dd"
@@ -2846,7 +2867,7 @@ dependencies = [
  "tiny-bip39",
  "tokio 0.2.25",
  "tokio-tungstenite",
- "ton_abi",
+ "ton_abi 2.2.8",
  "ton_block",
  "ton_block_json",
  "ton_executor",
@@ -2906,7 +2927,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sha2 0.8.2",
- "ton_abi",
+ "ton_abi 2.2.8",
  "ton_block",
  "ton_types",
  "ton_vm 1.8.38",
@@ -2930,7 +2951,7 @@ dependencies = [
 [[package]]
 name = "ton_types"
 version = "1.11.2"
-source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.2#1e8fab540649d4b0fe3713be64fa01ca73d2b9fe"
+source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.2#0fb6b9cfacc84a3974dcb0aa674335fcf74de7ee"
 dependencies = [
  "base64 0.13.0",
  "crc",
@@ -3017,7 +3038,7 @@ dependencies = [
  "string-error",
  "tokio 0.2.25",
  "tokio-retry",
- "ton_abi",
+ "ton_abi 2.2.8",
  "ton_block",
  "ton_block_json",
  "ton_client",
@@ -3093,8 +3114,8 @@ dependencies = [
 
 [[package]]
 name = "tvm_linker"
-version = "0.15.44"
-source = "git+https://github.com/tonlabs/TVM-linker.git?branch=SilkovAlexander/sold_to_tonos#4894d2a4f30693b4929914b56661a54d53a303c8"
+version = "0.15.45"
+source = "git+https://github.com/tonlabs/TVM-linker.git?branch=SilkovAlexander/sold_to_tonos#ffe82f8e9dd63cefeba53c36d7e19d0a06ec5c35"
 dependencies = [
  "base64 0.10.1",
  "clap 2.34.0",
@@ -3113,7 +3134,7 @@ dependencies = [
  "serde_json",
  "sha2 0.8.2",
  "simplelog 0.5.3",
- "ton_abi",
+ "ton_abi 2.2.9",
  "ton_block",
  "ton_labs_assembler",
  "ton_types",
@@ -3437,9 +3458,9 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.5.5"
+version = "1.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94693807d016b2f2d2e14420eb3bfcca689311ff775dcf113d74ea624b7cdf07"
+checksum = "20b578acffd8516a6c3f2a1bdefc1ec37e547bb4e0fb8b6b01a4cafc886b4442"
 dependencies = [
  "zeroize_derive",
 ]
