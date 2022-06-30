@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.26.49
+
+### New
+ - 2
+ - 3
+ - 4
+ - 5
+ - 6
+ - Revert &quot;6&quot;
+ - This reverts commit 9283b9cbf745144119ce67863f2fda9b3ab478f0.
+ - Revert &quot;5&quot;
+ - This reverts commit 94339a49c64abb683cb535af99bd5c8b1735383e.
+ - Revert &quot;4&quot;
+ - This reverts commit 0617ff931bedb353b92f3c505638201db1dfb9d9.
+ - 4
+
+
 ## Version: 0.26.45
 
 ### New
