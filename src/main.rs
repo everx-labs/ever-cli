@@ -292,15 +292,6 @@ async fn main_internal() -> Result <(), String> {
     let version_cmd = SubCommand::with_name("version")
         .about("Prints build and version info.");
 
-    let convert_cmd = SubCommand::with_name("convert")
-        .about("Converts tokens to nanotokens.")
-        .subcommand(SubCommand::with_name("tokens")
-            .about("Converts tokens to nanotokens.")
-            .arg(Arg::with_name("AMOUNT")
-                .takes_value(true)
-                .required(true)
-                .help("Token amount value")));
-
     let genphrase_cmd = SubCommand::with_name("genphrase")
         .about("Generates a seed phrase for keypair.")
         .author("TONLabs")
@@ -888,7 +879,6 @@ async fn main_internal() -> Result <(), String> {
             .short("-j")
             .long("--json"))
         .subcommand(version_cmd)
-        .subcommand(convert_cmd)
         .subcommand(genphrase_cmd)
         .subcommand(genpubkey_cmd)
         .subcommand(getkeypair_cmd)
@@ -978,11 +968,6 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         config.endpoints = FullConfig::get_map(&config_file).get(url).unwrap_or(&empty).clone();
     }
 
-    if let Some(m) = matches.subcommand_matches("convert") {
-        if let Some(m) = m.subcommand_matches("tokens") {
-            return convert_tokens(m, &config);
-        }
-    }
     if let Some(m) = matches.subcommand_matches("callex") {
         return callex_command(m, &config).await;
     }
@@ -1131,19 +1116,6 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return Ok(());
     }
     Err("invalid arguments".to_string())
-}
-
-fn convert_tokens(matches: &ArgMatches, config: &Config) -> Result<(), String> {
-    let amount = matches.value_of("AMOUNT").unwrap();
-    let result = convert::convert_token(amount)?;
-    if config.is_json {
-        let result = json!({"value": result});
-        println!("{}", serde_json::to_string_pretty(&result)
-            .unwrap_or("Failed to serialize the result".to_string()));
-    } else {
-        println!("{}", result);
-    }
-    Ok(())
 }
 
 fn genphrase_command(matches: &ArgMatches, config: &Config) -> Result<(), String> {

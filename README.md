@@ -87,16 +87,13 @@ tonos-cli <subcommand> -h
   - [8.2. Vote for proposal](#82-vote-for-proposal)
   - [8.3. Decode proposal comment](#83-decode-proposal-comment)
 - [9. Supplementary commands](#9-supplementary-commands)
-  - [9.1. Convert tokens to nanotokens](#91-convert-tokens-to-nanotokens)
-  - [9.2. Get global config](#92-get-global-config)
-  - [9.3. NodeID](#93-nodeid)
-  - [9.4. Dump blockchain config](#94-dump-blockchain-config)
-  - [9.5. Dump several account states](#95-dump-several-account-states)
-  - [9.6. Update global config parameter](#96-update-global-config-parameter)
-  - [9.7. Wait for account change](#96-account-wait)
-  - [9.8. Make a raw GraphQL query](#97-query-raw)
-  - [9.9. Wait for account change](#96-wait-for-account-change)
-  - [9.10. Make a raw GraphQL query](#97-make-a-raw-graphql-query)
+  - [9.1. Get global config](#91-get-global-config)
+  - [9.2. NodeID](#92-nodeid)
+  - [9.3. Dump blockchain config](#93-dump-blockchain-config)
+  - [9.4. Dump several account states](#94-dump-several-account-states)
+  - [9.5. Update global config parameter](#95-update-global-config-parameter)
+  - [9.6. Wait for an account change](#96-wait-for-an-account-change)
+  - [9.7 Make a raw GraphQL query](#97-make-a-raw-graphql-query)
 - [10. Fetch and replay](#10-fetch-and-replay)
   - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 - [11. Debug commands](#11-debug-commands)
@@ -2200,23 +2197,7 @@ tonos-cli proposal decode <msig_address> <proposal_id>
 
 # 9. Supplementary commands
 
-## 9.1. Convert tokens to nanotokens
-
-Transaction amounts in `tonos-cli` are indicated in nanotokens. To convert tokens to nanotokens use the following command:
-
-```bash
-tonos-cli convert tokens <amount>
-```
-
-Example:
-
-```bash
-$ tonos-cli convert tokens 125.8
-Config: /home/user/tonos-cli.conf.json
-125800000000
-```
-
-## 9.2. Get global config
+## 9.1. Get global config
 
 ```bash
 tonos-cli getconfig <index>
@@ -2239,7 +2220,7 @@ Config p16: {
 }
 ```
 
-## 9.3. NodeID
+## 9.2. NodeID
 
 The following command calculates node ID from validator public key:
 
@@ -2262,7 +2243,7 @@ Input arguments:
 50232655f2ad44f026b03ec1834ae8316bfa1f3533732da1e19b3b31c0f04143
 ```
 
-## 9.4. Dump blockchain config
+## 9.3. Dump blockchain config
 
 ```bash
 tonos-cli dump config <path>
@@ -2281,7 +2262,7 @@ Connecting to main.ton.dev
 Config successfully saved to config.boc
 ```
 
-## 9.5. Dump several account states
+## 9.4. Dump several account states
 
 Dumps the list of accounts. Files will have address without workchain id as a name.
 
@@ -2311,7 +2292,7 @@ Processing...
 Succeeded.
 ```
 
-## 9.6. Update global config parameter
+## 9.5. Update global config parameter
 
 Use the following command to update one parameter of global config, that is stored in a .json file:
 
@@ -2350,7 +2331,7 @@ Message: b5ee9c720101020100850001e589feaaaaaaaaaaaaa...
 
 ```
 
-## 9.7. Wait for an account change
+## 9.6. Wait for an account change
 
 The command `account-wait` waits for the change of the `last_trans_lt` account field. It exits with zero exit code upon success (the field has changed before timeout). Otherwise, it exits with non-zero code.
 
@@ -2372,7 +2353,7 @@ $ echo $?
 0
 ```
 
-## 9.8. Make a raw GraphQL query
+## 9.7. Make a raw GraphQL query
 
 The command `query-raw` executes a raw network query by directly calling the `ton_client::net::query_collection` SDK interface.
 
