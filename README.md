@@ -1447,7 +1447,7 @@ Decoded data:
 Use the following command to generate payload for internal function call:
 
 ```bash
-tonos-cli body [--abi <contract.abi.json>] <method> <params>
+tonos-cli body [--abi <contract.abi.json>] [--addr <address>] <method> <params>
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -1455,6 +1455,8 @@ tonos-cli body [--abi <contract.abi.json>] <method> <params>
 `<method>` - the method being called.
 
 `<params>` - parameters of the called method.
+
+`<address>` - optional destination address to support abi 2.3.
 
 Example:
 

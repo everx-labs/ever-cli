@@ -183,6 +183,11 @@ async fn main_internal() -> Result <(), String> {
         .short("-m")
         .help("Name of the function being called.");
 
+    let opt_address_arg = Arg::with_name("ADDRESS")
+        .long("--addr")
+        .takes_value(true)
+        .help("Contract address. Can be specified in the config file.");
+
     let callx_cmd = SubCommand::with_name("callx")
         .about("Sends an external message with encoded function call to the contract (alternative syntax).")
         .version(&*version_string)
@@ -190,10 +195,7 @@ async fn main_internal() -> Result <(), String> {
         .setting(AppSettings::AllowLeadingHyphen)
         .setting(AppSettings::TrailingVarArg)
         .setting(AppSettings::DontCollapseArgsInUsage)
-        .arg(Arg::with_name("ADDRESS")
-            .long("--addr")
-            .takes_value(true)
-            .help("Contract address. Can be specified in the config file."))
+        .arg(opt_address_arg.clone())
         .arg(abi_arg.clone())
         .arg(keys_arg.clone())
         .arg(method_opt_arg.clone())
@@ -449,7 +451,8 @@ async fn main_internal() -> Result <(), String> {
         .author("TONLabs")
         .arg(method_arg.clone())
         .arg(params_arg.clone())
-        .arg(abi_arg.clone());
+        .arg(abi_arg.clone())
+        .arg(opt_address_arg.clone());
 
     let run_cmd = SubCommand::with_name("run")
         .setting(AppSettings::AllowLeadingHyphen)
@@ -1191,10 +1194,11 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
     let output = matches.value_of("OUTPUT");
+    let address = address_from_matches_or_config(matches, config).ok();
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
     let params = Some(load_params(params.unwrap())?);
     if !config.is_json {
-        print_args!(method, params, abi, output);
+        print_args!(method, params, abi, output, address);
     }
 
     let params = serde_json::from_str(&params.unwrap())
@@ -1212,6 +1216,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
             call_set: CallSet::some_with_function_and_input(method.unwrap(), params)
                 .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
+            address,
             ..Default::default()
         },
     ).await
