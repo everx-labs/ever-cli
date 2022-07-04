@@ -661,66 +661,6 @@ fn test_genaddr_seed() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_callex() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("callex")
-        .arg("sendTransaction")
-        .arg(GIVER_V2_ADDR)
-        .arg(GIVER_V2_ABI)
-        .arg(GIVER_V2_KEY)
-        .arg("--dest")
-        .arg("0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e")
-        .arg("--value")
-        .arg("0.2T")
-        .arg("--bounce")
-        .arg("false");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#""dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e""#))
-        .stdout(predicate::str::contains(r#""value":"200000000""#))
-        .stdout(predicate::str::contains("Succeeded"));
-
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("callex")
-        .arg("sendTransaction")
-        .arg(GIVER_V2_ADDR)
-        .arg(GIVER_V2_ABI)
-        .arg(GIVER_V2_KEY)
-        .arg("--dest")
-        .arg("0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e")
-        .arg("--value")
-        .arg("1000000000")
-        .arg("--bounce")
-        .arg("false");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#""dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e""#))
-        .stdout(predicate::str::contains(r#""value":"1000000000""#))
-        .stdout(predicate::str::contains("Succeeded"));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("callex")
-        .arg("sendTransaction")
-        .arg(GIVER_V2_ADDR)
-        .arg(GIVER_V2_ABI)
-        .arg(GIVER_V2_KEY)
-        .arg("--dest")
-        .arg("0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e")
-        .arg("--value")
-        .arg("0x10000")
-        .arg("--bounce")
-        .arg("false");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#""dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e""#))
-        .stdout(predicate::str::contains(r#""value":"0x10000""#))
-        .stdout(predicate::str::contains("Succeeded"));
-
-    Ok(())
-}
-
-#[test]
 fn test_nodeid() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("nodeid")

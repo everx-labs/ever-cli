@@ -44,7 +44,6 @@ fn test_json_output_1() -> Result<(), Box<dyn std::error::Error>> {
     run_command_and_decode_json(&format!("account {}", GIVER_V2_ADDR))?;
     run_command_and_decode_json(&format!("body --abi {} addOrdinaryStake {{\"stake\":65535}}", DEPOOL_ABI))?;
     run_command_and_decode_json(&format!("call {} sendGrams {{\"dest\":\"{}\",\"amount\":1111111}} --abi {}", GIVER_ADDR, GIVER_ADDR, GIVER_ABI))?;
-    run_command_and_decode_json(&format!("callex sendGrams {} {} --dest {} --amount 123464", GIVER_ADDR, GIVER_ABI, GIVER_ADDR))?;
     run_command_and_decode_json(&format!("callx --addr {} sendGrams --dest {} --amount 1111111 --abi {}", GIVER_ADDR, GIVER_ADDR, GIVER_ABI))?;
     run_command_and_decode_json(r#"config endpoint add randomurl randomendpoint"#)?;
     run_command_and_decode_json(r#"config endpoint print"#)?;
@@ -120,7 +119,6 @@ fn test_json_output_4() -> Result<(), Box<dyn std::error::Error>> {
     run_command_and_decode_json(&format!("body --abi {} addOrdinaryStake {{\"stake1\":65535}}", DEPOOL_ABI))?;
     run_command_and_decode_json("convert tokens 0.12345678a")?;
     run_command_and_decode_json(&format!("call 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 sendGrams {{\"dest\":\"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94\",\"amount\":1111111}} --abi {}", GIVER_ABI))?;
-    run_command_and_decode_json(&format!("callex sendGrams 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 {} {} --dest 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 123464", GIVER_ABI, GIVER_V2_KEY))?;
     run_command_and_decode_json(&format!("callx --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a95 sendGrams --dest 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1111111 --abi {}", GIVER_ABI))?;
     run_command_and_decode_json(r#"config endpoint remove random"#)?;
     run_command_and_decode_json(&format!("decode msg tests/samples/wallet.boc --abi {}", DEPOOL_ABI))?;

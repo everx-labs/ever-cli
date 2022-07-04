@@ -144,23 +144,6 @@ async fn main() -> Result<(), i32> {
 
 async fn main_internal() -> Result <(), String> {
     let version_string = env!("CARGO_PKG_VERSION").to_string();
-    let callex_cmd = SubCommand::with_name("callex")
-        .about("Sends an external message with encoded function call to the contract (alternative syntax). Deprecated use `callx` instead.")
-        .setting(AppSettings::AllowMissingPositional)
-        .setting(AppSettings::AllowLeadingHyphen)
-        .setting(AppSettings::TrailingVarArg)
-        .setting(AppSettings::DontCollapseArgsInUsage)
-        .arg(Arg::with_name("METHOD")
-            .help("Name of the function being called."))
-        .arg(Arg::with_name("ADDRESS")
-            .help("Contract address."))
-        .arg(Arg::with_name("ABI")
-            .help("Path to the contract ABI file."))
-        .arg(Arg::with_name("SIGN")
-            .help("Seed phrase or path to the file with keypair used to sign the message."))
-        .arg(Arg::with_name("PARAMS")
-            .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
-            .multiple(true));
 
     let abi_arg = Arg::with_name("ABI")
         .long("--abi")
@@ -885,7 +868,6 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(genaddr_cmd)
         .subcommand(deploy_cmd)
         .subcommand(deploy_message_cmd)
-        .subcommand(callex_cmd)
         .subcommand(call_cmd)
         .subcommand(send_cmd)
         .subcommand(message_cmd)
@@ -968,9 +950,6 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         config.endpoints = FullConfig::get_map(&config_file).get(url).unwrap_or(&empty).clone();
     }
 
-    if let Some(m) = matches.subcommand_matches("callex") {
-        return callex_command(m, &config).await;
-    }
     if let Some(m) = matches.subcommand_matches("callx") {
         return callx_command(m, &config, CallType::Call).await;
     }
@@ -1304,44 +1283,6 @@ async fn callx_command(matches: &ArgMatches<'_>, config: &Config, call_type: Cal
         address.as_str(),
         loaded_abi,
         method.unwrap(),
-        &params.unwrap(),
-        keys,
-        false,
-        Some(matches),
-    ).await
-}
-
-async fn callex_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let method_opt = matches.value_of("METHOD");
-    let method = method_opt.ok_or("METHOD is not defined")?;
-    let address = Some(
-        matches.value_of("ADDRESS")
-            .map(|s| s.to_string())
-            .or(config.addr.clone())
-            .ok_or("ADDRESS is not defined. Supply it in the config file or in command line.".to_string())?
-    );
-    let abi = Some(abi_from_matches_or_config(matches, &config)?);
-    let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-    let params = matches.values_of("PARAMS").ok_or("PARAMS is not defined")?;
-    let params = Some(parse_params(
-        params.collect::<Vec<_>>(), &loaded_abi, method_opt.unwrap()
-    )?);
-    let keys = matches.value_of("SIGN")
-        .map(|s| s.to_string())
-        .or(config.keys_path.clone());
-
-    if !config.is_json {
-        print_args!(address, method_opt, params, abi, keys);
-    }
-
-    let address = load_ton_address(address.unwrap().as_str(), &config)?;
-
-    call_contract(
-        config,
-        address.as_str(),
-        loaded_abi,
-        method,
         &params.unwrap(),
         keys,
         false,
