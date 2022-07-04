@@ -19,7 +19,7 @@ use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get,
 use crate::{abi_from_matches_or_config, AccountSource, Config, create_client_local, create_client_verbose, DebugLogger, load_abi, load_account, load_params, unpack_alternative_params};
 use crate::call::{print_json_result};
 use crate::debug::execute_debug;
-use crate::helpers::{create_client, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient, TRACE_PATH};
+use crate::helpers::{create_client, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient};
 use crate::message::prepare_message;
 
 pub async fn run_command(matches: &ArgMatches<'_>, config: &Config, is_alternative: bool) -> Result<(), String> {
@@ -41,9 +41,16 @@ pub async fn run_command(matches: &ArgMatches<'_>, config: &Config, is_alternati
 
     let ton_client = if account_source == AccountSource::NETWORK {
         if config.debug_fail != "None".to_string() {
+            let method = if is_alternative {
+                matches.value_of("METHOD").or(config.method.as_deref())
+                    .ok_or("Method is not defined. Supply it in the config file or command line.")?
+            } else {
+                matches.value_of("METHOD").unwrap()
+            };
+            let log_path = format!("run_{}_{}.log", address, method);
             log::set_max_level(log::LevelFilter::Trace);
             log::set_boxed_logger(
-                Box::new(DebugLogger::new(TRACE_PATH.to_string()))
+                Box::new(DebugLogger::new(log_path.to_string()))
             ).map_err(|e| format!("Failed to set logger: {}", e))?;
             create_client(&config)?
         } else {
@@ -75,7 +82,12 @@ pub async fn run(
     account_boc: String,
     is_alternative: bool,
 ) -> Result<(), String> {
-    let method = matches.value_of("METHOD").unwrap();
+    let method = if is_alternative {
+        matches.value_of("METHOD").or(config.method.as_deref())
+        .ok_or("Method is not defined. Supply it in the config file or command line.")?
+    } else {
+        matches.value_of("METHOD").unwrap()
+    };
     let abi_path = abi_from_matches_or_config(matches, &config)?;
     let bc_config = matches.value_of("BCCONFIG");
 
@@ -92,10 +104,12 @@ pub async fn run(
         .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
 
     let params = if is_alternative {
-        unpack_alternative_params(matches, &abi, method)?
+        unpack_alternative_params(matches, &abi, method, config)?
     } else {
-        Some(load_params(matches.value_of("PARAMS").unwrap())?)
+        matches.value_of("PARAMS").map(|s| s.to_owned())
     };
+
+    let params = Some(load_params(params.unwrap().as_ref())?);
 
     let abi = load_abi(&abi)?;
     let now = now()?;
@@ -173,8 +187,9 @@ pub async fn run(
         }
 
         if !config.is_json {
+            let log_path = format!("run_{}_{}.log", address, method);
             println!("Debug finished.");
-            println!("Log saved to {}", TRACE_PATH);
+            println!("Log saved to {}", log_path);
         }
         return Err("".to_string());
     }

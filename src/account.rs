@@ -309,7 +309,7 @@ lazy_static::lazy_static! {
 
 async fn terminate(res: Result<(), String>) {
     let lock = TX.lock().await;
-    let mut tx = lock.as_ref().unwrap().clone();
+    let tx = lock.as_ref().unwrap().clone();
     tx.send(res).await.unwrap();
 }
 
@@ -377,7 +377,7 @@ pub async fn wait_for_change(config: &Config, account_address: &str, wait_secs: 
     ).await.map_err(|e| format!("Failed to subscribe: {}", e))?;
 
     tokio::spawn(async move {
-        tokio::time::delay_for(std::time::Duration::from_secs(wait_secs)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(wait_secs)).await;
         terminate(Err("Timeout".to_owned())).await
     });
 

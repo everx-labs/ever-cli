@@ -61,6 +61,8 @@ pub struct Config {
     #[serde(default = "default_wc")]
     pub wc: i32,
     pub addr: Option<String>,
+    pub method: Option<String>,
+    pub parameters: Option<String>,
     pub wallet: Option<String>,
     pub pubkey: Option<String>,
     pub abi_path: Option<String>,
@@ -107,6 +109,8 @@ impl Default for Config {
             url,
             wc: default_wc(),
             addr: None,
+            method: None,
+            parameters: None,
             wallet: None,
             pubkey: None,
             abi_path: None,
@@ -349,6 +353,9 @@ pub fn set_config(
     async_call: Option<&str>,
     out_of_sync_threshold: Option<&str>,
     debug_fail: Option<&str>,
+    is_json: Option<&str>,
+    method: Option<&str>,
+    parameters: Option<&str>,
 ) -> Result<(), String> {
     if let Some(s) = url {
         let resolved_url = resolve_net_name(s).unwrap_or(s.to_owned());
@@ -358,6 +365,12 @@ pub fn set_config(
     }
     if let Some(s) = addr {
         config.addr = Some(s.to_string());
+    }
+    if let Some(method) = method {
+        config.method = Some(method.to_string());
+    }
+    if let Some(parameters) = parameters {
+        config.parameters = Some(parameters.to_string());
     }
     if let Some(s) = wallet {
         config.wallet = Some(s.to_string());
@@ -436,6 +449,10 @@ pub fn set_config(
         } else {
             return Err(r#"Wrong value for "debug_fail" config."#.to_string())
         };
+    }
+    if let Some(is_json) = is_json {
+        config.is_json = is_json.parse::<bool>()
+            .map_err(|e| format!(r#"failed to parse "is_json": {}"#, e))?;
     }
 
     config.to_file(path)?;

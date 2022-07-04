@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.26.45
+
+### New
+ - `tokio` library updated to `1.*` version
+ 
+## Version: 0.26.44
+
+### New
+
+
+## Version: 0.26.35
+
+### New
+ - Add config param 42
+ - Update libraries
+
+
+## Version: 0.26.34
+
+### New
+ - Update libraries
+
+
 ## Version: 0.26.30
 
 ### New
