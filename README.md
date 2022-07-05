@@ -46,10 +46,9 @@ tonos-cli <subcommand> -h
   - [4.3. Get contract status](#43-get-contract-status)
   - [4.4. Call method](#44-call-method)
     - [4.4.1. Call contract on the blockchain](#441-call-contract-on-the-blockchain)
-    - [4.4.2. Alternative command to call contract in the blockchain](#442-alternative-command-to-call-contract-in-the-blockchain)
-    - [4.4.3. Run contract method locally](#443-run-contract-method-locally)
-    - [4.4.4. Run funC get-method](#444-run-func-get-method)
-    - [4.4.5. Run contract method locally for saved account BOC](#445-run-contract-method-locally-for-saved-account-boc)
+    - [4.4.2. Run contract method locally](#442-run-contract-method-locally)
+    - [4.4.3. Run funC get-method](#443-run-func-get-method)
+    - [4.4.4. Run contract method locally for saved account BOC](#444-run-contract-method-locally-for-saved-account-boc)
   - [4.5. Generate encrypted message offline](#45-generate-encrypted-message-offline)
   - [4.6. Broadcast previously generated message](#46-broadcast-previously-generated-message)
   - [4.7. Broadcast previously generated message from a file](#47-broadcast-previously-generated-message-from-a-file)
@@ -883,64 +882,7 @@ Result: {
 
 **Note**: If your function is marked as [responsible](https://github.com/tonlabs/TON-Solidity-Compiler/blob/master/API.md#external-function-calls), TONOS-CLI expects `_answer_id` field, and you may encounter errors, if it's missing.
 
-### 4.4.2. Alternative command to call contract in the blockchain
-
-```bash
-tonos-cli callex <method> [<address>] [<contract.abi.json>] [<seed_or_keyfile>] params...
-```
-
-**Note:** this command is deprecated, use [`callx`](#410-alternative-syntax-for-call-deploy-and-run-commands) instead.
-
-`<method>` - the method being called.
-
-`<address>` - contract [address](#41-generate-contract-address).
-
-`<contract.abi.json>` - contract interface file.
-
-`<seed_or_keyfile>` - can either be the seed phrase or the corresponding key pair file. If seed phrase is used, enclose it in double quotes.
-
-Example:
-
-- `--sign "flip uncover dish sense hazard smile gun mom vehicle chapter order enact"`
-
-or
-
-- `--sign keyfile.json`
-
-`params...` - one or more parameters of the called method in the form of `--name value`.
-
-`address`, `abi`, and `keys` parameters can be omitted. In this case default values will be used from config file.
-
-Integer and address types can be supplied without quotes.
-
-- `--value 1.5T` - suffix `T` converts integer to nanotokens -> `1500000000`. The same as `--value 1500000000`.
-
-Arrays can be used without `[]` brackets.
-
-Example of transaction creation in a [multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) contract, equivalent to the example in section 4.4.1. above:
-
-```bash
-$ tonos-cli callex submitTransaction 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc SetcodeMultisigWallet.abi.json k1.keys.json --dest -1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6 --value 0.234T --bounce false --allBalance false --payload ""
-Config: /home/user/tonos-cli.conf.json
-Input arguments:
- address: 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc
-  method: submitTransaction
-  params: {"dest":"-1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6","value":"0234000000","bounce":"false","allBalance":"false","payload":""}
-     abi: SetcodeMultisigWallet.abi.json
-    keys: k1.keys.json
-Connecting to net.ton.dev
-Generating external inbound message...
-
-MessageId: a38f37bfbe3c7427c869b3ee97c3b2d7f4421ca1427ace4e7a92f1a61d7ef234
-Expire at: Sat, 08 May 2021 15:10:15 +0300
-Processing...
-Succeeded.
-Result: {
-  "transId": "6959890394123980993"
-}
-```
-
-### 4.4.3. Run contract method locally
+### 4.4.2. Run contract method locally
 
 ```bash
 tonos-cli run [--abi <contract.abi.json>] <address> <method> <params>
@@ -996,7 +938,7 @@ Result: {
 }
 ```
 
-### 4.4.4. Run funC get-method
+### 4.4.3. Run funC get-method
 
 ```bash
 tonos-cli runget [--boc] [--tvc] <address> <method> [<params>...] [--bc_config <config_path>]
@@ -1053,7 +995,7 @@ Result: ["125387107580525"]
 
 
 
-### 4.4.5. Run contract method locally for saved account BOC
+### 4.4.4. Run contract method locally for saved account BOC
 
 ```bash
 tonos-cli run [--boc] [--tvc] [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>]
