@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address};
-use crate::config::Config;
+use crate::config::{FullConfig};
 use crate::crypto::load_keypair;
 use crate::call::{
     emulate_locally,
@@ -25,21 +25,23 @@ use ton_client::crypto::KeyPair;
 use crate::message::{display_generated_message, EncodedMessage};
 
 pub async fn deploy_contract(
-    config: &Config,
+    full_config: &mut FullConfig,
     tvc: &str,
     abi: &str,
     params: &str,
     keys_file: Option<String>,
     wc: i32,
     is_fee: bool,
+    alias: Option<&str>,
 ) -> Result<(), String> {
+    let config = &full_config.config;
     let ton = create_client_verbose(config)?;
 
     if !is_fee && !config.is_json {
         println!("Deploying...");
     }
 
-    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file, wc).await?;
+    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file.clone(), wc).await?;
 
     let enc_msg = encode_message(ton.clone(), msg.clone()).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
@@ -71,6 +73,9 @@ pub async fn deploy_contract(
         println!("Contract deployed at address: {}", addr);
     } else {
         println!("{{}}");
+    }
+    if let Some(alias) = alias {
+        full_config.add_alias(alias, Some(addr), Some(abi.to_string()), keys_file)?;
     }
     Ok(())
 }

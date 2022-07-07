@@ -118,11 +118,28 @@ pub fn abi_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> 
         .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())
 }
 
-fn address_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> Result<String, String> {
-    matches.value_of("ADDRESS")
+fn contract_data_from_matches_or_config_alias(matches: &ArgMatches<'_>, full_config: &FullConfig)
+    -> Result<(Option<String>, Option<String>, Option<String>), String> {
+    let address = matches.value_of("ADDRESS")
         .map(|s| s.to_string())
-        .or(config.addr.clone())
-        .ok_or("ADDRESS is not defined. Supply it in the config file or command line.".to_string())
+        .or(full_config.config.addr.clone())
+        .ok_or("ADDRESS is not defined. Supply it in the config file or command line.".to_string())?;
+    let (address, abi, keys) = if full_config.aliases.contains_key(&address) {
+        let alias = full_config.aliases.get(&address).unwrap();
+        (alias.address.clone(), alias.abi_path.clone(), alias.key_path.clone())
+    } else {
+        (Some(address), None, None)
+    };
+    let abi = matches.value_of("ABI")
+        .map(|s| s.to_string())
+        .or(full_config.config.abi_path.clone())
+        .or(abi)
+        .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?;
+    let keys = matches.value_of("KEYS")
+        .map(|s| s.to_string())
+        .or(full_config.config.keys_path.clone())
+        .or(keys);
+    Ok((address, Some(abi), keys))
 }
 
 fn parse_lifetime(lifetime: Option<&str>, config: &Config) -> Result<u32, String> {
@@ -195,6 +212,11 @@ async fn main_internal() -> Result <(), String> {
         .long("--wc")
         .help("Workchain id of the smart contract (default value is taken from the config).");
 
+    let alias_arg = Arg::with_name("ALIAS")
+        .long("--alias")
+        .takes_value(true)
+        .help("Saves contract address and abi to the aliases list to be able to call this contract with alias instaed of address.");
+
     let deployx_cmd = SubCommand::with_name("deployx")
         .about("Deploys a smart contract to the blockchain (alternative syntax).")
         .version(&*version_string)
@@ -206,6 +228,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(keys_arg.clone())
         .arg(wc_arg.clone())
         .arg(tvc_arg.clone())
+        .arg(alias_arg.clone())
         .arg(Arg::with_name("PARAMS")
             .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
             .multiple(true));
@@ -349,7 +372,8 @@ async fn main_internal() -> Result <(), String> {
             .help("Constructor arguments. Can be specified with a filename, which contains json data."))
         .arg(abi_arg.clone())
         .arg(sign_arg.clone())
-        .arg(wc_arg.clone());
+        .arg(wc_arg.clone())
+        .arg(alias_arg.clone());
 
     let output_arg = Arg::with_name("OUTPUT")
         .short("-o")
@@ -484,7 +508,7 @@ async fn main_internal() -> Result <(), String> {
             .help("Enable preliminary local run before deploy and call commands."));
 
     let config_endpoint_cmd = SubCommand::with_name("endpoint")
-        .about("Commands to work with the map of endpoints.")
+        .about("Commands to work with the endpoints map.")
         .subcommand(SubCommand::with_name("add")
             .about("Add endpoints list.")
             .arg(Arg::with_name("URL")
@@ -932,6 +956,8 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         .or(env::var("TONOSCLI_CONFIG").ok())
         .unwrap_or(default_config_name()?);
 
+    let mut full_config = FullConfig::from_file(&config_file);
+
     let mut config = match Config::from_file(&config_file) {
         Some(c) => {
             if !is_json && !c.is_json { println!("Config: {}", config_file); }
@@ -951,19 +977,19 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
 
     if let Some(m) = matches.subcommand_matches("callx") {
-        return callx_command(m, &config, CallType::Call).await;
+        return callx_command(m, &full_config, CallType::Call).await;
     }
     if let Some(m) = matches.subcommand_matches("runx") {
-        return run_command(m, &config, true).await;
+        return run_command(m, &full_config, true).await;
     }
     if let Some(m) = matches.subcommand_matches("deployx") {
-        return deployx_command(m, &config).await;
+        return deployx_command(m, &mut full_config).await;
     }
     if let Some(m) = matches.subcommand_matches("call") {
         return call_command(m, &config, CallType::Call).await;
     }
     if let Some(m) = matches.subcommand_matches("run") {
-        return run_command(m, &config, false).await;
+        return run_command(m, &full_config, false).await;
     }
     if let Some(m) = matches.subcommand_matches("runget") {
         return runget_command(m, &config).await;
@@ -978,10 +1004,10 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return send_command(m, &config).await;
     }
     if let Some(m) = matches.subcommand_matches("deploy") {
-        return deploy_command(m, &config, DeployType::Full).await;
+        return deploy_command(m, &mut full_config, DeployType::Full).await;
     }
     if let Some(m) = matches.subcommand_matches("deploy_message") {
-        return deploy_command(m, &config, DeployType::MsgOnly).await;
+        return deploy_command(m, &mut full_config, DeployType::MsgOnly).await;
     }
     if let Some(m) = matches.subcommand_matches("config") {
         return config_command(m, config, config_file);
@@ -1000,7 +1026,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
             return storage_command(m, &config).await;
         }
         if let Some(m) = m.subcommand_matches("deploy") {
-            return deploy_command(m, &config, DeployType::Fee).await;
+            return deploy_command(m, &mut full_config, DeployType::Fee).await;
         }
         if let Some(m) = m.subcommand_matches("call") {
             return call_command(m, &config, CallType::Fee).await;
@@ -1249,11 +1275,11 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
     }
 }
 
-async fn callx_command(matches: &ArgMatches<'_>, config: &Config, call_type: CallType) -> Result<(), String> {
+async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig, call_type: CallType) -> Result<(), String> {
+    let config = &full_config.config;
     let method = Some(matches.value_of("METHOD").or(config.method.as_deref())
         .ok_or("Method is not defined. Supply it in the config file or command line.")?);
-    let address = Some(address_from_matches_or_config(matches, config)?);
-    let abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let (address, abi, keys) = contract_data_from_matches_or_config_alias(matches, full_config)?;
     let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
@@ -1265,9 +1291,7 @@ async fn callx_command(matches: &ArgMatches<'_>, config: &Config, call_type: Cal
     )?;
     let params = Some(load_params(params.unwrap().as_ref())?);
     let keys = if let CallType::Call = call_type {
-        matches.value_of("KEYS")
-            .map(|s| s.to_string())
-            .or(config.keys_path.clone())
+        keys
     } else {
         None
     };
@@ -1324,30 +1348,32 @@ fn wc_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> Resul
         .unwrap_or(config.wc))
 }
 
-async fn deploy_command(matches: &ArgMatches<'_>, config: &Config, deploy_type: DeployType) -> Result<(), String> {
+async fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, deploy_type: DeployType) -> Result<(), String> {
+    let config = &full_config.config;
     let tvc = matches.value_of("TVC");
     let params = matches.value_of("PARAMS");
     let wc = wc_from_matches_or_config(matches, config)?;
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
-    let abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let abi = Some(abi_from_matches_or_config(matches, config)?);
     let keys = matches.value_of("SIGN")
             .map(|s| s.to_string())
             .or(config.keys_path.clone());
-
+    let alias = matches.value_of("ALIAS");
     let params = Some(load_params(params.unwrap())?);
     if !config.is_json {
         let opt_wc = Some(format!("{}", wc));
-        print_args!(tvc, params, abi, keys, opt_wc);
+        print_args!(tvc, params, abi, keys, opt_wc, alias);
     }
     match deploy_type {
-        DeployType::Full => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false).await,
+        DeployType::Full => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false, alias).await,
         DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, raw, output, config.is_json).await,
-        DeployType::Fee => deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, true).await,
+        DeployType::Fee => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, true, None).await,
     }
 }
 
-async fn deployx_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+async fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig) -> Result<(), String> {
+    let config = &full_config.config;
     let tvc = matches.value_of("TVC");
     let wc = wc_from_matches_or_config(matches, config)?;
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
@@ -1363,11 +1389,12 @@ async fn deployx_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
 
+    let alias = matches.value_of("ALIAS");
     if !config.is_json {
         let opt_wc = Some(format!("{}", wc));
-        print_args!(tvc, params, abi, keys, opt_wc);
+        print_args!(tvc, params, abi, keys, opt_wc, alias);
     }
-    deploy_contract(config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false).await
+    deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false, alias).await
 }
 
 fn config_command(matches: &ArgMatches, config: Config, config_file: String) -> Result<(), String> {
