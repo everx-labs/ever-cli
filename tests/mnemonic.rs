@@ -52,10 +52,14 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("callex")
+    cmd.arg("callx")
+        .arg("-m")
         .arg("sendTransaction")
+        .arg("--addr")
         .arg("0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13")
+        .arg("--abi")
         .arg("./tests/samples/wallet.abi.json")
+        .arg("--keys")
         .arg(WRONG_SEED)
         .arg("--dest")
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")

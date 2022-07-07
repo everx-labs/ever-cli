@@ -46,10 +46,9 @@ tonos-cli <subcommand> -h
   - [4.3. Get contract status](#43-get-contract-status)
   - [4.4. Call method](#44-call-method)
     - [4.4.1. Call contract on the blockchain](#441-call-contract-on-the-blockchain)
-    - [4.4.2. Alternative command to call contract in the blockchain](#442-alternative-command-to-call-contract-in-the-blockchain)
-    - [4.4.3. Run contract method locally](#443-run-contract-method-locally)
-    - [4.4.4. Run funC get-method](#444-run-func-get-method)
-    - [4.4.5. Run contract method locally for saved account BOC](#445-run-contract-method-locally-for-saved-account-boc)
+    - [4.4.2. Run contract method locally](#442-run-contract-method-locally)
+    - [4.4.3. Run funC get-method](#443-run-func-get-method)
+    - [4.4.4. Run contract method locally for saved account BOC](#444-run-contract-method-locally-for-saved-account-boc)
   - [4.5. Generate encrypted message offline](#45-generate-encrypted-message-offline)
   - [4.6. Broadcast previously generated message](#46-broadcast-previously-generated-message)
   - [4.7. Broadcast previously generated message from a file](#47-broadcast-previously-generated-message-from-a-file)
@@ -87,16 +86,13 @@ tonos-cli <subcommand> -h
   - [8.2. Vote for proposal](#82-vote-for-proposal)
   - [8.3. Decode proposal comment](#83-decode-proposal-comment)
 - [9. Supplementary commands](#9-supplementary-commands)
-  - [9.1. Convert tokens to nanotokens](#91-convert-tokens-to-nanotokens)
-  - [9.2. Get global config](#92-get-global-config)
-  - [9.3. NodeID](#93-nodeid)
-  - [9.4. Dump blockchain config](#94-dump-blockchain-config)
-  - [9.5. Dump several account states](#95-dump-several-account-states)
-  - [9.6. Update global config parameter](#96-update-global-config-parameter)
-  - [9.7. Wait for account change](#96-account-wait)
-  - [9.8. Make a raw GraphQL query](#97-query-raw)
-  - [9.9. Wait for account change](#96-wait-for-account-change)
-  - [9.10. Make a raw GraphQL query](#97-make-a-raw-graphql-query)
+  - [9.1. Get global config](#91-get-global-config)
+  - [9.2. NodeID](#92-nodeid)
+  - [9.3. Dump blockchain config](#93-dump-blockchain-config)
+  - [9.4. Dump several account states](#94-dump-several-account-states)
+  - [9.5. Update global config parameter](#95-update-global-config-parameter)
+  - [9.6. Wait for an account change](#96-wait-for-an-account-change)
+  - [9.7 Make a raw GraphQL query](#97-make-a-raw-graphql-query)
 - [10. Fetch and replay](#10-fetch-and-replay)
   - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 - [11. Debug commands](#11-debug-commands)
@@ -886,64 +882,7 @@ Result: {
 
 **Note**: If your function is marked as [responsible](https://github.com/tonlabs/TON-Solidity-Compiler/blob/master/API.md#external-function-calls), TONOS-CLI expects `_answer_id` field, and you may encounter errors, if it's missing.
 
-### 4.4.2. Alternative command to call contract in the blockchain
-
-```bash
-tonos-cli callex <method> [<address>] [<contract.abi.json>] [<seed_or_keyfile>] params...
-```
-
-**Note:** this command is deprecated, use [`callx`](#410-alternative-syntax-for-call-deploy-and-run-commands) instead.
-
-`<method>` - the method being called.
-
-`<address>` - contract [address](#41-generate-contract-address).
-
-`<contract.abi.json>` - contract interface file.
-
-`<seed_or_keyfile>` - can either be the seed phrase or the corresponding key pair file. If seed phrase is used, enclose it in double quotes.
-
-Example:
-
-- `--sign "flip uncover dish sense hazard smile gun mom vehicle chapter order enact"`
-
-or
-
-- `--sign keyfile.json`
-
-`params...` - one or more parameters of the called method in the form of `--name value`.
-
-`address`, `abi`, and `keys` parameters can be omitted. In this case default values will be used from config file.
-
-Integer and address types can be supplied without quotes.
-
-- `--value 1.5T` - suffix `T` converts integer to nanotokens -> `1500000000`. The same as `--value 1500000000`.
-
-Arrays can be used without `[]` brackets.
-
-Example of transaction creation in a [multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) contract, equivalent to the example in section 4.4.1. above:
-
-```bash
-$ tonos-cli callex submitTransaction 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc SetcodeMultisigWallet.abi.json k1.keys.json --dest -1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6 --value 0.234T --bounce false --allBalance false --payload ""
-Config: /home/user/tonos-cli.conf.json
-Input arguments:
- address: 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc
-  method: submitTransaction
-  params: {"dest":"-1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6","value":"0234000000","bounce":"false","allBalance":"false","payload":""}
-     abi: SetcodeMultisigWallet.abi.json
-    keys: k1.keys.json
-Connecting to net.ton.dev
-Generating external inbound message...
-
-MessageId: a38f37bfbe3c7427c869b3ee97c3b2d7f4421ca1427ace4e7a92f1a61d7ef234
-Expire at: Sat, 08 May 2021 15:10:15 +0300
-Processing...
-Succeeded.
-Result: {
-  "transId": "6959890394123980993"
-}
-```
-
-### 4.4.3. Run contract method locally
+### 4.4.2. Run contract method locally
 
 ```bash
 tonos-cli run [--abi <contract.abi.json>] <address> <method> <params>
@@ -999,7 +938,7 @@ Result: {
 }
 ```
 
-### 4.4.4. Run funC get-method
+### 4.4.3. Run funC get-method
 
 ```bash
 tonos-cli runget [--boc] [--tvc] <address> <method> [<params>...] [--bc_config <config_path>]
@@ -1056,7 +995,7 @@ Result: ["125387107580525"]
 
 
 
-### 4.4.5. Run contract method locally for saved account BOC
+### 4.4.4. Run contract method locally for saved account BOC
 
 ```bash
 tonos-cli run [--boc] [--tvc] [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>]
@@ -2200,23 +2139,7 @@ tonos-cli proposal decode <msig_address> <proposal_id>
 
 # 9. Supplementary commands
 
-## 9.1. Convert tokens to nanotokens
-
-Transaction amounts in `tonos-cli` are indicated in nanotokens. To convert tokens to nanotokens use the following command:
-
-```bash
-tonos-cli convert tokens <amount>
-```
-
-Example:
-
-```bash
-$ tonos-cli convert tokens 125.8
-Config: /home/user/tonos-cli.conf.json
-125800000000
-```
-
-## 9.2. Get global config
+## 9.1. Get global config
 
 ```bash
 tonos-cli getconfig <index>
@@ -2239,7 +2162,7 @@ Config p16: {
 }
 ```
 
-## 9.3. NodeID
+## 9.2. NodeID
 
 The following command calculates node ID from validator public key:
 
@@ -2262,7 +2185,7 @@ Input arguments:
 50232655f2ad44f026b03ec1834ae8316bfa1f3533732da1e19b3b31c0f04143
 ```
 
-## 9.4. Dump blockchain config
+## 9.3. Dump blockchain config
 
 ```bash
 tonos-cli dump config <path>
@@ -2281,7 +2204,7 @@ Connecting to main.ton.dev
 Config successfully saved to config.boc
 ```
 
-## 9.5. Dump several account states
+## 9.4. Dump several account states
 
 Dumps the list of accounts. Files will have address without workchain id as a name.
 
@@ -2311,7 +2234,7 @@ Processing...
 Succeeded.
 ```
 
-## 9.6. Update global config parameter
+## 9.5. Update global config parameter
 
 Use the following command to update one parameter of global config, that is stored in a .json file:
 
@@ -2350,7 +2273,7 @@ Message: b5ee9c720101020100850001e589feaaaaaaaaaaaaa...
 
 ```
 
-## 9.7. Wait for an account change
+## 9.6. Wait for an account change
 
 The command `account-wait` waits for the change of the `last_trans_lt` account field. It exits with zero exit code upon success (the field has changed before timeout). Otherwise, it exits with non-zero code.
 
@@ -2372,7 +2295,7 @@ $ echo $?
 0
 ```
 
-## 9.8. Make a raw GraphQL query
+## 9.7. Make a raw GraphQL query
 
 The command `query-raw` executes a raw network query by directly calling the `ton_client::net::query_collection` SDK interface.
 
