@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.27.2
+
+### New
+ - Remove convert and callex
+
+
 ## Version: 0.27.1
 
 ### Breaking changes:
