@@ -107,7 +107,7 @@ pub struct FullConfig {
     pub config: Config,
     endpoints_map: BTreeMap<String, Vec<String>>,
     pub aliases: BTreeMap<String, ContractData>,
-    path: String,
+    pub path: String,
 }
 
 impl Default for Config {
@@ -239,11 +239,10 @@ impl FullConfig {
         );
     }
 
-    pub fn print_aliases(path: &str) {
-        let fconf = FullConfig::from_file(path);
+    pub fn print_aliases(&self) {
         println!(
             "{}",
-            serde_json::to_string_pretty(&fconf.aliases).unwrap_or(
+            serde_json::to_string_pretty(&self.aliases).unwrap_or(
                 "Failed to print aliases map.".to_owned()
             )
         );
@@ -251,6 +250,11 @@ impl FullConfig {
 
     pub fn add_alias(&mut self, alias: &str, address: Option<String>, abi: Option<String>, key_path: Option<String>) -> Result<(), String> {
         self.aliases.insert(alias.to_owned(), ContractData {abi_path: abi, address, key_path} );
+        self.to_file(&self.path)
+    }
+
+    pub fn remove_alias(&mut self, alias: &str) -> Result<(), String> {
+        self.aliases.remove(alias);
         self.to_file(&self.path)
     }
 
