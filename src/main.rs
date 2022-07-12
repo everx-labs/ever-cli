@@ -992,6 +992,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         },
     };
     config.is_json = is_json || config.is_json;
+    full_config.config = config.clone();
 
     if let Some(url) = matches.value_of("NETWORK") {
         config.url = url.to_string();
