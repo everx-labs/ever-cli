@@ -35,6 +35,8 @@ tonos-cli <subcommand> -h
   - [2.5. Override configuration file location](#25-override-configuration-file-location)
   - [2.6. Override network settings](#26-override-network-settings)
   - [2.7. Force json output](#27-force-json-output)
+  - [2.8. Debug on fail option](#28-debug-on-fail-option)
+  - [2.9 Configure aliases map](#29-configure-aliases-map)
 - [3. Cryptographic commands](#3-cryptographic-commands)
   - [3.1. Create seed phrase](#31-create-seed-phrase)
   - [3.2. Generate public key](#32-generate-public-key)
@@ -102,6 +104,7 @@ tonos-cli <subcommand> -h
   - [11.4. Debug replay transaction on the saved account state](#114-debug-replay-transaction-on-the-saved-account-state)
   - [11.5. Debug deploy](#115-debug-deploy)
   - [11.6. Debug message](#116-debug-message)
+- [12. Alias functionality](#12-alias-functionality)
 
 # 1. Installation
 
@@ -521,6 +524,76 @@ Possible <trace_level> values:
 - 'minimal'
 - 'none'
 
+## 2.9. Configure aliases map
+
+Yoo can explore and configure current aliases map with the list of commands
+
+```bash
+tonos-cli config alias add [--addr <contract_address>] [--abi <contract_abi>] [--keys <contract_keys>] <alias>  # add entity to the map
+tonos-cli config alias remove <alias>  # remove entity
+tonos-cli config alias reset  # clear the map
+tonos-cli config alias print  # print the current state of the map
+```
+
+Options:
+- `<alias>` - alias name of the contract;
+- `<contract_address>` - address of the contract;
+- `<contract_abi>` - path to the contract abi file;
+- `<contract_keys>` - seed phrase or path to the file with contract key pair.
+
+Example:
+
+```bash
+$ tonos-cli config alias add msig --addr 0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fcd --abi samples/SafeMultisigWallet.abi.json --keys key0.keys.json
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+{
+  "msig": {
+    "abi_path": "samples/SafeMultisigWallet.abi.json",
+    "address": "0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fcd",
+    "key_path": "key0.keys.json"
+  }
+}
+$ tonos-cli config alias print
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+{
+  "msig": {
+    "abi_path": "samples/SafeMultisigWallet.abi.json",
+    "address": "0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fcd",
+    "key_path": "key0.keys.json"
+  }
+}
+$ tonos-cli config alias add msig2 --addr 0:eef5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fff --abi samples/SafeMultisigWallet.abi.json --keys key1.keys.json
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+{
+  "msig": {
+    "abi_path": "samples/SafeMultisigWallet.abi.json",
+    "address": "0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fcd",
+    "key_path": "key0.keys.json"
+  },
+  "msig2": {
+    "abi_path": "samples/SafeMultisigWallet.abi.json",
+    "address": "0:eef5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fff",
+    "key_path": "key1.keys.json"
+  }
+}
+$ tonos-cli config alias remove msig
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+{
+  "msig2": {
+    "abi_path": "samples/SafeMultisigWallet.abi.json",
+    "address": "0:eef5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fff",
+    "key_path": "key1.keys.json"
+  }
+}
+$ tonos-cli config alias reset
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+{}
+$ tonos-cli config alias print
+Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+{}
+```
+
+
 # 3. Cryptographic commands
 
 ## 3.1. Create seed phrase
@@ -681,25 +754,26 @@ Succeeded
 Use the following command to deploy a contract:
 
 ```bash
-tonos-cli deploy [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc> <params>
+tonos-cli deploy [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] [--alias <alias>] <contract.tvc> <params>
 ```
 
 `<deploy_seed_or_keyfile>` - can either be the seed phrase used to generate the deployment key pair file or the key pair file itself. If seed phrase is used, enclose it in double quotes.
 
 Example:
-
 - `--sign "flip uncover dish sense hazard smile gun mom vehicle chapter order enact"`
-
 or
-
 - `--sign deploy.keys.json`
+
 - `--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
 
-`<contract.abi.json>` - contract interface file.
+- `--abi <contract.abi.json>` - contract interface file.
 
-`<contract.tvc>` - compiled smart contract file.
+- `--alias <alias>` - allows to save contract parameters (address, abi, keys) to use them easier with `callx` or `runx` commands.
 
-`<params>` - deploy command parameters, depend on the contract.
+- `<contract.tvc>` - compiled smart contract file.
+
+- `<params>` - deploy command parameters, depend on the contract.
+
 Sometimes it can be not obvious in which way method parameters should be specified,
 especially if it is a large structure with different and complex fields.
 It is generally described in [abi doc](https://github.com/tonlabs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
@@ -2683,3 +2757,34 @@ Output messages:
 ```
 
 `Message_base64` then can be passed to `tonos-cli debug message` to play it on another account.
+
+## 12. Alias functionality
+
+Aliases can facilitate manual work with several contracts. When user deploys a contract an alias can be passed to the
+`deploy` command. This option saves the deployed contract address, abi and key to the map in config file. Alias can be
+used by commands `callx` and `runx` instead of address (`--addr`) for more convenient contract invocation.
+
+Example workflow:
+
+```bash
+$ tonos-cli deployx --abi ../samples/1_Accumulator.abi.json --keys keys/key0 --alias accum ../samples/1_Accumulator.tvc 
+{}
+$ tonos-cli config alias print
+{
+  "accum": {
+    "abi_path": "../samples/1_Accumulator.abi.json",
+    "address": "0:5b08b0c6beefb4645ef078acb6ca09129599a88f85da627354c42215b58af221",
+    "key_path": "keys/key0"
+  }
+}
+$ tonos-cli runx --addr accum -m sum
+{
+  "sum": "0x0000000000000000000000000000000000000000000000000000000000000000"
+}
+$ tonos-cli callx --addr accum -m add --value 255
+{}
+$ tonos-cli runx --addr accum -m sum
+{
+  "sum": "0x00000000000000000000000000000000000000000000000000000000000000ff"
+}
+```
