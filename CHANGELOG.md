@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.27.8
+
+### New
+ - Fixed debug run gas limit
+
+
 ## Version: 0.27.6
 
 ### Bug fixes
