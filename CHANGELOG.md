@@ -2,17 +2,6 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.27.12
-
-### New
- - Automatic update project. #none
-
-
-## Version: 0.27.11
-
-### New
-
-
 ## Version: 0.27.6
 
 ### Bug fixes
