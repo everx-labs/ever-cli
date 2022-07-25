@@ -58,3 +58,11 @@ assert_cmd = '1.0.3'
 lazy_static = '1.4.0'
 predicates = '1'
 string-error = '0.1.0'
+
+[[bin]]
+name = "tonos-cli"
+path = "src/main.rs"
+
+[[bin]]
+name = "__tonos-cli_completion"
+path = "src/completion.rs"
