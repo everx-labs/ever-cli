@@ -25,6 +25,7 @@ tonos-cli <subcommand> -h
     - [Windows debug build troubleshooting](#windows-debug-build-troubleshooting)
     - [Tails OS secure environment](#tails-os-secure-environment)
     - [Put TONOS-CLI into system environment](#put-tonos-cli-into-system-environment)
+    - [Install tonos-cli, completion script and bind them](#install-tonos-cli-completion-script-and-bind-them)
   - [Check version](#check-version)
   - [A note on Windows syntax](#a-note-on-windows-syntax)
 - [2. Configuration](#2-configuration)
@@ -235,6 +236,19 @@ This step can be skipped, if TONOS-CLI was installed through EVERDEV. Otherwise,
 ```bash
 ./tonos-cli <command> <options>
 ```
+
+### Install tonos-cli, completion script and bind them
+
+On Linux tonos-cli can be installed with a completion script by using such commands:
+
+```bash
+cd tonos-cli
+cargo install --force --path .
+complete -C __tonos-cli_completion tonos-cli
+```
+
+After adding completion script, user can use `<Tab>` key to complete `--addr` option with aliases saved in the config
+file and `-m/--method` option with methods loaded from the abi file.
 
 ## Check version
 

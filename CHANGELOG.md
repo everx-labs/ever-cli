@@ -2,10 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.27.11
+## Version: 0.27.12
 
 ### New
 - Added alias functionality
+- Added completion script to complete bash commands with aliases and abi methods.
 
 ## Version: 0.27.6
 
