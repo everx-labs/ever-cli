@@ -555,7 +555,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
 
     let ton_client = create_client(&config)?;  // TODO: create local for boc and tvc
     let input = input.unwrap();
-    let account = if is_tvc {
+    let mut account = if is_tvc {
         construct_account_from_tvc(input,
                                    matches.value_of("ACCOUNT_ADDRESS"),
                                    Some(u64::MAX))?
@@ -614,6 +614,9 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
     let message = Message::construct_from_base64(&message.message)
         .map_err(|e| format!("Failed to construct message: {}", e))?;
 
+    if is_getter {
+        account.set_balance(CurrencyCollection::with_grams(u64::MAX));
+    }
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
@@ -1019,13 +1022,13 @@ pub async fn execute_debug(
             gas_price: 65536000,
             flat_gas_limit: 100,
             flat_gas_price: 1000000,
-            gas_limit: 1000000,
-            special_gas_limit: 10000000,
-            gas_credit: 10000000,
-            block_gas_limit: 10000000,
+            gas_limit: u64::MAX,
+            special_gas_limit: u64::MAX,
+            gas_credit: u64::MAX,
+            block_gas_limit: u64::MAX,
             freeze_due_limit: 100000000,
             delete_due_limit:1000000000,
-            max_gas_threshold:10000000000,
+            max_gas_threshold:u128::MAX,
         };
         let c20 = ConfigParamEnum::ConfigParam20(gas.clone());
         let c21 = ConfigParamEnum::ConfigParam21(gas);
