@@ -106,7 +106,7 @@ tonos-cli <subcommand> -h
   - [11.4. Debug replay transaction on the saved account state](#114-debug-replay-transaction-on-the-saved-account-state)
   - [11.5. Debug deploy](#115-debug-deploy)
   - [11.6. Debug message](#116-debug-message)
-  - [11.7. Render UML sequence diagram](#117-sequence-diagram)
+  - [11.7. Render UML sequence diagram](#117-render-uml-sequence-diagram)
 
 # 1. Installation
 
