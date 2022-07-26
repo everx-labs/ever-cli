@@ -2,7 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.26.43
+## Version: 0.27.11
+
+### New
+
+
+## Version: 0.27.6
+
+### Bug fixes
+- Fixed `debug run` gas limits
+
+
+## Version: 0.27.1
+
+### Breaking changes:
+ - Commands `convert` and `callex` were removed.
+
+
+## Version: 0.26.45
+
+### New
+ - `tokio` library updated to `1.*` version
+ 
+## Version: 0.26.44
 
 ### New
 
