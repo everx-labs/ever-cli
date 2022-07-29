@@ -15,8 +15,9 @@ use crate::config::Config;
 use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query_account_field};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
-use ton_types::Cell;
-use std::fmt::Write;
+use ton_types::{Cell, SliceData};
+use std::fs::File;
+use std::io::Cursor;
 use ton_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData, Abi};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
@@ -130,7 +131,7 @@ async fn decode_body_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), 
     if !config.is_json {
         print_args!(body, abi);
     }
-    println!("{}", decode_body(body.unwrap(), &abi.unwrap(), config.is_json).await?);
+    decode_body(body.unwrap(), &abi.unwrap(), config.is_json).await?;
     Ok(())
 }
 
@@ -296,8 +297,10 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<()
     Ok(())
 }
 
-async fn print_decoded_body(body_vec: Vec<u8>, abi: &str, is_json: bool) -> Result<String, String> {
-    let ton = create_client_local()?;
+async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool) -> Result<(), String> {
+    let body_vec  = base64::decode(body_base64)
+        .map_err(|e| format!("body is not a valid base64 string: {}", e))?;
+
     let mut empty_boc = vec![];
     serialize_tree_of_cells(&Cell::default(), &mut empty_boc)
         .map_err(|e| format!("failed to serialize tree of cells: {}", e))?;
@@ -305,37 +308,61 @@ async fn print_decoded_body(body_vec: Vec<u8>, abi: &str, is_json: bool) -> Resu
         return Err("body is empty".to_string());
     }
 
-    let body_base64 = base64::encode(&body_vec);
-    let mut res = {
-        match decode_msg_body(ton.clone(), abi, &body_base64, false).await {
-            Ok(res) => res,
-            Err(_) => decode_msg_body(ton.clone(), abi, &body_base64, true).await?,
-        }
-    };
-    let output = res.value.take().ok_or("failed to obtain the result")?;
-    Ok(if is_json {
-        format!(" \"BodyCall\": {{\n  \"{}\": {}\n }}", res.name, output)
-    } else {
-        format!("{}: {}", res.name, serde_json::to_string_pretty(&output)
-            .map_err(|e| format!("failed to serialize the result: {}", e))?)
-    })
-}
+    let ton = create_client_local()?;
 
-async fn decode_body(body: &str, abi: &str, is_json: bool) -> Result<String, String> {
-    let abi = std::fs::read_to_string(abi)
+    let abi = std::fs::read_to_string(abi_path)
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
-    let body_vec  = base64::decode(body)
-        .map_err(|e| format!("body is not a valid base64 string: {}", e))?;
+    let (mut res, is_external) = {
+        match decode_msg_body(ton.clone(), &abi, body_base64, false).await {
+            Ok(res) => (res, true),
+            Err(_) => (decode_msg_body(ton.clone(), &abi, body_base64, true).await?, false),
+        }
+    };
+    let mut signature = None;
 
-    let mut result = String::new();
-    let s = &mut result;
-    if is_json { writeln!(s, "{{").map_err(|e| format!("failed to serialize the result: {}", e))?; }
-    writeln!(s, "{}", print_decoded_body(body_vec, &abi, is_json).await?)
-        .map_err(|e| format!("failed to serialize the result: {}", e))?;
-    if is_json { writeln!(s, "}}").map_err(|e| format!("failed to serialize the result: {}", e))?; }
-    Ok(result)
+    let cell = ton_types::cells_serialization::deserialize_tree_of_cells(&mut Cursor::new(&body_vec))
+        .map_err(|e| format!("Failed to create cell: {}", e))?;
+    let orig_slice: SliceData = cell.into();
+    if is_external {
+        let mut slice = orig_slice.clone();
+        let flag = slice.get_next_bit();
+        if let Ok(has_sign) = flag {
+            if has_sign {
+                let signature_bytes = slice.get_next_bytes(64).unwrap();
+                signature = Some(hex::encode(&signature_bytes));
+            }
+        }
+    }
+    let contr = File::open(abi_path).map(|file| {
+        ton_abi::Contract::load(file)
+    })
+        .map_err(|e| format!("Failed to load abi: {}", e))?
+        .map_err(|e| format!("Failed to load abi: {}", e))?;
+
+    let (_, func_id, _) = ton_abi::Function::decode_header(contr.version(), orig_slice.clone(), contr.header(), !is_external)
+        .map_err(|e| format!("Failed to decode header: {}", e))?;
+    let output = res.value.take().ok_or("failed to obtain the result")?;
+    if is_json {
+        let mut result = json!({});
+        result["BodyCall"] = json!({res.name: output});
+        result["Signature"] = json!(signature.unwrap_or("None".to_string()));
+        result["FunctionId"] = json!(format!("{:08X}", func_id));
+        result["Header"] = json!(res.header);
+        println!("{}", serde_json::to_string_pretty(&result)
+            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+    } else {
+        println!("{}: {}", res.name, serde_json::to_string_pretty(&output)
+            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+        println!("Signature: {}", signature.unwrap_or("None".to_string()));
+        println!("FunctionId: {:08X}", func_id);
+        println!("Header: {}", serde_json::to_string_pretty(&json!(res.header))
+            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+    }
+    Ok(())
 }
+
+
 
 async fn decode_message(msg_boc: Vec<u8>, abi: Option<String>) -> Result<String, String> {
     let abi = abi.map(std::fs::read_to_string)
@@ -574,7 +601,6 @@ mod tests {
     #[tokio::test]
     async fn test_decode_body_json() {
         let body = "te6ccgEBAQEARAAAgwAAALqUCTqWL8OX7JivfJrAAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMQAAAAAAAAAAAAAAAEeGjADA==";
-        let out = decode_body(body, "tests/samples/wallet.abi.json", true).await.unwrap();
-        let _ : serde_json::Value = serde_json::from_str(&out).unwrap();
+        let _out = decode_body(body, "tests/samples/wallet.abi.json", true).await.unwrap();
     }
 }
