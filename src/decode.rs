@@ -21,6 +21,7 @@ use std::io::Cursor;
 use ton_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData, Abi};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
+use serde::Serialize;
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
     let tvc_cmd = SubCommand::with_name("stateinit")
@@ -297,6 +298,13 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<()
     Ok(())
 }
 
+#[derive(Serialize)]
+struct SortedFunctionHeader {
+    pubkey: Option<String>,
+    time: Option<u64>,
+    expire: Option<u32>
+}
+
 async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool) -> Result<(), String> {
     let body_vec  = base64::decode(body_base64)
         .map_err(|e| format!("body is not a valid base64 string: {}", e))?;
@@ -343,21 +351,28 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool) -> Result
     let (_, func_id, _) = ton_abi::Function::decode_header(contr.version(), orig_slice.clone(), contr.header(), !is_external)
         .map_err(|e| format!("Failed to decode header: {}", e))?;
     let output = res.value.take().ok_or("failed to obtain the result")?;
+    let header = res.header.map(|hdr| {
+        SortedFunctionHeader {
+            pubkey: hdr.pubkey,
+            time: hdr.time,
+            expire: hdr.expire
+        }
+    });
     if is_json {
         let mut result = json!({});
         result["BodyCall"] = json!({res.name: output});
         result["Signature"] = json!(signature.unwrap_or("None".to_string()));
+        result["Header"] = json!(header);
         result["FunctionId"] = json!(format!("{:08X}", func_id));
-        result["Header"] = json!(res.header);
         println!("{}", serde_json::to_string_pretty(&result)
             .map_err(|e| format!("failed to serialize the result: {}", e))?);
     } else {
-        println!("{}: {}", res.name, serde_json::to_string_pretty(&output)
+        println!("\n\n{}: {}", res.name, serde_json::to_string_pretty(&output)
             .map_err(|e| format!("failed to serialize the result: {}", e))?);
         println!("Signature: {}", signature.unwrap_or("None".to_string()));
-        println!("FunctionId: {:08X}", func_id);
-        println!("Header: {}", serde_json::to_string_pretty(&json!(res.header))
+        println!("Header: {}", serde_json::to_string_pretty(&json!(header))
             .map_err(|e| format!("failed to serialize the result: {}", e))?);
+        println!("FunctionId: {:08X}", func_id);
     }
     Ok(())
 }
