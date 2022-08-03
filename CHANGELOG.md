@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.27.22
+
+### New
+ - Sequence diagram rendering
+ - Added test
+
+
 ## Version: 0.27.20
 
 ### New
