@@ -922,6 +922,23 @@ fn test_decode_body() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("dest"))
         .stdout(predicate::str::contains("value"))
         .stdout(predicate::str::contains("bounce"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json").arg("decode")
+        .arg("body").arg("te6ccgEBAgEAlgAB4ddyAENPhARLqvYWfcfwyY4fDOfGj88sVFpJjVp9Rh4QN6iL06hBowkex5kc8haTCwWTnugx1OKTuxOumBzdGwLCSzzna0XhE6urkzQv0XbzKbLpZicIiuqBenAdx6nbCkAAAGCSbtgxWLjxbUl77IIgAQBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGU=")
+        .arg("--abi").arg("tests/decode_body.abi.json");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("BodyCall"))
+        .stdout(predicate::str::contains("add"))
+        .stdout(predicate::str::contains("value"))
+        .stdout(predicate::str::contains("Signature"))
+        .stdout(predicate::str::contains("FunctionId"))
+        .stdout(predicate::str::contains("Header"))
+        .stdout(predicate::str::contains("expire"))
+        .stdout(predicate::str::contains("time"))
+        .stdout(predicate::str::contains("pubkey"));
+
     Ok(())
 }
 
