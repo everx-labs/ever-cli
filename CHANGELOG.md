@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### New
 - Enlarged decode fields for `decode body` command
-
+- Added sequence diagram rendering command
 
 ## Version: 0.27.19
 
