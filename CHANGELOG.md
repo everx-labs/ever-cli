@@ -2,15 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.27.12
+## Version: 0.27.14
 
-### New
- - Automatic update project. #none
-
-
-## Version: 0.27.11
-
-### New
+### Bug fixes
+- Removed custom header from call command
 
 
 ## Version: 0.27.6
