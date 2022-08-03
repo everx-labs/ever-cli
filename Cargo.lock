@@ -60,14 +60,14 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.58"
+version = "1.0.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb07d2053ccdbe10e2af2995a2f116c1330396493dc1269f6a91d0ae82e19704"
+checksum = "c91f1f46651137be86f3a2b9a8359f9ab421d04d941c62b5982e1ca21113adf9"
 
 [[package]]
 name = "api_derive"
-version = "1.35.0"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.35.0#3cfcb2516aa5e64e8cb9992605838e2f90bfe789"
+version = "1.36.1"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.36.1#a31005687020529404aef77dad86198e2118c802"
 dependencies = [
  "api_info",
  "quote",
@@ -77,8 +77,8 @@ dependencies = [
 
 [[package]]
 name = "api_info"
-version = "1.35.0"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.35.0#3cfcb2516aa5e64e8cb9992605838e2f90bfe789"
+version = "1.36.1"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.36.1#a31005687020529404aef77dad86198e2118c802"
 dependencies = [
  "serde",
  "serde_derive",
@@ -107,9 +107,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.56"
+version = "0.1.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96cf8829f67d2eab0b2dfa42c5d0ef737e0724e4a82b01b3e292456202b19716"
+checksum = "76464446b8bc32758d7e88ee1a804d9914cd9b1cb264c029899680b0be29826f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -208,7 +208,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
 dependencies = [
- "generic-array 0.14.5",
+ "generic-array 0.14.6",
 ]
 
 [[package]]
@@ -217,7 +217,7 @@ version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bf7fe51849ea569fd452f37822f606a5cabb684dc918707a0193fd4664ff324"
 dependencies = [
- "generic-array 0.14.5",
+ "generic-array 0.14.6",
 ]
 
 [[package]]
@@ -282,9 +282,9 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "bytes"
-version = "1.1.0"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
+checksum = "ec8a7b6a70fde80372154c65702f00a0f56f3e1c36abbc6c440484be248856db"
 
 [[package]]
 name = "cc"
@@ -335,7 +335,7 @@ version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12f8e7987cbd042a63249497f41aed09f8e65add917ea6566effbc56578d6801"
 dependencies = [
- "generic-array 0.14.5",
+ "generic-array 0.14.6",
 ]
 
 [[package]]
@@ -344,7 +344,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ee52072ec15386f770805afd189a01c8841be8696bed250fa2f13c4c0d6dfb7"
 dependencies = [
- "generic-array 0.14.5",
+ "generic-array 0.14.6",
 ]
 
 [[package]]
@@ -364,9 +364,9 @@ dependencies = [
 
 [[package]]
 name = "console"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a28b32d32ca44b70c3e4acd7db1babf555fa026e385fb95f18028f88848b3c31"
+checksum = "89eab4d20ce20cea182308bca13088fecea9c05f6776cf287205d41a0ed3c847"
 dependencies = [
  "encode_unicode",
  "libc",
@@ -463,11 +463,11 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
 name = "crypto-common"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ccfd8c0ee4cce11e45b3fd6f9d5e69e0cc62912aa6a0cb1bf4617b0eba5a12f"
+checksum = "1bfb12502f3fc46cca1bb51ac28df9d618d813cdc3d2f25b9fe775a34af26bb3"
 dependencies = [
- "generic-array 0.14.5",
+ "generic-array 0.14.6",
  "typenum",
 ]
 
@@ -477,7 +477,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b584a330336237c1eecd3e94266efb216c56ed91225d634cb2991c5f3fd1aeab"
 dependencies = [
- "generic-array 0.14.5",
+ "generic-array 0.14.6",
  "subtle",
 ]
 
@@ -487,7 +487,7 @@ version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1d1a86f49236c215f271d40892d5fc950490551400b02ef360692c29815c714"
 dependencies = [
- "generic-array 0.14.5",
+ "generic-array 0.14.6",
  "subtle",
 ]
 
@@ -531,7 +531,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
 dependencies = [
- "generic-array 0.14.5",
+ "generic-array 0.14.6",
 ]
 
 [[package]]
@@ -631,9 +631,9 @@ checksum = "e88a8acf291dafb59c2d96e8f59828f3838bb1a70398823ade51a84de6a6deed"
 
 [[package]]
 name = "fastrand"
-version = "1.7.0"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3fcf0cee53519c866c09b5de1f6c56ff9d647101f81c1964fa632e148896cdf"
+checksum = "a7a407cfaa3385c4ae6b23e84623d48c2798d06e3e6a1878f7f59f17b3f86499"
 dependencies = [
  "instant",
 ]
@@ -778,9 +778,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "0.14.5"
+version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd48d33ec7f05fbfa152300fdad764757cbded343c1aa1cff2fbaf4134851803"
+checksum = "bff49e947297f3312447abdca79f45f4738097cc82b06e72054d2223f601f1b9"
 dependencies = [
  "typenum",
  "version_check",
@@ -810,9 +810,9 @@ dependencies = [
 
 [[package]]
 name = "gimli"
-version = "0.26.1"
+version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78cc372d058dcf6d5ecd98510e7fbc9e5aec4d21de70f65fea8fecebcd881bd4"
+checksum = "22030e2c5a68ec659fde1e949a745124b48e6fa8b045b7ed5bd1fe4ccc5c4e5d"
 
 [[package]]
 name = "h2"
@@ -835,18 +835,12 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.11.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
+checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 dependencies = [
  "ahash",
 ]
-
-[[package]]
-name = "hashbrown"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "607c8a29735385251a339424dd462993c0fed8fa09d378f259377df08c126022"
 
 [[package]]
 name = "hermit-abi"
@@ -905,7 +899,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17ea0a1394df5b6574da6e0c1ade9e78868c9fb0a4e5ef4428e32da4676b85b1"
 dependencies = [
  "digest 0.9.0",
- "generic-array 0.14.5",
+ "generic-array 0.14.6",
  "hmac 0.8.1",
 ]
 
@@ -1013,7 +1007,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10a35a97730320ffe8e2d410b5d3b69279b98d2c14bdb8b70ea89ecf7888d41e"
 dependencies = [
  "autocfg",
- "hashbrown 0.12.2",
+ "hashbrown",
 ]
 
 [[package]]
@@ -1054,9 +1048,9 @@ dependencies = [
 
 [[package]]
 name = "itoa"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "112c678d4050afce233f4f2852bb2eb519230b3cf12f33585275537d7e41578d"
+checksum = "6c8af84674fe1f223a982c933a0ee1086ac4d4052aa0fb8060c12c6ad838e754"
 
 [[package]]
 name = "jobserver"
@@ -1069,9 +1063,9 @@ dependencies = [
 
 [[package]]
 name = "js-sys"
-version = "0.3.58"
+version = "0.3.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3fac17f7123a73ca62df411b1bf727ccc805daa070338fda671c86dac1bdc27"
+checksum = "258451ab10b34f8af53416d1fdab72c22e805f0c92a1136d59470ec0b11138b2"
 dependencies = [
  "wasm-bindgen",
 ]
@@ -1165,11 +1159,11 @@ dependencies = [
 
 [[package]]
 name = "lru"
-version = "0.7.7"
+version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c84e6fe5655adc6ce00787cf7dcaf8dc4f998a0565d23eafc207a8b08ca3349a"
+checksum = "e999beba7b6e8345721bd280141ed958096a2e4abdf74f67ff4ce49b4b54e47a"
 dependencies = [
- "hashbrown 0.11.2",
+ "hashbrown",
 ]
 
 [[package]]
@@ -1564,9 +1558,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.40"
+version = "1.0.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd96a1e8ed2596c337f8eae5f24924ec83f5ad5ab21ea8e455d3566c69fbcaf7"
+checksum = "0a2ca2c61bc9f3d74d2886294ab7b9853abd9c1ad903a3ac7815c58989bb7bab"
 dependencies = [
  "unicode-ident",
 ]
@@ -1592,9 +1586,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.20"
+version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bcdf212e9776fbcb2d23ab029360416bb1706b1aea2d1a5ba002727cbcab804"
+checksum = "bbe448f377a7d6961e30f5955f9b8d106c3f5e449d493ee1b125c1d43c2b5179"
 dependencies = [
  "proc-macro2",
 ]
@@ -1672,9 +1666,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.2.13"
+version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62f25bc4c7e55e0b0b7a1d43fb893f4fa1361d0abe38b9ce4f323c2adfe6ef42"
+checksum = "fb5a58c1855b4b6819d59012155603f0b22ad30cad752600aadfcb695265519a"
 dependencies = [
  "bitflags",
 ]
@@ -1762,9 +1756,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "ryu"
-version = "1.0.10"
+version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3f6f92acf49d1b98f7a81226834412ada05458b7364277387724a237f062695"
+checksum = "4501abdff3ae82a1c1b477a17252eb69cee9e66eb915c1abaa4f44d873df9f09"
 
 [[package]]
 name = "salsa20"
@@ -1837,18 +1831,18 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.139"
+version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0171ebb889e45aa68b44aee0859b3eede84c6f5f5c228e6f140c0b2a0a46cad6"
+checksum = "7af873f2c95b99fcb0bd0fe622a43e29514658873c8ceba88c4cb88833a22500"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.139"
+version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc1d3230c1de7932af58ad8ffbe1d784bd55efd5a9d84ac24f69c72d83543dfb"
+checksum = "75743a150d003dd863b51dc809bcad0d73f2102c53632f1e954e738192a3413f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1986,9 +1980,12 @@ dependencies = [
 
 [[package]]
 name = "slab"
-version = "0.4.6"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb703cfe953bccee95685111adeedb76fabe4e97549a58d16f03ea7b9367bb32"
+checksum = "4614a76b2a8be0058caa9dbbaf66d988527d86d003c11a94fbd335d7661edcef"
+dependencies = [
+ "autocfg",
+]
 
 [[package]]
 name = "smallvec"
@@ -2035,9 +2032,9 @@ checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
 name = "syn"
-version = "1.0.98"
+version = "1.0.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c50aef8a904de4c23c788f104b7dddc7d6f79c647c7c8ce4cc8f73eb0ca773dd"
+checksum = "58dbef6ec655055e20b86b15a8cc6d439cca19b667537ac6a1369572d151ab13"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2106,18 +2103,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.31"
+version = "1.0.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd829fe32373d27f76265620b5309d0340cb8550f523c1dda251d6298069069a"
+checksum = "f5f6586b7f764adc0231f4c79be7b920e766bb2f3e51b3661cdb263828f19994"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.31"
+version = "1.0.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0396bc89e626244658bef819e22d0cc459e795a5ebe878e6ec336d1674a8d79a"
+checksum = "12bafc5b54507e0149cdf1b145a5d80ab80a90bcd9275df43d4fff68460f6c21"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2171,9 +2168,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.20.0"
+version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57aec3cfa4c296db7255446efb4928a6be304b431a806216105542a67b6ca82e"
+checksum = "7a8325f63a7d4774dd041e363b2409ed1c5cbbd0f867795e661df066b2b0a581"
 dependencies = [
  "autocfg",
  "bytes",
@@ -2263,8 +2260,8 @@ dependencies = [
 
 [[package]]
 name = "ton_abi"
-version = "2.2.8"
-source = "git+https://github.com/tonlabs/ton-labs-abi.git?tag=2.2.8#87620862896790292c459f1f1ce73e18d9dfb7d4"
+version = "2.3.1"
+source = "git+https://github.com/tonlabs/ton-labs-abi.git?tag=2.3.1#cb442bca8244a6bfd316c96c2fc0a99114ab32c3"
 dependencies = [
  "base64 0.10.1",
  "byteorder",
@@ -2285,8 +2282,8 @@ dependencies = [
 
 [[package]]
 name = "ton_api"
-version = "0.2.128"
-source = "git+https://github.com/tonlabs/ton-labs-tl?tag=0.2.128#f16ff19f5dd4ccf73f65d830ab6dc782ea2127dd"
+version = "0.2.129"
+source = "git+https://github.com/tonlabs/ton-labs-tl.git?tag=0.2.129#404e7b9f219fc20b04b773a9a3f3a481ed03a0bf"
 dependencies = [
  "byteorder",
  "extfmt",
@@ -2305,11 +2302,11 @@ dependencies = [
 
 [[package]]
 name = "ton_block"
-version = "1.7.51"
-source = "git+https://github.com/tonlabs/ton-labs-block.git?tag=1.7.51#7243ec8b0d827a6fab8ae2683cb7623d8ed2e93b"
+version = "1.8.0"
+source = "git+https://github.com/tonlabs/ton-labs-block.git?tag=1.8.0#403010107636ec9cb2bcc75d09b75147c72b0d82"
 dependencies = [
  "base64 0.13.0",
- "crc 1.8.1",
+ "crc 3.0.0",
  "ed25519",
  "ed25519-dalek",
  "failure",
@@ -2317,33 +2314,14 @@ dependencies = [
  "log",
  "num",
  "num-traits",
- "rand 0.7.3",
- "sha2 0.8.2",
+ "sha2 0.10.2",
  "ton_types",
 ]
 
 [[package]]
 name = "ton_block_json"
-version = "0.7.18"
-source = "git+https://github.com/tonlabs/ton-labs-block-json.git?tag=0.7.18#4813e9be697ffb5bd5e91b82070a3e2b90b101f6"
-dependencies = [
- "base64 0.13.0",
- "failure",
- "hex 0.4.3",
- "num",
- "num-traits",
- "serde",
- "serde_derive",
- "serde_json",
- "ton_api",
- "ton_block",
- "ton_types",
-]
-
-[[package]]
-name = "ton_block_json"
-version = "0.7.19"
-source = "git+https://github.com/tonlabs/ton-labs-block-json.git?tag=0.7.19#19676b6fa48a4a3c0ebf26bc5b2b3c1d8c6504b5"
+version = "0.7.24"
+source = "git+https://github.com/tonlabs/ton-labs-block-json.git?tag=0.7.24#9bdcf709fc1f65756a4aa38ed5ab7889e03e2568"
 dependencies = [
  "base64 0.13.0",
  "failure",
@@ -2360,8 +2338,8 @@ dependencies = [
 
 [[package]]
 name = "ton_client"
-version = "1.35.0"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.35.0#3cfcb2516aa5e64e8cb9992605838e2f90bfe789"
+version = "1.36.1"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.36.1#a31005687020529404aef77dad86198e2118c802"
 dependencies = [
  "aes",
  "api_derive",
@@ -2406,45 +2384,32 @@ dependencies = [
  "tokio-tungstenite",
  "ton_abi",
  "ton_block",
- "ton_block_json 0.7.19",
- "ton_executor 1.15.74",
+ "ton_block_json",
+ "ton_executor",
  "ton_sdk",
  "ton_types",
- "ton_vm 1.8.39",
+ "ton_vm",
  "zeroize",
  "zstd",
 ]
 
 [[package]]
 name = "ton_executor"
-version = "1.15.72"
-source = "git+https://github.com/tonlabs/ton-labs-executor.git?tag=1.15.72#23cc13b4c0d1b256cd0d5d0e24996cf426b01996"
+version = "1.15.78"
+source = "git+https://github.com/tonlabs/ton-labs-executor.git?tag=1.15.78#abf3bcdce6194134fe00080303355dda78391c73"
 dependencies = [
  "failure",
  "lazy_static",
  "log",
  "ton_block",
  "ton_types",
- "ton_vm 1.8.38",
-]
-
-[[package]]
-name = "ton_executor"
-version = "1.15.74"
-source = "git+https://github.com/tonlabs/ton-labs-executor.git?tag=1.15.74#910159dd53c62637777ee9f21b6d2b5ed2a8e4ab"
-dependencies = [
- "failure",
- "lazy_static",
- "log",
- "ton_block",
- "ton_types",
- "ton_vm 1.8.39",
+ "ton_vm",
 ]
 
 [[package]]
 name = "ton_labs_assembler"
-version = "1.2.42"
-source = "git+https://github.com/tonlabs/ton-labs-assembler.git?tag=1.2.42#68dcf1fbe5cfd8ccf922c800ffecc97be19765f8"
+version = "1.2.44"
+source = "git+https://github.com/tonlabs/ton-labs-assembler.git?tag=1.2.44#028be2e35b8b39c73a60ab386384ea6ff62eb219"
 dependencies = [
  "failure",
  "hex 0.4.3",
@@ -2458,8 +2423,8 @@ dependencies = [
 
 [[package]]
 name = "ton_sdk"
-version = "1.35.0"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.35.0#3cfcb2516aa5e64e8cb9992605838e2f90bfe789"
+version = "1.36.1"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.36.1#a31005687020529404aef77dad86198e2118c802"
 dependencies = [
  "api_derive",
  "api_info",
@@ -2479,13 +2444,13 @@ dependencies = [
  "ton_abi",
  "ton_block",
  "ton_types",
- "ton_vm 1.8.39",
+ "ton_vm",
 ]
 
 [[package]]
 name = "ton_tl_codegen"
 version = "0.0.2"
-source = "git+https://github.com/tonlabs/ton-labs-tl?tag=0.2.128#f16ff19f5dd4ccf73f65d830ab6dc782ea2127dd"
+source = "git+https://github.com/tonlabs/ton-labs-tl.git?tag=0.2.129#404e7b9f219fc20b04b773a9a3f3a481ed03a0bf"
 dependencies = [
  "crc 1.8.1",
  "failure",
@@ -2499,8 +2464,8 @@ dependencies = [
 
 [[package]]
 name = "ton_types"
-version = "1.11.2"
-source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.2#0fb6b9cfacc84a3974dcb0aa674335fcf74de7ee"
+version = "1.11.3"
+source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.3#d62ead62339f17fda171fe45f19f5c7452e724bb"
 dependencies = [
  "base64 0.13.0",
  "crc 1.8.1",
@@ -2519,27 +2484,8 @@ dependencies = [
 
 [[package]]
 name = "ton_vm"
-version = "1.8.38"
-source = "git+https://github.com/tonlabs/ton-labs-vm.git?tag=1.8.38#802aec2047e07c518136b10d091a13784ad6d696"
-dependencies = [
- "ed25519",
- "ed25519-dalek",
- "failure",
- "hex 0.4.3",
- "lazy_static",
- "log",
- "num",
- "num-traits",
- "rand 0.7.3",
- "sha2 0.9.9",
- "ton_block",
- "ton_types",
-]
-
-[[package]]
-name = "ton_vm"
-version = "1.8.39"
-source = "git+https://github.com/tonlabs/ton-labs-vm.git?tag=1.8.39#b75d857c8d6c4f94be44abb3d3ae97cf7c027059"
+version = "1.8.40"
+source = "git+https://github.com/tonlabs/ton-labs-vm.git?tag=1.8.40#3bd45a44c3ca454e4f16f2de06994b404500cce2"
 dependencies = [
  "ed25519",
  "ed25519-dalek",
@@ -2557,7 +2503,7 @@ dependencies = [
 
 [[package]]
 name = "tonos-cli"
-version = "0.27.7"
+version = "0.27.19"
 dependencies = [
  "assert_cmd",
  "async-trait",
@@ -2588,13 +2534,13 @@ dependencies = [
  "tokio-retry",
  "ton_abi",
  "ton_block",
- "ton_block_json 0.7.18",
+ "ton_block_json",
  "ton_client",
- "ton_executor 1.15.72",
+ "ton_executor",
  "ton_labs_assembler",
  "ton_sdk",
  "ton_types",
- "ton_vm 1.8.38",
+ "ton_vm",
 ]
 
 [[package]]
@@ -2605,9 +2551,9 @@ checksum = "b6bc1c9ce2b5135ac7f93c72918fc37feb872bdc6a5533a8b85eb4b86bfdae52"
 
 [[package]]
 name = "tracing"
-version = "0.1.35"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a400e31aa60b9d44a52a8ee0343b5b18566b03a8321e0d321f695cf56e940160"
+checksum = "2fce9567bd60a67d08a16488756721ba392f24f29006402881e43b19aac64307"
 dependencies = [
  "cfg-if",
  "pin-project-lite",
@@ -2616,9 +2562,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.28"
+version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b7358be39f2f274f322d2aaed611acc57f382e8eb1e5b48cb9ae30933495ce7"
+checksum = "5aeea4303076558a00714b823f9ad67d58a3bbda1df83d8827d21193156e22f7"
 dependencies = [
  "once_cell",
 ]
@@ -2663,9 +2609,9 @@ checksum = "099b7128301d285f79ddd55b9a83d5e6b9e97c92e0ea0daebee7263e932de992"
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bd2fe26506023ed7b5e1e315add59d6f584c621d037f9368fea9cfb988f368c"
+checksum = "15c61ba63f9235225a22310255a29b806b907c9b8c964bcbd0a2c70f3f2deea7"
 
 [[package]]
 name = "unicode-normalization"
@@ -2763,9 +2709,9 @@ checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.81"
+version = "0.2.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c53b543413a17a202f4be280a7e5c62a1c69345f5de525ee64f8cfdbc954994"
+checksum = "fc7652e3f6c4706c8d9cd54832c4a4ccb9b5336e2c3bd154d5cccfbf1c1f5f7d"
 dependencies = [
  "cfg-if",
  "wasm-bindgen-macro",
@@ -2773,13 +2719,13 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-backend"
-version = "0.2.81"
+version = "0.2.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5491a68ab4500fa6b4d726bd67408630c3dbe9c4fe7bda16d5c82a1fd8c7340a"
+checksum = "662cd44805586bd52971b9586b1df85cdbbd9112e4ef4d8f41559c334dc6ac3f"
 dependencies = [
  "bumpalo",
- "lazy_static",
  "log",
+ "once_cell",
  "proc-macro2",
  "quote",
  "syn",
@@ -2788,9 +2734,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-futures"
-version = "0.4.31"
+version = "0.4.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de9a9cec1733468a8c657e57fa2413d2ae2c0129b95e87c5b72b8ace4d13f31f"
+checksum = "fa76fb221a1f8acddf5b54ace85912606980ad661ac7a503b4570ffd3a624dad"
 dependencies = [
  "cfg-if",
  "js-sys",
@@ -2800,9 +2746,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.81"
+version = "0.2.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c441e177922bc58f1e12c022624b6216378e5febc2f0533e41ba443d505b80aa"
+checksum = "b260f13d3012071dfb1512849c033b1925038373aea48ced3012c09df952c602"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -2810,9 +2756,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.81"
+version = "0.2.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d94ac45fcf608c1f45ef53e748d35660f168490c10b23704c7779ab8f5c3048"
+checksum = "5be8e654bdd9b79216c2929ab90721aa82faf65c48cdf08bdc4e7f51357b80da"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2823,15 +2769,15 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.81"
+version = "0.2.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a89911bd99e5f3659ec4acf9c4d93b0a90fe4a2a11f15328472058edc5261be"
+checksum = "6598dd0bd3c7d51095ff6531a5b23e02acdc81804e30d8f07afb77b7215a140a"
 
 [[package]]
 name = "web-sys"
-version = "0.3.58"
+version = "0.3.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fed94beee57daf8dd7d51f2b15dc2bcde92d7a72304cdf662a4371008b71b90"
+checksum = "ed055ab27f941423197eb86b2035720b1a3ce40504df082cac2ecc6ed73335a1"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
@@ -2922,9 +2868,9 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.5.6"
+version = "1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20b578acffd8516a6c3f2a1bdefc1ec37e547bb4e0fb8b6b01a4cafc886b4442"
+checksum = "c394b5bd0c6f669e7275d9c20aa90ae064cb22e75a1cad54e1b34088034b149f"
 dependencies = [
  "zeroize_derive",
 ]
