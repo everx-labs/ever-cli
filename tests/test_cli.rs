@@ -2206,3 +2206,173 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
+    let config_path = "options.config";
+    set_config(
+        &["--url"],
+        &[&*NETWORK],
+        Some(config_path)
+    )?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("account")
+        .arg("0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Account not found."));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("--url")
+        .arg("net.ton.dev")
+        .arg("account")
+        .arg("0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("acc_type:      Active"));
+
+    let key_path = "options_msig.key";
+
+    let address = generate_key_and_address(key_path, SAFEMSIG_TVC, SAFEMSIG_ABI)?;
+
+    set_config(
+        &["--abi", "--addr", "--keys", "--method", "--parameters"],
+        &[SAFEMSIG_ABI, &address, key_path, "dummyMethod", "{}"],
+        Some(config_path)
+    )?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("callx")
+        .arg("--keys")
+        .arg(GIVER_V2_KEY)
+        .arg("--abi")
+        .arg(GIVER_V2_ABI)
+        .arg("--addr")
+        .arg(GIVER_V2_ADDR)
+        .arg("-m")
+        .arg("sendTransaction")
+        .arg("--dest")
+        .arg(address.clone())
+        .arg("--value")
+        .arg("1000000000")
+        .arg("--bounce")
+        .arg("false");
+    cmd.assert()
+        .success();
+
+    set_config(
+        &["--abi", "--addr", "--keys", "--method", "--wc", "--parameters"],
+        &[GIVER_V2_ABI, GIVER_V2_ADDR, GIVER_V2_KEY, "dummyMethod", "12", "{\"param\":11}"],
+        Some(config_path)
+    )?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("deployx")
+        .arg("--abi")
+        .arg(SAFEMSIG_ABI)
+        .arg("--keys")
+        .arg(key_path)
+        .arg("--wc")
+        .arg("0")
+        .arg(SAFEMSIG_TVC)
+        .arg("--owners")
+        .arg(r#"["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"]"#)
+        .arg("--reqConfirms")
+        .arg("1");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(address.clone()))
+        .stdout(predicate::str::contains("Transaction succeeded."));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("runx")
+        .arg("--abi")
+        .arg(SAFEMSIG_ABI)
+        .arg("--addr")
+        .arg(address.clone())
+        .arg("-m")
+        .arg("getParameters")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("maxQueuedTransactions\": \"5"));
+
+    fs::remove_file(key_path)?;
+    let key_path = "options_msig2.key";
+
+    let address = generate_key_and_address(key_path, SAFEMSIG_TVC, SAFEMSIG_ABI)?;
+
+    set_config(
+        &["--abi", "--addr", "--keys", "--method", "--parameters"],
+        &[SAFEMSIG_ABI, &address, key_path, "dummyMethod", "{}"],
+        Some(config_path)
+    )?;
+
+    let params = format!("{{\"dest\":\"{}\",\"value\":1000000000,\"bounce\":false}}", address.clone());
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("call")
+        .arg("--sign")
+        .arg(GIVER_V2_KEY)
+        .arg("--abi")
+        .arg(GIVER_V2_ABI)
+        .arg(GIVER_V2_ADDR)
+        .arg("sendTransaction")
+        .arg(params);
+    cmd.assert()
+        .success();
+
+    set_config(
+        &["--abi", "--addr", "--keys", "--method", "--wc", "--parameters"],
+        &[GIVER_V2_ABI, GIVER_V2_ADDR, GIVER_V2_KEY, "dummyMethod", "12", "{\"param\":11}"],
+        Some(config_path)
+    )?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("deploy")
+        .arg("--abi")
+        .arg(SAFEMSIG_ABI)
+        .arg("--sign")
+        .arg(key_path)
+        .arg("--wc")
+        .arg("0")
+        .arg(SAFEMSIG_TVC)
+        .arg("{\"owners\":[\"0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41\"],\"reqConfirms\":1}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(address.clone()))
+        .stdout(predicate::str::contains("Transaction succeeded."));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("run")
+        .arg("--abi")
+        .arg(SAFEMSIG_ABI)
+        .arg(address.clone())
+        .arg("getParameters")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("maxQueuedTransactions\": \"5"));
+
+
+    fs::remove_file(config_path)?;
+    fs::remove_file(key_path)?;
+
+    Ok(())
+}
