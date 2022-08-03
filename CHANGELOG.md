@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.27.14
+## Version: 0.27.20
+
+### New
+- Enlarged decode fields for `decode body` command
+- Added sequence diagram rendering command
+
+## Version: 0.27.19
 
 ### Bug fixes
 - Removed custom header from call command

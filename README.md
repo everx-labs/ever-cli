@@ -102,6 +102,7 @@ tonos-cli <subcommand> -h
   - [11.4. Debug replay transaction on the saved account state](#114-debug-replay-transaction-on-the-saved-account-state)
   - [11.5. Debug deploy](#115-debug-deploy)
   - [11.6. Debug message](#116-debug-message)
+  - [11.7. Render UML sequence diagram](#117-render-uml-sequence-diagram)
 
 # 1. Installation
 
@@ -318,7 +319,7 @@ List of available options:
 Example:
 
 ```bash
-$ tonos-cli config --url https://main.ton.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600 
+$ tonos-cli config --url https://main.ton.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Succeeded.
 {
@@ -510,7 +511,7 @@ tonos-cli --json <any_subcommand>
 
 ## 2.8. Debug on fail option
 
-You can force TONOS-CLi to debug call and run executions if they fail with error code 414.  
+You can force TONOS-CLi to debug call and run executions if they fail with error code 414.
 
 ```bash
 tonos-cli config --debug_fail <trace_level>
@@ -2734,3 +2735,25 @@ Output messages:
 ```
 
 `Message_base64` then can be passed to `tonos-cli debug message` to play it on another account.
+
+## 11.7. Render UML sequence diagram
+
+```bash
+    tonos-cli debug sequence-diagram <address_list>
+```
+
+`<address_list>`    File containing a list of account addresses, one address per line. Blank lines and lines starting with # character are ignored.
+
+This command generates a `.plantuml` text file which describes a sequence diagram of messages and transactions
+for a provided list of accounts. See PlantUML documentation for a complete guide on rendering an image out of .plantuml.
+To render an SVG the following command can be used:
+
+```bash
+    java -jar plantuml.jar accounts.plantuml -tsvg
+```
+
+### Caveat
+
+Sequence diagrams are well suited for describing synchronous interactions. However, transactions (and messages which spawn them) of the blockchain are inherently asynchronous. In particular, sequence diagram arrows can only be horizontal, and there is no way to make them curve down towards the destination, skipping other transactions and thus depicting asynchronicity.
+
+Practically, this means that one should look cautiously at the point of transaction spawn, being aware that the spawning message can be located somewhere above.
