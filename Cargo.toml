@@ -16,7 +16,7 @@ license = 'Apache-2.0'
 name = 'tonos-cli'
 readme = 'README.md'
 repository = 'https://github.com/tonlabs/tonos-cli'
-version = '0.27.22'
+version = '0.27.23'
 
 [dependencies]
 async-trait = '0.1.42'
