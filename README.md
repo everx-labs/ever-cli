@@ -2700,6 +2700,8 @@ OPTIONS:
 
 `-o, --output <LOG_PATH>`           Path where to store the trace. Default path is "./trace.log". Note: old file will be removed.
 
+`--now <NOW>`                       Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.
+
 ARGUMENTS:
 
 `<address_or_path>`                       Contract address or path the file with saved contract state if corresponding flag is used.

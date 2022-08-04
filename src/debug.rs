@@ -189,6 +189,11 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .requires("BOC")
         .help("Update contract BOC after execution");
 
+    let now_arg = Arg::with_name("NOW")
+        .takes_value(true)
+        .long("--now")
+        .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.");
+
     let msg_cmd = SubCommand::with_name("message")
         .about("Play message locally with trace")
         .arg(output_arg.clone())
@@ -199,6 +204,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .arg(boc_arg.clone())
         .arg(config_path_arg.clone())
         .arg(update_arg.clone())
+        .arg(now_arg.clone())
         .arg(Arg::with_name("MESSAGE")
             .takes_value(true)
             .required(true)
@@ -225,10 +231,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .long("--tvc_address")
             .help("Account address for account constructed from TVC.")
             .requires("TVC"))
-        .arg(Arg::with_name("NOW")
-            .takes_value(true)
-            .long("--now")
-            .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp."))
+        .arg(now_arg.clone())
         .arg(config_path_arg.clone());
 
     let deploy_cmd = SubCommand::with_name("deploy")
@@ -239,10 +242,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .arg(full_trace_arg.clone())
         .arg(decode_abi_arg.clone())
         .arg(sign_arg.clone())
-        .arg(Arg::with_name("NOW")
-            .takes_value(true)
-            .long("--now")
-            .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp."))
+        .arg(now_arg.clone())
         .arg(config_path_arg.clone())
         .arg(Arg::with_name("TVC")
             .required(true)
@@ -528,6 +528,14 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
     Ok(())
 }
 
+fn parse_now(matches: &ArgMatches<'_>) -> Result<u64, String> {
+    Ok(match matches.value_of("NOW") {
+        Some(now) => u64::from_str_radix(now, 10)
+            .map_err(|e| format!("Failed to convert now to u64: {}", e))?,
+        _ => now_ms()
+    })
+}
+
 fn load_decode_abi(matches: &ArgMatches<'_>, config: &Config) -> Option<String> {
     let abi = matches.value_of("DECODE_ABI")
         .map(|s| s.to_owned())
@@ -587,11 +595,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
 
     let keys = sign.map(|k| load_keypair(&k)).transpose()?;
 
-    let now = match matches.value_of("NOW") {
-        Some(now) => u64::from_str_radix(now, 10)
-            .map_err(|e| format!("Failed to convert now to u64: {}", e))?,
-        _ => now_ms()
-    };
+    let now = parse_now(matches)?;
 
     let header = FunctionHeader {
         expire: Some((now / 1000) as u32 + config.lifetime),
@@ -736,7 +740,7 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
         Box::new(DebugLogger::new(trace_path.clone()))
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
-    let now = now_ms();
+    let now = parse_now(matches)?;
     let trans = execute_debug(
         Some(matches),
         Some(ton_client),
@@ -839,11 +843,7 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
         Box::new(DebugLogger::new(trace_path.clone()))
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
-    let now = match matches.value_of("NOW") {
-        Some(now) => u64::from_str_radix(now, 10)
-            .map_err(|e| format!("Failed to convert now to u64: {}", e))?,
-        _ => now_ms()
-    };
+    let now = parse_now(matches)?;
 
     let trans = execute_debug(
         Some(matches),

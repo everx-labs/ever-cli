@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.27.26
+
+### New
+- Added `--now <value>` option for `debug message` command.
+
 ## Version: 0.27.20
 
 ### New
