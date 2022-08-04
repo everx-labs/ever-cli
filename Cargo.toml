@@ -43,15 +43,15 @@ tokio-retry = '0.3'
 log = { features = [ 'std' ], version = '0.4.11' }
 serde = { features = [ 'derive' ], version = '1.0' }
 tokio = { default-features = false, features = [ 'full' ], version = '1' }
-ton_abi = { git = 'https://github.com/tonlabs/ton-labs-abi.git', tag = '2.3.1' }
-ton_block = { git = 'https://github.com/tonlabs/ton-labs-block.git', tag = '1.8.0' }
-ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.36.1' }
-ton_executor = { git = 'https://github.com/tonlabs/ton-labs-executor.git', tag = '1.15.78' }
-ton_labs_assembler = { git = 'https://github.com/tonlabs/ton-labs-assembler.git', tag = '1.2.44' }
-ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.36.1' }
+ton_abi = { git = 'https://github.com/tonlabs/ton-labs-abi.git', tag = '2.3.5' }
+ton_block = { git = 'https://github.com/tonlabs/ton-labs-block.git', tag = '1.8.1' }
+ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.37.1' }
+ton_executor = { git = 'https://github.com/tonlabs/ton-labs-executor.git', tag = '1.15.84' }
+ton_labs_assembler = { git = 'https://github.com/tonlabs/ton-labs-assembler.git', tag = '1.2.45' }
+ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.37.1' }
 ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.11.3' }
-ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.40' }
-ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git', tag = '0.7.24' }
+ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.42' }
+ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git', tag = '0.7.29' }
 
 [dev-dependencies]
 assert_cmd = '1.0.3'
