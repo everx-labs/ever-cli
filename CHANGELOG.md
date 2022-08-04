@@ -2,11 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.27.12
+## Version: 0.27.26
 
 ### New
 - Added alias functionality
 - Added completion script to complete bash commands with aliases and abi methods.
+
+
+## Version: 0.27.20
+
+### New
+- Enlarged decode fields for `decode body` command
+- Added sequence diagram rendering command
+
+## Version: 0.27.19
+
+### Bug fixes
+- Removed custom header from call command
 
 ## Version: 0.27.6
 

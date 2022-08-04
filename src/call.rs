@@ -13,11 +13,10 @@
 use crate::config::Config;
 use crate::{convert, DebugLogger};
 use crate::helpers::{
-    TonClient, now, now_ms, create_client_verbose, load_abi,
+    TonClient, now_ms, create_client_verbose, load_abi,
     query_account_field, SDK_EXECUTION_ERROR_CODE, create_client
 };
 use ton_abi::{Contract, ParamType};
-use chrono::{TimeZone, Local};
 
 use ton_client::abi::{
     encode_message,
@@ -25,7 +24,6 @@ use ton_client::abi::{
     ParamsOfDecodeMessage,
     ParamsOfEncodeMessage,
     Abi,
-    FunctionHeader,
 };
 use ton_client::processing::{
     ParamsOfSendMessage,
@@ -294,19 +292,12 @@ pub async fn call_contract_with_client(
 ) -> Result<serde_json::Value, String> {
     let abi = load_abi(&abi_string)?;
 
-    let expire_at = config.lifetime + now()?;
-    let time = now_ms();
-    let header = FunctionHeader {
-        expire: Some(expire_at),
-        time: Some(time),
-        ..Default::default()
-    };
     let msg_params = prepare_message_params(
         addr,
         abi.clone(),
         method,
         params,
-        Some(header),
+        None,
         keys.clone(),
     )?;
 
@@ -335,12 +326,6 @@ pub async fn call_contract_with_client(
     } else {
         None
     };
-
-    if !config.is_json {
-        print!("Expire at: ");
-        let expire_at = Local.timestamp(expire_at as i64 , 0);
-        println!("{}", expire_at.to_rfc2822());
-    }
 
     let dump = if config.debug_fail != "None".to_string() {
         let acc_boc = query_account_field(

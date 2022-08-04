@@ -229,11 +229,11 @@ pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> 
 
 pub async fn decode_msg_body(
     ton: TonClient,
-    abi: &str,
+    abi_str: &str,
     body: &str,
     is_internal: bool,
 ) -> Result<DecodedMessageBody, String> {
-    let abi = load_abi(abi)?;
+    let abi = load_abi(abi_str)?;
     ton_client::abi::decode_message_body(
         ton,
         ParamsOfDecodeMessageBody {

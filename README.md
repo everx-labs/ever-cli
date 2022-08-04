@@ -105,6 +105,7 @@ tonos-cli <subcommand> -h
   - [11.4. Debug replay transaction on the saved account state](#114-debug-replay-transaction-on-the-saved-account-state)
   - [11.5. Debug deploy](#115-debug-deploy)
   - [11.6. Debug message](#116-debug-message)
+  - [11.7. Render UML sequence diagram](#117-render-uml-sequence-diagram)
 - [12. Alias functionality](#12-alias-functionality)
 
 # 1. Installation
@@ -335,7 +336,7 @@ List of available options:
 Example:
 
 ```bash
-$ tonos-cli config --url https://main.ton.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600 
+$ tonos-cli config --url https://main.ton.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Succeeded.
 {
@@ -527,7 +528,7 @@ tonos-cli --json <any_subcommand>
 
 ## 2.8. Debug on fail option
 
-You can force TONOS-CLi to debug call and run executions if they fail with error code 414.  
+You can force TONOS-CLi to debug call and run executions if they fail with error code 414.
 
 ```bash
 tonos-cli config --debug_fail <trace_level>
@@ -2300,10 +2301,10 @@ Dumps the list of accounts. Files will have address without workchain id as a na
 tonos-cli dump account <list_of_addresses> [--path <dir_path>]
 ```
 
-<list_of_addresses> - list of account addresses. Addresses should be specified separately with space delimiter.
+`<list_of_addresses>` - list of account addresses. Addresses should be specified separately with space delimiter.
 Example: `0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 3333333333333333333333333333333333333333333333333333333333333333`.
 
-<dir_path> - path to the directory where to save dumps. Defaults to current directory.
+`<dir_path>` - path to the directory where to save dumps. Defaults to current directory.
 
 Example:
 
@@ -2512,23 +2513,30 @@ tonos-cli debug transaction [FLAGS] [OPTIONS] <tx_id>
 ```
 
 FLAGS:
---dump_config           Dump the replayed config contract account state.
---dump_contract         Dump the replayed target contract account state.
--e, --empty_config      Replay transaction without full dump of the config contract.
---min_trace             Flag that changes trace to minimal version.
+
+`--dump_config`           Dump the replayed config contract account state.
+
+`--dump_contract`         Dump the replayed target contract account state.
+
+`-e, --empty_config`      Replay transaction without full dump of the config contract.
+
+`--min_trace`             Flag that changes trace to minimal version.
 
 OPTIONS:
--c, --config <CONFIG_PATH>        Path to the file with saved config contract transactions. If not set transactions
-                                  will be fetched to file "config.txns".
--t, --contract <CONTRACT_PATH>    Path to the file with saved target contract transactions. If not set transactions
-                                  will be fetched to file "contract.txns".
--d, --dbg_info <DBG_INFO>         Path to the file with debug info.
---decode_abi <DECODE_ABI>         Path to the ABI file used to decode output messages.
--o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
-                                  be removed.
+
+`-c, --config <CONFIG_PATH>`        Path to the file with saved config contract transactions. If not set transactions will be fetched to file "config.txns".
+
+`-t, --contract <CONTRACT_PATH>`    Path to the file with saved target contract transactions. If not set transactions will be fetched to file "contract.txns".
+
+`-d, --dbg_info <DBG_INFO>`         Path to the file with debug info.
+
+`--decode_abi <DECODE_ABI>`         Path to the ABI file used to decode output messages.
+
+`-o, --output <LOG_PATH>`           Path where to store the trace. Default path is "./trace.log". Note: old file will be removed.
 
 ARGUMENTS:
-<tx_id>      ID of the transaction that should be replayed.
+
+`<tx_id>`      ID of the transaction that should be replayed.
 
 This command allows user to replay remote transaction locally and obtain TVM trace.
 Full replay requires transactions dump of the debugged contract and of the config contract.
@@ -2563,27 +2571,38 @@ tonos-cli debug call [FLAGS] [OPTIONS] <address> <method> <params>
 ```
 
 FLAGS:
---boc          Flag that changes behavior of the command to work with the saved account state (account BOC).
---min_trace    Flag that changes trace to minimal version.
---tvc          Flag that changes behavior of the command to work with the saved contract state (stateInit TVC).
+
+`--boc`          Flag that changes behavior of the command to work with the saved account state (account BOC).
+
+`--min_trace`    Flag that changes trace to minimal version.
+
+`--tvc`          Flag that changes behavior of the command to work with the saved contract state (stateInit TVC).
 
 OPTIONS:
---abi <ABI>                             Path to the contract ABI file. Can be specified in the config file.
---tvc_address <ACCOUNT_ADDRESS>         Account address for account constructed from TVC.
--c, --config <CONFIG_PATH>              Path to the file with saved config contract state.
--d, --dbg_info <DBG_INFO>               Path to the file with debug info.
---decode_abi <DECODE_ABI>               Path to the ABI file used to decode output messages.
--o, --output <LOG_PATH>                 Path where to store the trace. Default path is "./trace.log". Note: old file
-                                        will be removed.
---now <NOW>                             Now timestamp (in milliseconds) for execution. If not set it is equal to the
-                                        current timestamp.
---sign <SIGN>                           Seed phrase or path to the file with keypair used to sign the message. Can be
-                                        specified in the config.
+
+`--abi <ABI>`                             Path to the contract ABI file. Can be specified in the config file.
+
+`--tvc_address <ACCOUNT_ADDRESS>`         Account address for account constructed from TVC.
+
+`-c, --config <CONFIG_PATH>`              Path to the file with saved config contract state.
+
+`-d, --dbg_info <DBG_INFO>`               Path to the file with debug info.
+
+`--decode_abi <DECODE_ABI>`               Path to the ABI file used to decode output messages.
+
+`-o, --output <LOG_PATH>`                 Path where to store the trace. Default path is "./trace.log". Note: old file will be removed.
+
+`--now <NOW>`                             Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.
+
+`--sign <SIGN>`                           Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.
 
 ARGUMENTS:
-  `<address>`    Contract address or path the file with saved contract state if corresponding flag is used.
-  `<method>`     Name of the function being called.
-  `<params>`     Function arguments. Can be specified with a filename, which contains json data.
+
+`<address>`    Contract address or path the file with saved contract state if corresponding flag is used.
+
+`<method>`     Name of the function being called.
+
+`<params>`     Function arguments. Can be specified with a filename, which contains json data.
 
 This command allows user locally emulate contract call and obtain TVM trace.
 Command can work with contract in the network by querying its boc and running message on it or with saved account state
@@ -2612,25 +2631,36 @@ tonos-cli debug run [FLAGS] [OPTIONS] <address> <method> <params>
 ```
 
 FLAGS:
---boc          Flag that changes behavior of the command to work with the saved account state (account BOC).
---min_trace    Flag that changes trace to minimal version.
---tvc          Flag that changes behavior of the command to work with the saved contract state (stateInit TVC).
+
+`--boc`          Flag that changes behavior of the command to work with the saved account state (account BOC).
+
+`--min_trace`    Flag that changes trace to minimal version.
+
+`--tvc`          Flag that changes behavior of the command to work with the saved contract state (stateInit TVC).
 
 OPTIONS:
---abi <ABI>                             Path to the contract ABI file. Can be specified in the config file.
---tvc_address <ACCOUNT_ADDRESS>         Account address for account constructed from TVC.
--c, --config <CONFIG_PATH>              Path to the file with saved config contract state.
--d, --dbg_info <DBG_INFO>               Path to the file with debug info.
---decode_abi <DECODE_ABI>               Path to the ABI file used to decode output messages.
--o, --output <LOG_PATH>                 Path where to store the trace. Default path is "./trace.log". Note: old file
-                                        will be removed.
---now <NOW>                             Now timestamp (in milliseconds) for execution. If not set it is equal to the
-                                        current timestamp.
+
+`--abi <ABI>`                             Path to the contract ABI file. Can be specified in the config file.
+
+`--tvc_address <ACCOUNT_ADDRESS>`         Account address for account constructed from TVC.
+
+`-c, --config <CONFIG_PATH>`              Path to the file with saved config contract state.
+
+`-d, --dbg_info <DBG_INFO>`               Path to the file with debug info.
+
+`--decode_abi <DECODE_ABI>`               Path to the ABI file used to decode output messages.
+
+`-o, --output <LOG_PATH>`                 Path where to store the trace. Default path is "./trace.log". Note: old file will be removed.
+
+`--now <NOW>`                             Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.
 
 ARGUMENTS:
-  `<address>`    Contract address or path the file with saved contract state if corresponding flag is used.
-  `<method>`     Name of the function being called.
-  `<params>`     Function arguments. Can be specified with a filename, which contains json data.
+
+`<address>`    Contract address or path the file with saved contract state if corresponding flag is used.
+
+`<method>`     Name of the function being called.
+
+`<params>`     Function arguments. Can be specified with a filename, which contains json data.
 
 This command is similar to `tonos-cli debug call` but allows user to debug get methods.
 
@@ -2656,19 +2686,26 @@ Log saved to ./trace.log
 ```
 
 FLAGS:
---min_trace       Flag that changes trace to minimal version.
---update_state    Update state of the contract.
+
+`--min_trace`       Flag that changes trace to minimal version.
+
+`--update_state`    Update state of the contract.
 
 OPTIONS:
--c, --config <CONFIG_PATH>       Path to the file with saved config contract state.
--d, --dbg_info <DBG_INFO>        Path to the file with debug info.
---decode_abi <DECODE_ABI>        Path to the ABI file used to decode output messages.file.
--o, --output <LOG_PATH>          Path where to store the trace. Default path is "./trace.log". Note: old file will
-                                 be removed.
+
+`-c, --config <CONFIG_PATH>`       Path to the file with saved config contract state.
+
+`-d, --dbg_info <DBG_INFO>`        Path to the file with debug info.
+
+`--decode_abi <DECODE_ABI>`        Path to the ABI file used to decode output messages.file.
+
+`-o, --output <LOG_PATH>`          Path where to store the trace. Default path is "./trace.log". Note: old file will be removed.
 
 ARGS:
-<TX_ID>    ID of the transaction that should be replayed.
-<INPUT>    Path to the saved account state.
+
+`<TX_ID>`    ID of the transaction that should be replayed.
+
+`<INPUT>`    Path to the saved account state.
 
 This command allows replay transaction on the saved account state. This can be useful if user wants to check
 transaction execution on the contract state, whose code was replaced to a new one using TVM_LINKER.
@@ -2694,25 +2731,33 @@ tonos-cli debug deploy [FLAGS] [OPTIONS] <tvc> <params>
 ```
 
 FLAGS:
---full_trace      Flag that changes trace to full version.
---init_balance    Do not fetch account from the network, but create dummy account with big balance.
+
+`--full_trace`      Flag that changes trace to full version.
+
+`--init_balance`    Do not fetch account from the network, but create dummy account with big balance.
 
 OPTIONS:
---abi <ABI>                       Path to the contract ABI file. Can be specified in the config file.
--c, --config <CONFIG_PATH>        Path to the file with saved config contract state.
--d, --dbg_info <DBG_INFO>         Path to the file with debug info.
---decode_abi <DECODE_ABI>         Path to the ABI file used to decode output messages. Can be specified in the config
-file.
--o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
-be removed.
---now <NOW>                       Now timestamp (in milliseconds) for execution. If not set it is equal to the
-current timestamp.
---sign <SIGN>                     Seed phrase or path to the file with keypair used to sign the message. Can be
-specified in the config.
---wc <WC>                         Workchain ID
+
+`--abi <ABI>`                       Path to the contract ABI file. Can be specified in the config file.
+
+`-c, --config <CONFIG_PATH>`        Path to the file with saved config contract state.
+
+`-d, --dbg_info <DBG_INFO>`         Path to the file with debug info.
+
+`--decode_abi <DECODE_ABI>`         Path to the ABI file used to decode output messages. Can be specified in the config file.
+
+`-o, --output <LOG_PATH>`           Path where to store the trace. Default path is "./trace.log". Note: old file will be removed.
+
+`--now <NOW>`                       Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.
+
+`--sign <SIGN>`                     Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.
+
+`--wc <WC>`                         Workchain ID
 
 ARGUMENTS:
+
 `<tvc>`       Path to the tvc file with contract StateInit.
+
 `<params>`    Constructor arguments.
 
 This command allows user locally emulate contract deploy.
@@ -2726,21 +2771,28 @@ $ tonos-cli debug message [--boc] <address_or_path> [-u] [-o <log_path>] <messag
 ```
 
 FLAGS:
---boc               Flag that changes behavior of the command to work with the saved account state (account BOC).
---full_trace        Flag that changes trace to full version.
--u, --update        Update contract BOC after execution
+
+`--boc`               Flag that changes behavior of the command to work with the saved account state (account BOC).
+
+`--full_trace`        Flag that changes trace to full version.
+
+`-u, --update`        Update contract BOC after execution
 
 OPTIONS:
--c, --config <CONFIG_PATH>        Path to the file with saved config contract state.
--d, --dbg_info <DBG_INFO>         Path to the file with debug info.
---decode_abi <DECODE_ABI>         Path to the ABI file used to decode output messages. Can be specified in the config
-                                  file.
--o, --output <LOG_PATH>           Path where to store the trace. Default path is "./trace.log". Note: old file will
-                                  be removed.
+
+`-c, --config <CONFIG_PATH>`        Path to the file with saved config contract state.
+
+`-d, --dbg_info <DBG_INFO>`         Path to the file with debug info.
+
+`--decode_abi <DECODE_ABI>`         Path to the ABI file used to decode output messages. Can be specified in the config file.
+
+`-o, --output <LOG_PATH>`           Path where to store the trace. Default path is "./trace.log". Note: old file will be removed.
 
 ARGUMENTS:
-<address_or_path>                       Contract address or path the file with saved contract state if corresponding flag is used.
-<message_in_base64_or_path_to_file>     Message in Base64 or path to fil with message.
+
+`<address_or_path>`                       Contract address or path the file with saved contract state if corresponding flag is used.
+
+`<message_in_base64_or_path_to_file>`     Message in Base64 or path to fil with message.
 
 This command allows to play message on the contract state locally with trace.
 It can be useful when user wants to play contract interaction locally. User can call one contract locally with
@@ -2771,6 +2823,28 @@ Output messages:
 ```
 
 `Message_base64` then can be passed to `tonos-cli debug message` to play it on another account.
+
+## 11.7. Render UML sequence diagram
+
+```bash
+    tonos-cli debug sequence-diagram <address_list>
+```
+
+`<address_list>`    File containing a list of account addresses, one address per line. Blank lines and lines starting with # character are ignored.
+
+This command generates a `.plantuml` text file which describes a sequence diagram of messages and transactions
+for a provided list of accounts. See PlantUML documentation for a complete guide on rendering an image out of .plantuml.
+To render an SVG the following command can be used:
+
+```bash
+    java -jar plantuml.jar accounts.plantuml -tsvg
+```
+
+### Caveat
+
+Sequence diagrams are well suited for describing synchronous interactions. However, transactions (and messages which spawn them) of the blockchain are inherently asynchronous. In particular, sequence diagram arrows can only be horizontal, and there is no way to make them curve down towards the destination, skipping other transactions and thus depicting asynchronicity.
+
+Practically, this means that one should look cautiously at the point of transaction spawn, being aware that the spawning message can be located somewhere above.
 
 ## 12. Alias functionality
 
