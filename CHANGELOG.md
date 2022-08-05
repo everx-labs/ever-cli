@@ -9,6 +9,11 @@ All notable changes to this project will be documented in this file.
 - Added completion script to complete bash commands with aliases and abi methods.
 
 
+## Version: 0.27.26
+
+### New
+- Added `--now <value>` option for `debug message` command.
+
 ## Version: 0.27.20
 
 ### New
