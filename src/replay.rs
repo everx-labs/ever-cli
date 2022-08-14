@@ -312,6 +312,7 @@ pub async fn replay(
     let mut account_state = State::new(input_filename)?;
     let account_address = account_state.account_addr.clone();
 
+
     let (mut config, mut config_state) = match cli_config {
         Some(cli_config) => {
             let ton_client = create_client(cli_config)?;
@@ -349,6 +350,7 @@ pub async fn replay(
             config_state.next_transaction();
         }
 
+        let config_account = config_state.account.clone();
         let state = choose(&mut account_state, &mut config_state);
         let tr = state.tr.as_ref().ok_or("failed to obtain state transaction")?;
 
