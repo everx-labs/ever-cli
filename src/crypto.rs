@@ -28,10 +28,10 @@ use crate::Config;
 
 pub fn load_keypair(keys: &str) -> Result<KeyPair, String> {
     if keys.find(' ').is_none() {
-        let keys = read_keys(&keys)?;
+        let keys = read_keys(keys)?;
         Ok(keys)
     } else {
-        generate_keypair_from_mnemonic(&keys)
+        generate_keypair_from_mnemonic(keys)
     }
 }
 
@@ -79,7 +79,7 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     ).map_err(|e| format!("{}", e))?;
 
     let mut keypair: KeyPair = nacl_sign_keypair_from_secret_key(
-        client.clone(),
+        client,
         ParamsOfNaclSignKeyPairFromSecret {
             secret: secret.secret,
             ..Default::default()
@@ -98,7 +98,7 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
 pub fn generate_keypair_from_secret(secret: String) -> Result<KeyPair, String> {
     let client = create_client_local()?;
     let mut keypair: KeyPair = nacl_sign_keypair_from_secret_key(
-        client.clone(),
+        client,
         ParamsOfNaclSignKeyPairFromSecret {
             secret,
             ..Default::default()
@@ -113,7 +113,7 @@ pub fn generate_keypair_from_secret(secret: String) -> Result<KeyPair, String> {
     Ok(keypair)
 }
 
-pub fn generate_mnemonic(keypath: Option<&str>, config: Config) -> Result<(), String> {
+pub fn generate_mnemonic(keypath: Option<&str>, config: &Config) -> Result<(), String> {
     let mnemonic = gen_seed_phrase()?;
     if !config.is_json {
         println!("Succeeded.");
@@ -123,43 +123,70 @@ pub fn generate_mnemonic(keypath: Option<&str>, config: Config) -> Result<(), St
         println!("  \"phrase\": \"{}\"", mnemonic);
         println!("}}");
     }
-    match keypath {
-        Some(path) => {
-            generate_keypair(path, &mnemonic, config.clone())?;
-            if !config.is_json {
-                println!("Keypair saved to {}", path);
-            }
+    if let Some(path) = keypath {
+        generate_keypair(Some(path), Some(&mnemonic), config)?;
+        if !config.is_json {
+            println!("Keypair saved to {}", path);
         }
-        _ => {}
     }
     Ok(())
 }
 
-pub fn extract_pubkey(mnemonic: &str) -> Result<(), String> {
+pub fn extract_pubkey(mnemonic: &str, is_json: bool) -> Result<(), String> {
     let keypair = generate_keypair_from_mnemonic(mnemonic)?;
-    println!("Succeeded.");
-    println!("Public key: {}", keypair.public);
-    println!();
-    qr2term::print_qr(&keypair.public)
-        .map_err(|e| format!("failed to print the QR code: {}", e))?;
-    println!();
+    if !is_json {
+        println!("Succeeded.");
+        println!("Public key: {}", keypair.public);
+        println!();
+        qr2term::print_qr(&keypair.public)
+            .map_err(|e| format!("failed to print the QR code: {}", e))?;
+        println!();
+    } else {
+        println!("{{");
+        println!("  \"Public key\": \"{}\"", keypair.public);
+        println!("}}");
+    }
     Ok(())
 }
 
-pub fn generate_keypair(keys_path: &str, mnemonic: &str, config: Config) -> Result<(), String> {
+pub fn generate_keypair(keys_path: Option<&str>, mnemonic: Option<&str>, config: &Config) -> Result<(), String> {
+    let mnemonic = match mnemonic {
+        Some(mnemonic) => mnemonic.to_owned(),
+        None => {
+            if !config.is_json {
+                println!("Generating seed phrase.");
+            }
+            let phrase = gen_seed_phrase()?;
+            if !config.is_json {
+                println!(r#"Seed phrase: "{}""#, phrase);
+            }
+            phrase
+        }
+    };
+
     let keys = if mnemonic.contains(" ") {
-        generate_keypair_from_mnemonic(mnemonic)?
+        generate_keypair_from_mnemonic(&mnemonic)?
     } else {
-        generate_keypair_from_secret(mnemonic.to_string())?
+        generate_keypair_from_secret(mnemonic)?
     };
     let keys_json = serde_json::to_string_pretty(&keys)
         .map_err(|e| format!("failed to serialize the keypair: {}", e))?;
-    let folder_path = keys_path
-        .trim_end_matches(|c| c != '/')
-        .trim_end_matches(|c| c == '/');
-    check_dir(folder_path)?;
-    std::fs::write(keys_path, &keys_json)
-        .map_err(|e| format!("failed to create file with keys: {}", e))?;
+    if let Some(keys_path) = keys_path {
+        let folder_path = keys_path
+            .trim_end_matches(|c| c != '/')
+            .trim_end_matches(|c| c == '/');
+        check_dir(folder_path)?;
+        std::fs::write(keys_path, &keys_json)
+            .map_err(|e| format!("failed to create file with keys: {}", e))?;
+        if !config.is_json {
+            println!("Keypair successfully saved to {}.", keys_path);
+        }
+    } else {
+        if !config.is_json {
+            print!("Keypair: ");
+        }
+        println!("{}", keys_json);
+    }
     if !config.is_json {
         println!("Succeeded.");
     }

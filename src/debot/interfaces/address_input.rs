@@ -6,7 +6,7 @@ use ton_client::debot::{DebotInterface, InterfaceResult};
 use super::dinterface::{decode_answer_id, decode_prompt};
 use crate::config::Config;
 
-const ID: &'static str = "d7ed1bd8e6230871116f4522e58df0a93c5520c56f4ade23ef3d8919a984653b";
+const ID: &str = "d7ed1bd8e6230871116f4522e58df0a93c5520c56f4ade23ef3d8919a984653b";
 
 pub const ABI: &str = r#"
 {
@@ -47,17 +47,17 @@ pub const ABI: &str = r#"
 "#;
 
 pub struct AddressInput {
-    conf: Config
+    config: Config
 }
 impl AddressInput {
-    pub fn new(conf: Config) -> Self {
-        Self {conf}
+    pub fn new(config: Config) -> Self {
+        Self {config}
     }
     fn get(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let prompt = decode_prompt(args)?;
         let value = terminal_input(&prompt, |val| {
-            let _ = load_ton_address(val, &self.conf).map_err(|e| format!("Invalid address: {}", e))?;
+            let _ = load_ton_address(val, &self.config).map_err(|e| format!("Invalid address: {}", e))?;
             Ok(())
         });
         Ok((answer_id, json!({ "value": value })))
@@ -65,7 +65,7 @@ impl AddressInput {
     fn select(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let value = terminal_input("", |val| {
-            let _ = load_ton_address(val, &self.conf).map_err(|e| format!("Invalid address: {}", e))?;
+            let _ = load_ton_address(val, &self.config).map_err(|e| format!("Invalid address: {}", e))?;
             Ok(())
         });
         Ok((answer_id, json!({ "value": value })))

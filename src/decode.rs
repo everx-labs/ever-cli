@@ -15,11 +15,13 @@ use crate::config::Config;
 use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query_account_field};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
-use ton_types::Cell;
-use std::fmt::Write;
+use ton_types::{Cell, SliceData};
+use std::fs::File;
+use std::io::Cursor;
 use ton_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData, Abi};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
+use serde::Serialize;
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
     let tvc_cmd = SubCommand::with_name("stateinit")
@@ -93,7 +95,7 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                     .help("Path to the TVC file where to save the dump."))))
 }
 
-pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+pub async fn decode_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     if let Some(m) = m.subcommand_matches("body") {
         return decode_body_command(m, config).await;
     }
@@ -114,7 +116,7 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     Err("unknown command".to_owned())
 }
 
-async fn decode_data_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn decode_data_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     if m.is_present("TVC") {
         return decode_tvc_fields(m, config).await;
     }
@@ -124,17 +126,17 @@ async fn decode_data_command(m: &ArgMatches<'_>, config: Config) -> Result<(), S
     Err("unknown command".to_owned())
 }
 
-async fn decode_body_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn decode_body_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let body = m.value_of("BODY");
     let abi = Some(abi_from_matches_or_config(m, &config)?);
     if !config.is_json {
         print_args!(body, abi);
     }
-    println!("{}", decode_body(body.unwrap(), &abi.unwrap(), config.is_json).await?);
+    decode_body(body.unwrap(), &abi.unwrap(), config.is_json).await?;
     Ok(())
 }
 
-async fn decode_account_from_boc(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn decode_account_from_boc(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let boc = m.value_of("BOCFILE");
     let tvc_path = m.value_of("DUMPTVC");
 
@@ -145,12 +147,18 @@ async fn decode_account_from_boc(m: &ArgMatches<'_>, config: Config) -> Result<(
     let account = Account::construct_from_file(boc.unwrap())
         .map_err(|e| format!(" failed to load account from the boc file: {}", e))?;
 
-    print_account_data(&account, tvc_path, config).await
+    print_account_data(&account, tvc_path, config, true).await
 }
 
-pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, config: Config) -> Result<(), String> {
+pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, config: &Config, decode_stateinit: bool) -> Result<(), String> {
     if account.is_none() {
-        println!("\nAccount is None");
+        if !config.is_json {
+            println!("\nAccount is None");
+        } else {
+            println!("{{");
+            println!("  \"Account\": \"None\"");
+            println!("}}");
+        }
         return Ok(());
     }
     let state_init = account.state_init();
@@ -173,7 +181,7 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
     };
 
     let trans_lt = account.last_tr_time()
-        .map_or("Undefined".to_owned(), |v| format!("{}", v));
+        .map_or("Undefined".to_owned(), |v| format!("{:#x}", v));
     let paid = format!("{}", account.last_paid());
 
     let (si, code_hash) = match state_init {
@@ -192,6 +200,9 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
         _ => ("Undefined".to_owned(), None)
     };
 
+    let data = tree_of_cells_into_base64(account.get_data().as_ref())?;
+    let data = hex::encode(base64::decode(&data)
+        .map_err(|e| format!("Failed to decode base64: {}", e))?);
     print_account(
         &config,
         Some(state),
@@ -199,9 +210,9 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
         Some(balance),
         Some(paid),
         Some(trans_lt),
-        None,
+        Some(data),
         code_hash,
-        Some(si),
+        if decode_stateinit { Some(si) } else { None },
     );
 
     if tvc_path.is_some() && state_init.is_some() {
@@ -212,13 +223,13 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
     Ok(())
 }
 
-async fn decode_message_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn decode_message_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let msg = m.value_of("MSG");
     let abi = Some(abi_from_matches_or_config(m, &config)?);
     if !config.is_json {
         print_args!(msg, abi);
     }
-    let msg = msg.map(|f| std::fs::read(f))
+    let msg = msg.map(std::fs::read)
         .transpose()
         .map_err(|e| format!(" failed to read msg boc file: {}", e))?
         .unwrap();
@@ -226,7 +237,7 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: Config) -> Result<()
     Ok(())
 }
 
-async fn decode_tvc_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn decode_tvc_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let tvc = m.value_of("TVC");
     let abi = Some(abi_from_matches_or_config(m, &config)?);
     if !config.is_json {
@@ -243,16 +254,20 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
         ParamsOfDecodeAccountData {
                 abi: Abi::Json(abi),
                 data: b64,
+                ..Default::default()
             }
         )
         .await
         .map_err(|e| format!("failed to decode data: {}", e))?;
-    println!("TVC fields:\n{}", serde_json::to_string_pretty(&res.data)
+    if !config.is_json {
+        println!("TVC fields:");
+    }
+    println!("{}", serde_json::to_string_pretty(&res.data)
         .map_err(|e| format!("failed to serialize the result: {}", e))?);
     Ok(())
 }
 
-async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let address = m.value_of("ADDRESS");
     let abi = Some(abi_from_matches_or_config(m, &config)?);
     if !config.is_json {
@@ -270,6 +285,7 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(),
         ParamsOfDecodeAccountData {
                 abi: Abi::Json(abi),
                 data,
+                ..Default::default()
             }
         )
         .await
@@ -282,49 +298,89 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: Config) -> Result<(),
     Ok(())
 }
 
-async fn print_decoded_body(body_vec: Vec<u8>, abi: &str, is_json: bool) -> Result<String, String> {
-    let ton = create_client_local()?;
+#[derive(Serialize)]
+struct SortedFunctionHeader {
+    pubkey: Option<String>,
+    time: Option<u64>,
+    expire: Option<u32>
+}
+
+async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool) -> Result<(), String> {
+    let body_vec  = base64::decode(body_base64)
+        .map_err(|e| format!("body is not a valid base64 string: {}", e))?;
+
     let mut empty_boc = vec![];
     serialize_tree_of_cells(&Cell::default(), &mut empty_boc)
         .map_err(|e| format!("failed to serialize tree of cells: {}", e))?;
     if body_vec.cmp(&empty_boc) == std::cmp::Ordering::Equal {
-        return Err(format!("body is empty"));
+        return Err("body is empty".to_string());
     }
 
-    let body_base64 = base64::encode(&body_vec);
-    let mut res = {
-        match decode_msg_body(ton.clone(), abi, &body_base64, false).await {
-            Ok(res) => res,
-            Err(_) => decode_msg_body(ton.clone(), abi, &body_base64, true).await?,
-        }
-    };
-    let output = res.value.take().ok_or("failed to obtain the result")?;
-    Ok(if is_json {
-        format!(" \"BodyCall\": {{\n  \"{}\": {}\n }}", res.name, output)
-    } else {
-        format!("{}: {}", res.name, serde_json::to_string_pretty(&output)
-            .map_err(|e| format!("failed to serialize the result: {}", e))?)
-    })
-}
+    let ton = create_client_local()?;
 
-async fn decode_body(body: &str, abi: &str, is_json: bool) -> Result<String, String> {
-    let abi = std::fs::read_to_string(abi)
+    let abi = std::fs::read_to_string(abi_path)
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
-    let body_vec  = base64::decode(body)
-        .map_err(|e| format!("body is not a valid base64 string: {}", e))?;
+    let (mut res, is_external) = {
+        match decode_msg_body(ton.clone(), &abi, body_base64, false).await {
+            Ok(res) => (res, true),
+            Err(_) => (decode_msg_body(ton.clone(), &abi, body_base64, true).await?, false),
+        }
+    };
+    let mut signature = None;
 
-    let mut result = String::new();
-    let s = &mut result;
-    if is_json { writeln!(s, "{{").map_err(|e| format!("failed to serialize the result: {}", e))?; }
-    writeln!(s, "{}", print_decoded_body(body_vec, &abi, is_json).await?)
-        .map_err(|e| format!("failed to serialize the result: {}", e))?;
-    if is_json { writeln!(s, "}}").map_err(|e| format!("failed to serialize the result: {}", e))?; }
-    Ok(result)
+    let cell = ton_types::cells_serialization::deserialize_tree_of_cells(&mut Cursor::new(&body_vec))
+        .map_err(|e| format!("Failed to create cell: {}", e))?;
+    let orig_slice: SliceData = cell.into();
+    if is_external {
+        let mut slice = orig_slice.clone();
+        let flag = slice.get_next_bit();
+        if let Ok(has_sign) = flag {
+            if has_sign {
+                let signature_bytes = slice.get_next_bytes(64).unwrap();
+                signature = Some(hex::encode(&signature_bytes));
+            }
+        }
+    }
+    let contr = File::open(abi_path).map(|file| {
+        ton_abi::Contract::load(file)
+    })
+        .map_err(|e| format!("Failed to load abi: {}", e))?
+        .map_err(|e| format!("Failed to load abi: {}", e))?;
+
+    let (_, func_id, _) = ton_abi::Function::decode_header(contr.version(), orig_slice.clone(), contr.header(), !is_external)
+        .map_err(|e| format!("Failed to decode header: {}", e))?;
+    let output = res.value.take().ok_or("failed to obtain the result")?;
+    let header = res.header.map(|hdr| {
+        SortedFunctionHeader {
+            pubkey: hdr.pubkey,
+            time: hdr.time,
+            expire: hdr.expire
+        }
+    });
+    if is_json {
+        let mut result = json!({});
+        result["BodyCall"] = json!({res.name: output});
+        result["Signature"] = json!(signature.unwrap_or("None".to_string()));
+        result["Header"] = json!(header);
+        result["FunctionId"] = json!(format!("{:08X}", func_id));
+        println!("{}", serde_json::to_string_pretty(&result)
+            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+    } else {
+        println!("\n\n{}: {}", res.name, serde_json::to_string_pretty(&output)
+            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+        println!("Signature: {}", signature.unwrap_or("None".to_string()));
+        println!("Header: {}", serde_json::to_string_pretty(&json!(header))
+            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+        println!("FunctionId: {:08X}", func_id);
+    }
+    Ok(())
 }
 
+
+
 async fn decode_message(msg_boc: Vec<u8>, abi: Option<String>) -> Result<String, String> {
-    let abi = abi.map(|f| std::fs::read_to_string(f))
+    let abi = abi.map(std::fs::read_to_string)
         .transpose()
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
@@ -348,7 +404,7 @@ fn load_state_init(m: &ArgMatches<'_>) -> Result<StateInit, String> {
     Ok(stat_init)
 }
 
-async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn decode_tvc_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let input = m.value_of("INPUT");
     if !config.is_json {
         print_args!(input);
@@ -364,7 +420,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: Config) -> Result<(), St
     let state = if is_local {
         load_state_init(m)?
     } else {
-        let input = if input.contains(":") {
+        let input = if input.contains(':') {
             input
         } else {
             format!("{}:{}", config.wc, input)
@@ -409,7 +465,8 @@ pub mod msg_printer {
         let result = get_compiler_version(
             ton,
             ParamsOfGetCompilerVersion {
-                code
+                code,
+                ..Default::default()
             }
         ).await;
 
@@ -535,8 +592,7 @@ pub mod msg_printer {
                 .map_err(|e| format!("failed to serialize body: {}", e))?;
             res["BodyCall"] =  match serialize_body(body_vec, &abi, ton).await {
                 Ok(res) => res,
-                Err(e) => {
-                    println!("Warning: {}", e);
+                Err(_) => {
                     json!("Undefined")
                 }
             };
@@ -560,7 +616,6 @@ mod tests {
     #[tokio::test]
     async fn test_decode_body_json() {
         let body = "te6ccgEBAQEARAAAgwAAALqUCTqWL8OX7JivfJrAAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMQAAAAAAAAAAAAAAAEeGjADA==";
-        let out = decode_body(body, "tests/samples/wallet.abi.json", true).await.unwrap();
-        let _ : serde_json::Value = serde_json::from_str(&out).unwrap();
+        let _out = decode_body(body, "tests/samples/wallet.abi.json", true).await.unwrap();
     }
 }

@@ -55,7 +55,7 @@ impl Callbacks {
         if state.state_id == STATE_EXIT {
             return None;
         }
-        if state.active_actions.len() == 0 {
+        if state.active_actions.is_empty() {
             debug!("no more actions, exit loop");
             return None;
         }
@@ -72,7 +72,7 @@ impl Callbacks {
                 println!("Invalid action. Try again.");
                 continue;
             }
-            return act.map(|a| a.clone());
+            return act.cloned();
         }
     }
 
@@ -86,7 +86,7 @@ impl Callbacks {
 impl BrowserCallbacks for Callbacks {
     /// Debot asks browser to print message to user
     async fn log(&self, msg: String) {
-        self.processor.read().await.print(&format!("{}", msg));
+        self.processor.read().await.print(&msg.to_string());
     }
 
     /// Debot is switched to another context.
@@ -128,7 +128,7 @@ impl BrowserCallbacks for Callbacks {
                     .leak()
                     .0
             }
-            Err(e) => Err(format!("{:?}", e))?,
+            Err(e) => return Err(format!("{:?}", e)),
             Ok(handle) => handle,
         };
         Ok(SigningBoxHandle(handle))
@@ -151,8 +151,7 @@ impl BrowserCallbacks for Callbacks {
         info += "--------------------\n";
         info += "[Permission Request]\n";
         info += "--------------------\n";
-        let prompt;
-        match activity {
+        let prompt = match activity {
             DebotActivity::Transaction {
                 msg: _,
                 dst,
@@ -169,7 +168,7 @@ impl BrowserCallbacks for Callbacks {
                     "  Transaction fees: {} tokens\n",
                     convert_u64_to_tokens(fee)
                 );
-                if out.len() > 0 {
+                if !out.is_empty() {
                     info += "  Outgoing transfers from the account:\n";
                     for spending in out {
                         info += &format!(
@@ -186,9 +185,9 @@ impl BrowserCallbacks for Callbacks {
                     info +=
                         "  Warning: the transaction will change the account's code\n";
                 }
-                prompt = "Confirm the transaction (y/n)?";
+                "Confirm the transaction (y/n)?"
             }
-        }
+        };
         self.processor.read().await.print(&info);
         approved = match result {
             Err(ProcessorError::InteractiveApproveNeeded) => {
@@ -196,7 +195,7 @@ impl BrowserCallbacks for Callbacks {
                     approved = match val.as_str() {
                         "y" => true,
                         "n" => false,
-                        _ => Err(format!("invalid enter"))?,
+                        _ => return Err("invalid enter".to_string()),
                     };
                     Ok(())
                 });

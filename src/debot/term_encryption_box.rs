@@ -3,11 +3,10 @@ use crate::crypto::load_keypair;
 use crate::helpers::{TonClient, HD_PATH};
 use std::io::{self};
 use ton_client::crypto::{
-    chacha20, nacl_box, nacl_box_open, nacl_secret_box, nacl_secret_box_open,
-    register_encryption_box, remove_encryption_box, EncryptionBoxHandle, EncryptionBoxInfo, ParamsOfChaCha20,
-    ParamsOfNaclBox, ParamsOfNaclBoxOpen, ParamsOfNaclSecretBox, ParamsOfNaclSecretBoxOpen, RegisteredEncryptionBox,
+    register_encryption_box, remove_encryption_box,
+    EncryptionBoxHandle, RegisteredEncryptionBox, ChaCha20ParamsEB, ChaCha20EncryptionBox,
+    NaclBoxParamsEB, NaclEncryptionBox, NaclSecretBoxParamsEB, NaclSecretEncryptionBox
 };
-use ton_client::error::ClientResult;
 
 #[derive(Clone, Copy)]
 pub(crate) enum EncryptionBoxType {
@@ -21,147 +20,6 @@ pub(crate) struct ParamsOfTerminalEncryptionBox {
     pub their_pubkey: String,
     pub nonce: String,
     pub context: TonClient,
-}
-
-pub struct NaClSecretBox {
-    /// 256-bit key - unprefixed 0-padded to 64 symbols hex string.
-    pub key: String,
-    /// 96-bit nonce, encoded in `hex`.
-    pub nonce: String,
-    /// Client params.context.
-    pub client: TonClient,
-}
-
-pub struct ChaChaBox {
-    /// 256-bit key, encoded with `base64`.
-    pub key: String,
-    /// 96-bit nonce, encoded in `hex`.
-    pub nonce: String,
-    /// Client params.context.
-    pub client: TonClient,
-}
-
-pub struct NaClBox {
-    /// Receiver's public key - unprefixed 0-padded to 64 symbols hex string.
-    pub their_pubkey: String,
-    /// Sender's private key - unprefixed 0-padded to 64 symbols hex string.
-    pub secret: String,
-    /// Nonce, encoded in `hex`.
-    pub nonce: String,
-    /// Client params.context.
-    pub client: TonClient,
-}
-
-#[async_trait::async_trait]
-impl ton_client::crypto::EncryptionBox for NaClSecretBox {
-    async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
-        Ok(EncryptionBoxInfo {
-            hdpath: Some(String::from(HD_PATH)),
-            algorithm: Some(format!("NaclSecretBox")),
-            options: Some(json!({"nonce": self.nonce.clone()})),
-            public: None,
-        })
-    }
-    async fn encrypt(&self, data: &String) -> ClientResult<String> {
-        Ok(nacl_secret_box(
-            self.client.clone(),
-            ParamsOfNaclSecretBox {
-                decrypted: data.clone(),
-                key: self.key.clone(),
-                nonce: self.nonce.clone(),
-            },
-        )
-        .unwrap()
-        .encrypted)
-    }
-    async fn decrypt(&self, data: &String) -> ClientResult<String> {
-        Ok(nacl_secret_box_open(
-            self.client.clone(),
-            ParamsOfNaclSecretBoxOpen {
-                encrypted: data.clone(),
-                key: self.key.clone(),
-                nonce: self.nonce.clone(),
-            },
-        )
-        .unwrap()
-        .decrypted)
-    }
-}
-
-#[async_trait::async_trait]
-impl ton_client::crypto::EncryptionBox for ChaChaBox {
-    async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
-        Ok(EncryptionBoxInfo {
-            hdpath: Some(String::from(HD_PATH)),
-            algorithm: Some(format!("ChaCha20")),
-            options: Some(json!({"nonce": self.nonce.clone()})),
-            public: None,
-        })
-    }
-    async fn encrypt(&self, data: &String) -> ClientResult<String> {
-        Ok(chacha20(
-            self.client.clone(),
-            ParamsOfChaCha20 {
-                data: data.clone(),
-                key: self.key.clone(),
-                nonce: self.nonce.clone(),
-            },
-        )
-        .unwrap()
-        .data)
-    }
-    async fn decrypt(&self, data: &String) -> ClientResult<String> {
-        Ok(chacha20(
-            self.client.clone(),
-            ParamsOfChaCha20 {
-                data: data.clone(),
-                key: self.key.clone(),
-                nonce: self.nonce.clone(),
-            },
-        )
-        .unwrap()
-        .data)
-    }
-}
-
-#[async_trait::async_trait]
-impl ton_client::crypto::EncryptionBox for NaClBox {
-    async fn get_info(&self) -> ClientResult<EncryptionBoxInfo> {
-        Ok(EncryptionBoxInfo {
-            hdpath: Some(String::from(HD_PATH)),
-            algorithm: Some(format!("NaclBox")),
-            options: Some(json!({
-                "their_public": self.their_pubkey.clone(),
-                "nonce": self.nonce.clone()})),
-            public: None,
-        })
-    }
-    async fn encrypt(&self, data: &String) -> ClientResult<String> {
-        Ok(nacl_box(
-            self.client.clone(),
-            ParamsOfNaclBox {
-                decrypted: data.clone(),
-                nonce: self.nonce.clone(),
-                their_public: self.their_pubkey.clone(),
-                secret: self.secret.clone(),
-            },
-        )
-        .unwrap()
-        .encrypted)
-    }
-    async fn decrypt(&self, data: &String) -> ClientResult<String> {
-        Ok(nacl_box_open(
-            self.client.clone(),
-            ParamsOfNaclBoxOpen {
-                encrypted: data.clone(),
-                nonce: self.nonce.clone(),
-                their_public: self.their_pubkey.clone(),
-                secret: self.secret.clone(),
-            },
-        )
-        .unwrap()
-        .decrypted)
-    }
 }
 
 pub(super) struct TerminalEncryptionBox {
@@ -192,7 +50,7 @@ impl TerminalEncryptionBox {
             let mut writer = io::stdout();
             let enter_str = "enter seed phrase or path to keypair file";
             let value = input(enter_str, &mut reader, &mut writer);
-            let pair = load_keypair(&value).map_err(|e| e.to_string())?;
+            let pair = load_keypair(&value).map_err(|e| e)?;
             key = format!("{:064}", pair.secret);
         }
 
@@ -200,34 +58,36 @@ impl TerminalEncryptionBox {
             EncryptionBoxType::SecretNaCl => {
                 register_encryption_box(
                     params.context.clone(),
-                    NaClSecretBox {
-                        key: key,
+                    NaclSecretEncryptionBox::new(NaclSecretBoxParamsEB {
+                        key,
                         nonce: params.nonce,
-                        client: params.context.clone(),
                     },
+                    Some(HD_PATH.to_owned()))
                 )
                 .await.map_err(|e| e.to_string())?.handle
             },
             EncryptionBoxType::NaCl => {
                 register_encryption_box(
                     params.context.clone(),
-                    NaClBox {
-                        their_pubkey: params.their_pubkey,
+                    NaclEncryptionBox::new(NaclBoxParamsEB {
+                        their_public: params.their_pubkey,
                         secret: key,
                         nonce: params.nonce,
-                        client: params.context.clone(),
                     },
+                    Some(HD_PATH.to_owned()))
                 )
                 .await.map_err(|e| e.to_string())?.handle
             },
             EncryptionBoxType::ChaCha20 => {
                 register_encryption_box(
                     params.context.clone(),
-                    ChaChaBox {
-                        key: key,
-                        nonce: params.nonce,
-                        client: params.context.clone(),
-                    },
+                    ChaCha20EncryptionBox::new(
+                        ChaCha20ParamsEB {
+                            key,
+                            nonce: params.nonce,
+                        },
+                        Some(HD_PATH.to_owned())
+                    ).map_err(|e| e.to_string())?
                 )
                 .await.map_err(|e| e.to_string())?.handle
             },

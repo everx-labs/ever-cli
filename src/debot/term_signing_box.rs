@@ -12,7 +12,7 @@ pub(super) struct TerminalSigningBox {
 }
 
 impl TerminalSigningBox {
-    pub async fn new<R: Read>(client: TonClient, possible_keys: Vec<String>, reader: Option<BufReader<R>>) -> Result<Self, String> 
+    pub async fn new<R: Read>(client: TonClient, possible_keys: Vec<String>, reader: Option<BufReader<R>>) -> Result<Self, String>
     {
         let keys = {
             if let Some(mut reader) = reader {
@@ -88,13 +88,13 @@ where
         let value = input(enter_str, reader, writer);
         pair = load_keypair(&value).map_err(|e| {
             println!("Invalid keys: {}. Try again.", e);
-            e.to_string()
+            e
         });
         if let Ok(ref keys) = pair {
-            if possible_keys.len() != 0 {
-                if let None = possible_keys
+            if !possible_keys.is_empty() {
+                if !possible_keys
                     .iter()
-                    .find(|x| x.get(2..).unwrap() == keys.public.as_str())
+                    .any(|x| x.get(2..).unwrap() == keys.public.as_str())
                 {
                     println!("Unexpected keys.");
                     println!(
@@ -117,12 +117,12 @@ mod tests {
     use super::*;
     use std::fs::File;
 
-    const PUBLIC: &'static str = "9711a04f0b19474272bc7bae5472a8fbbb6ef71ce9c193f5ec3f5af808069a41";
-    const PRIVATE: &'static str =
+    const PUBLIC: &str = "9711a04f0b19474272bc7bae5472a8fbbb6ef71ce9c193f5ec3f5af808069a41";
+    const PRIVATE: &str =
         "cdf2a820517fa783b9b6094d15e650af92d485084ab217fc2c859f02d49623f3";
-    const SEED: &'static str =
+    const SEED: &str =
         "episode polar pistol excite essence van cover fox visual gown yellow minute";
-    const KEYS_FILE: &'static str = "./keys.json";
+    const KEYS_FILE: &str = "./keys.json";
 
     fn create_keypair_file(name: &str) {
         let mut file = File::create(name).unwrap();
@@ -146,8 +146,8 @@ mod tests {
 
         create_keypair_file(KEYS_FILE);
         let keys = input_keys(None, vec![], &mut in_data, &mut out_data, 1).unwrap();
-        assert_eq!(format!("{}", keys.public), PUBLIC);
-        assert_eq!(format!("{}", keys.secret), PRIVATE);
+        assert_eq!(keys.public, PUBLIC);
+        assert_eq!(keys.secret, PRIVATE);
     }
 
     #[test]
@@ -156,7 +156,7 @@ mod tests {
         let mut out_data = vec![];
 
         let keys = input_keys(None, vec![], &mut in_data, &mut out_data, 1).unwrap();
-        assert_eq!(format!("{}", keys.public), PUBLIC);
-        assert_eq!(format!("{}", keys.secret), PRIVATE);
+        assert_eq!(keys.public, PUBLIC);
+        assert_eq!(keys.secret, PRIVATE);
     }
 }

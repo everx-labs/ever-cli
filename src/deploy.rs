@@ -14,8 +14,6 @@ use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_
 use crate::config::Config;
 use crate::crypto::load_keypair;
 use crate::call::{
-    EncodedMessage,
-    display_generated_message,
     emulate_locally,
     process_message,
     send_message_and_wait,
@@ -24,9 +22,10 @@ use ton_client::abi::{
     encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage, Abi,
 };
 use ton_client::crypto::KeyPair;
+use crate::message::{display_generated_message, EncodedMessage};
 
 pub async fn deploy_contract(
-    conf: Config,
+    config: &Config,
     tvc: &str,
     abi: &str,
     params: &str,
@@ -34,9 +33,9 @@ pub async fn deploy_contract(
     wc: i32,
     is_fee: bool,
 ) -> Result<(), String> {
-    let ton = create_client_verbose(&conf)?;
+    let ton = create_client_verbose(config)?;
 
-    if !is_fee && !conf.is_json {
+    if !is_fee && !config.is_json {
         println!("Deploying...");
     }
 
@@ -45,30 +44,33 @@ pub async fn deploy_contract(
     let enc_msg = encode_message(ton.clone(), msg.clone()).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
-    if conf.local_run || is_fee {
+    if config.local_run || is_fee {
         emulate_locally(ton.clone(), addr.as_str(), enc_msg.message.clone(), is_fee).await?;
         if is_fee {
             return Ok(());
         }
     }
 
-    if conf.async_call {
+    if config.async_call {
         let abi = std::fs::read_to_string(abi)
             .map_err(|e| format!("failed to read ABI file: {}", e))?;
         let abi = load_abi(&abi)?;
         send_message_and_wait(ton,
                               Some(abi),
                               enc_msg.message,
-                              conf.clone()).await?;
+                              config).await?;
     } else {
-        process_message(ton.clone(), msg, conf.is_json).await?;
+        process_message(ton.clone(), msg, config).await
+            .map_err(|e| format!("{:#}", e))?;
     }
 
-    if !conf.is_json {
-        if !conf.async_call {
+    if !config.is_json {
+        if !config.async_call {
             println!("Transaction succeeded.");
         }
         println!("Contract deployed at address: {}", addr);
+    } else {
+        println!("{{}}");
     }
     Ok(())
 }
@@ -81,6 +83,7 @@ pub async fn generate_deploy_message(
     wc: i32,
     is_raw: bool,
     output: Option<&str>,
+    is_json: bool,
 ) -> Result<(), String> {
 
     let ton = create_client_local()?;
@@ -95,10 +98,11 @@ pub async fn generate_deploy_message(
         expire: None,
         address: addr.to_owned(),
     };
-    display_generated_message(&msg, "constructor", is_raw, output)?;
-    println!("Contract's address: {}", addr);
-    println!("Succeeded.");
-
+    display_generated_message(&msg, "constructor", is_raw, output, is_json)?;
+    if !is_json {
+        println!("Contract's address: {}", addr);
+        println!("Succeeded.");
+    }
     Ok(())
 }
 
@@ -124,7 +128,7 @@ pub async fn prepare_deploy_message(
 
 
 pub async fn prepare_deploy_message_params(
-    tvc_bytes: &Vec<u8>,
+    tvc_bytes: &[u8],
     abi: Abi,
     params: &str,
     keys: Option<KeyPair>,
@@ -133,7 +137,7 @@ pub async fn prepare_deploy_message_params(
     let tvc_base64 = base64::encode(&tvc_bytes);
 
     let addr = calc_acc_address(
-        &tvc_bytes,
+        tvc_bytes,
         wc,
         keys.as_ref().map(|k| k.public.clone()),
         None,
@@ -161,4 +165,3 @@ pub async fn prepare_deploy_message_params(
         ..Default::default()
     }, addr))
 }
-    

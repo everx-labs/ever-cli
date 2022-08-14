@@ -11,12 +11,12 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use crate::call;
+use crate::{call, message};
 use crate::helpers::{create_client_local, decode_msg_body};
 use crate::multisig::{encode_transfer_body, MSIG_ABI, TRANSFER_WITH_COMMENT};
 
 pub async fn create_proposal(
-	conf: Config,
+	config: &Config,
 	addr: &str,
 	keys: Option<&str>,
 	dest: &str,
@@ -38,8 +38,8 @@ pub async fn create_proposal(
 	let keys = keys.map(|s| s.to_owned());
 
 	if offline {
-		call::generate_message(
-			conf,
+		message::generate_message(
+			config,
 			addr,
 			MSIG_ABI.to_string(),
 			"submitTransaction",
@@ -51,20 +51,20 @@ pub async fn create_proposal(
 	} else {
 
 		call::call_contract(
-			conf,
+			config,
 			addr,
 			MSIG_ABI.to_string(),
 			"submitTransaction",
 			&params,
 			keys,
 			false,
-			false,
+			None,
 		).await
 	}
 }
 
 pub async fn vote(
-	conf: Config,
+	config: &Config,
 	addr: &str,
 	keys: Option<&str>,
 	trid: &str,
@@ -79,8 +79,8 @@ pub async fn vote(
 	let keys = keys.map(|s| s.to_owned());
 
 	if offline {
-		call::generate_message(
-			conf,
+		message::generate_message(
+			config,
 			addr,
 			MSIG_ABI.to_string(),
 			"confirmTransaction",
@@ -92,45 +92,46 @@ pub async fn vote(
 		).await
 	} else {
 		call::call_contract(
-			conf,
+			config,
 			addr,
 			MSIG_ABI.to_string(),
 			"confirmTransaction",
 			&params,
 			keys,
 			false,
-			false,
+			None,
 		).await
 	}
 }
 
 pub async fn decode_proposal(
-	conf: Config,
+	config: &Config,
 	addr: &str,
 	proposal_id: &str,
 ) -> Result<(), String> {
 
+	// change to run
 	let result = call::call_contract_with_result(
-		conf,
+		config,
 		addr,
 		MSIG_ABI.to_string(),
 		"getTransactions",
 		"{}",
 		None,
-		true,
 		false,
+		None,
 	).await?;
 
 	let txns = result["transactions"].as_array()
-		.ok_or(format!(r#"failed to decode result: "transactions" array not found"#))?;
+		.ok_or(r#"failed to decode result: "transactions" array not found"#.to_string())?;
 
 	for txn in txns {
 		let txn_id = txn["id"].as_str()
-			.ok_or(format!(r#"failed to parse transaction in list: "id" not found"#))?;
+			.ok_or(r#"failed to parse transaction in list: "id" not found"#.to_string())?;
 
 		if txn_id == proposal_id {
 			let body = txn["payload"].as_str()
-				.ok_or(format!(r#"failed to parse transaction in list: "payload" not found"#))?;
+				.ok_or(r#"failed to parse transaction in list: "payload" not found"#.to_string())?;
 			let ton = create_client_local()?;
 			let result = decode_msg_body(
 				ton.clone(),
@@ -148,10 +149,22 @@ pub async fn decode_proposal(
 				).map_err(|e| format!("failed to parse comment from transaction payload: {}", e))?
 			).map_err(|e| format!("failed to convert comment to string: {}", e))?;
 
-			println!("Comment: {}", comment);
+			if !config.is_json {
+				println!("Comment: {}", comment);
+			} else {
+				println!("{{");
+				println!("  \"Comment\": \"{}\"", comment);
+				println!("}}");
+			}
 			return Ok(());
 		}
 	}
-	println!("Proposal with id {} not found", proposal_id);
+	if !config.is_json {
+		println!("Proposal with id {} not found", proposal_id);
+	} else {
+		println!("{{");
+		println!("  \"Error\": \"Proposal with id {} not found\"", proposal_id);
+		println!("}}");
+	}
 	Ok(())
 }

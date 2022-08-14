@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use log;
+
 use std::sync::Arc;
 use std::time::SystemTime;
 use ton_client::abi::{
@@ -22,7 +22,7 @@ use ton_client::crypto::{CryptoConfig, KeyPair};
 use ton_client::error::ClientError;
 use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection};
 use ton_client::{ClientConfig, ClientContext};
-use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit};
+use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
 use std::str::FromStr;
 use serde_json::Value;
 
@@ -31,6 +31,8 @@ const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
 
 pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
+
+pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
 
 struct SimpleLogger;
 
@@ -55,15 +57,15 @@ impl log::Log for SimpleLogger {
 
 pub fn read_keys(filename: &str) -> Result<KeyPair, String> {
     let keys_str = std::fs::read_to_string(filename)
-        .map_err(|e| format!("failed to read the keypair file: {}", e.to_string()))?;
+        .map_err(|e| format!("failed to read the keypair file: {}", e))?;
     let keys: KeyPair = serde_json::from_str(&keys_str)
         .map_err(|e| format!("failed to load keypair: {}", e))?;
     Ok(keys)
 }
 
-pub fn load_ton_address(addr: &str, conf: &Config) -> Result<String, String> {
+pub fn load_ton_address(addr: &str, config: &Config) -> Result<String, String> {
     let addr = if addr.find(':').is_none() {
-        format!("{}:{}", conf.wc, addr)
+        format!("{}:{}", config.wc, addr)
     } else {
         addr.to_owned()
     };
@@ -92,11 +94,15 @@ pub fn create_client_local() -> Result<TonClient, String> {
     Ok(Arc::new(cli))
 }
 
-pub fn create_client(conf: &Config) -> Result<TonClient, String> {
+pub fn create_client(config: &Config) -> Result<TonClient, String> {
+    if !config.is_json {
+        println!("Connecting to:\n\tUrl: {}", config.url);
+        println!("\tEndpoints: {:?}\n", config.endpoints);
+    }
     let cli_conf = ClientConfig {
         abi: AbiConfig {
-            workchain: conf.wc,
-            message_expiration_timeout: conf.lifetime * 1000,
+            workchain: config.wc,
+            message_expiration_timeout: config.lifetime * 1000,
             message_expiration_timeout_grow_factor: 1.3,
         },
         crypto: CryptoConfig {
@@ -105,17 +111,17 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
             hdkey_derivation_path: HD_PATH.to_string(),
         },
         network: ton_client::net::NetworkConfig {
-            server_address: Some(conf.url.to_owned()),
-            endpoints: if conf.endpoints.is_empty() {
+            server_address: Some(config.url.to_owned()),
+            endpoints: if config.endpoints.is_empty() {
                     None
                 } else {
-                    Some(conf.endpoints.to_owned())
+                    Some(config.endpoints.to_owned())
                 },
             // network_retries_count: 3,
-            message_retries_count: conf.retries as i8,
+            message_retries_count: config.retries as i8,
             message_processing_timeout: 30000,
-            wait_for_timeout: conf.timeout,
-            out_of_sync_threshold: conf.out_of_sync_threshold * 1000,
+            wait_for_timeout: config.timeout,
+            out_of_sync_threshold: config.out_of_sync_threshold * 1000,
             // max_reconnect_timeout: 1000,
             ..Default::default()
         },
@@ -126,11 +132,7 @@ pub fn create_client(conf: &Config) -> Result<TonClient, String> {
     Ok(Arc::new(cli))
 }
 
-pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
-    if !conf.is_json {
-        println!("Connecting to {}", conf.url);
-    }
-
+pub fn create_client_verbose(config: &Config) -> Result<TonClient, String> {
     let level = if std::env::var("RUST_LOG")
         .unwrap_or_default()
         .eq_ignore_ascii_case("debug")
@@ -142,9 +144,44 @@ pub fn create_client_verbose(conf: &Config) -> Result<TonClient, String> {
     log::set_max_level(level);
     log::set_boxed_logger(Box::new(SimpleLogger))
         .map_err(|e| format!("failed to init logger: {}", e))?;
-
-    create_client(conf)
+    create_client(config)
 }
+
+
+pub async fn query_raw(
+    config: &Config,
+    collection: &str,
+    filter: Option<&str>,
+    limit: Option<&str>,
+    order: Option<&str>,
+    result: &str
+) -> Result<(), String>
+{
+    let context = create_client_verbose(config)?;
+
+    let filter = filter.map(|s| serde_json::from_str(s)).transpose()
+        .map_err(|e| format!("Failed to parse filter field: {}", e))?;
+    let limit = limit.map(|s| s.parse::<u32>()).transpose()
+        .map_err(|e| format!("Failed to parse limit field: {}", e))?;
+    let order = order.map(|s| serde_json::from_str(s)).transpose()
+        .map_err(|e| format!("Failed to parse order field: {}", e))?;
+
+    let query = ton_client::net::query_collection(
+        context.clone(),
+        ParamsOfQueryCollection {
+            collection: collection.to_owned(),
+            filter,
+            limit,
+            order,
+            result: result.to_owned(),
+            ..Default::default()
+        }
+    ).await.map_err(|e| format!("Failed to execute query: {}", e))?;
+
+    println!("{:#}", Value::Array(query.result));
+    Ok(())
+}
+
 
 pub async fn query_with_limit(
     ton: TonClient,
@@ -179,9 +216,8 @@ pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> 
         Some(1),
     ).await
         .map_err(|e| format!("failed to query account data: {}", e))?;
-
-    if accounts.len() == 0 {
-        return Err(format!("account not found"));
+    if accounts.is_empty() {
+        return Err(format!("account with address {} not found", address));
     }
     let data = accounts[0][field].as_str();
     if data.is_none() {
@@ -193,11 +229,11 @@ pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> 
 
 pub async fn decode_msg_body(
     ton: TonClient,
-    abi: &str,
+    abi_str: &str,
     body: &str,
     is_internal: bool,
 ) -> Result<DecodedMessageBody, String> {
-    let abi = load_abi(abi)?;
+    let abi = load_abi(abi_str)?;
     ton_client::abi::decode_message_body(
         ton,
         ParamsOfDecodeMessageBody {
@@ -228,7 +264,7 @@ pub async fn calc_acc_address(
     let ton = create_client_local()?;
 
     let init_data_json = init_data
-        .map(|d| serde_json::from_str(d))
+        .map(serde_json::from_str)
         .transpose()
         .map_err(|e| format!("initial data is not in json: {}", e))?;
 
@@ -285,7 +321,7 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
         message["created_at"].as_u64().unwrap_or(0),
         message["created_at_string"].as_str().unwrap_or("Undefined")
     );
-    
+
     let body = message["body"].as_str();
     if body.is_some() {
         let body = body.unwrap();
@@ -309,7 +345,7 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
         return Ok((name, args));
     }
     println!();
-    return Ok(("".to_owned(), "".to_owned()));
+    Ok(("".to_owned(), "".to_owned()))
 }
 
 pub fn json_account(
@@ -407,7 +443,7 @@ pub fn print_account(
 }
 
 pub fn construct_account_from_tvc(tvc_path: &str, address: Option<&str>, balance: Option<u64>) -> Result<Account, String> {
-    Ok(Account::active_by_init_code_hash(
+    Account::active_by_init_code_hash(
         match address {
             Some(address) => MsgAddressInt::from_str(address)
                 .map_err(|e| format!("Failed to set address: {}", e))?,
@@ -421,7 +457,7 @@ pub fn construct_account_from_tvc(tvc_path: &str, address: Option<&str>, balance
         StateInit::construct_from_file(tvc_path)
             .map_err(|e| format!(" failed to load TVC from the file {}: {}", tvc_path, e))?,
         true
-    ).map_err(|e| format!(" failed to create account with the stateInit: {}",e))?)
+    ).map_err(|e| format!(" failed to create account with the stateInit: {}",e))
 }
 
 pub fn check_dir(path: &str) -> Result<(), String> {
@@ -430,4 +466,66 @@ pub fn check_dir(path: &str) -> Result<(), String> {
             .map_err(|e| format!("Failed to create folder {}: {}", path, e))?;
     }
     Ok(())
+}
+
+#[derive(PartialEq)]
+pub enum AccountSource {
+    NETWORK,
+    BOC,
+    TVC,
+}
+
+pub async fn load_account(
+    source_type: &AccountSource,
+    source: &str,
+    ton_client: Option<TonClient>,
+    config: &Config
+) -> Result<(Account, String), String> {
+    match source_type {
+        AccountSource::NETWORK => {
+            let ton_client = match ton_client {
+                Some(ton_client) => ton_client,
+                None => {
+                    create_client(&config)?
+                }
+            };
+            let boc = query_account_field(ton_client.clone(),source, "boc").await?;
+            Ok((Account::construct_from_base64(&boc)
+                .map_err(|e| format!("Failed to construct account: {}", e))?,
+                boc))
+        },
+        _ => {
+            let account = if source_type == &AccountSource::BOC {
+                Account::construct_from_file(source)
+                    .map_err(|e| format!(" failed to load account from the file {}: {}", source, e))?
+            } else {
+                construct_account_from_tvc(source, None, None)?
+            };
+            let account_bytes = account.write_to_bytes()
+                .map_err(|e| format!(" failed to load data from the account: {}", e))?;
+            Ok((account, base64::encode(&account_bytes)))
+        },
+    }
+}
+
+
+pub fn load_debug_info(abi: &str) -> Option<String> {
+    check_file_exists(abi, &[".json", ".abi"], ".dbg.json")
+}
+
+pub fn load_abi_from_tvc(tvc: &str) -> Option<String> {
+    check_file_exists(tvc, &[".tvc"], ".abi.json")
+}
+
+pub fn check_file_exists(path: &str, trim: &[&str], ending: &str) -> Option<String> {
+    let mut path = path;
+    for end in trim {
+        path = path.trim_end_matches(end);
+    }
+    let mut path = path.to_string();
+    path.push_str(ending);
+    if std::path::Path::new(&path).exists() {
+        return Some(path);
+    }
+    None
 }

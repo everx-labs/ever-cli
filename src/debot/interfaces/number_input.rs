@@ -5,7 +5,7 @@ use ton_client::debot::{DebotInterface, InterfaceResult};
 use super::dinterface::{decode_answer_id, decode_int256, decode_prompt};
 use ton_client::encoding::decode_abi_bigint;
 
-const ID: &'static str = "c5a9558b2664aed7dc3e6123436d544f13ffe69ab0e259412f48c6d1c8588401";
+const ID: &str = "c5a9558b2664aed7dc3e6123436d544f13ffe69ab0e259412f48c6d1c8588401";
 
 pub const ABI: &str = r#"
 {
@@ -63,7 +63,7 @@ impl NumberInput {
             let number = decode_abi_bigint(val.as_str())
                 .map_err(|e| format!("input is not a valid number: {}", e))?;
             if number < min || number > max {
-                return Err(format!("number is out of range"));
+                return Err("number is out of range".to_string());
             }
             Ok(())
         });

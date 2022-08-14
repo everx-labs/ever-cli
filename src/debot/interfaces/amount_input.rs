@@ -6,7 +6,7 @@ use super::dinterface::{decode_answer_id, decode_num_arg, decode_prompt};
 use ton_client::encoding::decode_abi_number;
 use crate::convert;
 
-const ID: &'static str = "a1d347099e29c1624c8890619daf207bde18e92df5220a54bcc6d858309ece84";
+const ID: &str = "a1d347099e29c1624c8890619daf207bde18e92df5220a54bcc6d858309ece84";
 
 pub const ABI: &str = r#"
 {
@@ -77,7 +77,7 @@ impl AmountInput {
             let number = decode_abi_number::<u128>(&value)
                 .map_err(|e| format!("input is not a valid amount: {}", e))?;
             if number < min || number > max {
-                return Err(format!("amount is out of range"));
+                return Err("amount is out of range".to_string());
             }
             Ok(())
         });

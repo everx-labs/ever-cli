@@ -1,7 +1,7 @@
 use super::echo::Echo;
 use super::stdout::Stdout;
 use super::{
-    AddressInput, AmountInput, ConfirmInput, Menu, NumberInput, SigningBoxInput, 
+    AddressInput, AmountInput, ConfirmInput, Menu, NumberInput, SigningBoxInput,
     EncryptionBoxInput, Terminal, UserInfo, InputInterface
 };
 use crate::config::Config;
@@ -24,7 +24,7 @@ pub struct SupportedInterfaces {
 
 #[async_trait::async_trait]
 impl DebotInterfaceExecutor for SupportedInterfaces {
-    fn get_interfaces<'a>(&'a self) -> &'a HashMap<String, Arc<dyn DebotInterface + Send + Sync>> {
+    fn get_interfaces(&self) -> &HashMap<String, Arc<dyn DebotInterface + Send + Sync>> {
         &self.interfaces
     }
     fn get_client(&self) -> TonClient {
@@ -46,12 +46,12 @@ impl InterfaceWrapper {
 }
 
 impl SupportedInterfaces {
-    pub fn new(client: TonClient, conf: &Config, processor: Arc<RwLock<ChainProcessor>>) -> Self {
+    pub fn new(client: TonClient, config: &Config, processor: Arc<RwLock<ChainProcessor>>) -> Self {
         let mut interfaces = HashMap::new();
 
         let iw = InterfaceWrapper { processor: processor.clone() };
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AddressInput::new(conf.clone())));
+        let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AddressInput::new(config.clone())));
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AmountInput::new()));
@@ -83,7 +83,7 @@ impl SupportedInterfaces {
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(
-            Arc::new(UserInfo::new(client.clone(), conf.clone()))
+            Arc::new(UserInfo::new(client.clone(), config.clone()))
         );
         interfaces.insert(iface.get_id(), iface);
 
@@ -109,7 +109,7 @@ pub fn decode_answer_id(args: &Value) -> Result<u32, String> {
     u32::from_str_radix(
         args["answerId"]
             .as_str()
-            .ok_or(format!("answer id not found in argument list"))?,
+            .ok_or("answer id not found in argument list".to_string())?,
         10,
     )
     .map_err(|e| format!("{}", e))
@@ -164,7 +164,7 @@ where
         .ok_or(format!("\"{}\" is invalid: must be array", name))?;
     let mut strings = vec![];
     for elem in array {
-        strings.push(validator(&elem).ok_or(format!("invalid array element type"))?);
+        strings.push(validator(elem).ok_or("invalid array element type".to_string())?);
     }
     Ok(strings)
 }

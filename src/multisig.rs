@@ -20,8 +20,8 @@ use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 use ton_client::abi::{encode_message_body, ParamsOfEncodeMessageBody, CallSet};
 use crate::crypto::load_keypair;
 
-const SAFEMULTISIG_LINK: &'static str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/safemultisig/SafeMultisigWallet.tvc?raw=true";
-const SETCODEMULTISIG_LINK: &'static str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/setcodemultisig/SetcodeMultisigWallet.tvc?raw=true";
+const SAFEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/safemultisig/SafeMultisigWallet.tvc?raw=true";
+const SETCODEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/setcodemultisig/SetcodeMultisigWallet.tvc?raw=true";
 
 pub const MSIG_ABI: &str = r#"{
 	"ABI version": 2,
@@ -235,7 +235,7 @@ pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
                 .help("Number of confirmations required for executing transaction. Default value is 1.")))
 }
 
-pub async fn multisig_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+pub async fn multisig_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     if let Some(m) = m.subcommand_matches("send") {
         return multisig_send_command(m, config).await;
     }
@@ -245,15 +245,15 @@ pub async fn multisig_command(m: &ArgMatches<'_>, config: Config) -> Result<(), 
     Err("unknown multisig command".to_owned())
 }
 
-async fn multisig_send_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn multisig_send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS")
-        .ok_or(format!("--addr parameter is not defined"))?;
+        .ok_or("--addr parameter is not defined".to_string())?;
     let dest = matches.value_of("DEST")
-        .ok_or(format!("--dst parameter is not defined"))?;
+        .ok_or("--dst parameter is not defined".to_string())?;
     let keys = matches.value_of("SIGN")
-        .ok_or(format!("--sign parameter is not defined"))?;
+        .ok_or("--sign parameter is not defined".to_string())?;
     let value = matches.value_of("VALUE")
-        .ok_or(format!("--value parameter is not defined"))?;
+        .ok_or("--value parameter is not defined".to_string())?;
     let comment = matches.value_of("PURPOSE");
 
     let address = load_ton_address(address, &config)?;
@@ -281,7 +281,7 @@ pub async fn encode_transfer_body(text: &str) -> Result<String, String> {
 }
 
 async fn send(
-    conf: Config,
+    config: &Config,
     addr: &str,
     dest: &str,
     value: &str,
@@ -294,11 +294,11 @@ async fn send(
         "".to_owned()
     };
 
-    send_with_body(conf, addr, dest, value, keys, &body).await
+    send_with_body(config, addr, dest, value, keys, &body).await
 }
 
 pub async fn send_with_body(
-    conf: Config,
+    config: &Config,
     addr: &str,
     dest: &str,
     value: &str,
@@ -314,18 +314,18 @@ pub async fn send_with_body(
     }).to_string();
 
     call::call_contract(
-        conf,
+        config,
         addr,
         MSIG_ABI.to_string(),
         "submitTransaction",
         &params,
         Some(keys.to_owned()),
         false,
-        false,
+        None,
     ).await
 }
 
-async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let keys = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone())
@@ -347,10 +347,10 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
     let keys = load_keypair(&keys)?;
 
     let owners_string = if let Some(owners) = matches.value_of("OWNERS") {
-        owners.replace("[", "")
-            .replace("]", "")
-            .replace("\"", "")
-            .replace("\'", "")
+        owners.replace('[', "")
+            .replace(']', "")
+            .replace('\"', "")
+            .replace('\'', "")
             .replace("0x", "")
             .split(',')
             .map(|o|
@@ -378,22 +378,30 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
         let params = format!(r#"{{"dest":"{}","amount":"{}"}}"#, address, value);
         call::call_contract_with_client(
             ton.clone(),
-            config.clone(),
+            config,
             LOCAL_GIVER_ADDR,
             LOCAL_GIVER_TRANSFER.to_string(),
             "sendGrams",
             &params,
             None,
             false,
-            false,
+            None,
         ).await?;
     }
 
-    let res = call::process_message(ton.clone(), msg, config.is_json).await;
+    let res = call::process_message(ton.clone(), msg, config).await
+        .map_err(|e| format!("{:#}", e));
 
     if res.is_err() {
         if res.clone().err().unwrap().contains("Account does not exist.") {
-            println!("Your account should have initial balance for deployment. Please transfer some value to your wallet address before deploy.");
+            if !config.is_json {
+                println!("Your account should have initial balance for deployment. Please transfer some value to your wallet address before deploy.");
+            } else {
+                println!("{{");
+                println!("  \"Error\": \"Your account should have initial balance for deployment. Please transfer some value to your wallet address before deploy.\",");
+                println!("  \"Address\": \"{}\"", address);
+                println!("}}");
+            }
             return Ok(());
         }
         return Err(res.err().unwrap());
@@ -402,6 +410,10 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: Config) -> Re
     if !config.is_json {
         println!("Wallet successfully deployed");
         println!("Wallet address: {}", address);
+    } else {
+        println!("{{");
+        println!("  \"Address\": \"{}\"", address);
+        println!("}}");
     }
 
     Ok(())
