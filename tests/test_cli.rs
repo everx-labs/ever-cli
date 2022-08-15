@@ -628,6 +628,35 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_genaddr_update_key() -> Result<(), Box<dyn std::error::Error>> {
+    let key_path = "genaddr_update.key";
+    let address = generate_key_and_address(key_path, SAFEMSIG_TVC, SAFEMSIG_ABI)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("genphrase")
+        .arg("--dump")
+        .arg(key_path)
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let out = cmd.arg("genaddr")
+        .arg("--setkey")
+        .arg(key_path)
+        .arg(SAFEMSIG_TVC)
+        .arg("--abi")
+        .arg(SAFEMSIG_ABI)
+        .output()
+        .expect("Failed to generate address.");
+
+    let new_address = grep_address(&out.stdout);
+
+    assert_ne!(address, new_address);
+    fs::remove_file(key_path)?;
+    Ok(())
+}
+
+#[test]
 fn test_genaddr_seed() -> Result<(), Box<dyn std::error::Error>> {
     let key_path = "tests/genaddr_seed.key";
 

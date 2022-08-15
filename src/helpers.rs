@@ -272,6 +272,7 @@ pub async fn calc_acc_address(
         tvc: base64::encode(tvc),
         workchain_id: Some(wc),
         initial_data: init_data_json,
+        initial_pubkey: pubkey.clone(),
         ..Default::default()
     };
     let result = ton_client::abi::encode_message(
