@@ -161,13 +161,15 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
     let empty_config_arg = Arg::with_name("EMPTY_CONFIG")
         .help("Replay transaction without full dump of the config contract.")
         .long("--empty_config")
-        .short("-e");
+        .short("-e")
+        .conflicts_with("CONFIG_PATH");
 
     let config_save_path_arg = Arg::with_name("CONFIG_PATH")
         .help("Path to the file with saved config contract transactions. If not set transactions will be fetched to file \"config.txns\".")
         .long("--config")
         .short("-c")
-        .takes_value(true);
+        .takes_value(true)
+        .conflicts_with("EMPTY_CONFIG");
 
     let contract_path_arg = Arg::with_name("CONTRACT_PATH")
         .help("Path to the file with saved target contract transactions. If not set transactions will be fetched to file \"contract.txns\".")
