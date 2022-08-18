@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## Version: 0.27.30
 
 ### New
+- Added alias functionality
+- Added completion script to complete bash commands with aliases and abi methods.
 
 
 ## Version: 0.27.26
@@ -22,7 +24,6 @@ All notable changes to this project will be documented in this file.
 
 ### Bug fixes
 - Removed custom header from call command
-
 
 ## Version: 0.27.6
 

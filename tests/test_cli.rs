@@ -120,6 +120,122 @@ fn test_config_1() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_deploy_alias() -> Result<(), Box<dyn std::error::Error>> {
+    let config_path = "test_deploy_alias.config";
+    let wallet_tvc = "tests/samples/wallet.tvc";
+    let wallet_abi = "tests/samples/wallet.abi.json";
+    let key_path = "test_deploy_alias.key";
+    let alias = "msig";
+
+    set_config(
+        &["--url"],
+        &[&*NETWORK],
+        Some(config_path)
+    )?;
+    let address = generate_key_and_address(key_path, wallet_tvc, wallet_abi)?;
+    giver_v2(&address);
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("deploy")
+        .arg(wallet_tvc)
+        .arg("{}")
+        .arg("--abi")
+        .arg(wallet_abi)
+        .arg("--sign")
+        .arg(key_path)
+        .arg("--alias")
+        .arg(alias);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(address.clone()));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("callx")
+        .arg("--addr")
+        .arg(alias)
+        .arg("-m")
+        .arg("sendTransaction")
+        .arg("--dest")
+        .arg(address)
+        .arg("--value")
+        .arg("10000000")
+        .arg("--bounce")
+        .arg("false");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded"));
+    fs::remove_file(config_path)?;
+    fs::remove_file(key_path)?;
+    Ok(())
+}
+
+
+#[test]
+fn test_config_aliases() -> Result<(), Box<dyn std::error::Error>> {
+    let config_path = "test_alias.config";
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("alias")
+        .arg("reset");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("{}"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("alias")
+        .arg("add")
+        .arg("msig")
+        .arg("--addr")
+        .arg("0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415")
+        .arg("--abi")
+        .arg("tests/samples/SafeMultisigWallet.abi.json")
+        .arg("--keys")
+        .arg("tests/deploy_test.key");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""msig": {"#))
+        .stdout(predicate::str::contains(r#""abi_path": "tests/samples/SafeMultisigWallet.abi.json","#))
+        .stdout(predicate::str::contains(r#""address": "0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415","#))
+        .stdout(predicate::str::contains(r#""key_path": "tests/deploy_test.key""#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("alias")
+        .arg("print");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""msig": {"#))
+        .stdout(predicate::str::contains(r#""abi_path": "tests/samples/SafeMultisigWallet.abi.json","#))
+        .stdout(predicate::str::contains(r#""address": "0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415","#))
+        .stdout(predicate::str::contains(r#""key_path": "tests/deploy_test.key""#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("alias")
+        .arg("remove")
+        .arg("msig");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("{}"));
+
+    fs::remove_file(config_path)?;
+    Ok(())
+}
+
+#[test]
 fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = "test2.config";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
