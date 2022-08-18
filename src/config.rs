@@ -96,9 +96,18 @@ pub struct Config {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct ContractData {
+    pub abi_path: Option<String>,
+    pub address: Option<String>,
+    pub key_path: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FullConfig {
-    config: Config,
+    pub config: Config,
     endpoints_map: BTreeMap<String, Vec<String>>,
+    pub aliases: BTreeMap<String, ContractData>,
+    pub path: String,
 }
 
 impl Default for Config {
@@ -189,10 +198,12 @@ pub fn resolve_net_name(url: &str) -> Option<String> {
 }
 
 impl FullConfig {
-    pub fn new() -> Self {
+    pub fn new(path: String) -> Self {
         FullConfig {
             config: Config::default(),
-            endpoints_map: FullConfig::default_map(),
+            endpoints_map: Self::default_map(),
+            aliases: BTreeMap::new(),
+            path,
         }
     }
     pub fn default_map() -> BTreeMap<String, Vec<String>> {
@@ -208,7 +219,7 @@ impl FullConfig {
 
     pub fn from_file(path: &str) -> FullConfig {
         let conf_str = std::fs::read_to_string(path).ok().unwrap_or_default();
-        serde_json::from_str(&conf_str).ok().unwrap_or(FullConfig::new())
+        serde_json::from_str(&conf_str).ok().unwrap_or(FullConfig::new(path.to_string()))
     }
 
     pub fn to_file(&self, path: &str) -> Result<(), String>{
@@ -226,6 +237,25 @@ impl FullConfig {
                 "Failed to print endpoints map.".to_owned()
             )
         );
+    }
+
+    pub fn print_aliases(&self) {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&self.aliases).unwrap_or(
+                "Failed to print aliases map.".to_owned()
+            )
+        );
+    }
+
+    pub fn add_alias(&mut self, alias: &str, address: Option<String>, abi: Option<String>, key_path: Option<String>) -> Result<(), String> {
+        self.aliases.insert(alias.to_owned(), ContractData {abi_path: abi, address, key_path} );
+        self.to_file(&self.path)
+    }
+
+    pub fn remove_alias(&mut self, alias: &str) -> Result<(), String> {
+        self.aliases.remove(alias);
+        self.to_file(&self.path)
     }
 
     pub fn add_endpoint(path: &str, url: &str, endpoints: &str) -> Result<(), String> {
