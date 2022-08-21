@@ -2538,3 +2538,116 @@ fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_alternative_parameters() -> Result<(), Box<dyn std::error::Error>> {
+    let tvc_path = "tests/samples/arguments.tvc";
+    let abi_path = "tests/samples/arguments.abi.json";
+    let key_path = "arguments.key";
+    let config_path = "arguments.conf.json";
+
+    set_config(
+        &["--url"],
+        &[&*NETWORK],
+        Some(config_path)
+    )?;
+
+    let address = deploy_contract(key_path, tvc_path, abi_path, "{}")?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("callx")
+        .arg("--abi")
+        .arg(abi_path)
+        .arg("--addr")
+        .arg(address.clone())
+        .arg("--keys")
+        .arg(key_path)
+        .arg("-m")
+        .arg("add")
+        .arg("--")
+        .arg("--addr")
+        .arg("1")
+        .arg("--keys")
+        .arg("2")
+        .arg("--abi")
+        .arg("3")
+        .arg("--method")
+        .arg("4");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("runx")
+        .arg("--abi")
+        .arg(abi_path)
+        .arg("--addr")
+        .arg(address.clone())
+        .arg("-m")
+        .arg("get")
+        .arg("--")
+        .arg("--addr")
+        .arg("2")
+        .arg("--keys")
+        .arg("3")
+        .arg("--abi")
+        .arg("4")
+        .arg("--method")
+        .arg("5");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("value0\": \"0x0000000000000000000000000000000000000000000000000000000000000018"));
+
+    set_config(
+        &["--abi", "--addr", "--keys", "--method"],
+        &[abi_path, &address.clone(), key_path, "add"],
+        Some(config_path)
+    )?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("callx")
+        .arg("--")
+        .arg("--addr")
+        .arg("1")
+        .arg("--keys")
+        .arg("2")
+        .arg("--abi")
+        .arg("3")
+        .arg("--method")
+        .arg("4");
+    cmd.assert()
+        .success();
+
+    set_config(
+        &["--method"],
+        &["get"],
+        Some(config_path)
+    )?;
+
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("runx")
+        .arg("--")
+        .arg("--addr")
+        .arg("2")
+        .arg("--keys")
+        .arg("3")
+        .arg("--abi")
+        .arg("4")
+        .arg("--method")
+        .arg("5");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("value0\": \"0x0000000000000000000000000000000000000000000000000000000000000022"));
+
+    fs::remove_file(key_path)?;
+    fs::remove_file(config_path)?;
+    Ok(())
+}

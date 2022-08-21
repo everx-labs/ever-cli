@@ -10,9 +10,10 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_ton_address};
+use crate::{print_args};
 use crate::config::Config;
-use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query_account_field};
+use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose,
+                     query_account_field, abi_from_matches_or_config, load_ton_address};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::{Cell, SliceData};

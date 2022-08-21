@@ -10,10 +10,13 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params, load_debug_info, wc_from_matches_or_config};
+use crate::{print_args};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field, query_with_limit, create_client_verbose};
+use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
+                     TonClient, query_account_field, query_with_limit, create_client_verbose,
+                     abi_from_matches_or_config, load_params, load_debug_info,
+                     wc_from_matches_or_config};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
@@ -1050,7 +1053,7 @@ pub async fn execute_debug(
     } else {
         bc_config
     };
-
+    
     let executor = Box::new(
         OrdinaryTransactionExecutor::new(
             bc_config.clone(),
