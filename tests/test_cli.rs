@@ -120,6 +120,122 @@ fn test_config_1() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_deploy_alias() -> Result<(), Box<dyn std::error::Error>> {
+    let config_path = "test_deploy_alias.config";
+    let wallet_tvc = "tests/samples/wallet.tvc";
+    let wallet_abi = "tests/samples/wallet.abi.json";
+    let key_path = "test_deploy_alias.key";
+    let alias = "msig";
+
+    set_config(
+        &["--url"],
+        &[&*NETWORK],
+        Some(config_path)
+    )?;
+    let address = generate_key_and_address(key_path, wallet_tvc, wallet_abi)?;
+    giver_v2(&address);
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("deploy")
+        .arg(wallet_tvc)
+        .arg("{}")
+        .arg("--abi")
+        .arg(wallet_abi)
+        .arg("--sign")
+        .arg(key_path)
+        .arg("--alias")
+        .arg(alias);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(address.clone()));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("callx")
+        .arg("--addr")
+        .arg(alias)
+        .arg("-m")
+        .arg("sendTransaction")
+        .arg("--dest")
+        .arg(address)
+        .arg("--value")
+        .arg("10000000")
+        .arg("--bounce")
+        .arg("false");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded"));
+    fs::remove_file(config_path)?;
+    fs::remove_file(key_path)?;
+    Ok(())
+}
+
+
+#[test]
+fn test_config_aliases() -> Result<(), Box<dyn std::error::Error>> {
+    let config_path = "test_alias.config";
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("alias")
+        .arg("reset");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("{}"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("alias")
+        .arg("add")
+        .arg("msig")
+        .arg("--addr")
+        .arg("0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415")
+        .arg("--abi")
+        .arg("tests/samples/SafeMultisigWallet.abi.json")
+        .arg("--keys")
+        .arg("tests/deploy_test.key");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""msig": {"#))
+        .stdout(predicate::str::contains(r#""abi_path": "tests/samples/SafeMultisigWallet.abi.json","#))
+        .stdout(predicate::str::contains(r#""address": "0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415","#))
+        .stdout(predicate::str::contains(r#""key_path": "tests/deploy_test.key""#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("alias")
+        .arg("print");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""msig": {"#))
+        .stdout(predicate::str::contains(r#""abi_path": "tests/samples/SafeMultisigWallet.abi.json","#))
+        .stdout(predicate::str::contains(r#""address": "0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415","#))
+        .stdout(predicate::str::contains(r#""key_path": "tests/deploy_test.key""#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("alias")
+        .arg("remove")
+        .arg("msig");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("{}"));
+
+    fs::remove_file(config_path)?;
+    Ok(())
+}
+
+#[test]
 fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = "test2.config";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -661,66 +777,6 @@ fn test_genaddr_seed() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_callex() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("callex")
-        .arg("sendTransaction")
-        .arg(GIVER_V2_ADDR)
-        .arg(GIVER_V2_ABI)
-        .arg(GIVER_V2_KEY)
-        .arg("--dest")
-        .arg("0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e")
-        .arg("--value")
-        .arg("0.2T")
-        .arg("--bounce")
-        .arg("false");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#""dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e""#))
-        .stdout(predicate::str::contains(r#""value":"200000000""#))
-        .stdout(predicate::str::contains("Succeeded"));
-
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("callex")
-        .arg("sendTransaction")
-        .arg(GIVER_V2_ADDR)
-        .arg(GIVER_V2_ABI)
-        .arg(GIVER_V2_KEY)
-        .arg("--dest")
-        .arg("0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e")
-        .arg("--value")
-        .arg("1000000000")
-        .arg("--bounce")
-        .arg("false");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#""dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e""#))
-        .stdout(predicate::str::contains(r#""value":"1000000000""#))
-        .stdout(predicate::str::contains("Succeeded"));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("callex")
-        .arg("sendTransaction")
-        .arg(GIVER_V2_ADDR)
-        .arg(GIVER_V2_ABI)
-        .arg(GIVER_V2_KEY)
-        .arg("--dest")
-        .arg("0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e")
-        .arg("--value")
-        .arg("0x10000")
-        .arg("--bounce")
-        .arg("false");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(r#""dest":"0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e""#))
-        .stdout(predicate::str::contains(r#""value":"0x10000""#))
-        .stdout(predicate::str::contains("Succeeded"));
-
-    Ok(())
-}
-
-#[test]
 fn test_nodeid() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("nodeid")
@@ -982,6 +1038,23 @@ fn test_decode_body() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("dest"))
         .stdout(predicate::str::contains("value"))
         .stdout(predicate::str::contains("bounce"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json").arg("decode")
+        .arg("body").arg("te6ccgEBAgEAlgAB4ddyAENPhARLqvYWfcfwyY4fDOfGj88sVFpJjVp9Rh4QN6iL06hBowkex5kc8haTCwWTnugx1OKTuxOumBzdGwLCSzzna0XhE6urkzQv0XbzKbLpZicIiuqBenAdx6nbCkAAAGCSbtgxWLjxbUl77IIgAQBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGU=")
+        .arg("--abi").arg("tests/decode_body.abi.json");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("BodyCall"))
+        .stdout(predicate::str::contains("add"))
+        .stdout(predicate::str::contains("value"))
+        .stdout(predicate::str::contains("Signature"))
+        .stdout(predicate::str::contains("FunctionId"))
+        .stdout(predicate::str::contains("Header"))
+        .stdout(predicate::str::contains("expire"))
+        .stdout(predicate::str::contains("time"))
+        .stdout(predicate::str::contains("pubkey"));
+
     Ok(())
 }
 
@@ -2268,39 +2341,171 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_convert() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("convert")
-        .arg("tokens")
-        .arg("0.1234567890")
-        .output()
-        .expect("Error: invalid fractional part");
+fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
+    let config_path = "options.config";
+    set_config(
+        &["--url"],
+        &[&*NETWORK],
+        Some(config_path)
+    )?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("convert")
-        .arg("tokens")
-        .arg("0.123456789")
-        .assert()
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("account")
+        .arg("0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13");
+    cmd.assert()
         .success()
-        .stdout(predicate::str::contains("123456789"));
-
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("convert")
-        .arg("tokens")
-        .arg("0.01")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("10000000"));
+        .stdout(predicate::str::contains("Account not found."));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("-j")
-        .arg("convert")
-        .arg("tokens")
-        .arg("0.123456789")
-        .assert()
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("--url")
+        .arg("net.ton.dev")
+        .arg("account")
+        .arg("0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13");
+    cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#""value": "123456789""#));
+        .stdout(predicate::str::contains("acc_type:      Active"));
+
+    let key_path = "options_msig.key";
+
+    let address = generate_key_and_address(key_path, SAFEMSIG_TVC, SAFEMSIG_ABI)?;
+
+    set_config(
+        &["--abi", "--addr", "--keys", "--method", "--parameters"],
+        &[SAFEMSIG_ABI, &address, key_path, "dummyMethod", "{}"],
+        Some(config_path)
+    )?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("callx")
+        .arg("--keys")
+        .arg(GIVER_V2_KEY)
+        .arg("--abi")
+        .arg(GIVER_V2_ABI)
+        .arg("--addr")
+        .arg(GIVER_V2_ADDR)
+        .arg("-m")
+        .arg("sendTransaction")
+        .arg("--dest")
+        .arg(address.clone())
+        .arg("--value")
+        .arg("1000000000")
+        .arg("--bounce")
+        .arg("false");
+    cmd.assert()
+        .success();
+
+    set_config(
+        &["--abi", "--addr", "--keys", "--method", "--wc", "--parameters"],
+        &[GIVER_V2_ABI, GIVER_V2_ADDR, GIVER_V2_KEY, "dummyMethod", "12", "{\"param\":11}"],
+        Some(config_path)
+    )?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("deployx")
+        .arg("--abi")
+        .arg(SAFEMSIG_ABI)
+        .arg("--keys")
+        .arg(key_path)
+        .arg("--wc")
+        .arg("0")
+        .arg(SAFEMSIG_TVC)
+        .arg("--owners")
+        .arg(r#"["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"]"#)
+        .arg("--reqConfirms")
+        .arg("1");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(address.clone()))
+        .stdout(predicate::str::contains("Transaction succeeded."));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("runx")
+        .arg("--abi")
+        .arg(SAFEMSIG_ABI)
+        .arg("--addr")
+        .arg(address.clone())
+        .arg("-m")
+        .arg("getParameters")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("maxQueuedTransactions\": \"5"));
+
+    fs::remove_file(key_path)?;
+    let key_path = "options_msig2.key";
+
+    let address = generate_key_and_address(key_path, SAFEMSIG_TVC, SAFEMSIG_ABI)?;
+
+    set_config(
+        &["--abi", "--addr", "--keys", "--method", "--parameters"],
+        &[SAFEMSIG_ABI, &address, key_path, "dummyMethod", "{}"],
+        Some(config_path)
+    )?;
+
+    let params = format!("{{\"dest\":\"{}\",\"value\":1000000000,\"bounce\":false}}", address.clone());
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("call")
+        .arg("--sign")
+        .arg(GIVER_V2_KEY)
+        .arg("--abi")
+        .arg(GIVER_V2_ABI)
+        .arg(GIVER_V2_ADDR)
+        .arg("sendTransaction")
+        .arg(params);
+    cmd.assert()
+        .success();
+
+    set_config(
+        &["--abi", "--addr", "--keys", "--method", "--wc", "--parameters"],
+        &[GIVER_V2_ABI, GIVER_V2_ADDR, GIVER_V2_KEY, "dummyMethod", "12", "{\"param\":11}"],
+        Some(config_path)
+    )?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("deploy")
+        .arg("--abi")
+        .arg(SAFEMSIG_ABI)
+        .arg("--sign")
+        .arg(key_path)
+        .arg("--wc")
+        .arg("0")
+        .arg(SAFEMSIG_TVC)
+        .arg("{\"owners\":[\"0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41\"],\"reqConfirms\":1}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(address.clone()))
+        .stdout(predicate::str::contains("Transaction succeeded."));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("run")
+        .arg("--abi")
+        .arg(SAFEMSIG_ABI)
+        .arg(address.clone())
+        .arg("getParameters")
+        .arg("{}");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("maxQueuedTransactions\": \"5"));
+
+
+    fs::remove_file(config_path)?;
+    fs::remove_file(key_path)?;
 
     Ok(())
 }

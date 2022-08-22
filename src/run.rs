@@ -16,20 +16,20 @@ use serde_json::{Map, Value};
 use ton_block::{Account, Deserializable, Message, Serializable};
 use ton_client::abi::{FunctionHeader};
 use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
-use crate::{abi_from_matches_or_config, AccountSource, Config, create_client_local, create_client_verbose, DebugLogger, load_abi, load_account, load_params, unpack_alternative_params};
+use crate::{abi_from_matches_or_config, AccountSource, contract_data_from_matches_or_config_alias, Config, create_client_local, create_client_verbose, DebugLogger, FullConfig, load_abi, load_account, load_params, unpack_alternative_params};
 use crate::call::{print_json_result};
 use crate::debug::execute_debug;
 use crate::helpers::{create_client, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient};
 use crate::message::prepare_message;
 
-pub async fn run_command(matches: &ArgMatches<'_>, config: &Config, is_alternative: bool) -> Result<(), String> {
-    let address = if is_alternative {
-        matches.value_of("ADDRESS")
-            .map(|s| s.to_string())
-            .or(config.addr.clone())
-            .ok_or("ADDRESS is not defined. Supply it in the config file or command line.".to_string())?
+pub async fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_alternative: bool) -> Result<(), String> {
+    let config = &full_config.config;
+    let (address, abi_path) = if is_alternative {
+        let (address,abi, _) = contract_data_from_matches_or_config_alias(matches, full_config)?;
+        (address.unwrap(), abi.unwrap())
     } else {
-        matches.value_of("ADDRESS").unwrap().to_string()
+        (matches.value_of("ADDRESS").unwrap().to_string(),
+        abi_from_matches_or_config(matches, &config)?)
     };
     let account_source = if matches.is_present("TVC") {
         AccountSource::TVC
@@ -71,15 +71,16 @@ pub async fn run_command(matches: &ArgMatches<'_>, config: &Config, is_alternati
         AccountSource::BOC => account.get_addr().unwrap().to_string(),
         AccountSource::TVC => std::iter::repeat("0").take(64).collect::<String>()
     };
-    run(matches, config, Some(ton_client), &address, account_boc, is_alternative).await
+    run(matches, config, Some(ton_client), &address, account_boc, abi_path, is_alternative).await
 }
 
-pub async fn run(
+async fn run(
     matches: &ArgMatches<'_>,
     config: &Config,
     ton_client: Option<TonClient>,
     address: &str,
     account_boc: String,
+    abi_path: String,
     is_alternative: bool,
 ) -> Result<(), String> {
     let method = if is_alternative {
@@ -88,7 +89,6 @@ pub async fn run(
     } else {
         matches.value_of("METHOD").unwrap()
     };
-    let abi_path = abi_from_matches_or_config(matches, &config)?;
     let bc_config = matches.value_of("BCCONFIG");
 
     if !config.is_json {

@@ -20,8 +20,8 @@ use crate::generate_address;
 pub fn create_compile_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("compile")
         .about("Compile commands.")
-        .subcommand(SubCommand::with_name("sol")
-            .about("Compile TVM Solidity code to the ready to deploy tvc.")
+        .subcommand(SubCommand::with_name("solidity")
+            .about("Compile TVM Solidity code to the tvc.")
             .arg(Arg::with_name("INPUT")
                 .required_unless("VERSION")
                 .help("Path to the Solidity source file."))
@@ -74,7 +74,7 @@ pub fn create_compile_command<'a, 'b>() -> App<'a, 'b> {
 }
 
 pub async fn compile_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    if let Some(matches) = matches.subcommand_matches("sol") {
+    if let Some(matches) = matches.subcommand_matches("solidity") {
         return compile_solidity(matches, config).await;
     }
     Err("unknown command".to_owned())
@@ -109,8 +109,10 @@ async fn compile_solidity(matches: &ArgMatches<'_>, config: &Config) -> Result<(
         ast_compact_json: false,
         abi_json: false,
         tvm_refresh_remote: matches.is_present("REFRESH_REMOTE"),
+        silent: config.is_json,
+        init: None,
     };
-    build(args, config.is_json).map_err(|e| format!("Failed to compile the contract: {}", e))?;
+    build(args).map_err(|e| format!("Failed to compile the contract: {}", e))?;
     let input_canonical = Path::new(&input).canonicalize()
         .map_err(|e| format!("Failed to format input path: {}", e))?;
     let stem = input_canonical.file_stem().ok_or("Failed to format input path".to_owned())?
