@@ -10,10 +10,13 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params, load_debug_info, wc_from_matches_or_config};
+use crate::{print_args};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field, query_with_limit, create_client_verbose};
+use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
+                     TonClient, query_account_field, query_with_limit, create_client_verbose,
+                     abi_from_matches_or_config, load_params, load_debug_info,
+                     wc_from_matches_or_config};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
@@ -161,13 +164,15 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
     let empty_config_arg = Arg::with_name("EMPTY_CONFIG")
         .help("Replay transaction without full dump of the config contract.")
         .long("--empty_config")
-        .short("-e");
+        .short("-e")
+        .conflicts_with("CONFIG_PATH");
 
     let config_save_path_arg = Arg::with_name("CONFIG_PATH")
         .help("Path to the file with saved config contract transactions. If not set transactions will be fetched to file \"config.txns\".")
         .long("--config")
         .short("-c")
-        .takes_value(true);
+        .takes_value(true)
+        .conflicts_with("EMPTY_CONFIG");
 
     let contract_path_arg = Arg::with_name("CONTRACT_PATH")
         .help("Path to the file with saved target contract transactions. If not set transactions will be fetched to file \"contract.txns\".")
@@ -1048,7 +1053,7 @@ pub async fn execute_debug(
     } else {
         bc_config
     };
-
+    
     let executor = Box::new(
         OrdinaryTransactionExecutor::new(
             bc_config.clone(),

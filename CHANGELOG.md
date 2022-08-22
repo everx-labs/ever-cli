@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.27.28
+## Version: 0.27.30
 
 ### New
 - Added alias functionality

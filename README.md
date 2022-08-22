@@ -1523,6 +1523,16 @@ tonos-cli config --method sum --parameters '{}'
 tonos-cli runx
 ```
 
+If some parameters have names equal to options, use can tell the tonos-cli that you have started mentioning parameters
+by using empty `--`. Examples:
+
+```bash
+# abi, addr, keys and method are specified as options and after `--` they are specified again as arguments.
+tonos-cli callx --abi arguments.abi.json --addr 0:62c2040f7f7406732037c1856e91732be3f9907b94fb34f53ba664ba94b228f6 --keys argument.key --method add -- --addr 2 --keys 3 --abi 4 --method 5
+# abi, addr, key and method are specified as arguments because `--` is specified in the beginning. Abi, addr, keys and method options are taken from the config.
+tonos-cli callx -- --addr 2 --keys 3 --abi 4 --method 5
+```
+
 # 5. DeBot commands
 
 TONOS-CLI has a built-in DeBot <link to DeBots repo> browser, which is regularly updated with the most recent versions of DEngine <link to DEngine>.

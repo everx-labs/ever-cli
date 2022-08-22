@@ -42,7 +42,7 @@ mod run;
 mod message;
 
 use account::{get_account, calc_storage, wait_for_change};
-use call::{call_contract, call_contract_with_msg, parse_params};
+use call::{call_contract, call_contract_with_msg};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings, App};
 use config::{Config, set_config, clear_config};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
@@ -51,7 +51,8 @@ use decode::{create_decode_command, decode_command};
 use debug::{create_debug_command, debug_command};
 use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
-use helpers::{load_ton_address, load_abi, create_client_local, query_raw};
+use helpers::{load_ton_address, load_abi, create_client_local, query_raw,
+              contract_data_from_matches_or_config_alias};
 use genaddr::generate_address;
 use getconfig::{query_global_config, dump_blockchain_config};
 use multisig::{create_multisig_command, multisig_command};
@@ -65,12 +66,12 @@ use crate::account::dump_accounts;
 
 use crate::config::FullConfig;
 use crate::getconfig::gen_update_config_message;
-use crate::debug::DebugLogger;
-use crate::helpers::{AccountSource, create_client_verbose, load_abi_from_tvc, load_account, load_debug_info};
+use crate::helpers::{
+    abi_from_matches_or_config, AccountSource, load_abi_from_tvc, load_params, parse_lifetime,
+    unpack_alternative_params, wc_from_matches_or_config};
 use crate::message::generate_message;
 use crate::run::{run_command, run_get_method};
 
-pub const VERBOSE_MODE: bool = true;
 const DEF_MSG_LIFETIME: u32 = 30;
 const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
 const DEF_STORAGE_PERIOD: u32 = 60 * 60 * 24 * 365;
@@ -87,22 +88,6 @@ enum DeployType {
     Fee,
 }
 
-#[macro_export]
-macro_rules! print_args {
-    ($( $arg:ident ),* ) => {
-        if (VERBOSE_MODE) {
-            println!("Input arguments:");
-            $(
-                println!(
-                    "{:>width$}: {}",
-                    stringify!($arg),
-                    if let Some(ref arg) = $arg { arg.as_ref() } else { "None" },
-                    width = 8
-                );
-            )*
-        }
-    };
-}
 
 fn default_config_name() -> Result<String, String> {
     env::current_dir()
@@ -110,46 +95,6 @@ fn default_config_name() -> Result<String, String> {
         .map(|dir| {
             dir.join(PathBuf::from(CONFIG_BASE_NAME)).to_str().unwrap().to_string()
         })
-}
-
-pub fn abi_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> Result<String, String> {
-    matches.value_of("ABI")
-        .map(|s| s.to_string())
-        .or(config.abi_path.clone())
-        .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())
-}
-
-fn contract_data_from_matches_or_config_alias(matches: &ArgMatches<'_>, full_config: &FullConfig)
-    -> Result<(Option<String>, Option<String>, Option<String>), String> {
-    let address = matches.value_of("ADDRESS")
-        .map(|s| s.to_string())
-        .or(full_config.config.addr.clone())
-        .ok_or("ADDRESS is not defined. Supply it in the config file or command line.".to_string())?;
-    let (address, abi, keys) = if full_config.aliases.contains_key(&address) {
-        let alias = full_config.aliases.get(&address).unwrap();
-        (alias.address.clone(), alias.abi_path.clone(), alias.key_path.clone())
-    } else {
-        (Some(address), None, None)
-    };
-    let abi = matches.value_of("ABI")
-        .map(|s| s.to_string())
-        .or(full_config.config.abi_path.clone())
-        .or(abi)
-        .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?;
-    let keys = matches.value_of("KEYS")
-        .map(|s| s.to_string())
-        .or(full_config.config.keys_path.clone())
-        .or(keys);
-    Ok((address, Some(abi), keys))
-}
-
-fn parse_lifetime(lifetime: Option<&str>, config: &Config) -> Result<u32, String> {
-    Ok(lifetime.map(|val| {
-        u32::from_str_radix(val, 10)
-            .map_err(|e| format!("failed to parse lifetime: {}", e))
-    })
-        .transpose()?
-        .unwrap_or(config.lifetime))
 }
 
 #[tokio::main]
@@ -1009,7 +954,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
 
     if let Some(m) = matches.subcommand_matches("callx") {
-        return callx_command(m, &full_config, CallType::Call).await;
+        return callx_command(m, &full_config).await;
     }
     if let Some(m) = matches.subcommand_matches("runx") {
         return run_command(m, &full_config, true).await;
@@ -1187,15 +1132,6 @@ async fn send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     call_contract_with_msg(config, message.unwrap().to_owned(), abi).await
 }
 
-fn load_params(params: &str) -> Result<String, String> {
-    Ok(if params.find('{').is_none() {
-        std::fs::read_to_string(params)
-            .map_err(|e| format!("failed to load params from file: {}", e))?
-    } else {
-        params.to_string()
-    })
-}
-
 async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
@@ -1236,15 +1172,6 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     }
 
     Ok(())
-}
-
-fn unpack_alternative_params(matches: &ArgMatches<'_>, abi: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
-    if matches.is_present("PARAMS") {
-        let params = matches.values_of("PARAMS").unwrap().collect::<Vec<_>>();
-        Ok(Some(parse_params(params, abi, method)?))
-    } else {
-        Ok(config.parameters.clone().or(Some("{}".to_string())))
-    }
 }
 
 async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType) -> Result<(), String> {
@@ -1307,7 +1234,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
     }
 }
 
-async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig, call_type: CallType) -> Result<(), String> {
+async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Result<(), String> {
     let config = &full_config.config;
     let method = Some(matches.value_of("METHOD").or(config.method.as_deref())
         .ok_or("Method is not defined. Supply it in the config file or command line.")?);
@@ -1322,11 +1249,6 @@ async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig, call_
         config
     )?;
     let params = Some(load_params(params.unwrap().as_ref())?);
-    let keys = if let CallType::Call = call_type {
-        keys
-    } else {
-        None
-    };
 
     if !config.is_json {
         print_args!(address, method, params, abi, keys);
@@ -1338,7 +1260,7 @@ async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig, call_
         config,
         address.as_str(),
         loaded_abi,
-        method.unwrap(),
+        &method.unwrap(),
         &params.unwrap(),
         keys,
         false,
@@ -1372,13 +1294,6 @@ async fn runget_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(),
     run_get_method(config, &address, method.unwrap(), params, source_type, bc_config).await
 }
 
-fn wc_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> Result<i32 ,String> {
-    Ok(matches.value_of("WC")
-        .map(|v| i32::from_str_radix(v, 10))
-        .transpose()
-        .map_err(|e| format!("failed to parse workchain id: {}", e))?
-        .unwrap_or(config.wc))
-}
 
 async fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, deploy_type: DeployType) -> Result<(), String> {
     let config = &full_config.config;

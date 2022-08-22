@@ -10,9 +10,8 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE};
 use crate::config::Config;
-use crate::convert;
+use crate::{convert, print_args};
 use crate::depool_abi::{DEPOOL_ABI, PARTICIPANT_ABI};
 use crate::helpers::{
     create_client_local,

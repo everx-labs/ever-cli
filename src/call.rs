@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use crate::{convert, DebugLogger};
+use crate::convert;
 use crate::helpers::{
     TonClient, now_ms, create_client_verbose, load_abi,
     query_account_field, SDK_EXECUTION_ERROR_CODE, create_client
@@ -43,7 +43,7 @@ use std::str::FromStr;
 use clap::ArgMatches;
 use serde_json::{Value};
 use ton_client::error::ClientError;
-use crate::debug::execute_debug;
+use crate::debug::{execute_debug, DebugLogger};
 use crate::message::{EncodedMessage, prepare_message_params, print_encoded_message, unpack_message};
 
 async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) -> Result<(String, String), String> {

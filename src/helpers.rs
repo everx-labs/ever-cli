@@ -24,7 +24,10 @@ use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection};
 use ton_client::{ClientConfig, ClientContext};
 use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
 use std::str::FromStr;
+use clap::ArgMatches;
 use serde_json::Value;
+use crate::call::parse_params;
+use crate::FullConfig;
 
 const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
 const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
@@ -272,6 +275,7 @@ pub async fn calc_acc_address(
         tvc: base64::encode(tvc),
         workchain_id: Some(wc),
         initial_data: init_data_json,
+        initial_pubkey: pubkey.clone(),
         ..Default::default()
     };
     let result = ton_client::abi::encode_message(
@@ -528,4 +532,88 @@ pub fn check_file_exists(path: &str, trim: &[&str], ending: &str) -> Option<Stri
         return Some(path);
     }
     None
+}
+
+pub fn abi_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> Result<String, String> {
+    matches.value_of("ABI")
+        .map(|s| s.to_string())
+        .or(config.abi_path.clone())
+        .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())
+}
+
+pub fn parse_lifetime(lifetime: Option<&str>, config: &Config) -> Result<u32, String> {
+    Ok(lifetime.map(|val| {
+        u32::from_str_radix(val, 10)
+            .map_err(|e| format!("failed to parse lifetime: {}", e))
+    })
+        .transpose()?
+        .unwrap_or(config.lifetime))
+}
+
+
+#[macro_export]
+macro_rules! print_args {
+    ($( $arg:ident ),* ) => {
+        println!("Input arguments:");
+        $(
+            println!(
+                "{:>width$}: {}",
+                stringify!($arg),
+                if let Some(ref arg) = $arg { arg.as_ref() } else { "None" },
+                width = 8
+            );
+        )*
+    };
+}
+
+pub fn load_params(params: &str) -> Result<String, String> {
+    Ok(if params.find('{').is_none() {
+        std::fs::read_to_string(params)
+            .map_err(|e| format!("failed to load params from file: {}", e))?
+    } else {
+        params.to_string()
+    })
+}
+
+pub fn unpack_alternative_params(matches: &ArgMatches<'_>, abi: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
+    if matches.is_present("PARAMS") {
+        let params = matches.values_of("PARAMS").unwrap().collect::<Vec<_>>();
+        Ok(Some(parse_params(params, abi, method)?))
+    } else {
+        Ok(config.parameters.clone().or(Some("{}".to_string())))
+    }
+}
+
+pub fn wc_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> Result<i32 ,String> {
+    Ok(matches.value_of("WC")
+        .map(|v| i32::from_str_radix(v, 10))
+        .transpose()
+        .map_err(|e| format!("failed to parse workchain id: {}", e))?
+        .unwrap_or(config.wc))
+}
+
+pub fn contract_data_from_matches_or_config_alias(
+    matches: &ArgMatches<'_>,
+    full_config: &FullConfig
+) -> Result<(Option<String>, Option<String>, Option<String>), String> {
+    let address = matches.value_of("ADDRESS")
+        .map(|s| s.to_string())
+        .or(full_config.config.addr.clone())
+        .ok_or("ADDRESS is not defined. Supply it in the config file or command line.".to_string())?;
+    let (address, abi, keys) = if full_config.aliases.contains_key(&address) {
+        let alias = full_config.aliases.get(&address).unwrap();
+        (alias.address.clone(), alias.abi_path.clone(), alias.key_path.clone())
+    } else {
+        (Some(address), None, None)
+    };
+    let abi = matches.value_of("ABI")
+        .map(|s| s.to_string())
+        .or(full_config.config.abi_path.clone())
+        .or(abi)
+        .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?;
+    let keys = matches.value_of("KEYS")
+        .map(|s| s.to_string())
+        .or(full_config.config.keys_path.clone())
+        .or(keys);
+    Ok((address, Some(abi), keys))
 }
