@@ -10,6 +10,8 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
+use std::env;
+use std::path::PathBuf;
 use crate::config::Config;
 
 use std::sync::Arc;
@@ -36,6 +38,15 @@ pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
 
 pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
+pub const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
+
+pub fn default_config_name() -> String {
+    env::current_dir()
+        .map(|dir| {
+            dir.join(PathBuf::from(CONFIG_BASE_NAME)).to_str().unwrap().to_string()
+        })
+        .unwrap_or(CONFIG_BASE_NAME.to_string())
+}
 
 struct SimpleLogger;
 

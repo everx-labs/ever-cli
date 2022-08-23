@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use lazy_static::lazy_static;
 use regex::Regex;
+use crate::helpers::default_config_name;
 
 const TESTNET: &str = "net.ton.dev";
 fn default_url() -> String {
@@ -52,7 +53,19 @@ fn default_endpoints() -> Vec<String> {
     vec!()
 }
 
+fn default_aliases() -> BTreeMap<String, ContractData> {
+    BTreeMap::new()
+}
+
+fn default_endpoints_map() -> BTreeMap<String, Vec<String>> {
+    FullConfig::default_map()
+}
+
 fn default_trace() -> String { "None".to_string() }
+
+fn default_config() -> Config {
+    Config::default()
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -104,9 +117,13 @@ pub struct ContractData {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct FullConfig {
+    #[serde(default = "default_config")]
     pub config: Config,
+    #[serde(default = "default_endpoints_map")]
     endpoints_map: BTreeMap<String, Vec<String>>,
+    #[serde(default = "default_aliases")]
     pub aliases: BTreeMap<String, ContractData>,
+    #[serde(default = "default_config_name")]
     pub path: String,
 }
 
