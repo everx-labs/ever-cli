@@ -1,0 +1,45 @@
+{
+  "config": {
+    "url": "rfld-dapp.itgold.io",
+    "wc": 0,
+    "addr": "0:008928cb91e6df28d691b5dee7ad5417dc7f525adf6c022ad36cc338e9e6e861",
+    "method": "sendTo",
+    "parameters": null,
+    "wallet": null,
+    "pubkey": null,
+    "abi_path": "/home/boris/tonix/opt/Novi/build/Novi.abi.json",
+    "keys_path": null,
+    "retries": 5,
+    "timeout": 40000,
+    "message_processing_timeout": 40000,
+    "out_of_sync_threshold": 15,
+    "is_json": true,
+    "depool_fee": 0.5,
+    "lifetime": 60,
+    "no_answer": true,
+    "balance_in_tons": true,
+    "local_run": false,
+    "async_call": false,
+    "debug_fail": "None",
+    "endpoints": []
+  },
+  "endpoints_map": {
+    "http://127.0.0.1/": [
+      "http://0.0.0.0/",
+      "http://127.0.0.1/",
+      "http://localhost/"
+    ],
+    "main.ton.dev": [
+      "https://eri01.main.everos.dev",
+      "https://gra01.main.everos.dev",
+      "https://gra02.main.everos.dev",
+      "https://lim01.main.everos.dev",
+      "https://rbx01.main.everos.dev"
+    ],
+    "net.ton.dev": [
+      "https://eri01.net.everos.dev",
+      "https://rbx01.net.everos.dev",
+      "https://gra01.net.everos.dev"
+    ]
+  }
+}

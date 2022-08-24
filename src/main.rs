@@ -923,19 +923,8 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         .unwrap_or(default_config_name());
 
     let mut full_config = FullConfig::from_file(&config_file);
-
-    let mut config = match Config::from_file(&config_file) {
-        Some(c) => {
-            if !is_json && !c.is_json { println!("Config: {}", config_file); }
-            c
-        },
-        None => {
-            if !is_json { println!("Config: default"); }
-            Config::default()
-        },
-    };
-    config.is_json = is_json || config.is_json;
-    full_config.config = config.clone();
+    full_config.config.is_json = is_json || full_config.config.is_json;
+    let mut config = full_config.config.clone();
 
     if let Some(url) = matches.value_of("NETWORK") {
         config.url = url.to_string();
@@ -1351,7 +1340,7 @@ fn config_command(matches: &ArgMatches, mut full_config: FullConfig) -> Result<(
             let no_answer = clear_matches.is_present("NO_ANSWER");
             let balance_in_tons = clear_matches.is_present("BALANCE_IN_TONS");
             let local_run = clear_matches.is_present("LOCAL_RUN");
-            result = clear_config(full_config.config.clone(), full_config.path.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run);
+            result = clear_config(&mut full_config.config, full_config.path.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run);
         } else if let Some(endpoint_matches) = matches.subcommand_matches("endpoint") {
             if let Some(endpoint_matches) = endpoint_matches.subcommand_matches("add") {
                 let url = endpoint_matches.value_of("URL").unwrap();
@@ -1407,7 +1396,7 @@ fn config_command(matches: &ArgMatches, mut full_config: FullConfig) -> Result<(
             let method = matches.value_of("METHOD");
             let parameters = matches.value_of("PARAMETERS");
 
-            result = set_config(full_config.config.clone(), full_config.path.as_str(), url, address, wallet,
+            result = set_config(&mut full_config.config, full_config.path.as_str(), url, address, wallet,
                                 pubkey, abi, keys, wc, retries, timeout,
                                 message_processing_timeout, depool_fee, lifetime, no_answer,
                                 balance_in_tons, local_run, async_call, out_of_sync_threshold,

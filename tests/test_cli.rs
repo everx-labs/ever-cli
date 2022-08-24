@@ -876,6 +876,28 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_old_config() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg("tests/rfld.conf.json")
+        .arg("config")
+        .arg("--list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"rfld-dapp.itgold.io"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg("tests/test.conf.json")
+        .arg("config")
+        .arg("--list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"http://127.0.0.1/"));
+    Ok(())
+}
+
+#[test]
 fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
     let msg_path = "call.boc";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;

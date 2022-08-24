@@ -50,7 +50,7 @@ fn default_lifetime() -> u32 {
 }
 
 fn default_endpoints() -> Vec<String> {
-    vec!()
+    vec![]
 }
 
 fn default_aliases() -> BTreeMap<String, ContractData> {
@@ -64,10 +64,10 @@ fn default_endpoints_map() -> BTreeMap<String, Vec<String>> {
 fn default_trace() -> String { "None".to_string() }
 
 fn default_config() -> Config {
-    Config::default()
+    Config::new()
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Config {
     #[serde(default = "default_url")]
     pub url: String,
@@ -129,6 +129,35 @@ pub struct FullConfig {
 
 impl Default for Config {
     fn default() -> Self {
+        Config {
+            url: default_url(),
+            wc: default_wc(),
+            addr: None,
+            method: None,
+            parameters: None,
+            wallet: None,
+            pubkey: None,
+            abi_path: None,
+            keys_path: None,
+            retries: default_retries(),
+            timeout: default_timeout(),
+            message_processing_timeout: default_timeout(),
+            is_json: default_false(),
+            depool_fee: default_depool_fee(),
+            lifetime: default_lifetime(),
+            no_answer: default_true(),
+            balance_in_tons: default_false(),
+            local_run: default_false(),
+            async_call: default_false(),
+            endpoints: default_endpoints(),
+            out_of_sync_threshold: default_out_of_sync(),
+            debug_fail: default_trace(),
+        }
+    }
+}
+
+impl Config {
+    fn new() -> Self {
         let url = default_url();
         let endpoints = FullConfig::default_map()[&url].clone();
         Config {
@@ -159,12 +188,6 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn from_file(path: &str) -> Option<Self> {
-        let conf_str = std::fs::read_to_string(path).ok()?;
-        let config: serde_json::error::Result<FullConfig>  = serde_json::from_str(&conf_str);
-        config.map(|c| c.config).or_else(|_| serde_json::from_str(&conf_str)).ok()
-    }
-
     pub fn to_file(&self, path: &str) -> Result<(), String> {
         let mut fconf= FullConfig::from_file(path);
         fconf.config = self.clone();
@@ -215,9 +238,9 @@ pub fn resolve_net_name(url: &str) -> Option<String> {
 }
 
 impl FullConfig {
-    pub fn new(path: String) -> Self {
+    pub fn new(config: Config,path: String) -> Self {
         FullConfig {
-            config: Config::default(),
+            config,
             endpoints_map: Self::default_map(),
             aliases: BTreeMap::new(),
             path,
@@ -236,7 +259,14 @@ impl FullConfig {
 
     pub fn from_file(path: &str) -> FullConfig {
         let conf_str = std::fs::read_to_string(path).ok().unwrap_or_default();
-        serde_json::from_str(&conf_str).ok().unwrap_or(FullConfig::new(path.to_string()))
+        let config: serde_json::error::Result<Config>  = serde_json::from_str(&conf_str);
+        if config.is_err() || (config.as_ref().unwrap() == &Config::default()) {
+            serde_json::from_str(&conf_str).unwrap_or(
+                FullConfig::new(Config::new(), path.to_string())
+            )
+        } else {
+            FullConfig::new(config.unwrap(), path.to_string())
+        }
     }
 
     pub fn to_file(&self, path: &str) -> Result<(), String>{
@@ -308,7 +338,7 @@ impl FullConfig {
 }
 
 pub fn clear_config(
-    mut config: Config,
+    config: &mut Config,
     path: &str,
     url: bool,
     addr: bool,
@@ -369,7 +399,7 @@ pub fn clear_config(
 
     if !(url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime
         || no_answer || balance_in_tons || local_run) {
-        config = Config::default();
+        *config = Config::new();
     }
 
     config.to_file(path)?;
@@ -380,7 +410,7 @@ pub fn clear_config(
 }
 
 pub fn set_config(
-    mut config: Config,
+    config: &mut Config,
     path: &str,
     url: Option<&str>,
     addr: Option<&str>,
