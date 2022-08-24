@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.27.32
+
+### New
+ - Clear alternative syntax parameters
+ - Alias and abi methods completion
+
+
 ## Version: 0.27.30
 
 ### New
