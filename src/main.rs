@@ -599,7 +599,6 @@ async fn main_internal() -> Result <(), String> {
         .author("TONLabs")
         .arg(boc_flag.clone())
         .arg(Arg::with_name("ADDRESS")
-            .required(true)
             .takes_value(true)
             .help("List of addresses or file paths (if flag --boc is used).")
             .multiple(true))
@@ -1435,7 +1434,11 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
 }
 
 async fn account_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let addresses_list = matches.values_of("ADDRESS").unwrap().collect::<Vec<_>>();
+    let addresses_list = matches.values_of("ADDRESS")
+        .map(|val| val.collect::<Vec<_>>())
+        .or(config.addr.as_ref().map(|addr| vec![addr.as_str()]))
+        .ok_or("Address was not found. It must be specified as option or in the config file."
+            .to_string())?;
     if addresses_list.len() > 1 &&
         (matches.is_present("DUMPTVC") || matches.is_present("DUMPTVC")) {
         return Err("`DUMPTVC` and `DUMPBOC` options are not applicable to a list of addresses.".to_string());
