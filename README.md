@@ -862,12 +862,13 @@ Succeeded.
 You may use the following command to check the current status of a contract:
 
 ```bash
-tonos-cli account <list_of_addresses> [--dumptvc <tvc_path>] [--dumpboc <boc_path>]
+tonos-cli account [--boc] <list_of_addresses> [--dumptvc <tvc_path>] [--dumpboc <boc_path>]
 ```
 
-`<list_of_addresses>` - contract [addresses](#41-generate-contract-address).
+`<list_of_addresses>` - contract [addresses](#41-generate-contract-address), if not specified address is taken from the config file.
 `--dumptvc <tvc_path>` - this flag can be specified to dump account StateInit to the <tvc_path> file.
 `--dumpboc <boc_path>` - this flag can be specified to dump account boc to the <boc_path> file.
+`--boc` - flag that changes behaviour of the command to work with the saved account state from the BOC file. In this case path to the boc file should be specified instead of address.
 
 Example:
 
