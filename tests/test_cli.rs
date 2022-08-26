@@ -876,6 +876,28 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_old_config() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg("tests/rfld.conf.json")
+        .arg("config")
+        .arg("--list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"rfld-dapp.itgold.io"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg("tests/test.conf.json")
+        .arg("config")
+        .arg("--list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"http://127.0.0.1/"));
+    Ok(())
+}
+
+#[test]
 fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
     let msg_path = "call.boc";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -961,6 +983,44 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("last_trans_lt:"))
         .stdout(predicate::str::contains("data(boc):"));
 
+    set_config(
+        &["--url", "--addr"],
+        &[&*NETWORK, GIVER_V2_ADDR],
+        Some(config_path)
+    )?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("account");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("acc_type:      Active"))
+        .stdout(predicate::str::contains("balance:"))
+        .stdout(predicate::str::contains("last_paid:"))
+        .stdout(predicate::str::contains("last_trans_lt:"))
+        .stdout(predicate::str::contains("data(boc):"));
+
+    set_config(
+        &["--url", "--addr"],
+        &[&*NETWORK, "tests/account.boc"],
+        Some(config_path)
+    )?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("account")
+        .arg("--boc");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("acc_type:      Active"))
+        .stdout(predicate::str::contains("balance:"))
+        .stdout(predicate::str::contains("last_paid:"))
+        .stdout(predicate::str::contains("last_trans_lt:"))
+        .stdout(predicate::str::contains("data(boc):"));
+
+
     fs::remove_file(config_path)?;
     Ok(())
 }
@@ -1015,11 +1075,12 @@ fn test_config_wc() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_account_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("account");
+    cmd.arg("--config")
+        .arg("default.conf")
+        .arg("account");
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("The following required arguments were not provided:"))
-        .stderr(predicate::str::contains("<ADDRESS>"));
+        .stdout(predicate::str::contains("Error: Address was not found. It must be specified as option or in the config file."));
 
     Ok(())
 }

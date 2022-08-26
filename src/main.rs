@@ -56,7 +56,7 @@ use helpers::{load_ton_address, load_abi, create_client_local, query_raw,
 use genaddr::generate_address;
 use getconfig::{query_global_config, dump_blockchain_config};
 use multisig::{create_multisig_command, multisig_command};
-use std::{env, path::PathBuf};
+use std::{env};
 use std::collections::BTreeMap;
 use std::process::exit;
 use voting::{create_proposal, decode_proposal, vote};
@@ -66,14 +66,13 @@ use crate::account::dump_accounts;
 
 use crate::config::FullConfig;
 use crate::getconfig::gen_update_config_message;
-use crate::helpers::{
-    abi_from_matches_or_config, AccountSource, load_abi_from_tvc, load_params, parse_lifetime,
-    unpack_alternative_params, wc_from_matches_or_config};
+use crate::helpers::{abi_from_matches_or_config, AccountSource, default_config_name,
+                     load_abi_from_tvc, load_params, parse_lifetime, unpack_alternative_params,
+                     wc_from_matches_or_config};
 use crate::message::generate_message;
 use crate::run::{run_command, run_get_method};
 
 const DEF_MSG_LIFETIME: u32 = 30;
-const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
 const DEF_STORAGE_PERIOD: u32 = 60 * 60 * 24 * 365;
 
 enum CallType {
@@ -86,15 +85,6 @@ enum DeployType {
     Full,
     MsgOnly,
     Fee,
-}
-
-
-fn default_config_name() -> Result<String, String> {
-    env::current_dir()
-        .map_err(|e| format!("cannot get current dir: {}", e))
-        .map(|dir| {
-            dir.join(PathBuf::from(CONFIG_BASE_NAME)).to_str().unwrap().to_string()
-        })
 }
 
 #[tokio::main]
@@ -609,7 +599,6 @@ async fn main_internal() -> Result <(), String> {
         .author("TONLabs")
         .arg(boc_flag.clone())
         .arg(Arg::with_name("ADDRESS")
-            .required(true)
             .takes_value(true)
             .help("List of addresses or file paths (if flag --boc is used).")
             .multiple(true))
@@ -930,22 +919,11 @@ async fn main_internal() -> Result <(), String> {
 async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), String> {
     let config_file = matches.value_of("CONFIG").map(|v| v.to_string())
         .or(env::var("TONOSCLI_CONFIG").ok())
-        .unwrap_or(default_config_name()?);
+        .unwrap_or(default_config_name());
 
     let mut full_config = FullConfig::from_file(&config_file);
-
-    let mut config = match Config::from_file(&config_file) {
-        Some(c) => {
-            if !is_json && !c.is_json { println!("Config: {}", config_file); }
-            c
-        },
-        None => {
-            if !is_json { println!("Config: default"); }
-            Config::default()
-        },
-    };
-    config.is_json = is_json || config.is_json;
-    full_config.config = config.clone();
+    full_config.config.is_json = is_json || full_config.config.is_json;
+    let mut config = full_config.config.clone();
 
     if let Some(url) = matches.value_of("NETWORK") {
         config.url = url.to_string();
@@ -1361,7 +1339,7 @@ fn config_command(matches: &ArgMatches, mut full_config: FullConfig) -> Result<(
             let no_answer = clear_matches.is_present("NO_ANSWER");
             let balance_in_tons = clear_matches.is_present("BALANCE_IN_TONS");
             let local_run = clear_matches.is_present("LOCAL_RUN");
-            result = clear_config(full_config.config.clone(), full_config.path.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run);
+            result = clear_config(&mut full_config.config, full_config.path.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run);
         } else if let Some(endpoint_matches) = matches.subcommand_matches("endpoint") {
             if let Some(endpoint_matches) = endpoint_matches.subcommand_matches("add") {
                 let url = endpoint_matches.value_of("URL").unwrap();
@@ -1392,6 +1370,9 @@ fn config_command(matches: &ArgMatches, mut full_config: FullConfig) -> Result<(
             full_config.print_aliases();
             return Ok(());
         } else {
+            if matches.args.is_empty() {
+                return Err("At least one option must be specified".to_string());
+            }
             let url = matches.value_of("URL");
             let address = matches.value_of("ADDR");
             let wallet = matches.value_of("WALLET");
@@ -1413,24 +1394,17 @@ fn config_command(matches: &ArgMatches, mut full_config: FullConfig) -> Result<(
             let is_json = matches.value_of("IS_JSON");
             let method = matches.value_of("METHOD");
             let parameters = matches.value_of("PARAMETERS");
-            result = set_config(full_config.config.clone(), full_config.path.as_str(), url, address, wallet,
+
+            result = set_config(&mut full_config.config, full_config.path.as_str(), url, address, wallet,
                                 pubkey, abi, keys, wc, retries, timeout,
                                 message_processing_timeout, depool_fee, lifetime, no_answer,
                                 balance_in_tons, local_run, async_call, out_of_sync_threshold,
                                 debug_fail, is_json, method, parameters);
         }
     }
-    let config = match Config::from_file(full_config.path.as_str()) {
-        Some(c) => {
-            c
-        },
-        None => {
-            Config::default()
-        },
-    };
     println!(
         "{}",
-        serde_json::to_string_pretty(&config)
+        serde_json::to_string_pretty(&full_config.config)
             .map_err(|e| format!("failed to print config parameters: {}", e))?
     );
     result
@@ -1460,7 +1434,11 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
 }
 
 async fn account_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let addresses_list = matches.values_of("ADDRESS").unwrap().collect::<Vec<_>>();
+    let addresses_list = matches.values_of("ADDRESS")
+        .map(|val| val.collect::<Vec<_>>())
+        .or(config.addr.as_ref().map(|addr| vec![addr.as_str()]))
+        .ok_or("Address was not found. It must be specified as option or in the config file."
+            .to_string())?;
     if addresses_list.len() > 1 &&
         (matches.is_present("DUMPTVC") || matches.is_present("DUMPTVC")) {
         return Err("`DUMPTVC` and `DUMPBOC` options are not applicable to a list of addresses.".to_string());
