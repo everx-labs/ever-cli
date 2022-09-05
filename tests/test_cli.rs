@@ -875,6 +875,96 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+
+#[test]
+fn test_global_config() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--global")
+        .arg("clear");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"net.ton.dev"))
+        .stdout(predicate::str::contains("addr\": null"))
+        .stdout(predicate::str::contains("wallet\": null"))
+        .stdout(predicate::str::contains("pubkey\": null"))
+        .stdout(predicate::str::contains("async_call\": false"))
+        .stdout(predicate::str::contains("is_json\": false"));
+
+    let config_path = "test_global.conf.json";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("--is_json")
+        .arg("true");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"net.ton.dev"))
+        .stdout(predicate::str::contains("addr\": null"))
+        .stdout(predicate::str::contains("wallet\": null"))
+        .stdout(predicate::str::contains("pubkey\": null"))
+        .stdout(predicate::str::contains("async_call\": false"))
+        .stdout(predicate::str::contains("is_json\": true"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("--global")
+        .arg("--url")
+        .arg("localhost")
+        .arg("--lifetime")
+        .arg("99");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"http://127.0.0.1/"))
+        .stdout(predicate::str::contains("addr\": null"))
+        .stdout(predicate::str::contains("wallet\": null"))
+        .stdout(predicate::str::contains("pubkey\": null"))
+        .stdout(predicate::str::contains("lifetime\": 99"))
+        .stdout(predicate::str::contains("is_json\": false"))
+        .stdout(predicate::str::contains("http://localhost/"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("--list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"net.ton.dev"))
+        .stdout(predicate::str::contains("addr\": null"))
+        .stdout(predicate::str::contains("wallet\": null"))
+        .stdout(predicate::str::contains("pubkey\": null"))
+        .stdout(predicate::str::contains("lifetime\": 60"))
+        .stdout(predicate::str::contains("is_json\": true"));
+
+    fs::remove_file(config_path)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("--is_json")
+        .arg("true");
+    cmd.assert()
+        .success()
+        .success()
+        .stdout(predicate::str::contains("url\": \"http://127.0.0.1/"))
+        .stdout(predicate::str::contains("addr\": null"))
+        .stdout(predicate::str::contains("wallet\": null"))
+        .stdout(predicate::str::contains("pubkey\": null"))
+        .stdout(predicate::str::contains("lifetime\": 99"))
+        .stdout(predicate::str::contains("is_json\": true"))
+        .stdout(predicate::str::contains("http://localhost/"));
+
+    fs::remove_file(config_path)?;
+
+    Ok(())
+}
+
 #[test]
 fn test_old_config() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;

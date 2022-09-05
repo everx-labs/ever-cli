@@ -66,9 +66,7 @@ use crate::account::dump_accounts;
 
 use crate::config::FullConfig;
 use crate::getconfig::gen_update_config_message;
-use crate::helpers::{abi_from_matches_or_config, AccountSource, default_config_name,
-                     load_abi_from_tvc, load_params, parse_lifetime, unpack_alternative_params,
-                     wc_from_matches_or_config};
+use crate::helpers::{abi_from_matches_or_config, AccountSource, default_config_name, global_config_path, load_abi_from_tvc, load_params, parse_lifetime, unpack_alternative_params, wc_from_matches_or_config};
 use crate::message::generate_message;
 use crate::run::{run_command, run_get_method};
 
@@ -417,9 +415,18 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("ADDR")
             .long("--addr")
             .help("Contract address."))
+        .arg(Arg::with_name("METHOD")
+            .long("--method")
+            .help("Method name that can be saved to be used by some commands (runx, callx)."))
+        .arg(Arg::with_name("PARAMETERS")
+            .long("--parameters")
+            .help("Function parameters that can be saved to be used by some commands (runx, callx)."))
         .arg(Arg::with_name("WALLET")
             .long("--wallet")
             .help("Multisig wallet address."))
+        .arg(Arg::with_name("PUBKEY")
+            .long("--pubkey")
+            .help("User public key. Used by DeBot Browser."))
         .arg(Arg::with_name("WC")
             .long("--wc")
             .help("Workchain id."))
@@ -429,12 +436,15 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("TIMEOUT")
             .long("--timeout")
             .help("Network `wait_for` timeout in ms."))
+        .arg(Arg::with_name("MSG_TIMEOUT")
+            .long("--message_processing_timeout")
+            .help("Network message processing timeout in ms."))
         .arg(Arg::with_name("DEPOOL_FEE")
             .long("--depool_fee")
             .help("Value added to the message sent to depool to cover it's fees (change will be returned)."))
         .arg(Arg::with_name("LIFETIME")
             .long("--lifetime")
-            .help("Period of time in seconds while message is valid."))
+            .help("Period of time in seconds while message is valid. Change of this parameter may affect \"out_of_sync\" parameter, because \"lifetime\" should be at least 2 times greater than \"out_of_sync\"."))
         .arg(Arg::with_name("NO_ANSWER")
             .long("--no-answer")
             .help("Flag whether to wait for depool answer when calling a depool function."))
@@ -443,7 +453,19 @@ async fn main_internal() -> Result <(), String> {
             .help("Print balance for account command in tons. If false balance is printed in nanotons."))
         .arg(Arg::with_name("LOCAL_RUN")
             .long("--local_run")
-            .help("Enable preliminary local run before deploy and call commands."));
+            .help("Enable preliminary local run before deploy and call commands."))
+        .arg(Arg::with_name("ASYNC_CALL")
+            .long("--async_call")
+            .help("Disables wait for transaction to appear in the network after call command."))
+        .arg(Arg::with_name("DEBUG_FAIL")
+            .long("--debug_fail")
+            .help("When enabled tonos-cli executes debug command on fail of run or call command. Can be enabled with values 'full' or 'minimal' which set the trace level for debug run and disabled with value 'none'."))
+        .arg(Arg::with_name("OUT_OF_SYNC")
+            .long("--out_of_sync")
+            .help("Network connection \"out_of_sync_threshold\" parameter in seconds. Mind that it cant exceed half of the \"lifetime\" parameter."))
+        .arg(Arg::with_name("IS_JSON")
+            .long("--is_json")
+            .help("Cli prints output in json format."));
 
     let alias_arg = Arg::with_name("ALIAS")
         .required(true)
@@ -500,6 +522,10 @@ async fn main_internal() -> Result <(), String> {
         .about("Allows to tune certain default values for options in the config file.")
         .version(&*version_string)
         .author("TONLabs")
+        .arg(Arg::with_name("GLOBAL")
+            .long("--global")
+            .short("-g")
+            .help("Change parameters of the global config which contains default values for ordinary configs."))
         .arg(Arg::with_name("URL")
             .long("--url")
             .takes_value(true)
@@ -923,12 +949,12 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
 
     let mut full_config = FullConfig::from_file(&config_file);
     full_config.config.is_json = is_json || full_config.config.is_json;
-    let mut config = full_config.config.clone();
+    let config = &mut full_config.config;
 
     if let Some(url) = matches.value_of("NETWORK") {
         config.url = url.to_string();
         let empty : Vec<String> = Vec::new();
-        config.endpoints = FullConfig::get_map(&config_file).get(url).unwrap_or(&empty).clone();
+        config.endpoints = full_config.endpoints_map.get(url).unwrap_or(&empty).clone();
     }
 
     if let Some(m) = matches.subcommand_matches("callx") {
@@ -941,22 +967,22 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return deployx_command(m, &mut full_config).await;
     }
     if let Some(m) = matches.subcommand_matches("call") {
-        return call_command(m, &config, CallType::Call).await;
+        return call_command(m, config, CallType::Call).await;
     }
     if let Some(m) = matches.subcommand_matches("run") {
         return run_command(m, &full_config, false).await;
     }
     if let Some(m) = matches.subcommand_matches("runget") {
-        return runget_command(m, &config).await;
+        return runget_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("body") {
-        return body_command(m, &config).await;
+        return body_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("message") {
-        return call_command(m, &config, CallType::Msg).await;
+        return call_command(m, config, CallType::Msg).await;
     }
     if let Some(m) = matches.subcommand_matches("send") {
-        return send_command(m, &config).await;
+        return send_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("deploy") {
         return deploy_command(m, &mut full_config, DeployType::Full).await;
@@ -968,91 +994,91 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return config_command(m, full_config);
     }
     if let Some(m) = matches.subcommand_matches("genaddr") {
-        return genaddr_command(m, &config).await;
+        return genaddr_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("getkeypair") {
-        return getkeypair_command(m, &config);
+        return getkeypair_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("account") {
-        return account_command(m, &config).await;
+        return account_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("fee") {
         if let Some(m) = m.subcommand_matches("storage") {
-            return storage_command(m, &config).await;
+            return storage_command(m, config).await;
         }
         if let Some(m) = m.subcommand_matches("deploy") {
             return deploy_command(m, &mut full_config, DeployType::Fee).await;
         }
         if let Some(m) = m.subcommand_matches("call") {
-            return call_command(m, &config, CallType::Fee).await;
+            return call_command(m, config, CallType::Fee).await;
         }
     }
     if let Some(m) = matches.subcommand_matches("genphrase") {
-        return genphrase_command(m, &config);
+        return genphrase_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("genpubkey") {
-        return genpubkey_command(m, &config);
+        return genpubkey_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("proposal") {
         if let Some(m) = m.subcommand_matches("create") {
-            return proposal_create_command(m, &config).await;
+            return proposal_create_command(m, config).await;
         }
         if let Some(m) = m.subcommand_matches("vote") {
-            return proposal_vote_command(m, &config).await;
+            return proposal_vote_command(m, config).await;
         }
         if let Some(m) = m.subcommand_matches("decode") {
-            return proposal_decode_command(m, &config).await;
+            return proposal_decode_command(m, config).await;
         }
     }
     if let Some(m) = matches.subcommand_matches("multisig") {
-        return multisig_command(m, &config).await;
+        return multisig_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("depool") {
         return depool_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("getconfig") {
-        return getconfig_command(m, &config).await;
+        return getconfig_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("update_config") {
-        return update_config_command(m, &config).await;
+        return update_config_command(m, config).await;
     }
     if let Some(matches) = matches.subcommand_matches("dump") {
         if let Some(m) = matches.subcommand_matches("config") {
-            return dump_bc_config_command(m, &config).await;
+            return dump_bc_config_command(m, config).await;
         }
         if let Some(m) = matches.subcommand_matches("account") {
-            return dump_accounts_command(m, &config).await;
+            return dump_accounts_command(m, config).await;
         }
     }
     if let Some(m) = matches.subcommand_matches("account-wait") {
-        return account_wait_command(m, &config).await;
+        return account_wait_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("query-raw") {
-        return query_raw_command(m, &config).await;
+        return query_raw_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("nodeid") {
-        return nodeid_command(m, &config);
+        return nodeid_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("sendfile") {
-        return sendfile_command(m, &config).await;
+        return sendfile_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("decode") {
-        return decode_command(m, &config).await;
+        return decode_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("debug") {
-        return debug_command(m, &config).await;
+        return debug_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("debot") {
-        return debot_command(m, config).await;
+        return debot_command(m, config.to_owned()).await;
     }
     if let Some(m) = matches.subcommand_matches("fetch-block") {
-        return fetch_block_command(m, &config).await;
+        return fetch_block_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("fetch") {
-        return fetch_command(m, &config).await;
+        return fetch_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("replay") {
-        return replay_command(m, &config).await;
+        return replay_command(m, config).await;
     }
     if matches.subcommand_matches("version").is_some() {
         if config.is_json {
@@ -1324,22 +1350,12 @@ async fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig)
 
 fn config_command(matches: &ArgMatches, mut full_config: FullConfig) -> Result<(), String> {
     let mut result = Ok(());
+    if matches.is_present("GLOBAL") {
+        full_config = FullConfig::from_file(&global_config_path());
+    }
     if !matches.is_present("LIST") {
         if let Some(clear_matches) = matches.subcommand_matches("clear") {
-            let url = clear_matches.is_present("URL");
-            let address = clear_matches.is_present("ADDR");
-            let wallet = clear_matches.is_present("WALLET");
-            let keys = clear_matches.is_present("KEYS");
-            let abi = clear_matches.is_present("ABI");
-            let wc = clear_matches.is_present("WC");
-            let retries = clear_matches.is_present("RETRIES");
-            let timeout = clear_matches.is_present("TIMEOUT");
-            let depool_fee = clear_matches.is_present("DEPOOL_FEE");
-            let lifetime = clear_matches.is_present("LIFETIME");
-            let no_answer = clear_matches.is_present("NO_ANSWER");
-            let balance_in_tons = clear_matches.is_present("BALANCE_IN_TONS");
-            let local_run = clear_matches.is_present("LOCAL_RUN");
-            result = clear_config(&mut full_config.config, full_config.path.as_str(), url, address, wallet, abi, keys, wc, retries, timeout, depool_fee, lifetime, no_answer, balance_in_tons, local_run);
+            result = clear_config(&mut full_config, clear_matches);
         } else if let Some(endpoint_matches) = matches.subcommand_matches("endpoint") {
             if let Some(endpoint_matches) = endpoint_matches.subcommand_matches("add") {
                 let url = endpoint_matches.value_of("URL").unwrap();
@@ -1373,33 +1389,8 @@ fn config_command(matches: &ArgMatches, mut full_config: FullConfig) -> Result<(
             if matches.args.is_empty() {
                 return Err("At least one option must be specified".to_string());
             }
-            let url = matches.value_of("URL");
-            let address = matches.value_of("ADDR");
-            let wallet = matches.value_of("WALLET");
-            let pubkey = matches.value_of("PUBKEY");
-            let keys = matches.value_of("KEYS");
-            let abi = matches.value_of("ABI");
-            let wc = matches.value_of("WC");
-            let retries = matches.value_of("RETRIES");
-            let timeout = matches.value_of("TIMEOUT");
-            let message_processing_timeout = matches.value_of("MSG_TIMEOUT");
-            let depool_fee = matches.value_of("DEPOOL_FEE");
-            let lifetime = matches.value_of("LIFETIME");
-            let no_answer = matches.value_of("NO_ANSWER");
-            let balance_in_tons = matches.value_of("BALANCE_IN_TONS");
-            let local_run = matches.value_of("LOCAL_RUN");
-            let async_call = matches.value_of("ASYNC_CALL");
-            let out_of_sync_threshold = matches.value_of("OUT_OF_SYNC");
-            let debug_fail = matches.value_of("DEBUG_FAIL");
-            let is_json = matches.value_of("IS_JSON");
-            let method = matches.value_of("METHOD");
-            let parameters = matches.value_of("PARAMETERS");
 
-            result = set_config(&mut full_config.config, full_config.path.as_str(), url, address, wallet,
-                                pubkey, abi, keys, wc, retries, timeout,
-                                message_processing_timeout, depool_fee, lifetime, no_answer,
-                                balance_in_tons, local_run, async_call, out_of_sync_threshold,
-                                debug_fail, is_json, method, parameters);
+            result = set_config(&mut full_config, matches);
         }
     }
     println!(

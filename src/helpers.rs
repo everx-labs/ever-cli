@@ -38,7 +38,8 @@ pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
 
 pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
-pub const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
+const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
+const GLOBAL_CONFIG_PATH: &str = ".tonos-cli.global.conf.json";
 
 pub fn default_config_name() -> String {
     env::current_dir()
@@ -46,6 +47,15 @@ pub fn default_config_name() -> String {
             dir.join(PathBuf::from(CONFIG_BASE_NAME)).to_str().unwrap().to_string()
         })
         .unwrap_or(CONFIG_BASE_NAME.to_string())
+}
+
+pub fn global_config_path() -> String {
+    env::current_exe()
+        .map(|mut dir| {
+            dir.set_file_name(GLOBAL_CONFIG_PATH);
+            dir.to_str().unwrap().to_string()
+        })
+        .unwrap_or(GLOBAL_CONFIG_PATH.to_string())
 }
 
 struct SimpleLogger;
