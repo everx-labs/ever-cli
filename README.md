@@ -1,8 +1,9 @@
 # TONOS-CLI
 
-TONOS-CLI is a multi-platform command line interface for TON OS.
-It allows you to work with keys and seed phrases, deploy contracts, call any of their methods, generate and broadcast messages.
-It supports specific commands for DeBot, DePool and Multisig contracts, as well as a number of supplementary functions.
+TONOS-CLI is a multi-platform command line interface for EVERSCALE OS.
+It allows user to work with keys and seed phrases, deploy contracts, call any of their methods, generate and broadcast
+messages. It supports specific commands for DeBot, DePool and Multisignature Wallet contracts, as well as a number of
+supplementary functions.
 
 To access built-in help, use `--help` or `-h` flag:
 
@@ -16,16 +17,16 @@ tonos-cli <subcommand> -h
 - [Table of contents](#table-of-contents)
 - [1. Installation](#1-installation)
   - [Install compiled executable](#install-compiled-executable)
-    - [Ubuntu 22 troubleshooting](#ubuntu-22-troubleshooting)
   - [Install through EVERDEV](#install-through-everdev)
   - [Build from source](#build-from-source)
     - [Prerequisites](#prerequisites)
-    - [Build from source on Linux and Mac OS](#build-from-source-on-linux-and-mac-os)
+    - [Build from source on Linux and macOS](#build-from-source-on-linux-and-macos)
     - [Build from source on Windows](#build-from-source-on-windows)
-    - [Windows debug build troubleshooting](#windows-debug-build-troubleshooting)
     - [Tails OS secure environment](#tails-os-secure-environment)
     - [Put TONOS-CLI into system environment](#put-tonos-cli-into-system-environment)
     - [Install tonos-cli, completion script and bind them](#install-tonos-cli-completion-script-and-bind-them)
+    - [Windows debug build troubleshooting](#windows-debug-build-troubleshooting)
+  - [Ubuntu 22 troubleshooting](#ubuntu-22-troubleshooting)
   - [Check version](#check-version)
   - [A note on Windows syntax](#a-note-on-windows-syntax)
 - [2. Configuration](#2-configuration)
@@ -112,17 +113,9 @@ tonos-cli <subcommand> -h
 
 ## Install compiled executable
 
-Create a folder. Download the `.zip` file from the latest release from here: [https://github.com/tonlabs/tonos-cli/releases](https://github.com/tonlabs/tonos-cli/releases) to this folder. Extract it.
-
-### Ubuntu 22 troubleshooting
-
-Ubuntu 22 has upgraded to OpenSSL 3.0 and this breaks execution of compiled tonos-cli releases. To fix this problem one
-should install old version of libssl. To do it one can download amd64 package from
-(packages.debian.org)[https://packages.debian.org/stretch/libssl1.1] and install it with dpkg:
-
-```bash
-sudo dpkg -i libssl1.1*.deb
-```
+Create a folder. Download the `.zip` file from the latest release from here:
+[https://github.com/tonlabs/tonos-cli/releases](https://github.com/tonlabs/tonos-cli/releases) to this folder. Extract
+it.
 
 ## Install through EVERDEV
 
@@ -132,7 +125,9 @@ You can use [EVERDEV](https://github.com/tonlabs/everdev) to install the latest 
 everdev tonos-cli install
 ```
 
-The installer requires [NPM](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) to be installed, so it can install packages globally without using sudo. In case of error, manually set environment variable `PATH=$PATH:$HOME./everdev/solidity`
+The installer requires [NPM](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) to be installed, so it
+can install packages globally without using sudo. In case of error, manually set environment variable
+`PATH=$PATH:$HOME./everdev/solidity`
 
 This command updates TONOS-CLI installed through EVERDEV to the latest version:
 
@@ -160,7 +155,7 @@ sudo apt-get install libssl-dev (openssl-devel on Fedora)
 sudo apt-get install pkg-config
 ```
 
-### Build from source on Linux and Mac OS
+### Build from source on Linux and macOS
 
 Install Cargo: [https://github.com/rust-lang/cargo#compiling-from-source](https://github.com/rust-lang/cargo#compiling-from-source)
 
@@ -174,7 +169,9 @@ cargo build --release
 cd target/release
 ```
 
-The `tonos-cli` executable is built in the `tonos-cli/target/release` folder. Create a folder elsewhere. Copy the `tonos-cli` executable into the new folder you have created.
+The `tonos-cli` executable is built in the `tonos-cli/target/release` folder. 
+Create a folder elsewhere. Copy the `tonos-cli` executable into the new folder you have created.
+Or just add `tonos-cli/target/release` to the PATH local variable. 
 
 ### Build from source on Windows
 
@@ -190,49 +187,25 @@ Build TONOS-CLI tool from source:
 > cd target/release
 ```
 
-The `tonos-cli` executable is built in the `tonos-cli/target/release` folder. Create a folder elsewhere. Copy the `tonos-cli` executable into the new folder you have created.
-
-### Windows debug build troubleshooting
-
-Default debug executable built after `cargo build` command may have an issue with binary default stack size:
-
-```bash
-> cargo build
-Finished dev [unoptimized + debuginfo] target(s) in 0.66s
-> .\target\debug\tonos-cli.exe --version
-
-thread 'main' has overflowed its stack
-```
-
-User can fix this issue by using [editbin tool from MSVC Tools](https://docs.microsoft.com/ru-ru/cpp/build/reference/editbin-reference?view=msvc-170). This tool allows user to
-increase binary stack reserve. Increase it by 2 times will help to fix tonos-cli:
-
-```bash
-> editbin /STACK:2097152 tonos-cli.exe
-Microsoft (R) COFF/PE Editor Version 14.28.29914.0
-Copyright (C) Microsoft Corporation.  All rights reserved.
-
-> tonos-cli.exe --version
-tonos_cli 0.26.7
-COMMIT_ID: 1e1397b5561ea79d2fd7cce47cd033450b123f25
-BUILD_DATE: Unknown
-COMMIT_DATE: 2022-05-13 14:15:47 +0300
-GIT_BRANCH: master
-```
+The `tonos-cli` executable is built in the `tonos-cli/target/release` folder. 
+Create a folder elsewhere. Copy the `tonos-cli` executable into the new folder you have created.
+Or just add `tonos-cli/target/release` to the PATH local variable.
 
 ### Tails OS secure environment
 
-For maximum security while working with offline TONOS-CLI features (such as cryptographic commands or encrypted message generation), you can use the [Tails OS](https://tails.boum.org/).
+For maximum security while working with offline TONOS-CLI features (such as cryptographic commands or encrypted message
+generation), you can use the [Tails OS](https://tails.boum.org/).
 
 ### Put TONOS-CLI into system environment
 
-Optional, Linux/Mac OS. Use the following command to put the utility into system environment:
+Optional, Linux/macOS. Use the following command to put the utility into system environment:
 
 ```bash
 export PATH="<tonos_folder_path>:$PATH"
 ```
 
-This step can be skipped, if TONOS-CLI was installed through EVERDEV. Otherwise, if you skip this step, make sure you always run the utility from folder containing the utility:
+This step can be skipped, if TONOS-CLI was installed through EVERDEV. Otherwise, if you skip this step, make sure you
+always run the utility from folder containing the utility:
 
 ```bash
 ./tonos-cli <command> <options>
@@ -250,6 +223,44 @@ complete -C __tonos-cli_completion tonos-cli
 
 After adding completion script, user can use `<Tab>` key to complete `--addr` option with aliases saved in the config
 file and `-m/--method` option with methods loaded from the abi file.
+
+### Windows debug build troubleshooting
+
+Default debug executable built after `cargo build` command may have an issue with binary default stack size:
+
+```bash
+> cargo build
+Finished dev [unoptimized + debuginfo] target(s) in 0.66s
+> .\target\debug\tonos-cli.exe --version
+
+thread 'main' has overflowed its stack
+```
+
+User can fix this issue by using [editbin tool from MSVC Tools](https://docs.microsoft.com/ru-ru/cpp/build/reference/editbin-reference?view=msvc-170). 
+This tool allows user to increase binary stack reserve. Increase it by 2 times will help to fix tonos-cli:
+
+```bash
+> editbin /STACK:2097152 tonos-cli.exe
+Microsoft (R) COFF/PE Editor Version 14.28.29914.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+> tonos-cli.exe --version
+tonos_cli 0.26.7
+COMMIT_ID: 1e1397b5561ea79d2fd7cce47cd033450b123f25
+BUILD_DATE: Unknown
+COMMIT_DATE: 2022-05-13 14:15:47 +0300
+GIT_BRANCH: master
+```
+
+## Ubuntu 22 troubleshooting
+
+Ubuntu 22 has upgraded to OpenSSL 3.0 and this breaks execution of compiled tonos-cli releases. To fix this problem one
+should install old version of libssl. To do it one can download amd64 package from
+(packages.debian.org)[https://packages.debian.org/stretch/libssl1.1] and install it with dpkg:
+
+```bash
+sudo dpkg -i libssl1.1*.deb
+```
 
 ## Check version
 
@@ -275,13 +286,14 @@ GIT_BRANCH: master
 
 When using Windows command line, the following syntax should be used for all TONOS-CLI commands:
 
-1. Never use the `./` symbols before `tonos-cli`:
+1) Never use the `./` symbols before `tonos-cli`:
 
 ```bash
 > tonos-cli <command_name> <options>
 ```
 
-2. For all commands with nested quotes, the outer single quotes should be changed to double quotes, and the inner double quotes should be shielded by a preceding `\`. Example:
+2) For all commands with nested quotes, the outer single quotes should be changed to double quotes, and the inner double
+quotes should be shielded by a preceding `\`. Example:
 
 ```bash
 > tonos-cli deploy SafeMultisigWallet.tvc "{\"owners\":[\"0x723b2f0fa217cd10fe21326634e66106678f15d5a584babe4f576dffe9dcbb1b\",\"0x127e3ca223ad429ddaa053a39fecd21131df173bb459a4438592493245b695a3\",\"0xc2dd3682ffa9df97a968bef90b63da90fc92b22163f558b63cb7e52bfcd51bbb\"],\"reqConfirms\":2}" --abi SafeMultisigWallet.abi.json --sign deploy.keys.json
@@ -293,19 +305,27 @@ If this is not done, `arguments are not in json format: key must be a string at 
 
 ## 2.1. Set the network and parameter values
 
-TONOS-CLI can remember some parameter values and use it automatically in various subcommands.
+TONOS-CLI can store some parameter values in the tonos-cli configuration file and use it automatically in various
+subcommands.
 
 After that you can omit the corresponding parameters in subsequent subcommands.
 
-`tonos-cli.config.json` configuration file will be created in the current working directory. All subsequent calls of the utility will use this file.
+Default path for the configuration file is `./tonos-cli.config.json`. It is created in the current working directory.
+User can set up path to the configuration file [manually](#25-override-configuration-file-location).
+All subsequent calls of the utility will use this file by default.
 
 Use the following command to create a configuration file:
 
 ```bash
-tonos-cli config <--option> <option_value>
+tonos-cli config [--global] <--option> <option_value>
 ```
 
 All other TONOS-CLI commands will indicate the configuration file currently used.
+
+Default values for options that were not specified are taken from the global configuration file. It has name
+`.tonos-cli.global.conf.json` and is located in the folder, where the `tonos-cli` executable lies. This global
+configuration file can be configured as the ordinary one, but the option `--global` must be used for the `config`
+subcommand.
 
 List of available options:
 
@@ -371,13 +391,17 @@ Succeeded.
 
 Some frequently used networks:
 
+`http://127.0.0.1/` - Node SE local node.
+
 `https://net.ton.dev` - developer sandbox for testing. TONOS-CLI connects to it by default.
 
 `https://main.ton.dev` - main Free TON network.
 
 `https://rustnet.ton.dev` - test network running on Rust nodes.
 
-TONOS-CLI supports the use of multiple endpoints for networks: if several endpoints are [specified in the endpoint map](#24-configure-endpoints-map) for a network, TONOS-CLI will use them all when accessing it. Otherwise, the network URL will be treated as the only endpoint.
+TONOS-CLI supports the use of multiple endpoints for networks: if several endpoints are 
+[specified in the endpoint map](#24-configure-endpoints-map) for a network, TONOS-CLI will use them all when accessing
+it. Otherwise, the network URL will be treated as the only endpoint.
 
 `main.ton.dev` and `net.ton.dev` networks already have their current endpoints specified in the default endpoint map.
 See [section 2.4 below](#24-configure-endpoints-map) on how to edit and add endpoints to the endpoint map.
@@ -387,7 +411,8 @@ See [section 2.4 below](#24-configure-endpoints-map) on how to edit and add endp
 
 Network configuration can be [overridden](#26-override-network-settings) for any single subcommand.
 
-To connect to a [DApp Server](https://github.com/tonlabs/TON-OS-DApp-Server) you are running, it should have domain name and a DNS record. Then its URL may be used to access it with TONOS-CLI:
+To connect to a [DApp Server](https://github.com/tonlabs/TON-OS-DApp-Server) you are running, it should have domain name
+and a DNS record. Then its URL may be used to access it with TONOS-CLI:
 
 ```bash
 tonos-cli config --url <dapp_server_url>
@@ -397,10 +422,11 @@ tonos-cli config --url <dapp_server_url>
 
 ## 2.2. Check configuration
 
-You can check the current configuration parameters with the following command:
+You can print the current or the global configuration parameters with the following command:
 
 ```bash
 tonos-cli config --list
+tonos-cli config --global --list
 ```
 
 ## 2.3. Clear configuration
@@ -411,10 +437,45 @@ Use the following command to reset configuration to default values:
 tonos-cli config clear
 ```
 
+The same options as in ordinary `congfig` command can be used to clear only the specified parametes.
+
+```bash
+tonos-cli config clear --url --addr --wallet
+{
+  "url": "net.ton.dev",
+  "wc": 0,
+  "addr": null,
+  "method": null,
+  "parameters": null,
+  "wallet": null,
+  "pubkey": "0x0000000000000000000000000000000000000000000000000000000000000002",
+  "abi_path": null,
+  "keys_path": null,
+  "retries": 5,
+  "timeout": 40000,
+  "message_processing_timeout": 40000,
+  "out_of_sync_threshold": 15,
+  "is_json": true,
+  "depool_fee": 0.5,
+  "lifetime": 60,
+  "no_answer": true,
+  "balance_in_tons": false,
+  "local_run": false,
+  "async_call": false,
+  "debug_fail": "None",
+  "endpoints": [
+    "https://eri01.net.everos.dev",
+    "https://rbx01.net.everos.dev",
+    "https://gra01.net.everos.dev"
+  ]
+}
+```
+
 ## 2.4. Configure endpoints map
 
-TONOS-CLI config file also stores an endpoints map that can be updated by the user.
-Each time user [changes the url](#21-set-the-network-and-parameter-values), endpoints also change in accordance to endpoints map.
+TONOS-CLI configuration file also stores the endpoints map that can be updated by the user.
+Each time user [changes the url](#21-set-the-network-and-parameter-values), endpoints also change in accordance to the
+endpoints map.
 To print the map use the following command:
 
 ```bash
@@ -465,14 +526,19 @@ tonos-cli config endpoint remove main.ton.dev
 tonos-cli config endpoint add main.ton.dev "https://eri01.main.everos.dev","https://gra01.main.everos.dev","https://gra02.main.everos.dev","https://lim01.main.everos.dev","https://rbx01.main.everos.dev"
 ```
 
-> **Note**: If url used in add command already exists, endpoints lists will be merged.
+> **Note**: If url used in the add command already exists, endpoints lists will be merged.
 
-If a network that doesn't have mapped endpoints is [specified in the config file](#21-set-the-network-and-parameter-values), its url will be automatically treated as the only endpoint. For example, configuring TONOS-CLI to connect to RustNet with the command `tonos-cli config --url https://rustnet.ton.dev` will result in TONOS-CLI using this url as a single endpoint, without the user having to specify it in the endpoints map additionally.
+If a network that doesn't have mapped endpoints is 
+[specified in the config file](#21-set-the-network-and-parameter-values), its url will be automatically treated as the
+only endpoint. For example, configuring TONOS-CLI to connect to RustNet with the command 
+`tonos-cli config --url https://rustnet.ton.dev` will result in TONOS-CLI using this url as a single endpoint, without
+the user having to specify it in the endpoints map additionally.
 
 
 ## 2.5. Override configuration file location
 
-You can move the `tonos-cli.config.json` configuration file to any other convenient location and/or rename it. There are several ways you can point the utility to the new location of the file:
+You can move the `tonos-cli.config.json` configuration file to any other convenient location and/or rename it. There are
+several ways you can point the utility to the new location of the file:
 
 - **define environment variable** `TONOSCLI_CONFIG` with the path to your configuration file:
 
@@ -486,7 +552,7 @@ Example:
 export TONOSCLI_CONFIG=/home/user/config.json
 ```
 
-- **define global option** `--config <path_to_config_file>` before any other subcommand:
+- **define direct option** `--config <path_to_config_file>` before any other subcommand:
 
 ```bash
 tonos-cli --config <path_to_config_file> <any_subcommand>
@@ -498,15 +564,13 @@ Example:
 tonos-cli --config /home/user/config.json account <address>
 ```
 
-The `--config` global option has higher priority than the `TONOSCLI_CONFIG` environment variable.
+The `--config` direct option has higher priority than the `TONOSCLI_CONFIG` environment variable.
 
-> Note: You cannot use the config subcommand to create or edit a configuration file located outside the current working directory. It should either be called from the directory containing the file, or the file should be manually copied to the desired directory later.
-
-> However, config --list subcommand displays the parameters of the currently used configuration file, wherever it is located.
+> Note: You can use the config subcommand to create or edit a configuration file located outside the current working directory.
 
 ## 2.6. Override network settings
 
-You can also separately override [preconfigured network settings](#21-set-the-network-and-parameter-values) for a single subcommand. Use the `--url <network_url>` global option for this purpose:
+You can also separately override [preconfigured network settings](#21-set-the-network-and-parameter-values) for a single subcommand. Use the `--url <network_url>` direct option for this purpose:
 
 ```bash
 tonos-cli --url <network_url> <any_subcommand>
@@ -526,9 +590,43 @@ You can force TONOS-CLi to print output in json format. To do so, add `--json` f
 tonos-cli --json <any_subcommand>
 ```
 
+This option can also be saved in the tonos-cli configuration file:
+
+```bash
+tonos-cli config --is_json true
+{
+  "url": "http://127.0.0.1/",
+  "wc": 0,
+  "addr": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13",
+  "method": null,
+  "parameters": null,
+  "wallet": "0:0000000000000000000000000000000000000000000000000000000000000001",
+  "pubkey": "0x0000000000000000000000000000000000000000000000000000000000000002",
+  "abi_path": null,
+  "keys_path": null,
+  "retries": 5,
+  "timeout": 40000,
+  "message_processing_timeout": 40000,
+  "out_of_sync_threshold": 15,
+  "is_json": true,
+  "depool_fee": 0.5,
+  "lifetime": 60,
+  "no_answer": true,
+  "balance_in_tons": false,
+  "local_run": false,
+  "async_call": false,
+  "debug_fail": "None",
+  "endpoints": [
+    "http://0.0.0.0/",
+    "http://127.0.0.1/",
+    "http://localhost/"
+  ]
+}
+```
+
 ## 2.8. Debug on fail option
 
-You can force TONOS-CLi to debug call and run executions if they fail with error code 414.
+You can force TONOS-CLi to debug call and run executions if they fail with error code **414**.
 
 ```bash
 tonos-cli config --debug_fail <trace_level>
@@ -616,8 +714,12 @@ Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 To generate a mnemonic seed phrase enter the following command:
 
 ```bash
-tonos-cli genphrase
+tonos-cli genphrase [--dump <path>]
 ```
+
+Options:
+
+`--dump <path>` - Path where to dump keypair generated from the phrase.
 
 Example:
 
@@ -626,6 +728,13 @@ $ tonos-cli genphrase
 Config: /home/user/tonos-cli.conf.json
 Succeeded.
 Seed phrase: "rule script joy unveil chaos replace fox recipe hedgehog heavy surge online"
+
+$ tonos-cli genphrase --dump /tmp/1.key
+Succeeded.
+Seed phrase: "resist immune key jar lunar snake real vintage chicken radar famous cinnamon"
+Keypair successfully saved to /tmp/1.key.
+Succeeded.
+Keypair saved to /tmp/1.key
 ```
 
 ## 3.2. Generate public key
@@ -723,21 +832,28 @@ Contract address is generated based on contract TVC file and selected keys. To g
 Use the following command to generate the contract address:
 
 ```bash
-tonos-cli genaddr [--genkey|--setkey <keyfile.json>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc>
+tonos-cli genaddr [--genkey|--setkey <keyfile.json>] [--wc <int8>] [--abi <contract.abi.json>] [--save] [--data <data>] <contract.tvc>
 ```
 
-- `--genkey <keyfile.json>` - generate new `keyfile.json` key pair file and use it to calculate the contract address.
+Options:
+
+`--genkey <keyfile.json>` - generate new `keyfile.json` key pair file and use it to calculate the contract address.
 
 > Note: if you use --genkey, the corresponding seed phrase will be displayed. Write it down, if you mean to keep using this key pair.
 
-- `--abi <contract.abi.json>` - contract ABI interface file. If not specified tonos-cli can use ABI path from config of obtained from tvc path (for `<contrac>.tvc` checks `<contract>.abi.json`).
-- `--setkey <keyfile.json>` - use already [existing](#33-generate-key-pair-file) `keyfile.json` key pair file to calculate the contract address. Seed phrase cannot be used instead of the file.
-- `--wc <int8>`  ID of the workchain the contract will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
+`--abi <contract.abi.json>` - contract ABI interface file. If not specified tonos-cli can use ABI path from config of obtained from tvc path (for `<contrac>.tvc` checks `<contract>.abi.json`).
 
-  `<contract.tvc>` - compiled smart contract file.
+`--setkey <keyfile.json>` - use already [existing](#33-generate-key-pair-file) `keyfile.json` key pair file to calculate the contract address. Seed phrase cannot be used instead of the file.
 
+`--wc <int8>` - ID of the workchain the contract will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
 
-As result the utility displays the new contract address (`Raw address`).
+`--save` - If this flag is specified, modifies the tvc file with the keypair and initial data.
+
+`--data <data>` - Initial data to insert into the contract. Should be specified in json format.
+
+`<contract.tvc>` - compiled smart contract file.
+
+As a result tonos-cli displays the new contract address (`Raw address`).
 
 Example ([multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) address generation for the masterchain):
 
@@ -764,7 +880,7 @@ Succeeded
 
 ## 4.2. Deploy contract
 
-> **Note**: If your contract has static variables, they can be initialized through [TVM linker](https://github.com/tonlabs/TVM-linker#5-initialize-static-variables-in-compiled-contract) before deployment.
+> **Note**: If your contract has static variables, they can be initialized with [genaddr command](#41-generate-contract-address) before deployment.
 
 Use the following command to deploy a contract:
 
@@ -775,24 +891,25 @@ tonos-cli deploy [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contrac
 `<deploy_seed_or_keyfile>` - can either be the seed phrase used to generate the deployment key pair file or the key pair file itself. If seed phrase is used, enclose it in double quotes.
 
 Example:
-- `--sign "flip uncover dish sense hazard smile gun mom vehicle chapter order enact"`
+  `--sign "flip uncover dish sense hazard smile gun mom vehicle chapter order enact"`
 or
-- `--sign deploy.keys.json`
+  `--sign deploy.keys.json`
 
-- `--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
+`--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
 
-- `--abi <contract.abi.json>` - contract interface file.
+`--abi <contract.abi.json>` - contract interface file.
 
-- `--alias <alias>` - allows to save contract parameters (address, abi, keys) to use them easier with `callx` or `runx` commands.
+`--alias <alias>` - allows to save contract parameters (address, abi, keys) to use them easier with `callx` or `runx` commands.
 
-- `<contract.tvc>` - compiled smart contract file.
+`<contract.tvc>` - compiled smart contract file.
 
-- `<params>` - deploy command parameters, depend on the contract.
+`<params>` - deploy command parameters, depend on the contract.
 
 Sometimes it can be not obvious in which way method parameters should be specified,
 especially if it is a large structure with different and complex fields.
 It is generally described in [abi doc](https://github.com/tonlabs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
-Example ([multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) contract deployment to the masterchain):
+Example ([multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) 
+contract deployment to the masterchain):
 
 ```bash
 $ tonos-cli deploy --sign key.json --wc -1 --abi SafeMultisigWallet.abi.json SafeMultisigWallet.tvc '{"owners":["0x88c541e9a1c173069c89bcbcc21fa2a073158c1bd21ca56b3eb264bba12d9340"],"reqConfirms":1}'
@@ -811,7 +928,8 @@ Contract deployed at address: -1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de8
 
 ## 4.3. Generate deploy message offline
 
-If needed, signed deploy message can be generated without immediately broadcasting it to the blockchain. Generated message can be broadcasted later<link to broadcast section>.
+If needed, signed deploy message can be generated without immediately broadcasting it to the blockchain. Generated
+message can be sent later.
 
 ```bash
 tonos-cli deploy_message [--raw] [--output <path_to_file>] [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc> <params>
@@ -825,12 +943,13 @@ tonos-cli deploy_message [--raw] [--output <path_to_file>] [--sign <deploy_seed_
 
 Example:
 
-- `--sign "flip uncover dish sense hazard smile gun mom vehicle chapter order enact"`
+`--sign "flip uncover dish sense hazard smile gun mom vehicle chapter order enact"`
 
 or
 
-- `--sign deploy.keys.json`
-- `--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
+`--sign deploy.keys.json`
+
+`--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
 
 `<contract.abi.json>` - contract interface file.
 
@@ -921,10 +1040,12 @@ code_hash:     ccbfc821853aa641af3813ebd477e26818b51e4ca23e5f6d34509215aa7123d9
 ### 4.4.1. Call contract on the blockchain
 
 ```bash
-tonos-cli call [--abi <contract.abi.json>] [--sign <seed_or_keyfile>] <address> <method> <params>
+tonos-cli call [--abi <contract.abi.json>] [--sign <seed_or_keyfile>] [--saved_config <config_contract_path>] <address> <method> <params>
 ```
 
 `<contract.abi.json>` - contract interface file.
+
+`<config_contract_path>` - path to the file with saved config contract state. Is used for debug on fail.
 
 `<seed_or_keyfile>` - can either be the seed phrase or the corresponding key pair file. If seed phrase is used, enclose it in double quotes.
 
@@ -940,7 +1061,8 @@ or
 
 `<method>` - the method being called.
 
-`<params>` - parameters of the called method.
+`<params>` - parameters of the called method. Can be specified by a path to the file, which contains parameters in json
+format.
 Sometimes it can be not obvious in which way method parameters should be specified,
 especially if it is a large structure with different and complex fields.
 It is generally described in [abi doc](https://github.com/tonlabs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
@@ -1088,7 +1210,7 @@ Result: ["125387107580525"]
 ### 4.4.4. Run contract method locally for saved account BOC
 
 ```bash
-tonos-cli run [--boc] [--tvc] [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>]
+tonos-cli run [--boc] [--tvc] [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>] [--saved_config <config_contract_path>]
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -1096,12 +1218,14 @@ tonos-cli run [--boc] [--tvc] [--abi <contract.abi.json>] <account> <method> <pa
 `<account>` - path to the file with account boc for flag `--boc` or account state init for flag `--tvc`
 (they can be obtained from the network with `account` command).
 
+`<config_contract_path>` - path to the file with saved config contract state. Is used for debug on fail.
+
 `<method>` - the method being called.
 
 `<params>` - parameters of the called method.
 
 `--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config
-BOC. It can be obtained with [dump blockchain config](#94-dump-blockchain-config) command.
+BOC. It can be obtained with [dump blockchain config](#93-dump-blockchain-config) command.
 
 Example:
 
@@ -1202,7 +1326,7 @@ Message saved to file message.boc
 
 ## 4.6. Broadcast previously generated message
 
-Use the following command to broadcast a previously generated message, that is not in raw format, and not in a file:
+Use the following command to send a previously generated message, that is not in raw format, and not in a file:
 
 ```bash
 tonos-cli send [--abi <contract.abi.json>] "<message_text>"
@@ -1210,7 +1334,7 @@ tonos-cli send [--abi <contract.abi.json>] "<message_text>"
 
 `<contract.abi.json>` - contract interface file.
 
-`Message` – the content of the message generated by the TONOS-CLI utility during message creation. It should be enclosed in double quotes.
+`<message_text>` – the content of the message generated by the TONOS-CLI utility during message creation. It should be enclosed in double quotes.
 
 Example:
 
@@ -1242,7 +1366,7 @@ Result: {
 
 ## 4.7. Broadcast previously generated message from a file
 
-Use the following command to broadcast a previously generated message, that is stored in a .boc file:
+Use the following command to send a previously generated message, that is stored in a .boc file:
 
 ```bash
 tonos-cli sendfile <path_to_boc_file>
@@ -1272,7 +1396,7 @@ Use the following command to decode previously generated messages in .boc files.
 tonos-cli decode msg --abi <contract.abi.json> <path_to_boc_file>
 ```
 
-`<contract.abi.json>` - contract interface file.
+`<contract.abi.json>` - contract ABI file.
 
 `<path_to_boc_file>` – path to the file where the message was saved.
 
@@ -1572,7 +1696,8 @@ Further input depends on the DeBot, which usually explains any actions it offers
 
 # 6. Multisig commands
 
-Multisig commands allow you to work with any existing Multisig wallets <link to repo> in a more convenient way and with no need of ABI files.
+Multisig commands allow you to work with any existing Multisig wallets <link to repo> in a more convenient way and with
+no need of ABI files.
 
 ## 6.1. Send tokens
 
@@ -1619,7 +1744,7 @@ tonos-cli multisig deploy [--setcode] [--owners <owners_list>] [--confirms <conf
 
 `--setcode` - flag that changes type of the wallet to the SetcodeMultisigWallet. If not specified, a SafeMultisigWallet is deployed.
 
-`--owners <owners_list>` - option that sets wallet owners. If not specified, the only owner is deploy signed (set with --keys option).
+`--owners <owners_list>` - option that sets wallet owners. If not specified, the only owner is the key deployment message was signed with (set with --keys option).
 List of owners must be specified by their public keys in hex format, split by the `,`.
 
 `--confirms <confirms_cnt>` - option that sets required number of confirmations. If not specified, is set to 1.
@@ -1650,7 +1775,8 @@ tonos-cli multisig deploy -l 5000000000 -c 2 -o 8b445b0feab10b9abf4e039d649348ec
 
 ## 7.1. Configure TONOS-CLI for DePool operations
 
-For all commands listed below, the DePool address, the wallet making the stake, the amount of fee to pay for DePool's services and the path to the keyfile/seed phrase may be specified in the TONOS-CLI config file in advance:
+For all commands listed below, the DePool address, the wallet making the stake, the amount of fee to pay for DePool's
+services and the path to the keyfile/seed phrase may be specified in the TONOS-CLI config file in advance:
 
 ```bash
 tonos-cli config --addr <address> --wallet <address> --no-answer true | false --keys <path_to_keys or seed_phrase> --depool_fee <depool_fee>
@@ -1660,7 +1786,7 @@ tonos-cli config --addr <address> --wallet <address> --no-answer true | false --
 
 `--wallet <address>` - the address of the wallet making the stake
 
-`--no-answer true | false` - no-answer flag, which determines, whether TONOS-CLI waits for DePool answer when performing various actions and prints it out, or simply generates and sends a transaction through the specified multisig wallet, without monitoring transaction results in the DePool. By default is set to `true`. Setting to false can be useful for catching rejected stakes or other errors on the DePool side.
+`--no-answer true | false` - no-answer flag, which determines, whether TONOS-CLI waits for DePool answer when performing various actions and prints it out, or simply generates and sends a transaction through the specified multisig wallet, without monitoring transaction results in the DePool. By default, is set to `true`. Setting to false can be useful for catching rejected stakes or other errors on the DePool side.
 
 `<path_to_keys or seed_phrase>` - either the keyfile for the wallet making the stake, or the seed phrase in quotes
 
@@ -1734,7 +1860,8 @@ Result: {
 }
 ```
 
-In both cases the stake is rejected for being too small, but with `no-answer` set to `false` it isn't immediately apparent, as only the results of the sussecful multisig transaction are displayed.
+In both cases the stake is rejected for being too small, but with `no-answer` set to `false` it isn't immediately
+apparent, as only the results of the sussecful multisig transaction are displayed.
 
 ## 7.2. Deposit stakes
 
@@ -1742,9 +1869,12 @@ In both cases the stake is rejected for being too small, but with `no-answer` se
 
 Ordinary stake is the most basic type of stake. It and the rewards from it belong to the wallet that made it.
 
-It is invested completely in the current pooling round, and can be reinvested every second round (as odd and even rounds are handled by DePool separately). Thus to participate in every DePool round, an ordinary stake should be invested in two consecutive rounds, so it can later be reinvested in odd and even rounds both.
+It is invested completely in the current pooling round, and can be reinvested every second round (as odd and even rounds
+are handled by DePool separately). Thus, to participate in every DePool round, an ordinary stake should be invested in
+two consecutive rounds, so it can later be reinvested in odd and even rounds both.
 
-Ordinary stake must exceed DePool minimum stake. Check DePool's page on [ton.live](https://ton.live/dePools) to find out the minimum stake.
+Ordinary stake must exceed DePool minimum stake. Check DePool's page on [ton.live](https://ton.live/dePools) to find out
+the minimum stake.
 
 ```bash
 tonos-cli depool [--addr <depool_address>] stake ordinary [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer]
@@ -1768,7 +1898,9 @@ tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2
 
 ### 7.2.2. Vesting stake
 
-A wallet can make a vesting stake and define a target participant address (beneficiary) who will own this stake, provided the beneficiary has previously indicated the donor as its vesting donor address. This condition prevents unauthorized vestings from blocking the beneficiary from receiving an expected vesting stake from a known address.
+A wallet can make a vesting stake and define a target participant address (beneficiary) who will own this stake,
+provided the beneficiary has previously indicated the donor as its vesting donor address. This condition prevents
+unauthorized vestings from blocking the beneficiary from receiving an expected vesting stake from a known address.
 
 **To receive a vesting stake beneficiary must**:
 
@@ -1795,9 +1927,15 @@ Example:
 tonos-cli depool --addr 0:3187b4d738d69776948ca8543cb7d250c042d7aad1e0aa244d247531590b9147 donor vesting --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --donor 0:279afdbd7b2cbf9e65a5d204635a8630aec2baec60916ffdc9c79a09d2d2893d --sign "deal hazard oak major glory meat robust teach crush plastic point edge"
 ```
 
-Not the whole stake is available to the beneficiary at once. Instead it is split into parts and the next part of stake becomes available to the beneficiary (is transformed into beneficiary's ordinary stake) at the end of the round that coincides with the end of the next withdrawal period. Rewards from vesting stake are always added to the beneficiary's ordinary stake. To withdraw these funds, beneficiary should use use one of the [withdrawal functions](#75-withdraw-stakes).
+Not the whole stake is available to the beneficiary at once. Instead, it is split into parts and the next part of stake
+becomes available to the beneficiary (is transformed into beneficiary's ordinary stake) at the end of the round that
+coincides with the end of the next withdrawal period. Rewards from vesting stake are always added to the beneficiary's
+ordinary stake. To withdraw these funds, beneficiary should use one of the [withdrawal functions](#75-withdraw-stakes).
 
-Please note, that the vesting stake is split into two equal parts by the DePool, to be used in both odd and even rounds, so to ensure DePool can participate in elections with just one vesting stake where validator wallet is beneficiary, the stake should exceed `validatorAssurance` *2. Similarly, to ensure any vesting stake is accepted, make sure it exceeds `minStake` *2.
+Please note, that the vesting stake is split into two equal parts by the DePool, to be used in both odd and even rounds,
+so to ensure DePool can participate in elections with just one vesting stake where validator wallet is beneficiary, the
+stake should exceed `validatorAssurance` *2. Similarly, to ensure any vesting stake is accepted, make sure it exceeds
+`minStake` *2.
 
 **Donor uses the following command to make a vesting stake:**
 
@@ -1835,7 +1973,10 @@ tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2
 
 ### 7.2.3. Lock stake
 
-A wallet can make a lock stake, in which it locks its funds in DePool for a defined period, but rewards from this stake will be payed to another target participant (beneficiary). As with vesting, the beneficiary has to indicate the donor as its lock donor address before receiving a lock stake. This condition prevents unauthorized lock stakes from blocking the beneficiary from receiving an expected lock stake from a known address.
+A wallet can make a lock stake, in which it locks its funds in DePool for a defined period, but rewards from this stake
+will be paid to another target participant (beneficiary). As with vesting, the beneficiary has to indicate the donor as
+its lock donor address before receiving a lock stake. This condition prevents unauthorized lock stakes from blocking the
+beneficiary from receiving an expected lock stake from a known address.
 
 **To receive a lock stake beneficiary must**:
 
@@ -1864,9 +2005,15 @@ Example:
 tonos-cli depool --addr 0:3187b4d738d69776948ca8543cb7d250c042d7aad1e0aa244d247531590b9147 donor lock --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --donor 0:279afdbd7b2cbf9e65a5d204635a8630aec2baec60916ffdc9c79a09d2d2893d --sign "deal hazard oak major glory meat robust teach crush plastic point edge"
 ```
 
-Like vesting stake, lock stake can be configured to be unlocked in parts at the end of each round that coincides with the end of the next withdrawal period. At the end of each period the Lock Stake is returned to the wallet which locked it. The rewards of a lock stake are always added to the ordinary stake of the beneficiary. To withdraw these funds, beneficiary should use use one of the [withdrawal functions](#75-withdraw-stakes).
+Like vesting stake, lock stake can be configured to be unlocked in parts at the end of each round that coincides with
+the end of the next withdrawal period. At the end of each period the Lock Stake is returned to the wallet which locked
+it. The rewards of a lock stake are always added to the ordinary stake of the beneficiary. To withdraw these funds,
+beneficiary should use one of the [withdrawal functions](#75-withdraw-stakes).
 
-Please note that the lock stake is split into two equal parts by the DePool, to be used in both odd and even rounds, so to ensure DePool can participate in elections with just one lock stake where validator wallet is beneficiary, the stake should equal `validatorAssurance` *2. Similarly, to ensure any vesting stake is accepted, make sure it exceeds `minStake` *2.
+Please note that the lock stake is split into two equal parts by the DePool, to be used in both odd and even rounds, so
+to ensure DePool can participate in elections with just one lock stake where validator wallet is beneficiary, the stake
+should equal `validatorAssurance` *2. Similarly, to ensure any vesting stake is accepted, make sure it exceeds
+`minStake` *2.
 
 **Donor uses the following command to make a lock stake:**
 
@@ -1930,7 +2077,9 @@ tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2
 
 ## 7.4. Transfer stakes
 
-The following command assigns an existing ordinary stake or its part to another participant wallet. If the entirety of the stake is transferred, the transferring wallet is removed from the list of participants in the DePool. If the receiving wallet isn't listed among the participants, it will become a participant as the result of the command.
+The following command assigns an existing ordinary stake or its part to another participant wallet. If the entirety of
+the stake is transferred, the transferring wallet is removed from the list of participants in the DePool. If the
+receiving wallet isn't listed among the participants, it will become a participant as the result of the command.
 
 ```bash
 tonos-cli depool [--addr <depool_address>] stake transfer [--wallet <msig_address>] --value <number> --dest <address> [--sign <key_file or seed_phrase>] [--wait-answer]
@@ -1962,7 +2111,9 @@ tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2
 
 ### 7.5.1. Withdraw entire stake
 
-The following command allows to withdraw an ordinary stake to the wallet that owns it, as soon as the stake becomes available. Use `withdraw on` to receive the stake, once it's unlocked. If you then make another stake, and want to keep reinvesting it every round, run the command with `withdraw off`.
+The following command allows to withdraw an ordinary stake to the wallet that owns it, as soon as the stake becomes
+available. Use `withdraw on` to receive the stake, once it's unlocked. If you then make another stake, and want to keep
+reinvesting it every round, run the command with `withdraw off`.
 
 ```bash
 tonos-cli depool [--addr <depool_address>] withdraw on | off [--wallet <msig_address>] [--sign <key_file or seed_phrase>] [--wait-answer]
@@ -1986,7 +2137,9 @@ tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2
 
 ### 7.5.2. Withdraw part of the stake
 
-The following command allows to withdraw part of an ordinary stake to the wallet that owns it, as soon as the stake becomes available. If, as result of this withdrawal, participant's ordinary stake becomes less than `minStake`, then participant's whole stake is sent to participant.
+The following command allows to withdraw part of an ordinary stake to the wallet that owns it, as soon as the stake
+becomes available. If, as result of this withdrawal, participant's ordinary stake becomes less than `minStake`, then
+participant's whole stake is sent to participant.
 
 ```bash
 tonos-cli depool [--addr <depool_address>] stake withdrawPart [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer]
@@ -2012,7 +2165,11 @@ tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2
 
 ## 7.6. Reinvest Stakes
 
-[Ordinary](#721-ordinary-stake) stake reinvestment is controlled by the DePool reinvest flag. By default this flag is set to `yes`, and the the participant's available ordinary stake will be reinvested every round, no additional action required. It gets set to `no` when [withdrawing the entire stake](#751-withdraw-entire-stake). After stake withdrawal it remains set to `no`. To re-enable ordinary stake reinvesting after withdrawing a stake, run the withdraw command with option `off`:
+[Ordinary](#721-ordinary-stake) stake reinvestment is controlled by the DePool reinvest flag. By default, this flag is
+set to `yes`, and the participant's available ordinary stake will be reinvested every round, no additional action
+required. It gets set to `no` when [withdrawing the entire stake](#751-withdraw-entire-stake). After stake withdrawal it
+remains set to `no`. To re-enable ordinary stake reinvesting after withdrawing a stake, run the `withdraw` command with
+option `off`:
 
 ```bash
 tonos-cli depool [--addr <depool_address>] withdraw off [--wallet <msig_address>] [--sign <key_file or seed_phrase>] [--wait-answer]
@@ -2034,13 +2191,16 @@ tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2
 
 **Note:**
 
-[Withdrawing a part of the stake](#752-withdraw-part-of-the-stake) does not affect the reinvest flag.
+[Withdrawing a part of the stake](#752-withdraw-part-of-the-stake) does not affect the `reinvest` flag.
 
-[Lock](#723-lock-stake) and [vesting](#722-vesting-stake) stakes are reinvested according to their initial settings for the full duration of the staking period. There is no way to change these settings once lock and vesting stakes are made.
+[Lock](#723-lock-stake) and [vesting](#722-vesting-stake) stakes are reinvested according to their initial settings for
+the full duration of the staking period. There is no way to change these settings once lock and vesting stakes are made.
 
 ## 7.7. Read DePool answers
 
-Every time anything happens with the participant stake in the DePool, e.g. a round completes and rewards are distributed, DePool sends the participant a message with the relevant details. Use the following command to read these messages:
+Every time anything happens with the participant stake in the DePool, e.g. a round completes and rewards are
+distributed, DePool sends the participant a message with the relevant details. Use the following command to read these
+messages:
 
 ```bash
 tonos-cli depool --addr <depool_address> answers --wallet <msig_address> [--since <unixtime>]
@@ -2069,7 +2229,8 @@ onRoundComplete {"roundId":"104","reward":"2907725565","ordinaryStake":"21126942
 
 ## 7.8. View DePool events
 
-Various events occurring in the DePool are broadcasted to the blockchain and can be monitored. use the following command to view them:
+Various events occurring in the DePool are broadcasted to the blockchain and can be monitored. use the following command
+to view them:
 
 ```bash
 tonos-cli depool [--addr <depool_address>] events [--since <unixtime>]
@@ -2114,7 +2275,9 @@ TONOS-CLI waits until new event will be emitted and then prints it to terminal.
 
 ## 7.9. Replenish DePool balance
 
-To operate correctly, DePool needs to maintain a balance over 20 tokens. Normally, this happens automatically, but in some cases, when normal operation is interrupted, DePool balance may drop lower. Use the following command to replenish DePool balance (this is not counted towards any stake):
+To operate correctly, DePool needs to maintain a balance over 20 tokens. Normally, this happens automatically, but in
+some cases, when normal operation is interrupted, DePool balance may drop lower. Use the following command to replenish
+DePool balance (this is not counted towards any stake):
 
 ```bash
 tonos-cli depool [--addr <depool_address>] replenish --value *number* [--wallet <msig_address>] [--sign <key_file_or_seed_phrase>]
@@ -2152,7 +2315,9 @@ Result: {
 
 ## 7.10. Send ticktock to DePool
 
-To operate correctly, DePool needs to receive regular ticktock (state update) calls. One way to set them up, is through a TONOS-CLI with the use of a multisig wallet. Use the following command to send a ticktock call (you may set up a script to run this command regularly):
+To operate correctly, DePool needs to receive regular ticktock (state update) calls. One way to set them up, is through
+a TONOS-CLI with the use of a multisig wallet. Use the following command to send a ticktock call (you may set up a
+script to run this command regularly):
 
 ```bash
 tonos-cli depool [--addr <depool_address>] ticktock [--wallet <msig_address>] [--sign <path_to_keys_or_seed_phrase>]
@@ -2187,7 +2352,8 @@ Result: {
 
 # 8. Proposal commands
 
-The following commands are used when voting for various FreeTON proposals at [https://gov.freeton.org/](https://gov.freeton.org/)
+The following commands are used when voting for various FreeTON proposals at
+[https://gov.freeton.org/](https://gov.freeton.org/)
 
 ## 8.1. Create proposal and cast the first vote
 
@@ -2207,7 +2373,8 @@ tonos-cli proposal create <msig_address> <proposal_address> "<comment>" <path_to
 
 The utility generates the proposal transaction ID and casts the first vote for the proposal.
 
-The proposal transaction ID can be used to vote for the proposal by all other wallet custodians and should be communicated to them.
+The proposal transaction ID can be used to vote for the proposal by all other wallet custodians and should be
+communicated to them.
 
 ## 8.2. Vote for proposal
 
@@ -2223,7 +2390,8 @@ tonos-cli proposal vote <msig_address> <proposal_id> <path_to_keyfile_or_seed_ph
 
 `"<seed_phrase>"` - path to key file or seed phrase for the judge wallet. Seed phrase should be enclosed in double quotes.
 
-Once the proposal transaction receives the required amount of votes (depends on judge wallet configuration), the transaction is executed and the proposal is considered approved.
+Once the proposal transaction receives the required amount of votes (depends on judge wallet configuration), the
+transaction is executed and the proposal is considered approved.
 
 ## 8.3. Decode proposal comment
 
@@ -2242,10 +2410,12 @@ tonos-cli proposal decode <msig_address> <proposal_id>
 ## 9.1. Get global config
 
 ```bash
-tonos-cli getconfig <index>
+tonos-cli getconfig [<index>]
 ```
 
-`<index>` - number of the [global config parameter](https://docs.ton.dev/86757ecb2/v/0/p/35a3f3-field-descriptions) (equals the numeric part of the config parameter field name).
+Options:
+
+`<index>` - number of the [global config parameter](https://docs.ton.dev/86757ecb2/v/0/p/35a3f3-field-descriptions) (equals the numeric part of the config parameter field name). This option can be omitted and command will fetch all config parameters.
 
 Example (requesting the maximum and minimum numbers of validators on the blockchain):
 
@@ -2336,7 +2506,7 @@ Succeeded.
 
 ## 9.5. Update global config parameter
 
-Use the following command to update one parameter of global config, that is stored in a .json file:
+Use the following command to update one parameter of the blockchain global config, that is stored in a .json file:
 
 ```bash
 tonos-cli update_config <seqno> <config_master_key_file> <new_param_file>
@@ -2357,7 +2527,6 @@ Example of new_param_file
     "capabilities": 8238
   }
 }
-
 ```
 
 Example:
@@ -2397,7 +2566,8 @@ $ echo $?
 
 ## 9.7. Make a raw GraphQL query
 
-The command `query-raw` executes a raw network query by directly calling the `ton_client::net::query_collection` SDK interface.
+The command `query-raw` executes a raw network query by directly calling the `ton_client::net::query_collection` SDK
+interface.
 
 ```bash
 tonos-cli query-raw <collection> <result> [--filter <filter>] [--limit <limit>] [--order <order>]
@@ -2439,9 +2609,108 @@ $ tonos-cli --json query-raw accounts "id bits cells" --order '[ { "path": "bala
 
 For more information and syntax read docs section on [playground](https://ever-live-playground.web.app/).
 
+## 9.8. Fee commands 
+
+This commands allow user to learn how much funds smart contract can consume.
+
+### 9.8.1. Call fee command
+
+This command executes smart contract call locally, calculates fees and prints table of all fees in nanotons.
+Command has the same option as [tonos-cli call](#441-call-contract-on-the-blockchain) command:
+
+```bash
+tonos-cli fee call  [--abi <contract.abi.json>] [--sign <seed_or_keyfile>] [--saved_config <config_contract_path>] <address> <method> <params>
+```
+
+`<contract.abi.json>` - contract interface file.
+
+`<config_contract_path>` - path to the file with saved config contract state. Is used for debug on fail.
+
+`<seed_or_keyfile>` - can either be the seed phrase or the corresponding key pair file. If seed phrase is used, enclose it in double quotes.
+
+`<address>` - contract [address](#41-generate-contract-address).
+
+`<method>` - the method being called.
+
+`<params>` - parameters of the called method. Can be specified by a path to the file, which contains parameters in json
+format.
+
+Example:
+
+```bash
+tonos-cli --json fee call --abi tests/samples/giver_v2.abi.json 0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415 --sign tests/samples/giver_v2.key sendTransaction '{"dest":"0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415","value":1000000,"bounce":false}'
+Not set rand_seed_block
+{
+  "in_msg_fwd_fee": "2237000",
+  "storage_fee": "13",
+  "gas_fee": "9690000",
+  "out_msgs_fwd_fee": "1000000",
+  "total_account_fees": "12927013",
+  "total_output": "1000000"
+}
+```
+
+### 9.8.2. Deploy fee command
+
+This command executes smart contract deploy locally, calculates fees and prints table of all fees in nanotons.
+Command has the same option as [tonos-cli deploy](#42-deploy-contract) command:
+
+```bash
+tonos-cli fee deploy [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc> <params>
+```
+
+`<deploy_seed_or_keyfile>` - can either be the seed phrase used to generate the deployment key pair file or the key pair file itself. If seed phrase is used, enclose it in double quotes.
+
+
+`--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
+
+`--abi <contract.abi.json>` - contract interface file.
+
+`<contract.tvc>` - compiled smart contract file.
+
+`<params>` - deploy command parameters, depend on the contract.
+
+Example:
+
+```bash
+tonos-cli --json fee deploy tests/samples/SafeMultisigWallet.tvc '{"owners":["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"],"reqConfirms":1}' --abi tests/samples/SafeMultisigWallet.abi.json --sign tests/deploy_test.key 
+Not set rand_seed_block
+{
+  "in_msg_fwd_fee": "42421000",
+  "storage_fee": "0",
+  "gas_fee": "9004000",
+  "out_msgs_fwd_fee": "0",
+  "total_account_fees": "51425000",
+  "total_output": "0"
+}
+```
+
+### 9.8.3. Storage fee command
+
+This command allows user to calculate storage fees for a deployed contract using it's address.
+
+```bash
+tonos-cli fee storage [--period <period>] <address>
+```
+
+`<period>` - Time period in seconds (default value is 1 year).
+
+`<address>` - Contract address.
+
+Example:
+
+```bash
+tonos-cli --json fee storage --period 1000000 0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415
+{
+  "storage_fee": "332978",
+  "period": "1000000"
+}
+```
+
 ## 10. Fetch and replay
 
-These two commands are commonly used in pairs to recover a state of the account at the specific point before a given transaction.
+These two commands are commonly used in pairs to recover a state of the account at the specific point before a given
+transaction.
 
 Example:
 
@@ -2456,7 +2725,8 @@ $ tonos-cli fetch -- -1:55555555555555555555555555555555555555555555555555555555
 ```bash
 $ tonos-cli fetch 0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d 570ddeb8.txns
 ```
-where `0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d` is an example of account address, `570ddeb8.txns` - name of the output file.
+where `0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d` is an example of account address,
+`570ddeb8.txns` - name of the output file.
 
 ```bash
 $ tonos-cli replay [-e] [-c config.txns] 570ddeb8.txns 197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270
@@ -2464,9 +2734,11 @@ $ tonos-cli replay [-e] [-c config.txns] 570ddeb8.txns 197ee1fe7876d4e2987b5dd24
 
 Transaction can be replayed with config using option `-c` or with the current network config (option `-e`).
 
-where `197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270` is a txn id before which account state should be restored.
+where `197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270` is a txn id before which account state should
+be restored.
 
-Note 1: last command generates 3 files. The file with the longest name in the form of `<addr>-<txn_id>.boc` is a replayed and serialized Account state.
+Note 1: last command generates 3 files. The file with the longest name in the form of `<addr>-<txn_id>.boc` is a
+replayed and serialized Account state.
 
 Note 2: to get StateInit (tvc) from Account state use `tonos-cli decode account boc` command with `--dumptvc` option.
 
@@ -2476,11 +2748,14 @@ Note 2: to get StateInit (tvc) from Account state use `tonos-cli decode account 
 
 - 2) Extract tvc from the generated Account state.
 
-1) Use contract deployer (address in mainnet: `0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64`) to deploy the extracted tvc to the frozen account. Send 1 ton to its address and then run its `deploy` method.
+1) Use contract deployer (address in mainnet: `0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64`) to
+deploy the extracted tvc to the frozen account. Send 1 ton to its address and then run its `deploy` method.
 
-    Example:
-    `tonos-cli --url main.ton.dev call 0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64 deploy --abi deployer.abi.json "{\"stateInit\":\"$(cat state.tvc | base64 -w 0)\",\"value\":500000000,\"dest\":\"-1:618272d6b15fd8f1eaa3cdb61ab9d77ae47ebbfcf7f28d495c727d0e98d523eb\"}"`
-    where `dest` - an address of frozen account, `state.tvc` - extracted account StateInit in step 2.
+Example:
+
+`tonos-cli --url main.ton.dev call 0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64 deploy --abi deployer.abi.json "{\"stateInit\":\"$(cat state.tvc | base64 -w 0)\",\"value\":500000000,\"dest\":\"-1:618272d6b15fd8f1eaa3cdb61ab9d77ae47ebbfcf7f28d495c727d0e98d523eb\"}"`
+
+where `dest` - an address of frozen account, `state.tvc` - extracted account StateInit in step 2.
 
 Deployer.abi.json:
 ```json
@@ -2513,11 +2788,25 @@ Deployer.abi.json:
 }
 ```
 
-# 11. Debug commands
+### 10.2. Fetch block command
+
+This command allow user to fetch block and save it to the output file.
+
+```bash
+tonos-cli fetch-block <BLOCKID> <OUTPUT>
+```
+
+Options: 
+
+`<BLOCKID>` - Block ID.
+`<OUTPUT>` - Output file name
+
+## 11. Debug commands
 
 Debug commands allow user to replay transaction locally or execute a function call locally and obtain TVM trace.
+More about debug flow is written in [Debug.md](https://github.com/tonlabs/tonos-cli/blob/master/Debug.md).
 
-## 11.1. Debug transaction
+### 11.1. Debug transaction
 
 ```bash
 tonos-cli debug transaction [FLAGS] [OPTIONS] <tx_id>
@@ -2531,7 +2820,7 @@ FLAGS:
 
 `-e, --empty_config`      Replay transaction without full dump of the config contract.
 
-`--min_trace`             Flag that changes trace to minimal version.
+`--full_trace`             Flag that changes trace to full version.
 
 OPTIONS:
 
@@ -2575,7 +2864,7 @@ DONE
 Log saved to tvm_trace.log.
 ```
 
-## 11.2. Debug call
+### 11.2. Debug call
 
 ```bash
 tonos-cli debug call [FLAGS] [OPTIONS] <address> <method> <params>
@@ -2635,7 +2924,7 @@ Execution finished.
 Log saved to ./trace.log
 ```
 
-## 11.3. Debug run
+### 11.3. Debug run
 
 ```bash
 tonos-cli debug run [FLAGS] [OPTIONS] <address> <method> <params>
@@ -2690,7 +2979,7 @@ Execution finished.
 Log saved to ./trace.log
 ```
 
-## 11.4. Debug replay transaction on the saved account state
+### 11.4. Debug replay transaction on the saved account state
 
 ```bash
     tonos-cli debug replay [FLAGS] [OPTIONS] <TX_ID> <INPUT>
@@ -2735,7 +3024,7 @@ Execution finished.
 Log saved to trace2.log
 ```
 
-## 11.5. Debug deploy
+### 11.5. Debug deploy
 
 ```bash
 tonos-cli debug deploy [FLAGS] [OPTIONS] <tvc> <params>
@@ -2775,7 +3064,7 @@ This command allows user locally emulate contract deploy.
 Command can work with prepared network account or create a dummy one with big balance (if --init_balance flag is
 specified).
 
-## 11.6. Debug message
+### 11.6. Debug message
 
 ```bash
 $ tonos-cli debug message [--boc] <address_or_path> [-u] [-o <log_path>] <message_in_base64_or_path_to_file>
@@ -2837,7 +3126,7 @@ Output messages:
 
 `Message_base64` then can be passed to `tonos-cli debug message` to play it on another account.
 
-## 11.7. Render UML sequence diagram
+### 11.7. Render UML sequence diagram
 
 ```bash
     tonos-cli debug sequence-diagram <address_list>
@@ -2855,9 +3144,13 @@ To render an SVG the following command can be used:
 
 ### Caveat
 
-Sequence diagrams are well suited for describing synchronous interactions. However, transactions (and messages which spawn them) of the blockchain are inherently asynchronous. In particular, sequence diagram arrows can only be horizontal, and there is no way to make them curve down towards the destination, skipping other transactions and thus depicting asynchronicity.
+Sequence diagrams are well suited for describing synchronous interactions. However, transactions (and messages which
+spawn them) of the blockchain are inherently asynchronous. In particular, sequence diagram arrows can only be
+horizontal, and there is no way to make them curve down towards the destination, skipping other transactions and thus
+depicting asynchronicity.
 
-Practically, this means that one should look cautiously at the point of transaction spawn, being aware that the spawning message can be located somewhere above.
+Practically, this means that one should look cautiously at the point of transaction spawn, being aware that the spawning
+message can be located somewhere above.
 
 ## 12. Alias functionality
 

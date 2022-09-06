@@ -148,7 +148,7 @@ async fn main_internal() -> Result <(), String> {
         .long("--wc")
         .help("Workchain id of the smart contract (default value is taken from the config).");
 
-    let alias_arg = Arg::with_name("ALIAS")
+    let alias_arg_long = Arg::with_name("ALIAS")
         .long("--alias")
         .takes_value(true)
         .help("Saves contract address and abi to the aliases list to be able to call this contract with alias instaed of address.");
@@ -164,7 +164,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(keys_arg.clone())
         .arg(wc_arg.clone())
         .arg(tvc_arg.clone())
-        .arg(alias_arg.clone())
+        .arg(alias_arg_long.clone())
         .arg(Arg::with_name("PARAMS")
             .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
             .multiple(true));
@@ -308,8 +308,7 @@ async fn main_internal() -> Result <(), String> {
             .help("Constructor arguments. Can be specified with a filename, which contains json data."))
         .arg(abi_arg.clone())
         .arg(sign_arg.clone())
-        .arg(wc_arg.clone())
-        .arg(alias_arg.clone());
+        .arg(wc_arg.clone());
 
     let output_arg = Arg::with_name("OUTPUT")
         .short("-o")
@@ -697,6 +696,7 @@ async fn main_internal() -> Result <(), String> {
             .about("Executes call locally, calculates fees and prints table of all fees in nanotons."));
 
     let proposal_cmd = SubCommand::with_name("proposal")
+        .help("Proposal control commands.")
         .subcommand(
             SubCommand::with_name("create")
                 .about("Submits a proposal transaction in the multisignature wallet with a text comment.")
@@ -881,7 +881,8 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(genpubkey_cmd)
         .subcommand(getkeypair_cmd)
         .subcommand(genaddr_cmd)
-        .subcommand(deploy_cmd)
+        .subcommand(deploy_cmd
+            .arg(alias_arg_long.clone()))
         .subcommand(deploy_message_cmd)
         .subcommand(call_cmd)
         .subcommand(send_cmd)
