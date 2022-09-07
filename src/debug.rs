@@ -10,22 +10,24 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args};
+use crate::{contract_data_from_matches_or_config_alias, FullConfig, print_args, unpack_alternative_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
                      TonClient, query_account_field, query_with_limit, create_client_verbose,
-                     abi_from_matches_or_config, load_params, load_debug_info,
-                     wc_from_matches_or_config};
+                     abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
 use std::io::{Write, BufRead};
 use std::collections::{HashSet, HashMap};
-use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction, MsgAddressInt, CurrencyCollection, GasLimitsPrices, ConfigParamEnum};
+use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction,
+                MsgAddressInt, CurrencyCollection, GasLimitsPrices, ConfigParamEnum};
 use ton_types::{UInt256, HashmapE, Cell, AccountId};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
-use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TransactionExecutor};
+use ton_executor::{
+    BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TransactionExecutor
+};
 use std::sync::{Arc, atomic::AtomicU64};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDirection};
 use crate::crypto::load_keypair;
@@ -112,22 +114,22 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .short("-d");
 
     let address_arg = Arg::with_name("ADDRESS")
-        .required(true)
+        .long("--addr")
         .takes_value(true)
-        .help("Contract address or path the file with saved contract state if corresponding flag is used.");
+        .help("Contract address or path the file with saved contract state if corresponding flag is used. Can be specified in th config file.");
 
     let method_arg = Arg::with_name("METHOD")
-        .required(true)
+        .long("--method")
+        .short("-m")
         .takes_value(true)
-        .help("Name of the function being called.");
+        .help("Name of the function being called. Can be specified in the config file.");
 
     let params_arg = Arg::with_name("PARAMS")
-        .required(true)
-        .takes_value(true)
-        .help("Function arguments. Can be specified with a filename, which contains json data.");
+        .help("Function arguments. Must be a list of `--name value` pairs, a json string with all arguments or path to the file with parameters. Can be specified in the config file.")
+        .multiple(true);
 
-    let sign_arg = Arg::with_name("SIGN")
-        .long("--sign")
+    let sign_arg = Arg::with_name("KEYS")
+        .long("--keys")
         .takes_value(true)
         .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.");
 
@@ -321,7 +323,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(msg_cmd)
 }
 
-pub async fn debug_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+pub async fn debug_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Result<(), String> {
+    let config = &full_config.config;
     if let Some(matches) = matches.subcommand_matches("transaction") {
         return debug_transaction_command(matches, config, false).await;
     }
@@ -329,10 +332,10 @@ pub async fn debug_command(matches: &ArgMatches<'_>, config: &Config) -> Result<
         return debug_transaction_command(matches, config, true).await;
     }
     if let Some(matches) = matches.subcommand_matches("call") {
-        return debug_call_command(matches, config, false).await;
+        return debug_call_command(matches, full_config, false).await;
     }
     if let Some(matches) = matches.subcommand_matches("run") {
-        return debug_call_command(matches, config, true).await;
+        return debug_call_command(matches, full_config, true).await;
     }
     if let Some(matches) = matches.subcommand_matches("message") {
         return debug_message_command(matches, config).await;
@@ -363,14 +366,19 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         let address = query_address(tx_id.unwrap(), &config).await?;
         (tx_id.unwrap().to_string(), address)
     } else {
-        let address = matches.value_of("ADDRESS");
+        let address =
+            Some(matches.value_of("ADDRESS")
+               .map(|s| s.to_string())
+               .or(config.addr.clone())
+               .ok_or("ADDRESS is not defined. Supply it in the config file or command line."
+                   .to_string())?);
         if !config.is_json {
             print_args!(address, trace_path, config_path, contract_path);
         }
         let address = address.unwrap();
-        let transactions = query_transactions(address, &config).await?;
+        let transactions = query_transactions(&address, &config).await?;
         let tr_id = choose_transaction(transactions)?;
-        (tr_id, address.to_string())
+        (tr_id, address)
     };
 
     let config_path = match config_path {
@@ -559,24 +567,28 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: &Config) -> Option<String> 
     }
 }
 
-async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter: bool) -> Result<(), String> {
-    let input = matches.value_of("ADDRESS");
+async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_getter: bool) -> Result<(), String> {
+    let (input, opt_abi, sign) = contract_data_from_matches_or_config_alias(matches, full_config)?;
+    let input = input.as_ref();
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
-    let method = matches.value_of("METHOD");
-    let params = matches.value_of("PARAMS");
-    let sign = matches.value_of("SIGN")
-        .map(|s| s.to_string())
-        .or(config.keys_path.clone());
+    let method = Some(matches.value_of("METHOD").or(full_config.config.method.as_deref())
+        .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
-    let params = Some(load_params(params.unwrap())?);
+    let loaded_abi = std::fs::read_to_string(opt_abi.as_ref().unwrap())
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+    let params = unpack_alternative_params(
+        matches,
+        &loaded_abi,
+        method.unwrap(),
+        &full_config.config
+    )?;
 
-    if !config.is_json {
+    if !full_config.config.is_json {
         print_args!(input, method, params, sign, opt_abi, output);
     }
 
-    let ton_client = create_client(&config)?;  // TODO: create local for boc and tvc
+    let ton_client = create_client(&full_config.config)?;  // TODO: create local for boc and tvc
     let input = input.unwrap();
     let mut account = if is_tvc {
         construct_account_from_tvc(input,
@@ -586,7 +598,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         Account::construct_from_file(input)
             .map_err(|e| format!(" failed to load account from the file {}: {}", input, e))?
     } else {
-        let address = load_ton_address(input, &config)?;
+        let address = load_ton_address(input, &full_config.config)?;
         let account = query_account_field(ton_client.clone(), &address, "boc").await?;
         Account::construct_from_base64(&account)
             .map_err(|e| format!("Failed to construct account: {}", e))?
@@ -603,7 +615,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
     let now = parse_now(matches)?;
 
     let header = FunctionHeader {
-        expire: Some((now / 1000) as u32 + config.lifetime),
+        expire: Some((now / 1000) as u32 + full_config.config.lifetime),
         time: Some(now),
         ..Default::default()
     };
@@ -655,13 +667,13 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         now,
         now,
         is_getter,
-        config,
+        &full_config.config,
     ).await;
 
     let mut out_res = vec![];
     let msg_string = match trans {
         Ok(trans) => {
-            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, &full_config.config)).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -682,14 +694,14 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
             .map_err(|e| format!("Failed to construct account: {}", e))?
             .write_to_file(input)
             .map_err(|e| format!("Failed to dump account: {}", e))?;
-        if !config.is_json {
+        if !full_config.config.is_json {
             println!("{} successfully updated", input);
         }
     }
 
     let print_res = is_getter && !out_res.is_empty();
     if print_res {
-        if !config.is_json {
+        if !full_config.config.is_json {
             print!("Output: ");
         }
         for msg in out_res {
@@ -698,7 +710,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         }
     }
 
-    if !config.is_json {
+    if !full_config.config.is_json {
         println!("{}", msg_string);
         println!("Log saved to {}", trace_path);
     } else if !print_res {
@@ -793,11 +805,17 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
         .or(load_debug_info(opt_abi.as_ref().unwrap()));
-    let params = matches.value_of("PARAMS");
-    let sign = matches.value_of("SIGN")
+    let sign = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
-    let params = Some(load_params(params.unwrap())?);
+    let loaded_abi = std::fs::read_to_string(opt_abi.as_ref().unwrap())
+        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+    let params = unpack_alternative_params(
+        matches,
+        &loaded_abi,
+        "constructor",
+        config
+    )?;
     let wc = Some(wc_from_matches_or_config(matches, config)?);
     if !config.is_json {
         print_args!(tvc, params, sign, opt_abi, output, debug_info);
