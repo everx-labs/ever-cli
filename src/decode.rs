@@ -56,12 +56,15 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(SubCommand::with_name("msg")
             .about("Decodes message file.")
             .arg(Arg::with_name("MSG")
-                    .required(true)
-                    .help("Path to the message boc file."))
+                .required(true)
+                .help("Path to the message boc file (with binary data) or message in base64 if corresponding flag is used."))
             .arg(Arg::with_name("ABI")
-                    .long("--abi")
-                    .takes_value(true)
-                    .help("Path to the contract ABI file.")))
+                .long("--abi")
+                .takes_value(true)
+                .help("Path to the contract ABI file. Can be specified in the config file."))
+            .arg(Arg::with_name("BASE64")
+                .long("--base64")
+                .help("Flag that changes behavior of the command to work with data in base64.")))
         .subcommand(tvc_cmd)
         .subcommand(SubCommand::with_name("account")
             .about("Top level command of account decode commands.")
@@ -230,9 +233,15 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: &Config) -> Result<(
     if !config.is_json {
         print_args!(msg, abi);
     }
-    let msg = msg.map(std::fs::read)
-        .transpose()
-        .map_err(|e| format!(" failed to read msg boc file: {}", e))?
+    let is_base64 = m.is_present("BASE64");
+    let msg = msg.map(|msg| if is_base64 {
+        base64::decode(msg)
+            .map_err(|e| format!(" failed to decode msg in base64: {}", e))
+    } else {
+        std::fs::read(msg)
+            .map_err(|e| format!(" failed to read msg from file {msg}: {}", e))
+    })
+        .transpose()?
         .unwrap();
     println!("{}", decode_message(msg, abi).await?);
     Ok(())
