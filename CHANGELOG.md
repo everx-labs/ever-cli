@@ -2,18 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.27.36
+## Version: 0.28.1
 
 ### New
- - Added global tonos-cli config which is used to create default configs.
-
+ - Updated version of SDK;
+ - Added global tonos-cli config which is used to create default configs;
+ - Added config parameters for Evercloud authentication;
+ - Added new input format for `tonos-cli decode message` command.
 
 ## Version: 0.27.33
 
 ### New
 - Added ability to call `account` command with address from config
 
-### Big fixes
+### Bug fixes
 - Fixed work with old config file
 
 
