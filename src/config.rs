@@ -228,9 +228,9 @@ lazy_static! {
     ];
 
     static ref SE_ENDPOINTS: Vec<String> = vec![
-        "http://0.0.0.0/".to_string(),
-        "http://127.0.0.1/".to_string(),
-        "http://localhost/".to_string(),
+        "http://0.0.0.0".to_string(),
+        "http://127.0.0.1".to_string(),
+        "http://localhost".to_string(),
     ];
 }
 

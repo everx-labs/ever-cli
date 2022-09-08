@@ -131,7 +131,9 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
             end.to_owned()
         }).collect::<Vec<String>>()
     } else {
-        config.endpoints.clone()
+        config.endpoints.clone().iter_mut().map(|end| {
+            end.trim_end_matches('/').to_owned()
+        }).collect::<Vec<String>>()
     };
     if !config.is_json {
         println!("Connecting to:\n\tUrl: {}", config.url);

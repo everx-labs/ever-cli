@@ -925,7 +925,7 @@ fn test_global_config() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("pubkey\": null"))
         .stdout(predicate::str::contains("lifetime\": 99"))
         .stdout(predicate::str::contains("is_json\": false"))
-        .stdout(predicate::str::contains("http://localhost/"));
+        .stdout(predicate::str::contains("http://localhost"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -958,7 +958,7 @@ fn test_global_config() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("pubkey\": null"))
         .stdout(predicate::str::contains("lifetime\": 99"))
         .stdout(predicate::str::contains("is_json\": true"))
-        .stdout(predicate::str::contains("http://localhost/"));
+        .stdout(predicate::str::contains("http://localhost"));
 
     fs::remove_file(config_path)?;
 
