@@ -107,6 +107,12 @@ pub struct Config {
     pub async_call: bool,
     #[serde(default = "default_trace")]
     pub debug_fail: String,
+
+    // SDK authentication parameters
+    pub project_id: Option<String>,
+    pub access_key: Option<String>,
+    ////////////////////////////////
+
     #[serde(default = "default_endpoints")]
     pub endpoints: Vec<String>,
 }
@@ -155,6 +161,8 @@ impl Default for Config {
             endpoints: default_endpoints(),
             out_of_sync_threshold: default_out_of_sync(),
             debug_fail: default_trace(),
+            project_id: None,
+            access_key: None,
         }
     }
 }
@@ -197,6 +205,8 @@ impl Config {
             endpoints,
             out_of_sync_threshold: default_out_of_sync(),
             debug_fail: default_trace(),
+            project_id: None,
+            access_key: None,
         }
     }
 }
@@ -418,6 +428,15 @@ pub fn clear_config(
     if matches.is_present("IS_JSON") {
         config.is_json = default_false();
     }
+    if matches.is_present("PROJECT_ID") {
+        config.project_id = None;
+        if config.access_key.is_some() && !config.is_json {
+            println!("Warning: You have access_key set without project_id. It has no sense in case of authentication.");
+        }
+    }
+    if matches.is_present("ACCESS_KEY") {
+        config.access_key = None;
+    }
 
     if matches.args.is_empty() {
         *config = Config::new();
@@ -531,6 +550,15 @@ pub fn set_config(
     if let Some(is_json) = matches.value_of("IS_JSON") {
         config.is_json = is_json.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "is_json": {}"#, e))?;
+    }
+    if let Some(s) = matches.value_of("PROJECT_ID") {
+        config.project_id = Some(s.to_string());
+    }
+    if let Some(s) = matches.value_of("ACCESS_KEY") {
+        config.access_key = Some(s.to_string());
+        if config.project_id.is_none() && !config.is_json {
+            println!("Warning: You have access_key set without project_id. It has no sense in case of authentication.");
+        }
     }
 
     full_config.to_file(&full_config.path)?;

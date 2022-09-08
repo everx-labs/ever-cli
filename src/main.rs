@@ -464,7 +464,13 @@ async fn main_internal() -> Result <(), String> {
             .help("Network connection \"out_of_sync_threshold\" parameter in seconds. Mind that it cant exceed half of the \"lifetime\" parameter."))
         .arg(Arg::with_name("IS_JSON")
             .long("--is_json")
-            .help("Cli prints output in json format."));
+            .help("Cli prints output in json format."))
+        .arg(Arg::with_name("PROJECT_ID")
+            .long("--project_id")
+            .help("Project Id for evercloud authentication."))
+        .arg(Arg::with_name("ACCESS_KEY")
+            .long("--access_key")
+            .help("Access key for evercloud authentication."));
 
     let alias_arg = Arg::with_name("ALIAS")
         .required(true)
@@ -613,6 +619,14 @@ async fn main_internal() -> Result <(), String> {
             .long("--is_json")
             .takes_value(true)
             .help("Cli prints output in json format."))
+        .arg(Arg::with_name("PROJECT_ID")
+            .long("--project_id")
+            .takes_value(true)
+            .help("Project Id for evercloud authentication."))
+        .arg(Arg::with_name("ACCESS_KEY")
+            .long("--access_key")
+            .takes_value(true)
+            .help("Access key for evercloud authentication."))
         .subcommand(config_clear_cmd)
         .subcommand(config_endpoint_cmd)
         .subcommand(alias_cmd);
