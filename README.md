@@ -112,6 +112,7 @@ tonos-cli <subcommand> -h
   - [11.6. Debug message](#116-debug-message)
   - [11.7. Render UML sequence diagram](#117-render-uml-sequence-diagram)
 - [12. Alias functionality](#12-alias-functionality)
+- [13. Evercloud authentication](#13-evercloud-authentication)
 
 # 1. Installation
 
@@ -3190,3 +3191,45 @@ $ tonos-cli runx --addr accum -m sum
   "sum": "0x00000000000000000000000000000000000000000000000000000000000000ff"
 }
 ```
+
+## 13. Evercloud authentication
+
+Starting from version 0.28.1 tonos-cli can perform Evercloud (url: dashboard.evercloud.dev) authentication. To use it
+user can specify config parameters:
+
+```
+--access_key <ACCESS_KEY>                     Project secret or JWT in Evercloud (dashboard.evercloud.dev).
+--project_id <PROJECT_ID>                     Project Id in Evercloud (dashboard.evercloud.dev).
+
+$ tonos-cli config --project_id 1233316546 --access_key 8465465413246
+Succeeded.
+{
+  "url": "sdk2.dev.tonlabs.io",
+  "wc": 0,
+  "addr": null,
+  "method": null,
+  "parameters": null,
+  "wallet": null,
+  "pubkey": null,
+  "abi_path": null,
+  "keys_path": null,
+  "retries": 5,
+  "timeout": 40000,
+  "message_processing_timeout": 40000,
+  "out_of_sync_threshold": 15,
+  "is_json": false,
+  "depool_fee": 0.5,
+  "lifetime": 60,
+  "no_answer": true,
+  "balance_in_tons": false,
+  "local_run": false,
+  "async_call": false,
+  "debug_fail": "None",
+  "project_id": "1233316546",
+  "access_key": "8465465413246",
+  "endpoints": []
+}
+```
+
+<PROJECT_ID> will be used to modify network endpoints in manner: <endpoint>/PROJECT_ID and <ACCESS_KEY> will be used
+while establishing the network connection.
