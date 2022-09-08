@@ -96,7 +96,11 @@ tonos-cli <subcommand> -h
   - [9.4. Dump several account states](#94-dump-several-account-states)
   - [9.5. Update global config parameter](#95-update-global-config-parameter)
   - [9.6. Wait for an account change](#96-wait-for-an-account-change)
-  - [9.7 Make a raw GraphQL query](#97-make-a-raw-graphql-query)
+  - [9.7. Make a raw GraphQL query](#97-make-a-raw-graphql-query)
+  - [9.8. Fee commands](#98-fee-commands)
+    - [9.8.1. Call fee command](#981-call-fee-command)
+    - [9.8.2. Deploy fee command](#982-deploy-fee-command)
+    - [9.8.3. Storage fee command](#983-storage-fee-command)
 - [10. Fetch and replay](#10-fetch-and-replay)
   - [10.1. How to unfreeze account](#101-how-to-unfreeze-account)
 - [11. Debug commands](#11-debug-commands)
@@ -331,6 +335,7 @@ List of available options:
 
 ```bash
 --abi <ABI>                                   Path to the contract ABI file.
+--access_key <ACCESS_KEY>                     Project secret or JWT in Evercloud (dashboard.evercloud.dev).
 --addr <ADDR>                                 Contract address.
 --async_call <ASYNC_CALL>                     Disables wait for transaction to appear in the network after call command.
 --balance_in_tons <BALANCE_IN_TONS>           Print balance for account command in tons. If false balance is printed in nanotons.
@@ -345,6 +350,7 @@ List of available options:
 --no-answer <NO_ANSWER>                       Flag whether to wait for depool answer when calling a depool function.
 --out_of_sync <OUT_OF_SYNC>                   Network connection "out_of_sync_threshold" parameter in seconds. Mind that it cant exceed half of the "lifetime" parameter.
 --parameters <PARAMETERS>                     Function parameters that can be saved to be used by some commands (runx, callx).
+--project_id <PROJECT_ID>                     Project Id in Evercloud (dashboard.evercloud.dev).
 --pubkey <PUBKEY>                             User public key. Used by DeBot Browser.
 --retries <RETRIES>                           Number of attempts to call smart contract function if previous attempt was unsuccessful.
 --timeout <TIMEOUT>                           Network `wait_for` timeout in ms.
@@ -379,6 +385,8 @@ Succeeded.
   "local_run": true,
   "async_call": false,
   "debug_fail": "None",
+  "project_id": null,
+  "access_key": null,
   "endpoints": [
     "https://eri01.main.everos.dev",
     "https://gra01.main.everos.dev",

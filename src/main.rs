@@ -467,10 +467,10 @@ async fn main_internal() -> Result <(), String> {
             .help("Cli prints output in json format."))
         .arg(Arg::with_name("PROJECT_ID")
             .long("--project_id")
-            .help("Project Id for evercloud authentication."))
+            .help("Project Id in Evercloud (dashboard.evercloud.dev)."))
         .arg(Arg::with_name("ACCESS_KEY")
             .long("--access_key")
-            .help("Access key for evercloud authentication."));
+            .help("Project secret or JWT in Evercloud (dashboard.evercloud.dev)."));
 
     let alias_arg = Arg::with_name("ALIAS")
         .required(true)
@@ -622,11 +622,11 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("PROJECT_ID")
             .long("--project_id")
             .takes_value(true)
-            .help("Project Id for evercloud authentication."))
+            .help("Project Id in Evercloud (dashboard.evercloud.dev)."))
         .arg(Arg::with_name("ACCESS_KEY")
             .long("--access_key")
             .takes_value(true)
-            .help("Access key for evercloud authentication."))
+            .help("Project secret or JWT in Evercloud (dashboard.evercloud.dev)."))
         .subcommand(config_clear_cmd)
         .subcommand(config_endpoint_cmd)
         .subcommand(alias_cmd);
