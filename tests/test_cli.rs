@@ -875,6 +875,96 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+
+#[test]
+fn test_global_config() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--global")
+        .arg("clear");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"net.ton.dev"))
+        .stdout(predicate::str::contains("addr\": null"))
+        .stdout(predicate::str::contains("wallet\": null"))
+        .stdout(predicate::str::contains("pubkey\": null"))
+        .stdout(predicate::str::contains("async_call\": false"))
+        .stdout(predicate::str::contains("is_json\": false"));
+
+    let config_path = "test_global.conf.json";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("--is_json")
+        .arg("true");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"net.ton.dev"))
+        .stdout(predicate::str::contains("addr\": null"))
+        .stdout(predicate::str::contains("wallet\": null"))
+        .stdout(predicate::str::contains("pubkey\": null"))
+        .stdout(predicate::str::contains("async_call\": false"))
+        .stdout(predicate::str::contains("is_json\": true"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("--global")
+        .arg("--url")
+        .arg("localhost")
+        .arg("--lifetime")
+        .arg("99");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"http://127.0.0.1/"))
+        .stdout(predicate::str::contains("addr\": null"))
+        .stdout(predicate::str::contains("wallet\": null"))
+        .stdout(predicate::str::contains("pubkey\": null"))
+        .stdout(predicate::str::contains("lifetime\": 99"))
+        .stdout(predicate::str::contains("is_json\": false"))
+        .stdout(predicate::str::contains("http://localhost"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("--list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("url\": \"net.ton.dev"))
+        .stdout(predicate::str::contains("addr\": null"))
+        .stdout(predicate::str::contains("wallet\": null"))
+        .stdout(predicate::str::contains("pubkey\": null"))
+        .stdout(predicate::str::contains("lifetime\": 60"))
+        .stdout(predicate::str::contains("is_json\": true"));
+
+    fs::remove_file(config_path)?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("--is_json")
+        .arg("true");
+    cmd.assert()
+        .success()
+        .success()
+        .stdout(predicate::str::contains("url\": \"http://127.0.0.1/"))
+        .stdout(predicate::str::contains("addr\": null"))
+        .stdout(predicate::str::contains("wallet\": null"))
+        .stdout(predicate::str::contains("pubkey\": null"))
+        .stdout(predicate::str::contains("lifetime\": 99"))
+        .stdout(predicate::str::contains("is_json\": true"))
+        .stdout(predicate::str::contains("http://localhost"));
+
+    fs::remove_file(config_path)?;
+
+    Ok(())
+}
+
 #[test]
 fn test_old_config() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -1113,6 +1203,22 @@ fn test_decode_msg() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#"Init": {"#))
         .stdout(predicate::str::contains(r#""StateInit": {"#))
         .stdout(predicate::str::contains(r#""data": "te6ccgEBAgEAKAABAcABAEPQAZ6jzp01QGBqmSPd8SBPy4vE1I8GSisk4ihjvGiRJP7g""#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json")
+        .arg("decode")
+        .arg("msg")
+        .arg("--base64")
+        .arg("te6ccgEBAgEAmQABRYgB/rmZKcHzzi5BRDu5n6pAqFnu7N2hpndIXAJYJ6T0vxYMAQDh0UERCirTGCONy01m6S+RgGVDIUsyXy8cm2zA7b0wCSQVCbMZLF7CBKn6IcPHFMSOobuEBwsCEG+k/cSz70qgA4AAAMGLxyvCMYw7TBL32QQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMsA=")
+        .arg("--abi")
+        .arg("tests/samples/accumulator.abi.json")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Type": "external inbound message"#))
+        .stdout(predicate::str::contains(r#""destination": "0:ff5ccc94e0f9e71720a21ddccfd520542cf7766ed0d33ba42e012c13d27a5f8b"#))
+        .stdout(predicate::str::contains(r#""Body": "te6ccgEBAQEAcwAA4dFBEQoq0xgjjctNZukvkYBlQyFLMl8vHJtswO29MAkkFQmzGSxewgSp+iHDxxTEjqG7hAcLAhBvpP3Es+9KoAOAAADBi8crwjGMO0wS99kEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADLA""#))
+        .stdout(predicate::str::contains(r#""value": "0x0000000000000000000000000000000000000000000000000000000000000065""#));
+
     Ok(())
 }
 

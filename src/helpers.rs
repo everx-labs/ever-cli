@@ -38,7 +38,8 @@ pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
 
 pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
-pub const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
+const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
+const GLOBAL_CONFIG_PATH: &str = ".tonos-cli.global.conf.json";
 
 pub fn default_config_name() -> String {
     env::current_dir()
@@ -46,6 +47,15 @@ pub fn default_config_name() -> String {
             dir.join(PathBuf::from(CONFIG_BASE_NAME)).to_str().unwrap().to_string()
         })
         .unwrap_or(CONFIG_BASE_NAME.to_string())
+}
+
+pub fn global_config_path() -> String {
+    env::current_exe()
+        .map(|mut dir| {
+            dir.set_file_name(GLOBAL_CONFIG_PATH);
+            dir.to_str().unwrap().to_string()
+        })
+        .unwrap_or(GLOBAL_CONFIG_PATH.to_string())
 }
 
 struct SimpleLogger;
@@ -109,9 +119,25 @@ pub fn create_client_local() -> Result<TonClient, String> {
 }
 
 pub fn create_client(config: &Config) -> Result<TonClient, String> {
+    let modified_endpoints = if config.project_id.is_some() {
+        let mut cur_endpoints = match config.endpoints.len() {
+            0 => vec![config.url.clone()],
+            _ => config.endpoints.clone(),
+        };
+        cur_endpoints.iter_mut().map(|end| {
+            let mut end = end.trim_end_matches('/').to_owned();
+            end.push_str("/");
+            end.push_str(&config.project_id.clone().unwrap());
+            end.to_owned()
+        }).collect::<Vec<String>>()
+    } else {
+        config.endpoints.clone().iter_mut().map(|end| {
+            end.trim_end_matches('/').to_owned()
+        }).collect::<Vec<String>>()
+    };
     if !config.is_json {
         println!("Connecting to:\n\tUrl: {}", config.url);
-        println!("\tEndpoints: {:?}\n", config.endpoints);
+        println!("\tEndpoints: {:?}\n", modified_endpoints);
     }
     let cli_conf = ClientConfig {
         abi: AbiConfig {
@@ -126,17 +152,16 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
         },
         network: ton_client::net::NetworkConfig {
             server_address: Some(config.url.to_owned()),
-            endpoints: if config.endpoints.is_empty() {
+            endpoints: if modified_endpoints.is_empty() {
                     None
                 } else {
-                    Some(config.endpoints.to_owned())
+                    Some(modified_endpoints)
                 },
-            // network_retries_count: 3,
             message_retries_count: config.retries as i8,
             message_processing_timeout: 30000,
             wait_for_timeout: config.timeout,
             out_of_sync_threshold: config.out_of_sync_threshold * 1000,
-            // max_reconnect_timeout: 1000,
+            access_key: config.access_key.clone(),
             ..Default::default()
         },
         ..Default::default()

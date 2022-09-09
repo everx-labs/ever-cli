@@ -203,7 +203,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
 }
 
 struct CommandData<'a> {
-    config: Config,
+    config: &'a Config,
     depool: String,
     wallet: String,
     keys: String,
@@ -212,7 +212,7 @@ struct CommandData<'a> {
 }
 
 impl<'a> CommandData<'a> {
-    pub fn from_matches_and_conf(m: &'a ArgMatches, config: Config, depool: String) -> Result<Self, String> {
+    pub fn from_matches_and_conf(m: &'a ArgMatches, config: &'a Config, depool: String) -> Result<Self, String> {
         let (wallet, stake, keys) = parse_stake_data(m, &config)?;
         let depool_fee = config.depool_fee.clone().to_string();
         Ok(CommandData {config, depool, wallet, stake, keys, depool_fee})
@@ -240,15 +240,14 @@ fn parse_stake_data<'a>(m: &'a ArgMatches, config: &Config) -> Result<(String, &
     Ok((wallet, stake, keys))
 }
 
-pub async fn depool_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+pub async fn depool_command(m: &ArgMatches<'_>, config: &mut Config) -> Result<(), String> {
     let depool = m.value_of("ADDRESS")
         .map(|s| s.to_string())
         .or(config.addr.clone())
         .ok_or("depool address is not defined. Supply it in the config file or in command line.".to_string())?;
-    let depool = load_ton_address(&depool, &config)
+    let depool = load_ton_address(&depool, config)
         .map_err(|e| format!("invalid depool address: {}", e))?;
 
-    let mut config = config;
     let mut set_wait_answer = |m: &ArgMatches|  {
         if m.is_present("WAIT_ANSWER") {
             config.no_answer = false;
