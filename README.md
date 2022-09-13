@@ -1,4 +1,4 @@
-# TONOS-CLI
+# TONOS-CLI 
 
 TONOS-CLI is a multi-platform command line interface for EVERSCALE OS.
 It allows user to work with keys and seed phrases, deploy contracts, call any of their methods, generate and broadcast
