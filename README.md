@@ -2876,22 +2876,26 @@ Log saved to tvm_trace.log.
 ### 11.2. Debug call
 
 ```bash
-tonos-cli debug call [FLAGS] [OPTIONS] <address> <method> <params>
+tonos-cli debug call [FLAGS] [OPTIONS] [--addr <address>] [-m <method>] <params>
 ```
 
 FLAGS:
 
 `--boc`          Flag that changes behavior of the command to work with the saved account state (account BOC).
 
-`--min_trace`    Flag that changes trace to minimal version.
+`--full_trace`             Flag that changes trace to full version.
 
 `--tvc`          Flag that changes behavior of the command to work with the saved contract state (stateInit TVC).
+
+`-u --update`    Update contract BOC after execution
 
 OPTIONS:
 
 `--abi <ABI>`                             Path to the contract ABI file. Can be specified in the config file.
 
 `--tvc_address <ACCOUNT_ADDRESS>`         Account address for account constructed from TVC.
+
+`--addr <ADDRESS>`                        Contract address or path the file with saved contract state if corresponding flag is used. Can be specified in th config file.
 
 `-c, --config <CONFIG_PATH>`              Path to the file with saved config contract state.
 
@@ -2903,15 +2907,13 @@ OPTIONS:
 
 `--now <NOW>`                             Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.
 
-`--sign <SIGN>`                           Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.
+`--keys <SIGN>`                           Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.
+
+`-m, --method <METHOD>`                   Name of the function being called. Can be specified in the config file.
 
 ARGUMENTS:
 
-`<address>`    Contract address or path the file with saved contract state if corresponding flag is used.
-
-`<method>`     Name of the function being called.
-
-`<params>`     Function arguments. Can be specified with a filename, which contains json data.
+`<params>`     Function arguments. Must be specified in [alternative manner](#410-alternative-syntax-for-call-deploy-and-run-commands) or can be passed as a file path.
 
 This command allows user locally emulate contract call and obtain TVM trace.
 Command can work with contract in the network by querying its boc and running message on it or with saved account state
@@ -2919,24 +2921,26 @@ in format of account BOC or pure StateInit TVC. If contract is passed via TVC fi
 with `--address <tvc_address>` option. Also, execution timestamp can be specified with option `--now <timestamp>`.
 
 ```bash
-$ tonos-cli debug call --abi ../samples/1_Accumulator.abi.jso
-n --sign keys/key0 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78 add2 '{"value":1}'
-Config: /home/user/TONLabs/sol2tvm/scripts/tonos-cli.conf.json
+$ tonos-cli debug call --addr 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb --abi ../samples/2_StorageClient.abi.json --keys keys/key0  -o call.log -m store -- --storageAddress 0:e59d5eee37b399eea0121eac2571d3762779ba88f1c575863f0ed1595caed0e8 --value 257
 Input arguments:
-   input: 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78
-  method: add2
-  params: {"value":1}
+   input: 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb
+  method: store
+  params: {"storageAddress":"0:e59d5eee37b399eea0121eac2571d3762779ba88f1c575863f0ed1595caed0e8","value":"257"}
     sign: keys/key0
-     abi: ../samples/1_Accumulator.abi.json
-  output: ./trace.log
+ opt_abi: ../samples/2_StorageClient.abi.json
+  output: call.log
+Connecting to:
+        Url: net.ton.dev
+        Endpoints: ["https://eri01.net.everos.dev", "https://rbx01.net.everos.dev", "https://gra01.net.everos.dev"]
+
 Execution finished.
-Log saved to ./trace.log
+Log saved to call.log
 ```
 
 ### 11.3. Debug run
 
 ```bash
-tonos-cli debug run [FLAGS] [OPTIONS] <address> <method> <params>
+tonos-cli debug run [FLAGS] [OPTIONS] [--addr <address>] [-m <method>] <params>
 ```
 
 FLAGS:
@@ -2953,6 +2957,8 @@ OPTIONS:
 
 `--tvc_address <ACCOUNT_ADDRESS>`         Account address for account constructed from TVC.
 
+`--addr <ADDRESS>`                        Contract address or path the file with saved contract state if corresponding flag is used. Can be specified in th config file.
+
 `-c, --config <CONFIG_PATH>`              Path to the file with saved config contract state.
 
 `-d, --dbg_info <DBG_INFO>`               Path to the file with debug info.
@@ -2963,29 +2969,29 @@ OPTIONS:
 
 `--now <NOW>`                             Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.
 
+`-m, --method <METHOD>`                   Name of the function being called. Can be specified in the config file.
+
 ARGUMENTS:
 
-`<address>`    Contract address or path the file with saved contract state if corresponding flag is used.
-
-`<method>`     Name of the function being called.
-
-`<params>`     Function arguments. Can be specified with a filename, which contains json data.
+`<params>`     Function arguments. Must be specified in [alternative manner](#410-alternative-syntax-for-call-deploy-and-run-commands) or can be passed as a file path.
 
 This command is similar to `tonos-cli debug call` but allows user to debug get methods.
 
 ```bash
-$ tonos-cli debug run --abi ../sol2tvm/samples/1_Accumulator.abi.json 0:04a12b2e001a4144b70ddb244838f8627f8d11cade399dc0892aded7b82d6d68 sum '{}'
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ tonos-cli debug run --addr 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb --abi ../samples/2_UintStorage.abi.json -o run.log -m value
 Input arguments:
-   input: 0:04a12b2e001a4144b70ddb244838f8627f8d11cade399dc0892aded7b82d6d68
-  method: sum
+   input: 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb
+  method: value
   params: {}
     sign: None
- opt_abi: ../sol2tvm/samples/1_Accumulator.abi.json
-  output: ./trace.log
-debug_info: None
+ opt_abi: ../samples/2_UintStorage.abi.json
+  output: run.log
+Connecting to:
+        Url: net.ton.dev
+        Endpoints: ["https://eri01.net.everos.dev", "https://rbx01.net.everos.dev", "https://gra01.net.everos.dev"]
+
 Execution finished.
-Log saved to ./trace.log
+Log saved to run.log
 ```
 
 ### 11.4. Debug replay transaction on the saved account state
@@ -2996,9 +3002,9 @@ Log saved to ./trace.log
 
 FLAGS:
 
-`--min_trace`       Flag that changes trace to minimal version.
+`--full_trace`             Flag that changes trace to full version.
 
-`--update_state`    Update state of the contract.
+`-u --update`    Update contract BOC after execution
 
 OPTIONS:
 
@@ -3020,7 +3026,7 @@ This command allows replay transaction on the saved account state. This can be u
 transaction execution on the contract state, whose code was replaced to a new one using TVM_LINKER.
 
 ```bash
-$ tonos-cli debug replay --min_trace --update_state -d 2_StorageClient.dbg.json2 --decode_abi 2_UintStorage.abi.json -o trace2.log 82733d3ddf7cae1d3fa07ec5ce288b7febf3bffd9d229a8e538f62fac10eec3e contract.boc
+$ tonos-cli debug replay --min_trace --update -d 2_StorageClient.dbg.json2 --decode_abi 2_UintStorage.abi.json -o trace2.log 82733d3ddf7cae1d3fa07ec5ce288b7febf3bffd9d229a8e538f62fac10eec3e contract.boc
 Config: default
 Input arguments:
    input: contract.boc
@@ -3059,7 +3065,7 @@ OPTIONS:
 
 `--now <NOW>`                       Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.
 
-`--sign <SIGN>`                     Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.
+`--keys <SIGN>`                     Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.
 
 `--wc <WC>`                         Workchain ID
 
@@ -3067,7 +3073,7 @@ ARGUMENTS:
 
 `<tvc>`       Path to the tvc file with contract StateInit.
 
-`<params>`    Constructor arguments.
+`<params>`     Function arguments. Must be specified in [alternative manner](#410-alternative-syntax-for-call-deploy-and-run-commands) or can be passed as a file path.
 
 This command allows user locally emulate contract deploy.
 Command can work with prepared network account or create a dummy one with big balance (if --init_balance flag is
@@ -3076,7 +3082,7 @@ specified).
 ### 11.6. Debug message
 
 ```bash
-$ tonos-cli debug message [--boc] <address_or_path> [-u] [-o <log_path>] <message_in_base64_or_path_to_file>
+$ tonos-cli debug message [--boc] [--addr <address_or_path>] [-u] [-o <log_path>] <message_in_base64_or_path_to_file>
 ```
 
 FLAGS:
@@ -3089,6 +3095,8 @@ FLAGS:
 
 OPTIONS:
 
+`--addr <ADDRESS>`                        Contract address or path the file with saved contract state if corresponding flag is used. Can be specified in th config file.
+
 `-c, --config <CONFIG_PATH>`        Path to the file with saved config contract state.
 
 `-d, --dbg_info <DBG_INFO>`         Path to the file with debug info.
@@ -3100,8 +3108,6 @@ OPTIONS:
 `--now <NOW>`                       Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.
 
 ARGUMENTS:
-
-`<address_or_path>`                       Contract address or path the file with saved contract state if corresponding flag is used.
 
 `<message_in_base64_or_path_to_file>`     Message in Base64 or path to fil with message.
 
@@ -3135,7 +3141,80 @@ Output messages:
 
 `Message_base64` then can be passed to `tonos-cli debug message` to play it on another account.
 
-### 11.7. Render UML sequence diagram
+### 11.7. Debug account
+
+Allows to debug transaction of the specified account
+
+```bash
+$ tonos-cli debug account [--addr <address_or_path>] [-o <log_path>] [FLAGS] [OPTIONS]
+```
+
+FLAGS:
+
+`--dump_config`           Dump the replayed config contract account state.
+
+`--dump_contract`         Dump the replayed target contract account state.
+
+`-e, --empty_config`      Replay transaction without full dump of the config contract.
+
+`--full_trace`             Flag that changes trace to full version.
+
+OPTIONS:
+
+`--addr <ADDRESS>`                        Contract address or path the file with saved contract state if corresponding flag is used. Can be specified in th config file.
+
+`-c, --config <CONFIG_PATH>`        Path to the file with saved config contract transactions. If not set transactions will be fetched to file "config.txns".
+
+`-t, --contract <CONTRACT_PATH>`    Path to the file with saved target contract transactions. If not set transactions will be fetched to file "contract.txns".
+
+`-d, --dbg_info <DBG_INFO>`         Path to the file with debug info.
+
+`--decode_abi <DECODE_ABI>`         Path to the ABI file used to decode output messages.
+
+`-o, --output <LOG_PATH>`           Path where to store the trace. Default path is "./trace.log". Note: old file will be removed.
+
+Example:
+
+```bash
+$ tonos-cli debug account -e --addr 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb
+Input arguments:
+ address: 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb
+trace_path: ./trace.log
+config_path: None
+contract_path: None
+Connecting to:
+        Url: net.ton.dev
+        Endpoints: ["https://eri01.net.everos.dev", "https://rbx01.net.everos.dev", "https://gra01.net.everos.dev"]
+
+
+
+Choose transaction you want to debug:
+1)      transaction_id: "7f88b986e91e08265a5c1a5d1fa0d890d7a96fc5202c4117460a0cd144e6a8e1"
+        timestamp     : "2022-09-13 14:37:41.000"
+        message_type  : "ExtIn"
+        source_address: ""
+
+2)      transaction_id: "fd9d0977a957e8fdfb451db8fc15a13cb2cd6dfec9861f03bc52d4b94f5dfaac"
+        timestamp     : "2022-09-13 14:37:29.000"
+        message_type  : "Internal"
+        source_address: "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13"
+
+
+
+Enter number of the chosen transaction (from 1 to 2):
+1
+Fetching config contract transactions...
+Fetching contract transactions...
+account 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb: zerostate not found, writing out default initial state
+Replaying the last transactions...
+Connecting to:
+        Url: net.ton.dev
+        Endpoints: ["https://eri01.net.everos.dev", "https://rbx01.net.everos.dev", "https://gra01.net.everos.dev"]
+
+Log saved to ./trace.log.
+```
+
+### 11.8. Render UML sequence diagram
 
 ```bash
     tonos-cli debug sequence-diagram <address_list>
