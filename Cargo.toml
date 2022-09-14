@@ -2,9 +2,9 @@
 authors = [ 'TON DEV SOLUTIONS LTD <support@tonlabs.io>' ]
 build = 'build.rs'
 description = 'command line tool for TON blockchain'
-documentation = 'https://docs.ton.dev'
+documentation = 'https://docs.everos.dev/'
 edition = '2018'
-homepage = 'https://ton.dev'
+homepage = 'https://docs.everos.dev/'
 keywords = [
     'TON',
     'SDK',

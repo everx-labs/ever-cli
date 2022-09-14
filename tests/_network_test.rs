@@ -12,6 +12,28 @@ fn test_network() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
+        .arg("endpoint")
+        .arg("reset");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--global")
+        .arg("clear");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
+        .arg("--global")
+        .arg("endpoint")
+        .arg("reset");
+    cmd.assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("config")
         .arg("--url")
         .arg(&*NETWORK);
     cmd.assert()

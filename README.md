@@ -363,13 +363,14 @@ List of available options:
 Example:
 
 ```bash
-$ tonos-cli config --url https://main.ton.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ tonos-cli config --url https://main.evercloud.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600
 Succeeded.
 {
-  "url": "main.ton.dev",
+  "url": "main.evercloud.dev",
   "wc": -1,
   "addr": null,
+  "method": null,
+  "parameters": null,
   "wallet": null,
   "pubkey": null,
   "abi_path": "SafeMultisigWallet.abi.json",
@@ -389,11 +390,7 @@ Succeeded.
   "project_id": null,
   "access_key": null,
   "endpoints": [
-    "https://eri01.main.everos.dev",
-    "https://gra01.main.everos.dev",
-    "https://gra02.main.everos.dev",
-    "https://lim01.main.everos.dev",
-    "https://rbx01.main.everos.dev"
+    "https://mainnet.evercloud.dev"
   ]
 }
 ```
@@ -402,20 +399,18 @@ Some frequently used networks:
 
 `http://127.0.0.1/` - Node SE local node.
 
-`https://net.ton.dev` - developer sandbox for testing. TONOS-CLI connects to it by default.
+`https://devnet.evercloud.dev` - developer sandbox for testing. TONOS-CLI connects to it by default.
 
-`https://main.ton.dev` - main Free TON network.
-
-`https://rustnet.ton.dev` - test network running on Rust nodes.
+`https://mainnet.evercloud.dev` - main Free TON network.
 
 TONOS-CLI supports the use of multiple endpoints for networks: if several endpoints are 
 [specified in the endpoint map](#24-configure-endpoints-map) for a network, TONOS-CLI will use them all when accessing
 it. Otherwise, the network URL will be treated as the only endpoint.
 
-`main.ton.dev` and `net.ton.dev` networks already have their current endpoints specified in the default endpoint map.
+`https://mainnet.evercloud.dev` and `https://devnet.evercloud.dev` networks already have their current endpoints specified in the default endpoint map.
 See [section 2.4 below](#24-configure-endpoints-map) on how to edit and add endpoints to the endpoint map.
 
-> **Note**: This change was introduced in version 0.16.1 and is fully compatible with scripts written for previous versions, where main.ton.dev and net.ton.dev networks were specified with a single url. TONOS-CLI will simply use the default endpoint map to access these networks.
+> **Note**: This change was introduced in version 0.16.1 and is fully compatible with scripts written for previous versions, where `https://mainnet.evercloud.dev` and `https://devnet.evercloud.dev` networks were specified with a single url. TONOS-CLI will simply use the default endpoint map to access these networks.
 
 
 Network configuration can be [overridden](#26-override-network-settings) for any single subcommand.
@@ -449,22 +444,23 @@ tonos-cli config clear
 The same options as in ordinary `congfig` command can be used to clear only the specified parametes.
 
 ```bash
-tonos-cli config clear --url --addr --wallet
+$ tonos-cli config clear --url --addr --wallet
+Succeeded.
 {
-  "url": "net.ton.dev",
+  "url": "net.evercloud.dev",
   "wc": 0,
   "addr": null,
   "method": null,
   "parameters": null,
   "wallet": null,
-  "pubkey": "0x0000000000000000000000000000000000000000000000000000000000000002",
+  "pubkey": null,
   "abi_path": null,
   "keys_path": null,
   "retries": 5,
   "timeout": 40000,
   "message_processing_timeout": 40000,
   "out_of_sync_threshold": 15,
-  "is_json": true,
+  "is_json": false,
   "depool_fee": 0.5,
   "lifetime": 60,
   "no_answer": true,
@@ -472,10 +468,10 @@ tonos-cli config clear --url --addr --wallet
   "local_run": false,
   "async_call": false,
   "debug_fail": "None",
+  "project_id": null,
+  "access_key": null,
   "endpoints": [
-    "https://eri01.net.everos.dev",
-    "https://rbx01.net.everos.dev",
-    "https://gra01.net.everos.dev"
+    "https://devnet.evercloud.dev"
   ]
 }
 ```
@@ -501,22 +497,16 @@ Default state of the map:
 
 ```bash
 {
-  "net.ton.dev": [
-    "https://eri01.net.everos.dev",
-    "https://rbx01.net.everos.dev"
-    "https://gra01.net.everos.dev"
-  ],
-  "main.ton.dev": [
-    "https://eri01.main.everos.dev",
-    "https://gra01.main.everos.dev",
-    "https://gra02.main.everos.dev",
-    "https://lim01.main.everos.dev",
-    "https://rbx01.main.everos.dev"
-  ],
   "http://127.0.0.1/": [
-    "http://0.0.0.0/",
-    "http://127.0.0.1/",
-    "http://localhost/"
+    "http://0.0.0.0",
+    "http://127.0.0.1",
+    "http://localhost"
+  ],
+  "main.evercloud.dev": [
+    "https://mainnet.evercloud.dev"
+  ],
+  "net.evercloud.dev": [
+    "https://devnet.evercloud.dev"
   ]
 }
 ```
@@ -531,8 +521,8 @@ tonos-cli config endpoint add <url> <list_of_endpoints>
 Example:
 
 ```bash
-tonos-cli config endpoint remove main.ton.dev
-tonos-cli config endpoint add main.ton.dev "https://eri01.main.everos.dev","https://gra01.main.everos.dev","https://gra02.main.everos.dev","https://lim01.main.everos.dev","https://rbx01.main.everos.dev"
+tonos-cli config endpoint remove main.evercloud.dev
+tonos-cli config endpoint add main.evercloud.dev "https://mainnet.evercloud.dev"
 ```
 
 > **Note**: If url used in the add command already exists, endpoints lists will be merged.
@@ -588,7 +578,7 @@ tonos-cli --url <network_url> <any_subcommand>
 Example:
 
 ```bash
-tonos-cli --url https://main.ton.dev account <address>
+tonos-cli --url main.evercloud.dev account <address>
 ```
 
 ## 2.7. Force json output
@@ -929,7 +919,7 @@ Input arguments:
      abi: SafeMultisigWallet.abi.json
     keys: key.json
       wc: -1
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 Deploying...
 Transaction succeeded.
 Contract deployed at address: -1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6
@@ -1005,7 +995,7 @@ $ tonos-cli  account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
 addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13, 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566, 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 Processing...
 Succeeded.
 address:       0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
@@ -1031,7 +1021,7 @@ $ tonos-cli  account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
 addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 Processing...
 Succeeded.
 address:       0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
@@ -1089,7 +1079,7 @@ Input arguments:
     keys: k1.keys.json
 lifetime: None
   output: None
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 Generating external inbound message...
 
 MessageId: c6baac843fefe6b9e8dc3609487a63ef21207e4fdde9ec253b9a47f7f5a88d01
@@ -1133,7 +1123,7 @@ Input arguments:
     keys: None
 lifetime: None
   output: None
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 Generating external inbound message...
 
 MessageId: ff8b8a73b1a7803a735eb4f620cade78ed45fd1530992fd3bedb91f3c66eacc5
@@ -1186,7 +1176,7 @@ Input arguments:
  address: -1:3333333333333333333333333333333333333333333333333333333333333333
   method: active_election_id
   params: None
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 Running get-method...
 Succeded.
 Result: ["1619901678"]
@@ -1197,7 +1187,7 @@ Input arguments:
  address: acc.boc
   method: compute_returned_stake
   params: ["0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587"]
-Connecting to main.ton.dev
+Connecting to main.evercloud.dev
 Running get-method...
 Succeeded.
 Result: ["125387107580525"]
@@ -1208,7 +1198,7 @@ Input arguments:
  address: acc.boc
   method: compute_returned_stake
   params: ["0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587"]
-Connecting to main.ton.dev
+Connecting to main.evercloud.dev
 Running get-method...
 Succeeded.
 Result: ["125387107580525"]
@@ -1353,7 +1343,7 @@ Config: /home/user/tonos-cli.conf.json
 Input arguments:
  message: 7b226d7367223a7b226d6573736167655f6964223a2266363364666332623030373065626264386365643265333865373832386630343837326465643036303735376665373430376534393037646266663338626261222c226d657373616765223a227465366363674542424145413051414252596742534d553677767679593746624464704a365a5748706b4c7846304545726f4b4a36775165555369536633674d41514868757856507a324c5376534e663344454a2f374866653165562f5a78324d644e6b4b727770323865397a7538376a4d6e7275374c48685965367642523141756c48784b44446e4e62344f47686768386e6b6b7a48386775456e7551422f655a61324d326d32546539794234723636447a61364c34635258306f744a4b465661434177414141586c4d464e7077594a61616b524d64677332414341574f663459757151715976325233654e776d49655834517048686e37537a75624c76524838657931425a6a617a6a414141414141414141414141414141414a4d61735142414d4141413d3d222c22657870697265223a313632303438323730352c2261646472657373223a22303a61343632396436313764663933316438616438366564323466346361633364333231373838626130383235373431343466353832306632383934343933666263227d2c226d6574686f64223a227375626d69745472616e73616374696f6e227d
      abi: SafeMultisigWallet.abi.json
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 
 MessageId: f63dfc2b0070ebbd8ced2e38e7828f04872ded060757fe7407e4907dbff38bba
 Expire at: Sat, 08 May 2021 17:05:05 +0300
@@ -1390,7 +1380,7 @@ $ tonos-cli sendfile /home/user/ton/message.boc
 Config: /home/user/tonos-cli.conf.json
 Input arguments:
      boc: /home/user/ton/message.boc
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 Sending message to account 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc
 Succeded.
 ```
@@ -1686,7 +1676,7 @@ Example:
 ```bash
 $ tonos-cli debot fetch 0:09403116d2d04f3d86ab2de138b390f6ec1b0bc02363dbf006953946e807051e
 Config: /home/user/tonos-cli.conf.json
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 DeBot Info:
 Name   : Multisig
 Version: 1.2.0
@@ -1731,7 +1721,7 @@ Example:
 ```bash
 $ tonos-cli multisig send --addr 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --dest 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc --purpose "test transaction" --sign key.json --value 6
 Config: /home/user/tonos-cli.conf.json
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 Generating external inbound message...
 
 MessageId: 62b1420ac98e586f29bf79bc2917a0981bb3f15c4757e8dca65370c19146e327
@@ -1821,7 +1811,7 @@ Input arguments:
   wallet: 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
    stake: 25
     keys: key.json
-Connecting to https://net.ton.dev
+Connecting to https://net.evercloud.dev
 Generating external inbound message...
 
 MessageId: bf3cfc02dd8eff3edbd7a70e63ce3e91e61340676bf46c43cf534ccbebc9865a
@@ -1857,7 +1847,7 @@ Input arguments:
   wallet: 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
    stake: 25
     keys: key.json
-Connecting to https://net.ton.dev
+Connecting to https://net.evercloud.dev
 Generating external inbound message...
 
 MessageId: e1b0aba39233e07daf6a65c2426e273e9d68a75e3b440893251fbce56c6a756d
@@ -2226,7 +2216,7 @@ Example:
 ```bash
 $ tonos-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf answers --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
 Config: /home/user/tonos-cli.conf.json
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 34 answers found
 Answer:
 Id: 7cacf43d2e748a5c9209e93c41c0aeccc71a5b05782dbfb3c8ac538948b67c49
@@ -2257,7 +2247,7 @@ Config: /home/user/tonos-cli.conf.json
 Input arguments:
   depool: 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf
    since: 1619803870
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 3 events found
 event ba71ce0889adb4740515dd714c0ce5757373448abe20835990a7c19910bcedaf
 RoundStakeIsAccepted 1619803936 (2021-04-30 17:32:16.000)
@@ -2310,7 +2300,7 @@ Input arguments:
   wallet: 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
    stake: 5
     keys: key.json
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 Generating external inbound message...
 
 MessageId: 43f45f2590ba3c7afec1974f3a2bcc726f98d8ed0bcf216656ea321606f5bf60
@@ -2347,7 +2337,7 @@ Input arguments:
   depool: 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf
   wallet: 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
     keys: key.json
-Connecting to https://net.ton.dev
+Connecting to https://net.evercloud.dev
 Generating external inbound message...
 
 MessageId: 903bb44b8286fc679e4cd08178fcaac1fb126519ecf6f7cea5794db7337645c4
@@ -2424,7 +2414,7 @@ tonos-cli getconfig [<index>]
 
 Options:
 
-`<index>` - number of the [global config parameter](https://docs.ton.dev/86757ecb2/v/0/p/35a3f3-field-descriptions) (equals the numeric part of the config parameter field name). This option can be omitted and command will fetch all config parameters.
+`<index>` - number of the [global config parameter](https://docs.everos.dev/ever-sdk/reference/ever-os-api/field_descriptions#blockmasterconfig-type) (equals the numeric part of the config parameter field name). This option can be omitted and command will fetch all config parameters.
 
 Example (requesting the maximum and minimum numbers of validators on the blockchain):
 
@@ -2433,7 +2423,7 @@ $ tonos-cli getconfig 16
 Config: /home/user/tonos-cli.conf.json
 Input arguments:
    index: 16
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 Config p16: {
   "max_validators": 1000,
   "max_main_validators": 100,
@@ -2479,7 +2469,7 @@ $ tonos-cli dump config config.boc
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
     path: config.boc
-Connecting to main.ton.dev
+Connecting to main.evercloud.dev
 Config successfully saved to config.boc
 ```
 
@@ -2504,7 +2494,7 @@ Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
 addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13, 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566, 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12, 0:3333333333333333333333333333333333333333333333333333333333333333
     path: None
-Connecting to net.ton.dev
+Connecting to net.evercloud.dev
 Processing...
 ./2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13.boc successfully dumped.
 ./14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566.boc successfully dumped.
@@ -2762,7 +2752,7 @@ deploy the extracted tvc to the frozen account. Send 1 ton to its address and th
 
 Example:
 
-`tonos-cli --url main.ton.dev call 0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64 deploy --abi deployer.abi.json "{\"stateInit\":\"$(cat state.tvc | base64 -w 0)\",\"value\":500000000,\"dest\":\"-1:618272d6b15fd8f1eaa3cdb61ab9d77ae47ebbfcf7f28d495c727d0e98d523eb\"}"`
+`tonos-cli --url main.evercloud.dev call 0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64 deploy --abi deployer.abi.json "{\"stateInit\":\"$(cat state.tvc | base64 -w 0)\",\"value\":500000000,\"dest\":\"-1:618272d6b15fd8f1eaa3cdb61ab9d77ae47ebbfcf7f28d495c727d0e98d523eb\"}"`
 
 where `dest` - an address of frozen account, `state.tvc` - extracted account StateInit in step 2.
 
@@ -2930,7 +2920,7 @@ Input arguments:
  opt_abi: ../samples/2_StorageClient.abi.json
   output: call.log
 Connecting to:
-        Url: net.ton.dev
+        Url: net.evercloud.dev
         Endpoints: ["https://eri01.net.everos.dev", "https://rbx01.net.everos.dev", "https://gra01.net.everos.dev"]
 
 Execution finished.
@@ -2987,7 +2977,7 @@ Input arguments:
  opt_abi: ../samples/2_UintStorage.abi.json
   output: run.log
 Connecting to:
-        Url: net.ton.dev
+        Url: net.evercloud.dev
         Endpoints: ["https://eri01.net.everos.dev", "https://rbx01.net.everos.dev", "https://gra01.net.everos.dev"]
 
 Execution finished.
@@ -3183,7 +3173,7 @@ trace_path: ./trace.log
 config_path: None
 contract_path: None
 Connecting to:
-        Url: net.ton.dev
+        Url: net.evercloud.dev
         Endpoints: ["https://eri01.net.everos.dev", "https://rbx01.net.everos.dev", "https://gra01.net.everos.dev"]
 
 
@@ -3208,8 +3198,8 @@ Fetching contract transactions...
 account 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb: zerostate not found, writing out default initial state
 Replaying the last transactions...
 Connecting to:
-        Url: net.ton.dev
-        Endpoints: ["https://eri01.net.everos.dev", "https://rbx01.net.everos.dev", "https://gra01.net.everos.dev"]
+        Url: net.evercloud.dev
+        Endpoints: ["https://devnet.evercloud.dev"]
 
 Log saved to ./trace.log.
 ```

@@ -18,7 +18,9 @@ use regex::Regex;
 use crate::global_config_path;
 use crate::helpers::default_config_name;
 
-const TESTNET: &str = "net.ton.dev";
+const TESTNET: &str = "net.evercloud.dev";
+const MAINNET: &str = "main.evercloud.dev";
+const LOCALNET: &str = "http://127.0.0.1/";
 
 fn default_url() -> String {
     TESTNET.to_string()
@@ -214,17 +216,11 @@ impl Config {
 
 lazy_static! {
     static ref MAIN_ENDPOINTS: Vec<String> = vec![
-        "https://eri01.main.everos.dev".to_string(),
-        "https://gra01.main.everos.dev".to_string(),
-        "https://gra02.main.everos.dev".to_string(),
-        "https://lim01.main.everos.dev".to_string(),
-        "https://rbx01.main.everos.dev".to_string(),
+        "https://mainnet.evercloud.dev".to_string()
     ];
 
     static ref NET_ENDPOINTS: Vec<String> = vec![
-        "https://eri01.net.everos.dev".to_string(),
-        "https://rbx01.net.everos.dev".to_string(),
-        "https://gra01.net.everos.dev".to_string(),
+        "https://devnet.evercloud.dev".to_string()
     ];
 
     static ref SE_ENDPOINTS: Vec<String> = vec![
@@ -235,20 +231,37 @@ lazy_static! {
 }
 
 pub fn resolve_net_name(url: &str) -> Option<String> {
-    let url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.ton\.dev)\s*")
+    let url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.evercloud\.dev)\s*")
         .expect("Regex compilation error");
-    if let Some(captures) = url_regex.captures(url) {
-        let net = captures.name("net")
-            .expect("Unexpected: capture <net> was not found")
-            .as_str();
-        if FullConfig::default_map().contains_key(net) {
-            return Some(net.to_owned());
+    let ton_url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.ton\.dev)\s*")
+        .expect("Regex compilation error");
+    let everos_url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.everos\.dev)\s*")
+        .expect("Regex compilation error");
+    let mut net = None;
+    for regex in [url_regex, ton_url_regex, everos_url_regex] {
+        if let Some(captures) = regex.captures(url) {
+            net = Some(captures.name("net")
+                .expect("Unexpected: capture <net> was not found")
+                .as_str()
+                .replace("ton", "evercloud")
+                .replace("everos", "evercloud"));
         }
+    }
+    if let Some(net) = net {
+        if FullConfig::default_map().contains_key(&net) {
+            return Some(net);
+        }
+    }
+    if url == "main" {
+        return Some(MAINNET.to_string());
+    }
+    if url == "dev" || url == "devnet" {
+        return Some(TESTNET.to_string());
     }
     if url.contains("127.0.0.1") ||
         url.contains("0.0.0.0") ||
         url.contains("localhost") {
-        return Some("http://127.0.0.1/".to_string());
+        return Some(LOCALNET.to_string());
     }
     None
 }
@@ -264,9 +277,9 @@ impl FullConfig {
     }
 
     pub fn default_map() -> BTreeMap<String, Vec<String>> {
-        [("main.ton.dev".to_owned(), MAIN_ENDPOINTS.to_owned()),
-            ("net.ton.dev".to_owned(), NET_ENDPOINTS.to_owned()),
-            ("http://127.0.0.1/".to_owned(), SE_ENDPOINTS.to_owned()),
+        [(MAINNET.to_owned(), MAIN_ENDPOINTS.to_owned()),
+            (TESTNET.to_owned(), NET_ENDPOINTS.to_owned()),
+            (LOCALNET.to_owned(), SE_ENDPOINTS.to_owned()),
         ].iter().cloned().collect()
     }
 
@@ -571,7 +584,7 @@ pub fn set_config(
 
 #[cfg(test)]
 mod tests {
-    use super::{resolve_net_name};
+    use super::{resolve_net_name, LOCALNET, TESTNET, MAINNET};
 
     #[test]
     fn test_endpoints_resolver() {
@@ -580,28 +593,37 @@ mod tests {
         assert_eq!(resolve_net_name("https://rustnet.ton.dev"), None);
         assert_eq!(resolve_net_name("rustnet.ton.com"), None);
         assert_eq!(resolve_net_name("https://example.com"), None);
-        assert_eq!(resolve_net_name("http://localhost"), Some("http://127.0.0.1/".to_owned()));
-        assert_eq!(resolve_net_name("https://localhost"), Some("http://127.0.0.1/".to_owned()));
-        assert_eq!(resolve_net_name("localhost"), Some("http://127.0.0.1/".to_owned()));
-        assert_eq!(resolve_net_name("http://127.0.0.1"), Some("http://127.0.0.1/".to_owned()));
-        assert_eq!(resolve_net_name("https://127.0.0.1"), Some("http://127.0.0.1/".to_owned()));
+        assert_eq!(resolve_net_name("http://localhost"), Some(LOCALNET.to_owned()));
+        assert_eq!(resolve_net_name("https://localhost"), Some(LOCALNET.to_owned()));
+        assert_eq!(resolve_net_name("localhost"), Some(LOCALNET.to_owned()));
+        assert_eq!(resolve_net_name("http://127.0.0.1"), Some(LOCALNET.to_owned()));
+        assert_eq!(resolve_net_name("https://127.0.0.1"), Some(LOCALNET.to_owned()));
         assert_eq!(resolve_net_name("https://127.0.0.2"), None);
         assert_eq!(resolve_net_name("https://127.1.0.1"), None);
         assert_eq!(resolve_net_name("https://0.0.0.1"), None);
         assert_eq!(resolve_net_name("https://1.0.0.0"), None);
 
-        assert_eq!(resolve_net_name("https://main.ton.dev"), Some("main.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("http://main.ton.dev"), Some("main.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("  http://main.ton.dev  "), Some("main.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("  https://main.ton.dev  "), Some("main.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("main.ton.dev"), Some("main.ton.dev".to_owned()));
+        assert_eq!(resolve_net_name("https://main.ton.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("https://main.everos.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("https://main.evercloud.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("http://main.ton.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("  http://main.ton.dev  "), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("  https://main.ton.dev  "), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("main.ton.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("main.everos.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("main.evercloud.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("main"), Some(MAINNET.to_owned()));
         assert_eq!(resolve_net_name("main.ton.com"), None);
 
-        assert_eq!(resolve_net_name("https://net.ton.dev"), Some("net.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("http://net.ton.dev"), Some("net.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("  http://net.ton.dev  "), Some("net.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("  https://net.ton.dev  "), Some("net.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("net.ton.dev"), Some("net.ton.dev".to_owned()));
+        assert_eq!(resolve_net_name("https://net.ton.dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("https://net.everos.dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("https://net.evercloud.dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("http://net.ton.dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("  http://net.ton.dev  "), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("  https://net.ton.dev  "), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("net.ton.dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("devnet"), Some(TESTNET.to_owned()));
         assert_eq!(resolve_net_name("net.ton.com"), None);
     }
 }
