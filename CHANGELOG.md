@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.28.3
+
+### Breaking changes:
+ - `debug` commands `call`, `run` and `deploy` now take function parameters in alternative syntax. 
+
 ## Version: 0.28.1
 
 ### New

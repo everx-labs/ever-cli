@@ -122,6 +122,10 @@ async fn main_internal() -> Result <(), String> {
         .takes_value(true)
         .help("Contract address. Can be specified in the config file.");
 
+    let multi_params_arg = Arg::with_name("PARAMS")
+        .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
+        .multiple(true);
+
     let callx_cmd = SubCommand::with_name("callx")
         .about("Sends an external message with encoded function call to the contract (alternative syntax).")
         .version(&*version_string)
@@ -133,9 +137,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(abi_arg.clone())
         .arg(keys_arg.clone())
         .arg(method_opt_arg.clone())
-        .arg(Arg::with_name("PARAMS")
-            .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
-            .multiple(true))
+        .arg(multi_params_arg.clone())
         .arg(config_path_arg.clone());
 
     let tvc_arg = Arg::with_name("TVC")
@@ -165,9 +167,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(wc_arg.clone())
         .arg(tvc_arg.clone())
         .arg(alias_arg_long.clone())
-        .arg(Arg::with_name("PARAMS")
-            .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
-            .multiple(true));
+        .arg(multi_params_arg.clone());
 
     let address_boc_tvc_arg = Arg::with_name("ADDRESS")
         .takes_value(true)
@@ -205,9 +205,7 @@ async fn main_internal() -> Result <(), String> {
             .long("--addr"))
         .arg(abi_arg.clone())
         .arg(method_opt_arg.clone())
-        .arg(Arg::with_name("PARAMS")
-            .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
-            .multiple(true))
+        .arg(multi_params_arg.clone())
         .arg(boc_flag.clone())
         .arg(tvc_flag.clone())
         .arg(bc_config_arg.clone())
@@ -1081,7 +1079,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return decode_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("debug") {
-        return debug_command(m, config).await;
+        return debug_command(m, &full_config).await;
     }
     if let Some(m) = matches.subcommand_matches("debot") {
         return debot_command(m, config.to_owned()).await;
