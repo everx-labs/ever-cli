@@ -2578,6 +2578,7 @@ dependencies = [
  "ton_sdk",
  "ton_types",
  "ton_vm",
+ "url",
 ]
 
 [[package]]

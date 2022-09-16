@@ -34,7 +34,7 @@ pub async fn generate_address(
     let abi_str = std::fs::read_to_string(abi)
         .map_err(|e| format!("failed to read ABI file: {}", e))?;
 
-    let abi = load_abi(&abi_str)?;
+    let abi = load_abi(&abi_str).await?;
 
     let phrase = if new_keys {
         gen_seed_phrase()?

@@ -54,9 +54,7 @@ pub async fn deploy_contract(
     }
 
     if config.async_call {
-        let abi = std::fs::read_to_string(abi)
-            .map_err(|e| format!("failed to read ABI file: {}", e))?;
-        let abi = load_abi(&abi)?;
+        let abi = load_abi(&abi).await?;
         send_message_and_wait(ton,
                               Some(abi),
                               enc_msg.message,
@@ -118,9 +116,7 @@ pub async fn prepare_deploy_message(
     keys_file: Option<String>,
     wc: i32
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
-    let abi = std::fs::read_to_string(abi)
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-    let abi = load_abi(&abi)?;
+    let abi = load_abi(abi).await?;
 
     let keys = keys_file.map(|k| load_keypair(&k)).transpose()?;
 

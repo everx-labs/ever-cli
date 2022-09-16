@@ -153,7 +153,7 @@ pub fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String>
 pub async fn generate_message(
     config: &Config,
     addr: &str,
-    abi: String,
+    abi: &str,
     method: &str,
     params: &str,
     keys: Option<String>,
@@ -166,7 +166,7 @@ pub async fn generate_message(
     let ton_addr = load_ton_address(addr, &config)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
 
-    let abi = load_abi(&abi)?;
+    let abi = load_abi(abi).await?;
 
     let expire_at = lifetime + now()?;
     let header = FunctionHeader {

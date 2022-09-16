@@ -1144,10 +1144,7 @@ async fn send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
         print_args!(message, abi);
     }
 
-    let abi = std::fs::read_to_string(abi.unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-
-    call_contract_with_msg(config, message.unwrap().to_owned(), abi).await
+    call_contract_with_msg(config, message.unwrap().to_owned(), &abi.unwrap()).await
 }
 
 async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
@@ -1163,15 +1160,11 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     let params = serde_json::from_str(&params.unwrap())
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
 
-    let abi = std::fs::read_to_string(abi.unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-
-
     let client = create_client_local()?;
     let body = ton_client::abi::encode_message_body(
         client.clone(),
         ParamsOfEncodeMessageBody {
-            abi: load_abi(&abi)?,
+            abi: load_abi(&abi.unwrap()).await?,
             call_set: CallSet::some_with_function_and_input(method.unwrap(), params)
                 .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
@@ -1211,8 +1204,6 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
     if !config.is_json {
         print_args!(address, method, params, abi, keys, lifetime, output);
     }
-    let abi = std::fs::read_to_string(abi.unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let address = load_ton_address(address.unwrap(), &config)?;
 
     match call {
@@ -1221,7 +1212,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
             call_contract(
                 config,
                 address.as_str(),
-                abi,
+                &abi.unwrap(),
                 method.unwrap(),
                 &params.unwrap(),
                 keys,
@@ -1240,7 +1231,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
             generate_message(
                 config,
                 address.as_str(),
-                abi,
+                &abi.unwrap(),
                 method.unwrap(),
                 &params.unwrap(),
                 keys,
@@ -1277,7 +1268,7 @@ async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Re
     call_contract(
         config,
         address.as_str(),
-        loaded_abi,
+        &abi.unwrap(),
         &method.unwrap(),
         &params.unwrap(),
         keys,

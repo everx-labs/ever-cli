@@ -114,7 +114,7 @@ async fn run(
 
     let params = Some(load_params(params.unwrap().as_ref())?);
 
-    let abi = load_abi(&abi)?;
+    let abi = load_abi(&abi).await?;
     let now = now()?;
     let expire_at = config.lifetime + now;
     let header = FunctionHeader {

@@ -605,9 +605,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };
 
-    let abi = std::fs::read_to_string(&opt_abi.clone().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-    let abi = load_abi(&abi)?;
+    let abi = load_abi(&opt_abi.clone().unwrap()).await?;
     let params = serde_json::from_str(&params.unwrap())
         .map_err(|e| format!("params are not in json format: {}", e))?;
 

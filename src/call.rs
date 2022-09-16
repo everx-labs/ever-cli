@@ -259,13 +259,13 @@ pub async fn process_message(
 pub async fn call_contract_with_result(
     config: &Config,
     addr: &str,
-    abi: String,
+    abi_path: &str,
     method: &str,
     params: &str,
     keys: Option<String>,
     is_fee: bool,
     matches: Option<&ArgMatches<'_>>,
-) -> Result<serde_json::Value, String> {
+) -> Result<Value, String> {
     let ton = if config.debug_fail != "None".to_string() {
         let log_path = format!("call_{}_{}.log", addr, method);
         log::set_max_level(log::LevelFilter::Trace);
@@ -276,21 +276,21 @@ pub async fn call_contract_with_result(
     } else {
         create_client_verbose(config)?
     };
-    call_contract_with_client(ton, config, addr, abi, method, params, keys, is_fee, matches).await
+    call_contract_with_client(ton, config, addr, abi_path, method, params, keys, is_fee, matches).await
 }
 
 pub async fn call_contract_with_client(
     ton: TonClient,
     config: &Config,
     addr: &str,
-    abi_string: String,
+    abi_path: &str,
     method: &str,
     params: &str,
     keys: Option<String>,
     is_fee: bool,
     matches: Option<&ArgMatches<'_>>,
-) -> Result<serde_json::Value, String> {
-    let abi = load_abi(&abi_string)?;
+) -> Result<Value, String> {
+    let abi = load_abi(abi_path).await?;
 
     let msg_params = prepare_message_params(
         addr,
@@ -390,14 +390,14 @@ pub fn print_json_result(result: Value, config: &Config) -> Result<(), String> {
 pub async fn call_contract(
     config: &Config,
     addr: &str,
-    abi: String,
+    abi_path: &str,
     method: &str,
     params: &str,
     keys: Option<String>,
     is_fee: bool,
     matches: Option<&ArgMatches<'_>>,
 ) -> Result<(), String> {
-    let result = call_contract_with_result(config, addr, abi, method, params, keys, is_fee, matches).await?;
+    let result = call_contract_with_result(config, addr, abi_path, method, params, keys, is_fee, matches).await?;
     if !config.is_json {
         println!("Succeeded.");
     }
@@ -406,9 +406,9 @@ pub async fn call_contract(
 }
 
 
-pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi: String) -> Result<(), String> {
+pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: &str) -> Result<(), String> {
     let ton = create_client_verbose(&config)?;
-    let abi = load_abi(&abi)?;
+    let abi = load_abi(abi_path).await?;
 
     let (msg, _) = unpack_message(&str_msg)?;
     if config.is_json {

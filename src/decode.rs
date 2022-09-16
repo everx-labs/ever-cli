@@ -328,13 +328,10 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool) -> Result
 
     let ton = create_client_local()?;
 
-    let abi = std::fs::read_to_string(abi_path)
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-
     let (mut res, is_external) = {
-        match decode_msg_body(ton.clone(), &abi, body_base64, false).await {
+        match decode_msg_body(ton.clone(), abi_path, body_base64, false).await {
             Ok(res) => (res, true),
-            Err(_) => (decode_msg_body(ton.clone(), &abi, body_base64, true).await?, false),
+            Err(_) => (decode_msg_body(ton.clone(), abi_path, body_base64, true).await?, false),
         }
     };
     let mut signature = None;
