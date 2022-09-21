@@ -635,7 +635,7 @@ pub fn load_params(params: &str) -> Result<String, String> {
     })
 }
 
-pub fn unpack_alternative_params(matches: &ArgMatches<'_>, abi: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
+pub fn unpack_alternative_params(matches: &ArgMatches<'_>, abi: &Abi, method: &str, config: &Config) -> Result<Option<String>, String> {
     if matches.is_present("PARAMS") {
         let params = matches.values_of("PARAMS").unwrap().collect::<Vec<_>>();
         Ok(Some(parse_params(params, abi, method)?))

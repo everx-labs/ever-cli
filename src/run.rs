@@ -103,9 +103,8 @@ async fn run(
             create_client_local()?
         }
     };
-    let abi = std::fs::read_to_string(abi_path.clone())
-        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
 
+    let abi = load_abi(&abi_path).await?;
     let params = if is_alternative {
         unpack_alternative_params(matches, &abi, method, config)?
     } else {
@@ -114,7 +113,6 @@ async fn run(
 
     let params = Some(load_params(params.unwrap().as_ref())?);
 
-    let abi = load_abi(&abi).await?;
     let now = now()?;
     let expire_at = config.lifetime + now;
     let header = FunctionHeader {

@@ -16,15 +16,9 @@ use crate::helpers::{
     TonClient, now_ms, create_client_verbose, load_abi,
     query_account_field, SDK_EXECUTION_ERROR_CODE, create_client
 };
-use ton_abi::{Contract, ParamType};
 
-use ton_client::abi::{
-    encode_message,
-    decode_message,
-    ParamsOfDecodeMessage,
-    ParamsOfEncodeMessage,
-    Abi,
-};
+use ton_client::abi::{encode_message, decode_message, ParamsOfDecodeMessage, ParamsOfEncodeMessage,
+                      Abi};
 use ton_client::processing::{
     ParamsOfSendMessage,
     ParamsOfWaitForTransaction,
@@ -76,44 +70,44 @@ fn parse_integer_param(value: &str) -> Result<String, String> {
     }
 }
 
-fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<String, String> {
-    let abi_obj = Contract::load(abi.as_bytes()).map_err(|e| format!("failed to parse ABI: {}", e))?;
-    let functions = abi_obj.functions();
+fn build_json_from_params(params_vec: Vec<&str>, abi: &Abi, method: &str) -> Result<String, String> {
+    if let Abi::Contract(abi_contract) = abi {
+        let functions = &abi_contract.functions;
+        let func_obj = functions.iter().find(|a| a.name == method).ok_or("failed to load function from abi")?;
 
-    let func_obj = functions.get(method).ok_or("failed to load function from abi")?;
-    let inputs = func_obj.input_params();
+        let inputs = &func_obj.inputs;
 
-    let mut params_json = json!({ });
-    for input in inputs {
-        let mut iter = params_vec.iter();
-        let _param = iter.find(|x| x.trim_start_matches('-') == input.name)
-            .ok_or(format!(r#"argument "{}" of type "{}" not found"#, input.name, input.kind))?;
+        let mut params_json = json!({ });
+        for input in inputs {
+            let mut iter = params_vec.iter();
+            let _param = iter.find(|x| x.trim_start_matches('-') == input.name)
+                .ok_or(format!(r#"argument "{}" of type "{}" not found"#, input.name, input.param_type))?;
 
-        let value = iter.next()
-            .ok_or(format!(r#"argument "{}" of type "{}" has no value"#, input.name, input.kind))?
-            .to_string();
+            let value = iter.next()
+                .ok_or(format!(r#"argument "{}" of type "{}" has no value"#, input.name, input.param_type))?
+                .to_string();
 
-        let value = match input.kind {
-            ParamType::Uint(_) | ParamType::Int(_) => {
-                json!(parse_integer_param(&value)?)
-            },
-            ParamType::Array(ref _x) => {
-                let mut result_vec: Vec<String> = vec![];
-                for i in value.split(|c| c == ',' || c == '[' || c == ']') {
-                    if !i.is_empty() {
-                        result_vec.push(parse_integer_param(i)?)
+            let value =
+                if input.param_type.ends_with("[]") {
+                    let mut result_vec: Vec<String> = vec![];
+                    for i in value.split(|c| c == ',' || c == '[' || c == ']') {
+                        if !i.is_empty() {
+                            result_vec.push(parse_integer_param(i)?)
+                        }
                     }
-                }
-                json!(result_vec)
-            },
-            _ => {
-                json!(value)
-            }
-        };
-        params_json[input.name.clone()] = value;
-    }
+                    json!(result_vec)
+                } else if input.param_type.starts_with("uint") || input.param_type.starts_with("int") {
+                    json!(parse_integer_param(&value)?)
+                } else {
+                    json!(value)
+                };
+            params_json[input.name.clone()] = value;
+        }
 
-    serde_json::to_string(&params_json).map_err(|e| format!("{}", e))
+        serde_json::to_string(&params_json).map_err(|e| format!("{}", e))
+    } else {
+        Err(String::from("Failed to load function from abi"))
+    }
 }
 
 pub async fn emulate_locally(
@@ -182,7 +176,7 @@ pub async fn send_message_and_wait(
     abi: Option<Abi>,
     msg: String,
     config: &Config,
-) -> Result<serde_json::Value, String> {
+) -> Result<Value, String> {
 
     if !config.is_json {
         println!("Processing... ");
@@ -225,7 +219,7 @@ pub async fn process_message(
     ton: TonClient,
     msg: ParamsOfEncodeMessage,
     config: &Config,
-) -> Result<serde_json::Value, ClientError> {
+) -> Result<Value, ClientError> {
     let callback = |event| { async move {
         if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
             println!("MessageId: {}", message_id)
@@ -350,8 +344,8 @@ pub async fn call_contract_with_client(
         && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
         if config.is_json {
             let e = format!("{:#}", res.clone().err().unwrap());
-            let err: serde_json::Value = serde_json::from_str(&e)
-                .unwrap_or(serde_json::Value::String(e));
+            let err: Value = serde_json::from_str(&e)
+                .unwrap_or(Value::String(e));
             let res = json!({"Error": err});
             println!("{}", serde_json::to_string_pretty(&res)
                 .unwrap_or("{{ \"JSON serialization error\" }}".to_string()));
@@ -439,7 +433,7 @@ pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: 
     Ok(())
 }
 
-pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<String, String> {
+pub fn parse_params(params_vec: Vec<&str>, abi: &Abi, method: &str) -> Result<String, String> {
     if params_vec.len() == 1 {
         // if there is only 1 parameter it must be a json string with arguments
         Ok(params_vec[0].to_owned())

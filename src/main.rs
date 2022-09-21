@@ -1248,9 +1248,7 @@ async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Re
     let method = Some(matches.value_of("METHOD").or(config.method.as_deref())
         .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let (address, abi, keys) = contract_data_from_matches_or_config_alias(matches, full_config)?;
-    let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-
+    let loaded_abi = load_abi(abi.as_ref().unwrap()).await?;
     let params = unpack_alternative_params(
         matches,
         &loaded_abi,
@@ -1333,8 +1331,7 @@ async fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig)
     let tvc = matches.value_of("TVC");
     let wc = wc_from_matches_or_config(matches, config)?;
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
-    let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+    let loaded_abi = load_abi(abi.as_ref().unwrap()).await?;
     let params = unpack_alternative_params(
         matches,
         &loaded_abi,

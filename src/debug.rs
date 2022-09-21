@@ -576,8 +576,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
-    let loaded_abi = std::fs::read_to_string(opt_abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+    let loaded_abi = load_abi(opt_abi.as_ref().unwrap()).await?;
     let params = unpack_alternative_params(
         matches,
         &loaded_abi,
@@ -807,8 +806,7 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     let sign = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
-    let loaded_abi = std::fs::read_to_string(opt_abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+    let loaded_abi = load_abi(opt_abi.as_ref().unwrap()).await?;
     let params = unpack_alternative_params(
         matches,
         &loaded_abi,
