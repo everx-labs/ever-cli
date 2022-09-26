@@ -75,8 +75,8 @@ checksum = "98161a4e3e2184da77bb14f02184cdd111e83bbbcc9979dfee3c44b9a85f5602"
 
 [[package]]
 name = "api_derive"
-version = "1.37.1"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.37.1#89da3f08be8894efedaaaf63d2baeae5b4c844b1"
+version = "1.37.2"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.37.2#c1ff843acd5097fed385863386a1d16441934829"
 dependencies = [
  "api_info",
  "quote",
@@ -86,8 +86,8 @@ dependencies = [
 
 [[package]]
 name = "api_info"
-version = "1.37.1"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.37.1#89da3f08be8894efedaaaf63d2baeae5b4c844b1"
+version = "1.37.2"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.37.2#c1ff843acd5097fed385863386a1d16441934829"
 dependencies = [
  "serde",
  "serde_derive",
@@ -526,6 +526,15 @@ name = "difflib"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6184e33543162437515c2e2b48714794e37845ec9851711914eec9d308f6ebe8"
+
+[[package]]
+name = "diffy"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c27ec7cef89a63c063e06570bb861b7d35e406d6885551b346d77c459b34d3db"
+dependencies = [
+ "ansi_term",
+]
 
 [[package]]
 name = "digest"
@@ -1984,6 +1993,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "deb766570a2825fa972bceff0d195727876a9cdf2460ab2e52d455dc2de47fd9"
 
 [[package]]
+name = "similar"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62ac7f900db32bf3fd12e0117dd3dc4da74bc52ebaac97f39668446d89694803"
+dependencies = [
+ "bstr",
+]
+
+[[package]]
 name = "simplelog"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2276,8 +2294,8 @@ dependencies = [
 
 [[package]]
 name = "ton_abi"
-version = "2.3.1"
-source = "git+https://github.com/tonlabs/ton-labs-abi.git?tag=2.3.1#cb442bca8244a6bfd316c96c2fc0a99114ab32c3"
+version = "2.3.7"
+source = "git+https://github.com/tonlabs/ton-labs-abi.git?tag=2.3.7#958fba895b3a7c4f255d89a0f292e2136350022c"
 dependencies = [
  "base64 0.10.1",
  "byteorder",
@@ -2298,8 +2316,8 @@ dependencies = [
 
 [[package]]
 name = "ton_api"
-version = "0.2.129"
-source = "git+https://github.com/tonlabs/ton-labs-tl.git?tag=0.2.129#404e7b9f219fc20b04b773a9a3f3a481ed03a0bf"
+version = "0.2.131"
+source = "git+https://github.com/tonlabs/ton-labs-tl.git?tag=0.2.131#f723789f6e48facdb53898c31f5c8ed2dda2df00"
 dependencies = [
  "byteorder",
  "extfmt",
@@ -2318,8 +2336,8 @@ dependencies = [
 
 [[package]]
 name = "ton_block"
-version = "1.8.0"
-source = "git+https://github.com/tonlabs/ton-labs-block.git?tag=1.8.0#403010107636ec9cb2bcc75d09b75147c72b0d82"
+version = "1.8.3"
+source = "git+https://github.com/tonlabs/ton-labs-block.git?tag=1.8.3#19a77eb0cccf6dc097ac934458976e1e91402ade"
 dependencies = [
  "base64 0.13.0",
  "crc 3.0.0",
@@ -2336,8 +2354,8 @@ dependencies = [
 
 [[package]]
 name = "ton_block_json"
-version = "0.7.24"
-source = "git+https://github.com/tonlabs/ton-labs-block-json.git?tag=0.7.24#9bdcf709fc1f65756a4aa38ed5ab7889e03e2568"
+version = "0.7.31"
+source = "git+https://github.com/tonlabs/ton-labs-block-json.git?tag=0.7.31#21e6c2d234672d3f2f12d72eaadfa571b44558fb"
 dependencies = [
  "base64 0.13.0",
  "failure",
@@ -2354,8 +2372,8 @@ dependencies = [
 
 [[package]]
 name = "ton_client"
-version = "1.37.1"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.37.1#89da3f08be8894efedaaaf63d2baeae5b4c844b1"
+version = "1.37.2"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.37.2#c1ff843acd5097fed385863386a1d16441934829"
 dependencies = [
  "aes",
  "api_derive",
@@ -2411,8 +2429,8 @@ dependencies = [
 
 [[package]]
 name = "ton_executor"
-version = "1.15.78"
-source = "git+https://github.com/tonlabs/ton-labs-executor.git?tag=1.15.78#abf3bcdce6194134fe00080303355dda78391c73"
+version = "1.15.89"
+source = "git+https://github.com/tonlabs/ton-labs-executor.git?tag=1.15.89#d1c05320b842c944905a988d29255983155b106b"
 dependencies = [
  "failure",
  "lazy_static",
@@ -2424,8 +2442,8 @@ dependencies = [
 
 [[package]]
 name = "ton_labs_assembler"
-version = "1.2.44"
-source = "git+https://github.com/tonlabs/ton-labs-assembler.git?tag=1.2.44#028be2e35b8b39c73a60ab386384ea6ff62eb219"
+version = "1.2.48"
+source = "git+https://github.com/tonlabs/ton-labs-assembler.git?tag=1.2.48#31eb9bf36eed726efb8683d025cb9abf645d4183"
 dependencies = [
  "failure",
  "hex 0.4.3",
@@ -2439,8 +2457,8 @@ dependencies = [
 
 [[package]]
 name = "ton_sdk"
-version = "1.37.1"
-source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.37.1#89da3f08be8894efedaaaf63d2baeae5b4c844b1"
+version = "1.37.2"
+source = "git+https://github.com/tonlabs/TON-SDK.git?tag=1.37.2#c1ff843acd5097fed385863386a1d16441934829"
 dependencies = [
  "api_derive",
  "api_info",
@@ -2466,7 +2484,7 @@ dependencies = [
 [[package]]
 name = "ton_tl_codegen"
 version = "0.0.2"
-source = "git+https://github.com/tonlabs/ton-labs-tl.git?tag=0.2.129#404e7b9f219fc20b04b773a9a3f3a481ed03a0bf"
+source = "git+https://github.com/tonlabs/ton-labs-tl.git?tag=0.2.131#f723789f6e48facdb53898c31f5c8ed2dda2df00"
 dependencies = [
  "crc 1.8.1",
  "failure",
@@ -2480,8 +2498,8 @@ dependencies = [
 
 [[package]]
 name = "ton_types"
-version = "1.11.3"
-source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.3#d62ead62339f17fda171fe45f19f5c7452e724bb"
+version = "1.11.4"
+source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.4#7f0063faa486298ba57ceb97e1d6e38447d6e0e3"
 dependencies = [
  "base64 0.13.0",
  "crc 1.8.1",
@@ -2500,9 +2518,10 @@ dependencies = [
 
 [[package]]
 name = "ton_vm"
-version = "1.8.40"
-source = "git+https://github.com/tonlabs/ton-labs-vm.git?tag=1.8.40#3bd45a44c3ca454e4f16f2de06994b404500cce2"
+version = "1.8.44"
+source = "git+https://github.com/tonlabs/ton-labs-vm.git?tag=1.8.44#5a83076b448cb35d2da7611552f76dea5cffc9db"
 dependencies = [
+ "diffy",
  "ed25519",
  "ed25519-dalek",
  "failure",
@@ -2513,8 +2532,10 @@ dependencies = [
  "num-traits",
  "rand 0.7.3",
  "sha2 0.9.9",
+ "similar",
  "ton_block",
  "ton_types",
+ "zstd",
 ]
 
 [[package]]
