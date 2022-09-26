@@ -64,7 +64,7 @@ use replay::{fetch_block_command, fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use crate::account::dump_accounts;
 
-use crate::config::FullConfig;
+use crate::config::{FullConfig, resolve_net_name};
 use crate::getconfig::gen_update_config_message;
 use crate::helpers::{abi_from_matches_or_config, AccountSource, default_config_name, global_config_path, load_abi_from_tvc, load_params, parse_lifetime, unpack_alternative_params, wc_from_matches_or_config};
 use crate::message::generate_message;
@@ -965,9 +965,10 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     let config = &mut full_config.config;
 
     if let Some(url) = matches.value_of("NETWORK") {
-        config.url = url.to_string();
+        let resolved_url = resolve_net_name(url).unwrap_or(url.to_owned());
         let empty : Vec<String> = Vec::new();
-        config.endpoints = full_config.endpoints_map.get(url).unwrap_or(&empty).clone();
+        config.endpoints = full_config.endpoints_map.get(&resolved_url).unwrap_or(&empty).clone();
+        config.url = resolved_url;
     }
 
     if let Some(m) = matches.subcommand_matches("callx") {

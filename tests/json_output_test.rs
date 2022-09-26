@@ -14,8 +14,6 @@ fn run_command_and_decode_json(command: &str) -> Result<(), Box<dyn std::error::
     _run_command_and_decode_json(command, true)
 }
 
-
-
 fn _run_command_and_decode_json(command: &str, local_node: bool) -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     println!("Command: {}",command);
@@ -84,11 +82,12 @@ fn test_json_output_2() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_json_output_3() -> Result<(), Box<dyn std::error::Error>> {
     run_command_and_decode_json("--config 123.conf config clear")?;
-    fs::remove_file("123.conf")?;
-    _run_command_and_decode_json(r#"--url net.ton.dev dump config conf.boc"#, false)?;
+    _run_command_and_decode_json(r#"-c 123.conf config --project_id b2ad82504ee54fccb5bc6db8cbb3df1e --access_key 27377cc9027d4de792f100eb869e18e8"#, false)?;
+    _run_command_and_decode_json(r#"-c 123.conf --url net.ton.dev dump config conf.boc"#, false)?;
     fs::remove_file("conf.boc")?;
-    _run_command_and_decode_json(r#"--url net.ton.dev getconfig 1"#, false)?;
-    _run_command_and_decode_json(r#"--url net.ton.dev getconfig"#, false)?;
+    _run_command_and_decode_json(r#"-c 123.conf --url net.ton.dev getconfig 1"#, false)?;
+    _run_command_and_decode_json(r#"-c 123.conf --url net.ton.dev getconfig"#, false)?;
+    fs::remove_file("123.conf")?;
     run_command_and_decode_json(&format!("fee storage {}", GIVER_ADDR))?;
     run_command_and_decode_json(&format!("fee call {} sendGrams {{\"dest\":\"{}\",\"amount\":1111111}} --abi {}", GIVER_ADDR, GIVER_ADDR, GIVER_ABI))?;
     run_command_and_decode_json(r#"genaddr tests/samples/wallet.tvc --genkey tests/json_test1.key"#)?;
