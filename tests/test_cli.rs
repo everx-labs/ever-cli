@@ -1032,6 +1032,10 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .arg("config")
         .arg("--url")
         .arg("https://net.evercloud.dev")
+        .arg("--project_id")
+        .arg("b2ad82504ee54fccb5bc6db8cbb3df1e")
+        .arg("--access_key")
+        .arg("27377cc9027d4de792f100eb869e18e8")
         .assert()
         .success();
 
@@ -1068,6 +1072,16 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("last_paid:"))
         .stdout(predicate::str::contains("last_trans_lt:"))
         .stdout(predicate::str::contains("data(boc):"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("clear")
+        .arg("--project_id")
+        .arg("--access_key")
+        .assert()
+        .success();
 
     set_config(
         &["--url", "--addr"],
@@ -1121,6 +1135,10 @@ fn test_config_wc() -> Result<(), Box<dyn std::error::Error>> {
         .arg("config")
         .arg("--url")
         .arg("https://net.evercloud.dev")
+        .arg("--project_id")
+        .arg("b2ad82504ee54fccb5bc6db8cbb3df1e")
+        .arg("--access_key")
+        .arg("27377cc9027d4de792f100eb869e18e8")
         .arg("--wc")
         .arg("-1");
     cmd.assert()
@@ -2032,15 +2050,31 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#""reinvest": false,"#));
 
     let config_path = "tests/block_config.boc";
+    let cli_config = "main.auth.conf";
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("--url")
+    cmd.arg("--config")
+        .arg(cli_config)
+        .arg("config")
+        .arg("--project_id")
+        .arg("b2ad82504ee54fccb5bc6db8cbb3df1e")
+        .arg("--access_key")
+        .arg("27377cc9027d4de792f100eb869e18e8")
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(cli_config)
+        .arg("--url")
         .arg("main.evercloud.dev")
         .arg("dump")
         .arg("config")
         .arg(config_path)
         .assert()
         .success();
+
+    fs::remove_file(cli_config)?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -2550,6 +2584,12 @@ fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Account not found."));
 
+    set_config(
+        &["--project_id", "--access_key"],
+        &["b2ad82504ee54fccb5bc6db8cbb3df1e", "27377cc9027d4de792f100eb869e18e8"],
+        Some(config_path)
+    )?;
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
         .arg(config_path)
@@ -2560,6 +2600,16 @@ fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("acc_type:      Active"));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(config_path)
+        .arg("config")
+        .arg("clear")
+        .arg("--project_id")
+        .arg("--access_key");
+    cmd.assert()
+        .success();
 
     let key_path = "options_msig.key";
 
@@ -2817,8 +2867,23 @@ fn test_alternative_parameters() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_override_url() -> Result<(), Box<dyn std::error::Error>> {
+    let cli_config = "main.auth.conf1";
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("--url")
+    cmd.arg("--config")
+        .arg(cli_config)
+        .arg("config")
+        .arg("--project_id")
+        .arg("b2ad82504ee54fccb5bc6db8cbb3df1e")
+        .arg("--access_key")
+        .arg("27377cc9027d4de792f100eb869e18e8")
+        .assert()
+        .success();
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--config")
+        .arg(cli_config)
+        .arg("--url")
         .arg("main.ton.dev")
         .arg("account")
         .arg("-1:3333333333333333333333333333333333333333333333333333333333333333");
@@ -2826,5 +2891,6 @@ fn test_override_url() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Succeeded."));
 
+    fs::remove_file(cli_config)?;
     Ok(())
 }
