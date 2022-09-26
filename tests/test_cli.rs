@@ -2814,3 +2814,17 @@ fn test_alternative_parameters() -> Result<(), Box<dyn std::error::Error>> {
     fs::remove_file(config_path)?;
     Ok(())
 }
+
+#[test]
+fn test_override_url() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--url")
+        .arg("main.ton.dev")
+        .arg("account")
+        .arg("-1:3333333333333333333333333333333333333333333333333333333333333333");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."));
+
+    Ok(())
+}
