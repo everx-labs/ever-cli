@@ -336,7 +336,7 @@ subcommand.
 List of available options:
 
 ```bash
---abi <ABI>                                   Path to the contract ABI file.
+--abi <ABI>                                   Path or link to the contract ABI file or pure json ABI data.
 --access_key <ACCESS_KEY>                     Project secret or JWT in Evercloud (dashboard.evercloud.dev).
 --addr <ADDR>                                 Contract address.
 --async_call <ASYNC_CALL>                     Disables wait for transaction to appear in the network after call command.
@@ -932,7 +932,7 @@ or
 
 `--wc <int8>` ID of the workchain the wallet will be deployed to (`-1` for masterchain, `0` for basechain). By default, this value is set to 0.
 
-`--abi <contract.abi.json>` - contract interface file.
+`--abi <contract.abi.json>` - Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file.
 
 `--alias <alias>` - allows to save contract parameters (address, abi, keys) to use them easier with `callx` or `runx` commands.
 

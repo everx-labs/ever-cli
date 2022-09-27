@@ -136,7 +136,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
     let abi_arg = Arg::with_name("ABI")
         .long("--abi")
         .takes_value(true)
-        .help("Path to the contract ABI file. Can be specified in the config file.");
+        .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file.");
 
     let decode_abi_arg = Arg::with_name("DECODE_ABI")
         .long("--decode_abi")
