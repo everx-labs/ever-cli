@@ -579,10 +579,10 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
     let loaded_abi = load_abi(opt_abi.as_ref().unwrap()).await?;
     let params = unpack_alternative_params(
         matches,
-        &loaded_abi,
+        opt_abi.as_ref().unwrap(),
         method.unwrap(),
         &full_config.config
-    )?;
+    ).await?;
 
     if !full_config.config.is_json {
         print_args!(input, method, params, sign, opt_abi, output);
@@ -604,7 +604,6 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };
 
-    let abi = load_abi(&opt_abi.clone().unwrap()).await?;
     let params = serde_json::from_str(&params.unwrap())
         .map_err(|e| format!("params are not in json format: {}", e))?;
 
@@ -623,7 +622,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         header: Some(header)
     };
     let msg_params = ParamsOfEncodeMessage {
-        abi,
+        abi: loaded_abi,
         address: Some(format!("0:{}", "0".repeat(64))),  // TODO: add option or get from input
         call_set: Some(call_set),
         signer: if keys.is_some() {
@@ -806,13 +805,12 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     let sign = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
-    let loaded_abi = load_abi(opt_abi.as_ref().unwrap()).await?;
     let params = unpack_alternative_params(
         matches,
-        &loaded_abi,
+        opt_abi.as_ref().unwrap(),
         "constructor",
         config
-    )?;
+    ).await?;
     let wc = Some(wc_from_matches_or_config(matches, config)?);
     if !config.is_json {
         print_args!(tvc, params, sign, opt_abi, output, debug_info);

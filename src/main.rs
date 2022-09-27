@@ -1164,7 +1164,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     let body = ton_client::abi::encode_message_body(
         client.clone(),
         ParamsOfEncodeMessageBody {
-            abi: load_abi(&abi.unwrap()).await?,
+            abi: load_abi(abi.as_ref().unwrap()).await?,
             call_set: CallSet::some_with_function_and_input(method.unwrap(), params)
                 .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
@@ -1248,13 +1248,12 @@ async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Re
     let method = Some(matches.value_of("METHOD").or(config.method.as_deref())
         .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let (address, abi, keys) = contract_data_from_matches_or_config_alias(matches, full_config)?;
-    let loaded_abi = load_abi(abi.as_ref().unwrap()).await?;
     let params = unpack_alternative_params(
         matches,
-        &loaded_abi,
+        abi.as_ref().unwrap(),
         method.unwrap(),
         config
-    )?;
+    ).await?;
     let params = Some(load_params(params.unwrap().as_ref())?);
 
     if !config.is_json {
@@ -1331,13 +1330,12 @@ async fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig)
     let tvc = matches.value_of("TVC");
     let wc = wc_from_matches_or_config(matches, config)?;
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
-    let loaded_abi = load_abi(abi.as_ref().unwrap()).await?;
     let params = unpack_alternative_params(
         matches,
-        &loaded_abi,
+        abi.as_ref().unwrap(),
         "constructor",
         config
-    )?;
+    ).await?;
     let keys = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());

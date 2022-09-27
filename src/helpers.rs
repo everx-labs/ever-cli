@@ -28,6 +28,7 @@ use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, Stat
 use std::str::FromStr;
 use clap::ArgMatches;
 use serde_json::Value;
+use ton_client::abi::Abi::Contract;
 use url::Url;
 use crate::call::parse_params;
 use crate::FullConfig;
@@ -287,33 +288,41 @@ pub async fn decode_msg_body(
     .map_err(|e| format!("failed to decode body: {}", e))
 }
 
-pub async fn load_abi(abi_path: &str) -> Result<Abi, String> {
-    let is_url = Url::parse(abi_path).is_ok();
-    let from_json = serde_json::from_str::<AbiContract>(abi_path);
-    if let Ok(abi_data) = from_json {
-        return Ok(Abi::Contract(abi_data));
+pub async fn load_abi_str(abi_path: &str) -> Result<String, String> {
+    let abi_from_json = serde_json::from_str::<AbiContract>(abi_path);
+    if abi_from_json.is_ok() {
+        return Ok(abi_path.to_string());
     }
-    if is_url {
+    if Url::parse(abi_path).is_ok() {
         let abi_bytes = load_file_with_url(abi_path).await?;
-        return Ok(Abi::Contract(serde_json::from_slice(&abi_bytes)
-            .map_err(|e| format!("Failed to decode ABI bytes {e}"))?));
+        return Ok(String::from_utf8(abi_bytes)
+            .map_err(|e| format!("Downloaded string contains not valid UTF8 characters: {}", e))?);
     }
-    let abi = std::fs::read_to_string(&abi_path)
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-    Ok(Abi::Contract(
-        serde_json::from_str::<AbiContract>(&abi)
+    Ok(std::fs::read_to_string(&abi_path)
+        .map_err(|e| format!("failed to read ABI file: {}", e))?)
+}
+
+pub async fn load_abi(abi_path: &str) -> Result<Abi, String> {
+    let abi_str = load_abi_str(abi_path).await?;
+    Ok(Contract(serde_json::from_str::<AbiContract>(&abi_str)
             .map_err(|e| format!("ABI is not a valid json: {}", e))?,
     ))
+}
+
+pub async fn load_ton_abi(abi_path: &str) -> Result<ton_abi::Contract, String> {
+    let abi_str = load_abi_str(abi_path).await?;
+    Ok(ton_abi::Contract::load(abi_str.as_bytes())
+        .map_err(|e| format!("Failed to load ABI: {}", e))?)
 }
 
 pub async fn load_file_with_url(url: &str) -> Result<Vec<u8>, String> {
     let response = reqwest::get(url)
         .await
         .map_err(|e| format!("Failed to download the file data: {}", e))?;
-    let tvc_bytes = response.bytes()
+    let responce_bytes = response.bytes()
         .await
         .map_err(|e| format!("Failed to decode network response: {}", e))?;
-    Ok(tvc_bytes.to_vec())
+    Ok(responce_bytes.to_vec())
 }
 
 
@@ -635,10 +644,10 @@ pub fn load_params(params: &str) -> Result<String, String> {
     })
 }
 
-pub fn unpack_alternative_params(matches: &ArgMatches<'_>, abi: &Abi, method: &str, config: &Config) -> Result<Option<String>, String> {
+pub async fn unpack_alternative_params(matches: &ArgMatches<'_>, abi_path: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
     if matches.is_present("PARAMS") {
         let params = matches.values_of("PARAMS").unwrap().collect::<Vec<_>>();
-        Ok(Some(parse_params(params, abi, method)?))
+        Ok(Some(parse_params(params, abi_path, method).await?))
     } else {
         Ok(config.parameters.clone().or(Some("{}".to_string())))
     }

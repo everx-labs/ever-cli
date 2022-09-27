@@ -12,10 +12,7 @@
  */
 use crate::config::Config;
 use crate::convert;
-use crate::helpers::{
-    TonClient, now_ms, create_client_verbose, load_abi,
-    query_account_field, SDK_EXECUTION_ERROR_CODE, create_client
-};
+use crate::helpers::{TonClient, now_ms, create_client_verbose, load_abi, query_account_field, SDK_EXECUTION_ERROR_CODE, create_client, load_ton_abi};
 
 use ton_client::abi::{encode_message, decode_message, ParamsOfDecodeMessage, ParamsOfEncodeMessage,
                       Abi};
@@ -36,6 +33,7 @@ use ton_block::{Account, Serializable, Deserializable, Message};
 use std::str::FromStr;
 use clap::ArgMatches;
 use serde_json::{Value};
+use ton_abi::ParamType;
 use ton_client::error::ClientError;
 use crate::debug::{execute_debug, DebugLogger};
 use crate::message::{EncodedMessage, prepare_message_params, print_encoded_message, unpack_message};
@@ -70,44 +68,44 @@ fn parse_integer_param(value: &str) -> Result<String, String> {
     }
 }
 
-fn build_json_from_params(params_vec: Vec<&str>, abi: &Abi, method: &str) -> Result<String, String> {
-    if let Abi::Contract(abi_contract) = abi {
-        let functions = &abi_contract.functions;
-        let func_obj = functions.iter().find(|a| a.name == method).ok_or("failed to load function from abi")?;
+async fn build_json_from_params(params_vec: Vec<&str>, abi_path: &str, method: &str) -> Result<String, String> {
+    let abi_obj = load_ton_abi(abi_path).await?;
+    let functions = abi_obj.functions();
 
-        let inputs = &func_obj.inputs;
+    let func_obj = functions.get(method).ok_or("failed to load function from abi")?;
+    let inputs = func_obj.input_params();
 
-        let mut params_json = json!({ });
-        for input in inputs {
-            let mut iter = params_vec.iter();
-            let _param = iter.find(|x| x.trim_start_matches('-') == input.name)
-                .ok_or(format!(r#"argument "{}" of type "{}" not found"#, input.name, input.param_type))?;
+    let mut params_json = json!({ });
+    for input in inputs {
+        let mut iter = params_vec.iter();
+        let _param = iter.find(|x| x.trim_start_matches('-') == input.name)
+            .ok_or(format!(r#"argument "{}" of type "{}" not found"#, input.name, input.kind))?;
 
-            let value = iter.next()
-                .ok_or(format!(r#"argument "{}" of type "{}" has no value"#, input.name, input.param_type))?
-                .to_string();
+        let value = iter.next()
+            .ok_or(format!(r#"argument "{}" of type "{}" has no value"#, input.name, input.kind))?
+            .to_string();
 
-            let value =
-                if input.param_type.ends_with("[]") {
-                    let mut result_vec: Vec<String> = vec![];
-                    for i in value.split(|c| c == ',' || c == '[' || c == ']') {
-                        if !i.is_empty() {
-                            result_vec.push(parse_integer_param(i)?)
-                        }
+        let value = match input.kind {
+            ParamType::Uint(_) | ParamType::Int(_) => {
+                json!(parse_integer_param(&value)?)
+            },
+            ParamType::Array(ref _x) => {
+                let mut result_vec: Vec<String> = vec![];
+                for i in value.split(|c| c == ',' || c == '[' || c == ']') {
+                    if !i.is_empty() {
+                        result_vec.push(parse_integer_param(i)?)
                     }
-                    json!(result_vec)
-                } else if input.param_type.starts_with("uint") || input.param_type.starts_with("int") {
-                    json!(parse_integer_param(&value)?)
-                } else {
-                    json!(value)
-                };
-            params_json[input.name.clone()] = value;
-        }
-
-        serde_json::to_string(&params_json).map_err(|e| format!("{}", e))
-    } else {
-        Err(String::from("Failed to load function from abi"))
+                }
+                json!(result_vec)
+            },
+            _ => {
+                json!(value)
+            }
+        };
+        params_json[input.name.clone()] = value;
     }
+
+    serde_json::to_string(&params_json).map_err(|e| format!("{}", e))
 }
 
 pub async fn emulate_locally(
@@ -433,11 +431,11 @@ pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: 
     Ok(())
 }
 
-pub fn parse_params(params_vec: Vec<&str>, abi: &Abi, method: &str) -> Result<String, String> {
+pub async fn parse_params(params_vec: Vec<&str>, abi_path: &str, method: &str) -> Result<String, String> {
     if params_vec.len() == 1 {
         // if there is only 1 parameter it must be a json string with arguments
         Ok(params_vec[0].to_owned())
     } else {
-        build_json_from_params(params_vec, abi, method)
+        build_json_from_params(params_vec, abi_path, method).await
     }
 }
