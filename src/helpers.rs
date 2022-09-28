@@ -120,8 +120,8 @@ pub fn create_client_local() -> Result<TonClient, String> {
     Ok(Arc::new(cli))
 }
 
-pub fn create_client(config: &Config) -> Result<TonClient, String> {
-    let modified_endpoints = if config.project_id.is_some() {
+pub fn get_server_endpoints(config: &Config) -> Vec<String> {
+    if config.project_id.is_some() {
         let mut cur_endpoints = match config.endpoints.len() {
             0 => vec![config.url.clone()],
             _ => config.endpoints.clone(),
@@ -136,7 +136,11 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
         config.endpoints.clone().iter_mut().map(|end| {
             end.trim_end_matches('/').to_owned()
         }).collect::<Vec<String>>()
-    };
+    }
+}
+
+pub fn create_client(config: &Config) -> Result<TonClient, String> {
+    let modified_endpoints = get_server_endpoints(config);
     if !config.is_json {
         println!("Connecting to:\n\tUrl: {}", config.url);
         println!("\tEndpoints: {:?}\n", modified_endpoints);

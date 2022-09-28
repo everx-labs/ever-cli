@@ -32,7 +32,7 @@ use ton_types::{UInt256, serialize_tree_of_cells};
 use ton_vm::executor::{Engine, EngineTraceInfo};
 
 use crate::config::Config;
-use crate::helpers::{create_client, query_account_field};
+use crate::helpers::{create_client, get_server_endpoints, query_account_field};
 
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
 
@@ -55,7 +55,7 @@ fn construct_blockchain_config_err(config_account: &Account) -> Result<Blockchai
     BlockchainConfig::with_config(config_params)
 }
 
-pub async fn fetch(server_address: &str, account_address: &str, filename: &str, fast_stop: bool, lt_bound: Option<u64>, rewrite_file: bool) -> Result<(), String> {
+pub async fn fetch(config: &Config, account_address: &str, filename: &str, fast_stop: bool, lt_bound: Option<u64>, rewrite_file: bool) -> Result<(), String> {
     if !rewrite_file && std::path::Path::new(filename).exists() {
         println!("File exists");
         return Ok(())
@@ -64,7 +64,8 @@ pub async fn fetch(server_address: &str, account_address: &str, filename: &str, 
     let context = Arc::new(
         ClientContext::new(ClientConfig {
             network: NetworkConfig {
-                server_address: Some(String::from(server_address)),
+                endpoints: Some(get_server_endpoints(config)),
+                access_key: config.access_key.clone(),
                 ..Default::default()
             },
             ..Default::default()
@@ -480,11 +481,12 @@ pub async fn replay(
     Err("Specified transaction was not found.".to_string())
 }
 
-pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -> Result<(), failure::Error> {
+pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Result<(), failure::Error> {
     let context = Arc::new(
         ClientContext::new(ClientConfig {
             network: NetworkConfig {
-                server_address: Some(String::from(server_address)),
+                endpoints: Some(get_server_endpoints(config)),
+                access_key: config.access_key.clone(),
                 ..Default::default()
             },
             ..Default::default()
@@ -542,7 +544,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
 
     for (account, _) in &accounts {
         println!("Fetching transactions of {}", account);
-        fetch(server_address,
+        fetch(config,
             account.as_str(),
             format!("{}.txns", account).as_str(),
             false, Some(end_lt), false).await.map_err(err_msg)?;
@@ -551,7 +553,7 @@ pub async fn fetch_block(server_address: &str, block_id: &str, filename: &str) -
     let config_txns_path = format!("{}.txns", CONFIG_ADDR);
     if !std::path::Path::new(config_txns_path.as_str()).exists() {
         println!("Fetching transactions of {}", CONFIG_ADDR);
-        fetch(server_address,
+        fetch(config,
             CONFIG_ADDR,
             config_txns_path.as_str(),
             false, Some(end_lt), false).await.map_err(err_msg)?;
@@ -638,7 +640,7 @@ struct BlockAccountDescr {
 }
 
 pub async fn fetch_block_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    fetch_block(config.url.as_str(),
+    fetch_block(config,
         m.value_of("BLOCKID").ok_or("Missing block id")?,
         m.value_of("OUTPUT").ok_or("Missing output filename")?
     ).await.map_err(|e| e.to_string())?;
@@ -646,7 +648,7 @@ pub async fn fetch_block_command(m: &ArgMatches<'_>, config: &Config) -> Result<
 }
 
 pub async fn fetch_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    fetch(config.url.as_str(),
+    fetch(config,
         m.value_of("ADDRESS").ok_or("Missing account address")?,
         m.value_of("OUTPUT").ok_or("Missing output filename")?,
         false,
