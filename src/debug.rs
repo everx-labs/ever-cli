@@ -201,6 +201,11 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .long("--now")
         .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.");
 
+    let ignore_hashes = Arg::with_name("IGNORE_HASHES")
+        .help("Ignore hashes mismatch. This flag must be set while replaying a contract after setcode on the Node SE.")
+        .long("--ignore_hashes")
+        .short("-i");
+
     let msg_cmd = SubCommand::with_name("message")
         .about("Play message locally with trace")
         .arg(output_arg.clone())
@@ -282,7 +287,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(decode_abi_arg.clone())
             .arg(tx_id_arg.clone())
             .arg(dump_config_arg.clone())
-            .arg(dump_contract_arg.clone()))
+            .arg(dump_contract_arg.clone())
+            .arg(ignore_hashes.clone()))
         .subcommand(SubCommand::with_name("account")
             .about("Loads list of the last transactions for the specified account. User should choose which one to debug.")
             .arg(empty_config_arg.clone())
@@ -294,7 +300,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(decode_abi_arg.clone())
             .arg(address_arg.clone())
             .arg(dump_config_arg.clone())
-            .arg(dump_contract_arg.clone()))
+            .arg(dump_contract_arg.clone())
+            .arg(ignore_hashes.clone()))
         .subcommand(SubCommand::with_name("replay")
             .about("Replay transaction on the saved account state.")
             .arg(output_arg.clone())
@@ -430,16 +437,19 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         contract_path,
         config_path,
         &tx_id,
-        false,
         generate_callback(Some(matches), config),
         init_logger,
         dump_mask,
-        if is_empty_config { Some(&config) } else { None },
+        config,
+        is_empty_config,
+        !matches.is_present("IGNORE_HASHES"),
     ).await?;
 
     decode_messages(tr.out_msgs, load_decode_abi(matches, config)).await?;
     if !config.is_json {
         println!("Log saved to {}.", trace_path);
+    } else {
+        println!("{{}}");
     }
     Ok(())
 }

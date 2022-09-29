@@ -57,7 +57,9 @@ fn construct_blockchain_config_err(config_account: &Account) -> Result<Blockchai
 
 pub async fn fetch(config: &Config, account_address: &str, filename: &str, fast_stop: bool, lt_bound: Option<u64>, rewrite_file: bool) -> Result<(), String> {
     if !rewrite_file && std::path::Path::new(filename).exists() {
-        println!("File exists");
+        if !config.is_json {
+            println!("File exists");
+        }
         return Ok(())
     }
 
@@ -142,7 +144,9 @@ pub async fn fetch(config: &Config, account_address: &str, filename: &str, fast_
     }
 
     if !zerostate_found {
-        println!("account {}: zerostate not found, writing out default initial state", account_address);
+        if !config.is_json {
+            println!("account {}: zerostate not found, writing out default initial state", account_address);
+        }
         let data = format!("{{\"id\":\"{}\",\"boc\":\"{}\"}}\n",
             account_address, base64::encode(&Account::default().write_to_bytes()
                 .map_err(|e| format!("failed to serialize account: {}", e))?));
@@ -287,58 +291,37 @@ fn choose<'a>(st1: &'a mut State, st2: &'a mut State) -> &'a mut State {
     }
 }
 
-struct TrivialLogger;
-static LOGGER: TrivialLogger = TrivialLogger;
-
-impl log::Log for TrivialLogger {
-    fn enabled(&self, _: &log::Metadata) -> bool {
-        true
-    }
-    fn log(&self, record: &log::Record) {
-        println!("{}", record.args());
-    }
-    fn flush(&self) {}
-}
-
 pub async fn replay(
     input_filename: &str,
     config_filename: &str,
     txnid: &str,
-    trace_execution: bool,
     trace_callback: Option<Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync>>,
     init_trace_last_logger: impl Fn() -> Result<(), String>,
     dump_mask: u8,
-    cli_config: Option<&Config>,
+    cli_config: &Config,
+    load_current_net_config: bool,
+    exit_on_wrong_contract_hash: bool,
 ) -> Result<Transaction, String> {
     let mut account_state = State::new(input_filename)?;
     let account_address = account_state.account_addr.clone();
 
-
-    let (mut config, mut config_state) = match cli_config {
-        Some(cli_config) => {
-            let ton_client = create_client(cli_config)?;
-            let config = query_account_field(
-                ton_client.clone(),
-                CONFIG_ADDR,
-                "boc",
-            ).await?;
-            let config = Account::construct_from_base64(&config).map_err(|_| "".to_string())?;
-            let mut state = State::default()?;
-            state.set_account(config.clone());
-            (construct_blockchain_config(&config)?, state)
-        },
-        None => {
-            let config_state = State::new(config_filename)?;
-            assert_eq!(config_state.account_addr, CONFIG_ADDR);
-            (BlockchainConfig::default(), config_state)
-        },
+    let (mut config, mut config_state) = if load_current_net_config {
+        let ton_client = create_client(cli_config)?;
+        let config = query_account_field(
+            ton_client.clone(),
+            CONFIG_ADDR,
+            "boc",
+        ).await?;
+        let config = Account::construct_from_base64(&config).map_err(|_| "".to_string())?;
+        let mut state = State::default()?;
+        state.set_account(config.clone());
+        (construct_blockchain_config(&config)?, state)
+    } else {
+        let config_state = State::new(config_filename)?;
+        assert_eq!(config_state.account_addr, CONFIG_ADDR);
+        (BlockchainConfig::default(), config_state)
     };
     let mut cur_block_lt = 0u64;
-
-    if trace_execution {
-        log::set_max_level(log::LevelFilter::Trace);
-        log::set_logger(&LOGGER).map_err(|e| format!("Failed to set logger: {}", e))?;
-    }
 
     loop {
         if account_state.tr.is_none() {
@@ -355,7 +338,7 @@ pub async fn replay(
         let state = choose(&mut account_state, &mut config_state);
         let tr = state.tr.as_ref().ok_or("failed to obtain state transaction")?;
 
-        if cli_config.is_none() {
+        if !load_current_net_config {
             if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
                 assert!(tr.block_lt > cur_block_lt);
                 cur_block_lt = tr.block_lt;
@@ -370,23 +353,31 @@ pub async fn replay(
         let account_old_hash_remote = tr.tr.read_state_update()
             .map_err(|e| format!("failed to read state update: {}", e))?.old_hash;
         if account_old_hash_local != account_old_hash_remote {
-            println!("FAILURE\nOld hashes mismatch:\nremote {}\nlocal  {}",
-                account_old_hash_remote.to_hex_string(),
-                account_old_hash_local.to_hex_string());
-            exit(1);
+            if !cli_config.is_json {
+                println!("FAILURE\nOld hashes mismatch:\nremote {}\nlocal  {}",
+                         account_old_hash_remote.to_hex_string(),
+                         account_old_hash_local.to_hex_string());
+            }
+            if exit_on_wrong_contract_hash {
+                exit(1);
+            }
         }
         if tr.id == txnid {
             if dump_mask & DUMP_ACCOUNT != 0 {
                 let path = format!("{}-{}.boc", account_address.split(':').last().unwrap_or(""), txnid);
                 account_root.write_to_file(&path);
-                println!("Contract account was dumped to {}", path);
+                if !cli_config.is_json {
+                    println!("Contract account was dumped to {}", path);
+                }
             }
             if dump_mask & DUMP_CONFIG != 0 {
                 let path = format!("config-{}.boc", txnid);
                 let account = config_account.serialize()
                     .map_err(|e| format!("Failed to serialize config account: {}", e))?;
                 account.write_to_file(&path);
-                println!("Config account was dumped to {}", path);
+                if !cli_config.is_json {
+                    println!("Config account was dumped to {}", path);
+                }
             }
             if dump_mask & DUMP_EXECUTOR_CONFIG != 0 {
                 // config.boc suitable for creating ton-labs-executor tests
@@ -401,7 +392,9 @@ pub async fn replay(
                 let path = format!("config-{}-test.boc", txnid);
                 cfg.into_cell().map_err(|e| format!("Failed to finalize builder: {}", e))?
                     .write_to_file(&path);
-                println!("Config for executor was dumped to {}", path);
+                if !cli_config.is_json {
+                    println!("Config for executor was dumped to {}", path);
+                }
             }
             if trace_callback.is_some() {
                 init_trace_last_logger()?;
@@ -412,7 +405,6 @@ pub async fn replay(
                     block_unixtime: tr.tr.now(),
                     block_lt: tr.tr.logical_time(),
                     last_tr_lt: Arc::new(AtomicU64::new(tr.tr.logical_time())),
-                    debug: trace_execution,
                     trace_callback,
                     ..ExecuteParams::default()
                 };
@@ -444,7 +436,6 @@ pub async fn replay(
             block_unixtime: tr.tr.now(),
             block_lt: tr.tr.logical_time(),
             last_tr_lt: Arc::new(AtomicU64::new(tr.tr.logical_time())),
-            debug: trace_execution,
             ..ExecuteParams::default()
         };
         let tr_local = executor.execute_with_libs_and_params(
@@ -461,19 +452,27 @@ pub async fn replay(
             .map_err(|e| format!("failed to read state update: {}", e))?
             .new_hash;
         if account_new_hash_local != account_new_hash_remote {
-            println!("FAILURE\nNew hashes mismatch:\nremote {}\nlocal  {}",
-                account_new_hash_remote.to_hex_string(),
-                account_new_hash_local.to_hex_string());
-            let local_desc = tr_local.read_description()
-                .map_err(|e| format!("failed to read description: {}", e))?;
-            let remote_desc = tr.tr.read_description()
-                .map_err(|e| format!("failed to read description: {}", e))?;
-            assert_eq!(remote_desc, local_desc);
-            exit(2);
+            if !cli_config.is_json {
+                println!("FAILURE\nNew hashes mismatch:\nremote {}\nlocal  {}\nTR id: {}",
+                         account_new_hash_remote.to_hex_string(),
+                         account_new_hash_local.to_hex_string(), tr.id);
+            }
+            if exit_on_wrong_contract_hash {
+                let local_desc = tr_local.read_description()
+                    .map_err(|e| format!("failed to read description: {}", e))?;
+                let remote_desc = tr.tr.read_description()
+                    .map_err(|e| format!("failed to read description: {}", e))?;
+                assert_eq!(remote_desc, local_desc);
+                exit(2);
+            }
         }
 
         if tr.id == txnid {
-            println!("DONE");
+            if !cli_config.is_json {
+                println!("DONE");
+            } else {
+                println!("{{}}");
+            }
             return Ok(tr_local);
         }
         state.tr = None;
@@ -565,10 +564,10 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
     let config_path = format!("config-{}.boc", txnid);
     if !std::path::Path::new(config_path.as_str()).exists() {
         println!("Computing config: replaying {} up to {}", acc, txnid);
-        replay(format!("{}.txns", acc).as_str(),
-            config_txns_path.as_str(), txnid,
-            false, None,
-            || Ok(()), DUMP_CONFIG, None).await.map_err(err_msg)?;
+        replay(format!("{}.txns", acc).as_str(),config_txns_path.as_str(),
+               txnid, None, || Ok(()), DUMP_CONFIG,
+               config, false, true
+        ).await.map_err(err_msg)?;
     } else {
         println!("Using pre-computed config {}", config_path);
     }
@@ -576,6 +575,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
     println!("Pre-replaying block accounts");
     let tasks: Vec<_> = accounts.iter().map(|(account, txns)| {
         let account_filename = account.split(':').last().unwrap_or("").to_owned();
+        let _config = config.clone().to_owned();
         let txnid = txns[0].0.clone();
         tokio::spawn(async move {
             if !std::path::Path::new(format!("{}-{}.boc", account_filename, txnid).as_str()).exists() {
@@ -583,11 +583,12 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
                     format!("{}.txns", account_filename).as_str(),
                     format!("{}.txns", CONFIG_ADDR).as_str(),
                     &txnid,
-                    false,
                     None,
                     || Ok(()),
                     DUMP_ACCOUNT,
-                    None
+                    &_config,
+                    false,
+                    true,
                 ).await.map_err(err_msg).unwrap();
             }
         })
@@ -664,14 +665,15 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
 }
 
 pub async fn replay_command(m: &ArgMatches<'_>, cli_config: &Config) -> Result<(), String> {
-    let (config_txns, cli_config) = if m.is_present("CURRENT_CONFIG") {
-        ("", Some(cli_config))
+    let (config_txns, load_config) = if m.is_present("CURRENT_CONFIG") {
+        ("", true)
     } else {
-        (m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?, None)
+        (m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?, false)
     };
     let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         config_txns, m.value_of("TXNID").ok_or("Missing final txn id")?,
-        false, None, ||{Ok(())}, DUMP_ALL, cli_config
+        None, ||{Ok(())}, DUMP_ALL, cli_config,
+        load_config, !m.is_present("IGNORE_HASHES")
     ).await?;
     Ok(())
 }

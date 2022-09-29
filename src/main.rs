@@ -862,7 +862,11 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("CURRENT_CONFIG")
             .help("Replay transaction with current network config.")
             .long("--current_config")
-            .short("-e"));
+            .short("-e"))
+        .arg(Arg::with_name("IGNORE_HASHES")
+            .help("Ignore hashes mismatch. This flag must be set while replaying a contract after setcode on the Node SE.")
+            .long("--ignore_hashes")
+            .short("-i"));
 
     let matches = App::new("tonos_cli")
         .version(&*format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
@@ -961,6 +965,11 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         .unwrap_or(default_config_name());
 
     let mut full_config = FullConfig::from_file(&config_file);
+
+    if let Some(m) = matches.subcommand_matches("config") {
+        return config_command(m, full_config);
+    }
+
     full_config.config.is_json = is_json || full_config.config.is_json;
     let config = &mut full_config.config;
 
@@ -1003,9 +1012,6 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
     if let Some(m) = matches.subcommand_matches("deploy_message") {
         return deploy_command(m, &mut full_config, DeployType::MsgOnly).await;
-    }
-    if let Some(m) = matches.subcommand_matches("config") {
-        return config_command(m, full_config);
     }
     if let Some(m) = matches.subcommand_matches("genaddr") {
         return genaddr_command(m, config).await;
