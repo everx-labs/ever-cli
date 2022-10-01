@@ -967,7 +967,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     let mut full_config = FullConfig::from_file(&config_file);
 
     if let Some(m) = matches.subcommand_matches("config") {
-        return config_command(m, full_config);
+        return config_command(m, full_config, is_json);
     }
 
     full_config.config.is_json = is_json || full_config.config.is_json;
@@ -1354,14 +1354,14 @@ async fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig)
     deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false, alias).await
 }
 
-fn config_command(matches: &ArgMatches, mut full_config: FullConfig) -> Result<(), String> {
+fn config_command(matches: &ArgMatches, mut full_config: FullConfig, is_json: bool) -> Result<(), String> {
     let mut result = Ok(());
     if matches.is_present("GLOBAL") {
         full_config = FullConfig::from_file(&global_config_path());
     }
     if !matches.is_present("LIST") {
         if let Some(clear_matches) = matches.subcommand_matches("clear") {
-            result = clear_config(&mut full_config, clear_matches);
+            result = clear_config(&mut full_config, clear_matches, is_json);
         } else if let Some(endpoint_matches) = matches.subcommand_matches("endpoint") {
             if let Some(endpoint_matches) = endpoint_matches.subcommand_matches("add") {
                 let url = endpoint_matches.value_of("URL").unwrap();
@@ -1396,7 +1396,7 @@ fn config_command(matches: &ArgMatches, mut full_config: FullConfig) -> Result<(
                 return Err("At least one option must be specified".to_string());
             }
 
-            result = set_config(&mut full_config, matches);
+            result = set_config(&mut full_config, matches, is_json);
         }
     }
     println!(
