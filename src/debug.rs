@@ -136,7 +136,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
     let abi_arg = Arg::with_name("ABI")
         .long("--abi")
         .takes_value(true)
-        .help("Path to the contract ABI file. Can be specified in the config file.");
+        .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file.");
 
     let decode_abi_arg = Arg::with_name("DECODE_ABI")
         .long("--decode_abi")
@@ -200,6 +200,11 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .long("--now")
         .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.");
+
+    let ignore_hashes = Arg::with_name("IGNORE_HASHES")
+        .help("Ignore hashes mismatch. This flag must be set while replaying a contract after setcode on the Node SE.")
+        .long("--ignore_hashes")
+        .short("-i");
 
     let msg_cmd = SubCommand::with_name("message")
         .about("Play message locally with trace")
@@ -282,7 +287,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(decode_abi_arg.clone())
             .arg(tx_id_arg.clone())
             .arg(dump_config_arg.clone())
-            .arg(dump_contract_arg.clone()))
+            .arg(dump_contract_arg.clone())
+            .arg(ignore_hashes.clone()))
         .subcommand(SubCommand::with_name("account")
             .about("Loads list of the last transactions for the specified account. User should choose which one to debug.")
             .arg(empty_config_arg.clone())
@@ -294,7 +300,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(decode_abi_arg.clone())
             .arg(address_arg.clone())
             .arg(dump_config_arg.clone())
-            .arg(dump_contract_arg.clone()))
+            .arg(dump_contract_arg.clone())
+            .arg(ignore_hashes.clone()))
         .subcommand(SubCommand::with_name("replay")
             .about("Replay transaction on the saved account state.")
             .arg(output_arg.clone())
@@ -390,7 +397,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
             if !config.is_json {
                 println!("Fetching config contract transactions...");
             }
-            fetch(&config.url, CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config, None, true).await?;
+            fetch(config, CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config, None, true).await?;
             DEFAULT_CONFIG_PATH
         }
     };
@@ -402,7 +409,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
             if !config.is_json {
                 println!("Fetching contract transactions...");
             }
-            fetch(&config.url, &address, DEFAULT_CONTRACT_PATH, false, None, true).await?;
+            fetch(config, &address, DEFAULT_CONTRACT_PATH, false, None, true).await?;
             DEFAULT_CONTRACT_PATH
         }
     };
@@ -430,16 +437,19 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         contract_path,
         config_path,
         &tx_id,
-        false,
         generate_callback(Some(matches), config),
         init_logger,
         dump_mask,
-        if is_empty_config { Some(&config) } else { None },
+        config,
+        is_empty_config,
+        !matches.is_present("IGNORE_HASHES"),
     ).await?;
 
     decode_messages(tr.out_msgs, load_decode_abi(matches, config)).await?;
     if !config.is_json {
         println!("Log saved to {}.", trace_path);
+    } else {
+        println!("{{}}");
     }
     Ok(())
 }
@@ -576,14 +586,13 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
-    let loaded_abi = std::fs::read_to_string(opt_abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+    let loaded_abi = load_abi(opt_abi.as_ref().unwrap()).await?;
     let params = unpack_alternative_params(
         matches,
-        &loaded_abi,
+        opt_abi.as_ref().unwrap(),
         method.unwrap(),
         &full_config.config
-    )?;
+    ).await?;
 
     if !full_config.config.is_json {
         print_args!(input, method, params, sign, opt_abi, output);
@@ -605,9 +614,6 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };
 
-    let abi = std::fs::read_to_string(&opt_abi.clone().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-    let abi = load_abi(&abi)?;
     let params = serde_json::from_str(&params.unwrap())
         .map_err(|e| format!("params are not in json format: {}", e))?;
 
@@ -626,7 +632,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         header: Some(header)
     };
     let msg_params = ParamsOfEncodeMessage {
-        abi,
+        abi: loaded_abi,
         address: Some(format!("0:{}", "0".repeat(64))),  // TODO: add option or get from input
         call_set: Some(call_set),
         signer: if keys.is_some() {
@@ -809,14 +815,12 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     let sign = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
-    let loaded_abi = std::fs::read_to_string(opt_abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let params = unpack_alternative_params(
         matches,
-        &loaded_abi,
+        opt_abi.as_ref().unwrap(),
         "constructor",
         config
-    )?;
+    ).await?;
     let wc = Some(wc_from_matches_or_config(matches, config)?);
     if !config.is_json {
         print_args!(tvc, params, sign, opt_abi, output, debug_info);

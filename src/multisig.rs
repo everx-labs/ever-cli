@@ -15,7 +15,7 @@ use crate::call;
 use crate::config::Config;
 use crate::convert;
 use crate::deploy::prepare_deploy_message_params;
-use crate::helpers::{create_client_local, load_abi, load_ton_address, create_client_verbose};
+use crate::helpers::{create_client_local, load_abi, load_ton_address, create_client_verbose, load_file_with_url};
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 use ton_client::abi::{encode_message_body, ParamsOfEncodeMessageBody, CallSet};
 use crate::crypto::load_keypair;
@@ -263,7 +263,7 @@ async fn multisig_send_command(matches: &ArgMatches<'_>, config: &Config) -> Res
 pub async fn encode_transfer_body(text: &str) -> Result<String, String> {
     let text = hex::encode(text.as_bytes());
     let client = create_client_local()?;
-    let abi = load_abi(TRANSFER_WITH_COMMENT)?;
+    let abi = load_abi(TRANSFER_WITH_COMMENT).await?;
     encode_message_body(
         client.clone(),
         ParamsOfEncodeMessageBody {
@@ -316,7 +316,7 @@ pub async fn send_with_body(
     call::call_contract(
         config,
         addr,
-        MSIG_ABI.to_string(),
+        MSIG_ABI,
         "submitTransaction",
         &params,
         Some(keys.to_owned()),
@@ -339,10 +339,8 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
         SAFEMULTISIG_LINK
     };
 
-    let response = reqwest::get(target).await.map_err(|e| format!("Failed to download the contract TVC: {}", e))?;
-
-    let tvc_bytes = response.bytes().await.map_err(|e| format!("Failed to decode network response: {}", e))?;
-    let abi = load_abi(MSIG_ABI)?;
+    let tvc_bytes = load_file_with_url(target).await?;
+    let abi = load_abi(MSIG_ABI).await?;
 
     let keys = load_keypair(&keys)?;
 
@@ -366,7 +364,7 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
                             matches.value_of("CONFIRMS").unwrap_or("1")
     );
 
-    let (msg, address) = prepare_deploy_message_params(&tvc_bytes.to_vec(), abi, &param_str, Some(keys), config.wc).await?;
+    let (msg, address) = prepare_deploy_message_params(&tvc_bytes, abi, &param_str, Some(keys), config.wc).await?;
 
     if !config.is_json {
         println!("Wallet address: {}", address);
@@ -380,7 +378,7 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
             ton.clone(),
             config,
             LOCAL_GIVER_ADDR,
-            LOCAL_GIVER_TRANSFER.to_string(),
+            LOCAL_GIVER_TRANSFER,
             "sendGrams",
             &params,
             None,

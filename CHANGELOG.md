@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.28.12
+
+### New
+- Added ability to specify link to the abi file of json data instead of path.
+
+
 ## Version: 0.28.3
 
 ### Breaking changes:

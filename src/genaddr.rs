@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 use crate::config::Config;
-use crate::helpers::{create_client_local, read_keys, load_abi, calc_acc_address};
+use crate::helpers::{create_client_local, read_keys, load_abi, calc_acc_address, load_abi_str};
 use ed25519_dalek::PublicKey;
 use std::fs::OpenOptions;
 
@@ -21,7 +21,7 @@ use ton_client::utils::{convert_address, ParamsOfConvertAddress, AddressStringFo
 pub async fn generate_address(
     config: &Config,
     tvc: &str,
-    abi: &str,
+    abi_path: &str,
     wc_str: Option<&str>,
     keys_file: Option<&str>,
     new_keys: bool,
@@ -31,10 +31,7 @@ pub async fn generate_address(
     let contract = std::fs::read(tvc)
         .map_err(|e| format!("failed to read smart contract file: {}", e))?;
 
-    let abi_str = std::fs::read_to_string(abi)
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-
-    let abi = load_abi(&abi_str)?;
+    let abi = load_abi(abi_path).await?;
 
     let phrase = if new_keys {
         gen_seed_phrase()?
@@ -82,7 +79,7 @@ pub async fn generate_address(
                 vec![0; 32]
             }
         };
-
+        let abi_str = load_abi_str(abi_path).await?;
         update_contract_state(tvc, &key_bytes, initial_data, &abi_str)?;
         if !config.is_json {
             println!("TVC file updated");

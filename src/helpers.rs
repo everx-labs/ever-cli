@@ -28,6 +28,8 @@ use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, Stat
 use std::str::FromStr;
 use clap::ArgMatches;
 use serde_json::Value;
+use ton_client::abi::Abi::Contract;
+use url::Url;
 use crate::call::parse_params;
 use crate::FullConfig;
 
@@ -118,8 +120,8 @@ pub fn create_client_local() -> Result<TonClient, String> {
     Ok(Arc::new(cli))
 }
 
-pub fn create_client(config: &Config) -> Result<TonClient, String> {
-    let modified_endpoints = if config.project_id.is_some() {
+pub fn get_server_endpoints(config: &Config) -> Vec<String> {
+    if config.project_id.is_some() {
         let mut cur_endpoints = match config.endpoints.len() {
             0 => vec![config.url.clone()],
             _ => config.endpoints.clone(),
@@ -134,7 +136,11 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
         config.endpoints.clone().iter_mut().map(|end| {
             end.trim_end_matches('/').to_owned()
         }).collect::<Vec<String>>()
-    };
+    }
+}
+
+pub fn create_client(config: &Config) -> Result<TonClient, String> {
+    let modified_endpoints = get_server_endpoints(config);
     if !config.is_json {
         println!("Connecting to:\n\tUrl: {}", config.url);
         println!("\tEndpoints: {:?}\n", modified_endpoints);
@@ -268,11 +274,11 @@ pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> 
 
 pub async fn decode_msg_body(
     ton: TonClient,
-    abi_str: &str,
+    abi_path: &str,
     body: &str,
     is_internal: bool,
 ) -> Result<DecodedMessageBody, String> {
-    let abi = load_abi(abi_str)?;
+    let abi = load_abi(abi_path).await?;
     ton_client::abi::decode_message_body(
         ton,
         ParamsOfDecodeMessageBody {
@@ -286,12 +292,43 @@ pub async fn decode_msg_body(
     .map_err(|e| format!("failed to decode body: {}", e))
 }
 
-pub fn load_abi(abi: &str) -> Result<Abi, String> {
-    Ok(Abi::Contract(
-        serde_json::from_str::<AbiContract>(abi)
+pub async fn load_abi_str(abi_path: &str) -> Result<String, String> {
+    let abi_from_json = serde_json::from_str::<AbiContract>(abi_path);
+    if abi_from_json.is_ok() {
+        return Ok(abi_path.to_string());
+    }
+    if Url::parse(abi_path).is_ok() {
+        let abi_bytes = load_file_with_url(abi_path).await?;
+        return Ok(String::from_utf8(abi_bytes)
+            .map_err(|e| format!("Downloaded string contains not valid UTF8 characters: {}", e))?);
+    }
+    Ok(std::fs::read_to_string(&abi_path)
+        .map_err(|e| format!("failed to read ABI file: {}", e))?)
+}
+
+pub async fn load_abi(abi_path: &str) -> Result<Abi, String> {
+    let abi_str = load_abi_str(abi_path).await?;
+    Ok(Contract(serde_json::from_str::<AbiContract>(&abi_str)
             .map_err(|e| format!("ABI is not a valid json: {}", e))?,
     ))
 }
+
+pub async fn load_ton_abi(abi_path: &str) -> Result<ton_abi::Contract, String> {
+    let abi_str = load_abi_str(abi_path).await?;
+    Ok(ton_abi::Contract::load(abi_str.as_bytes())
+        .map_err(|e| format!("Failed to load ABI: {}", e))?)
+}
+
+pub async fn load_file_with_url(url: &str) -> Result<Vec<u8>, String> {
+    let response = reqwest::get(url)
+        .await
+        .map_err(|e| format!("Failed to download the file data: {}", e))?;
+    let responce_bytes = response.bytes()
+        .await
+        .map_err(|e| format!("Failed to decode network response: {}", e))?;
+    Ok(responce_bytes.to_vec())
+}
+
 
 pub async fn calc_acc_address(
     tvc: &[u8],
@@ -350,7 +387,7 @@ pub fn events_filter(addr: &str, since: u32) -> serde_json::Value {
     })
 }
 
-pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &str, is_internal: bool) -> Result<(String, String), String> {
+pub async fn print_message(ton: TonClient, message: &Value, abi: &str, is_internal: bool) -> Result<(String, String), String> {
     println!("Id: {}", message["id"].as_str().unwrap_or("Undefined"));
     let value = message["value"].as_str().unwrap_or("0x0");
     let value = u64::from_str_radix(value.trim_start_matches("0x"), 16)
@@ -368,7 +405,7 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
         let result = ton_client::abi::decode_message_body(
             ton.clone(),
             ParamsOfDecodeMessageBody {
-                abi: load_abi(abi)?,
+                abi: load_abi(abi).await?,
                 body: body.to_owned(),
                 is_internal,
                 ..Default::default()
@@ -611,10 +648,10 @@ pub fn load_params(params: &str) -> Result<String, String> {
     })
 }
 
-pub fn unpack_alternative_params(matches: &ArgMatches<'_>, abi: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
+pub async fn unpack_alternative_params(matches: &ArgMatches<'_>, abi_path: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
     if matches.is_present("PARAMS") {
         let params = matches.values_of("PARAMS").unwrap().collect::<Vec<_>>();
-        Ok(Some(parse_params(params, abi, method)?))
+        Ok(Some(parse_params(params, abi_path, method).await?))
     } else {
         Ok(config.parameters.clone().or(Some("{}".to_string())))
     }

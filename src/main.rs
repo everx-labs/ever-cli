@@ -99,7 +99,7 @@ async fn main_internal() -> Result <(), String> {
     let abi_arg = Arg::with_name("ABI")
         .long("--abi")
         .takes_value(true)
-        .help("Path to the contract ABI file. Can be specified in the config file.");
+        .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file.");
 
     let keys_arg = Arg::with_name("KEYS")
         .long("--keys")
@@ -405,7 +405,7 @@ async fn main_internal() -> Result <(), String> {
             .help("Url to connect."))
         .arg(Arg::with_name("ABI")
             .long("--abi")
-            .help("Path to the contract ABI file."))
+            .help("Path or link to the contract ABI file or pure json ABI data."))
         .arg(Arg::with_name("KEYS")
             .long("--keys")
             .help("Path to the file with keypair."))
@@ -486,7 +486,7 @@ async fn main_internal() -> Result <(), String> {
             .arg(Arg::with_name("ABI")
                 .long("--abi")
                 .takes_value(true)
-                .help("Path to the contract abi file."))
+                .help("Path or link to the contract ABI file or pure json ABI data."))
             .arg(Arg::with_name("KEYS")
                 .long("--keys")
                 .takes_value(true)
@@ -536,7 +536,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("ABI")
             .long("--abi")
             .takes_value(true)
-            .help("Path to the contract ABI file."))
+            .help("Path or link to the contract ABI file or pure json ABI data."))
         .arg(Arg::with_name("KEYS")
             .long("--keys")
             .takes_value(true)
@@ -862,7 +862,11 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("CURRENT_CONFIG")
             .help("Replay transaction with current network config.")
             .long("--current_config")
-            .short("-e"));
+            .short("-e"))
+        .arg(Arg::with_name("IGNORE_HASHES")
+            .help("Ignore hashes mismatch. This flag must be set while replaying a contract after setcode on the Node SE.")
+            .long("--ignore_hashes")
+            .short("-i"));
 
     let matches = App::new("tonos_cli")
         .version(&*format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
@@ -961,6 +965,11 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         .unwrap_or(default_config_name());
 
     let mut full_config = FullConfig::from_file(&config_file);
+
+    if let Some(m) = matches.subcommand_matches("config") {
+        return config_command(m, full_config, is_json);
+    }
+
     full_config.config.is_json = is_json || full_config.config.is_json;
     let config = &mut full_config.config;
 
@@ -1003,9 +1012,6 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
     if let Some(m) = matches.subcommand_matches("deploy_message") {
         return deploy_command(m, &mut full_config, DeployType::MsgOnly).await;
-    }
-    if let Some(m) = matches.subcommand_matches("config") {
-        return config_command(m, full_config);
     }
     if let Some(m) = matches.subcommand_matches("genaddr") {
         return genaddr_command(m, config).await;
@@ -1144,10 +1150,7 @@ async fn send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
         print_args!(message, abi);
     }
 
-    let abi = std::fs::read_to_string(abi.unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-
-    call_contract_with_msg(config, message.unwrap().to_owned(), abi).await
+    call_contract_with_msg(config, message.unwrap().to_owned(), &abi.unwrap()).await
 }
 
 async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
@@ -1163,15 +1166,11 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     let params = serde_json::from_str(&params.unwrap())
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
 
-    let abi = std::fs::read_to_string(abi.unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-
-
     let client = create_client_local()?;
     let body = ton_client::abi::encode_message_body(
         client.clone(),
         ParamsOfEncodeMessageBody {
-            abi: load_abi(&abi)?,
+            abi: load_abi(abi.as_ref().unwrap()).await?,
             call_set: CallSet::some_with_function_and_input(method.unwrap(), params)
                 .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
@@ -1211,8 +1210,6 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
     if !config.is_json {
         print_args!(address, method, params, abi, keys, lifetime, output);
     }
-    let abi = std::fs::read_to_string(abi.unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let address = load_ton_address(address.unwrap(), &config)?;
 
     match call {
@@ -1221,7 +1218,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
             call_contract(
                 config,
                 address.as_str(),
-                abi,
+                &abi.unwrap(),
                 method.unwrap(),
                 &params.unwrap(),
                 keys,
@@ -1240,7 +1237,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
             generate_message(
                 config,
                 address.as_str(),
-                abi,
+                &abi.unwrap(),
                 method.unwrap(),
                 &params.unwrap(),
                 keys,
@@ -1257,15 +1254,12 @@ async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Re
     let method = Some(matches.value_of("METHOD").or(config.method.as_deref())
         .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let (address, abi, keys) = contract_data_from_matches_or_config_alias(matches, full_config)?;
-    let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-
     let params = unpack_alternative_params(
         matches,
-        &loaded_abi,
+        abi.as_ref().unwrap(),
         method.unwrap(),
         config
-    )?;
+    ).await?;
     let params = Some(load_params(params.unwrap().as_ref())?);
 
     if !config.is_json {
@@ -1277,7 +1271,7 @@ async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Re
     call_contract(
         config,
         address.as_str(),
-        loaded_abi,
+        &abi.unwrap(),
         &method.unwrap(),
         &params.unwrap(),
         keys,
@@ -1342,14 +1336,12 @@ async fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig)
     let tvc = matches.value_of("TVC");
     let wc = wc_from_matches_or_config(matches, config)?;
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
-    let loaded_abi = std::fs::read_to_string(abi.as_ref().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
     let params = unpack_alternative_params(
         matches,
-        &loaded_abi,
+        abi.as_ref().unwrap(),
         "constructor",
         config
-    )?;
+    ).await?;
     let keys = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
@@ -1362,14 +1354,14 @@ async fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig)
     deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false, alias).await
 }
 
-fn config_command(matches: &ArgMatches, mut full_config: FullConfig) -> Result<(), String> {
+fn config_command(matches: &ArgMatches, mut full_config: FullConfig, is_json: bool) -> Result<(), String> {
     let mut result = Ok(());
     if matches.is_present("GLOBAL") {
         full_config = FullConfig::from_file(&global_config_path());
     }
     if !matches.is_present("LIST") {
         if let Some(clear_matches) = matches.subcommand_matches("clear") {
-            result = clear_config(&mut full_config, clear_matches);
+            result = clear_config(&mut full_config, clear_matches, is_json);
         } else if let Some(endpoint_matches) = matches.subcommand_matches("endpoint") {
             if let Some(endpoint_matches) = endpoint_matches.subcommand_matches("add") {
                 let url = endpoint_matches.value_of("URL").unwrap();
@@ -1404,7 +1396,7 @@ fn config_command(matches: &ArgMatches, mut full_config: FullConfig) -> Result<(
                 return Err("At least one option must be specified".to_string());
             }
 
-            result = set_config(&mut full_config, matches);
+            result = set_config(&mut full_config, matches, is_json);
         }
     }
     println!(

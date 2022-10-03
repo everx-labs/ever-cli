@@ -41,7 +41,7 @@ pub async fn create_proposal(
 		message::generate_message(
 			config,
 			addr,
-			MSIG_ABI.to_string(),
+			MSIG_ABI,
 			"submitTransaction",
 			&params,
 			keys,
@@ -53,7 +53,7 @@ pub async fn create_proposal(
 		call::call_contract(
 			config,
 			addr,
-			MSIG_ABI.to_string(),
+			MSIG_ABI,
 			"submitTransaction",
 			&params,
 			keys,
@@ -82,7 +82,7 @@ pub async fn vote(
 		message::generate_message(
 			config,
 			addr,
-			MSIG_ABI.to_string(),
+			MSIG_ABI,
 			"confirmTransaction",
 			&params,
 			keys,
@@ -94,7 +94,7 @@ pub async fn vote(
 		call::call_contract(
 			config,
 			addr,
-			MSIG_ABI.to_string(),
+			MSIG_ABI,
 			"confirmTransaction",
 			&params,
 			keys,
@@ -114,7 +114,7 @@ pub async fn decode_proposal(
 	let result = call::call_contract_with_result(
 		config,
 		addr,
-		MSIG_ABI.to_string(),
+		MSIG_ABI,
 		"getTransactions",
 		"{}",
 		None,

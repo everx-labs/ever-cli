@@ -103,18 +103,16 @@ async fn run(
             create_client_local()?
         }
     };
-    let abi = std::fs::read_to_string(abi_path.clone())
-        .map_err(|e| format!("failed to read ABI file: {}", e.to_string()))?;
 
+    let abi = load_abi(&abi_path).await?;
     let params = if is_alternative {
-        unpack_alternative_params(matches, &abi, method, config)?
+        unpack_alternative_params(matches, &abi_path, method, config).await?
     } else {
         matches.value_of("PARAMS").map(|s| s.to_owned())
     };
 
     let params = Some(load_params(params.unwrap().as_ref())?);
 
-    let abi = load_abi(&abi)?;
     let now = now()?;
     let expire_at = config.lifetime + now;
     let header = FunctionHeader {
@@ -152,8 +150,8 @@ async fn run(
 
         if config.is_json {
             let e = format!("{:#}", result.clone().err().unwrap());
-            let err: serde_json::Value = serde_json::from_str(&e)
-                .unwrap_or(serde_json::Value::String(e));
+            let err: Value = serde_json::from_str(&e)
+                .unwrap_or(Value::String(e));
             let res = json!({"Error": err});
             println!("{}", serde_json::to_string_pretty(&res)
                 .unwrap_or("{{ \"JSON serialization error\" }}".to_string()));

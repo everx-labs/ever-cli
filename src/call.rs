@@ -12,19 +12,10 @@
  */
 use crate::config::Config;
 use crate::convert;
-use crate::helpers::{
-    TonClient, now_ms, create_client_verbose, load_abi,
-    query_account_field, SDK_EXECUTION_ERROR_CODE, create_client
-};
-use ton_abi::{Contract, ParamType};
+use crate::helpers::{TonClient, now_ms, create_client_verbose, load_abi, query_account_field, SDK_EXECUTION_ERROR_CODE, create_client, load_ton_abi};
 
-use ton_client::abi::{
-    encode_message,
-    decode_message,
-    ParamsOfDecodeMessage,
-    ParamsOfEncodeMessage,
-    Abi,
-};
+use ton_client::abi::{encode_message, decode_message, ParamsOfDecodeMessage, ParamsOfEncodeMessage,
+                      Abi};
 use ton_client::processing::{
     ParamsOfSendMessage,
     ParamsOfWaitForTransaction,
@@ -42,6 +33,7 @@ use ton_block::{Account, Serializable, Deserializable, Message};
 use std::str::FromStr;
 use clap::ArgMatches;
 use serde_json::{Value};
+use ton_abi::ParamType;
 use ton_client::error::ClientError;
 use crate::debug::{execute_debug, DebugLogger};
 use crate::message::{EncodedMessage, prepare_message_params, print_encoded_message, unpack_message};
@@ -76,8 +68,8 @@ fn parse_integer_param(value: &str) -> Result<String, String> {
     }
 }
 
-fn build_json_from_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<String, String> {
-    let abi_obj = Contract::load(abi.as_bytes()).map_err(|e| format!("failed to parse ABI: {}", e))?;
+async fn build_json_from_params(params_vec: Vec<&str>, abi_path: &str, method: &str) -> Result<String, String> {
+    let abi_obj = load_ton_abi(abi_path).await?;
     let functions = abi_obj.functions();
 
     let func_obj = functions.get(method).ok_or("failed to load function from abi")?;
@@ -182,7 +174,7 @@ pub async fn send_message_and_wait(
     abi: Option<Abi>,
     msg: String,
     config: &Config,
-) -> Result<serde_json::Value, String> {
+) -> Result<Value, String> {
 
     if !config.is_json {
         println!("Processing... ");
@@ -225,7 +217,7 @@ pub async fn process_message(
     ton: TonClient,
     msg: ParamsOfEncodeMessage,
     config: &Config,
-) -> Result<serde_json::Value, ClientError> {
+) -> Result<Value, ClientError> {
     let callback = |event| { async move {
         if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
             println!("MessageId: {}", message_id)
@@ -259,13 +251,13 @@ pub async fn process_message(
 pub async fn call_contract_with_result(
     config: &Config,
     addr: &str,
-    abi: String,
+    abi_path: &str,
     method: &str,
     params: &str,
     keys: Option<String>,
     is_fee: bool,
     matches: Option<&ArgMatches<'_>>,
-) -> Result<serde_json::Value, String> {
+) -> Result<Value, String> {
     let ton = if config.debug_fail != "None".to_string() {
         let log_path = format!("call_{}_{}.log", addr, method);
         log::set_max_level(log::LevelFilter::Trace);
@@ -276,21 +268,21 @@ pub async fn call_contract_with_result(
     } else {
         create_client_verbose(config)?
     };
-    call_contract_with_client(ton, config, addr, abi, method, params, keys, is_fee, matches).await
+    call_contract_with_client(ton, config, addr, abi_path, method, params, keys, is_fee, matches).await
 }
 
 pub async fn call_contract_with_client(
     ton: TonClient,
     config: &Config,
     addr: &str,
-    abi_string: String,
+    abi_path: &str,
     method: &str,
     params: &str,
     keys: Option<String>,
     is_fee: bool,
     matches: Option<&ArgMatches<'_>>,
-) -> Result<serde_json::Value, String> {
-    let abi = load_abi(&abi_string)?;
+) -> Result<Value, String> {
+    let abi = load_abi(abi_path).await?;
 
     let msg_params = prepare_message_params(
         addr,
@@ -350,8 +342,8 @@ pub async fn call_contract_with_client(
         && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
         if config.is_json {
             let e = format!("{:#}", res.clone().err().unwrap());
-            let err: serde_json::Value = serde_json::from_str(&e)
-                .unwrap_or(serde_json::Value::String(e));
+            let err: Value = serde_json::from_str(&e)
+                .unwrap_or(Value::String(e));
             let res = json!({"Error": err});
             println!("{}", serde_json::to_string_pretty(&res)
                 .unwrap_or("{{ \"JSON serialization error\" }}".to_string()));
@@ -390,14 +382,14 @@ pub fn print_json_result(result: Value, config: &Config) -> Result<(), String> {
 pub async fn call_contract(
     config: &Config,
     addr: &str,
-    abi: String,
+    abi_path: &str,
     method: &str,
     params: &str,
     keys: Option<String>,
     is_fee: bool,
     matches: Option<&ArgMatches<'_>>,
 ) -> Result<(), String> {
-    let result = call_contract_with_result(config, addr, abi, method, params, keys, is_fee, matches).await?;
+    let result = call_contract_with_result(config, addr, abi_path, method, params, keys, is_fee, matches).await?;
     if !config.is_json {
         println!("Succeeded.");
     }
@@ -406,9 +398,9 @@ pub async fn call_contract(
 }
 
 
-pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi: String) -> Result<(), String> {
+pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: &str) -> Result<(), String> {
     let ton = create_client_verbose(&config)?;
-    let abi = load_abi(&abi)?;
+    let abi = load_abi(abi_path).await?;
 
     let (msg, _) = unpack_message(&str_msg)?;
     if config.is_json {
@@ -439,11 +431,11 @@ pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi: Strin
     Ok(())
 }
 
-pub fn parse_params(params_vec: Vec<&str>, abi: &str, method: &str) -> Result<String, String> {
+pub async fn parse_params(params_vec: Vec<&str>, abi_path: &str, method: &str) -> Result<String, String> {
     if params_vec.len() == 1 {
         // if there is only 1 parameter it must be a json string with arguments
         Ok(params_vec[0].to_owned())
     } else {
-        build_json_from_params(params_vec, abi, method)
+        build_json_from_params(params_vec, abi_path, method).await
     }
 }

@@ -372,10 +372,11 @@ impl FullConfig {
 
 pub fn clear_config(
     full_config: &mut FullConfig,
-    matches: &ArgMatches
+    matches: &ArgMatches,
+    is_json: bool,
 ) -> Result<(), String> {
     let mut config = &mut full_config.config;
-    let is_json = config.is_json;
+    let is_json = config.is_json || is_json;
     if matches.is_present("URL") {
         let url = default_url();
         config.endpoints = FullConfig::default_map()[&url].clone();
@@ -464,7 +465,8 @@ pub fn clear_config(
 
 pub fn set_config(
     full_config: &mut FullConfig,
-    matches: &ArgMatches
+    matches: &ArgMatches,
+    is_json: bool,
 ) -> Result<(), String> {
     let mut config= &mut full_config.config;
     if let Some(s) = matches.value_of("URL") {
@@ -569,13 +571,13 @@ pub fn set_config(
     }
     if let Some(s) = matches.value_of("ACCESS_KEY") {
         config.access_key = Some(s.to_string());
-        if config.project_id.is_none() && !config.is_json {
+        if config.project_id.is_none() && !(config.is_json || is_json) {
             println!("Warning: You have access_key set without project_id. It has no sense in case of authentication.");
         }
     }
 
     full_config.to_file(&full_config.path)?;
-    if !full_config.config.is_json {
+    if !(full_config.config.is_json || is_json) {
         println!("Succeeded.");
     }
     Ok(())
