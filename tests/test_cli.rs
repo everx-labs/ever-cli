@@ -2626,9 +2626,47 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success();
 
+    let test_tvc = "tests/samples/test.tvc";
+    let test_abi = "tests/samples/test.abi.json";
+    let address = deploy_contract(key_path, test_tvc, test_abi, "{}")?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("runx")
+        .arg("--addr")
+        .arg(&address)
+        .arg("-m")
+        .arg("get")
+        .arg("--abi")
+        .arg(test_abi)
+        .arg("--data")
+        .arg("ctype")
+        .arg("--ctype")
+        .arg("14")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Succeeded."))
+        .stdout(predicate::str::contains("Result: {"))
+        .stdout(predicate::str::contains(r#""value0": "0x000000000000000000000000000000000000000000000000000000000000000f"#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("callx")
+        .arg("--keys")
+        .arg(key_path)
+        .arg("--abi")
+        .arg(test_abi)
+        .arg("--addr")
+        .arg(&address)
+        .arg("-m")
+        .arg("test")
+        .arg("--data")
+        .arg("ctype")
+        .arg("--ctype")
+        .arg("14");
+    cmd.assert()
+        .success();
+
     fs::remove_file(config_path)?;
     fs::remove_file(key_path)?;
-
     Ok(())
 }
 
@@ -3205,3 +3243,5 @@ fn test_alternative_paths() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+

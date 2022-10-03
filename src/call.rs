@@ -78,7 +78,7 @@ async fn build_json_from_params(params_vec: Vec<&str>, abi_path: &str, method: &
     let mut params_json = json!({ });
     for input in inputs {
         let mut iter = params_vec.iter();
-        let _param = iter.find(|x| x.trim_start_matches('-') == input.name)
+        let _param = iter.find(|x| x.starts_with('-') && (x.trim_start_matches('-') == input.name))
             .ok_or(format!(r#"argument "{}" of type "{}" not found"#, input.name, input.kind))?;
 
         let value = iter.next()

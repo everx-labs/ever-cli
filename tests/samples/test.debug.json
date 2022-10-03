@@ -1,0 +1,836 @@
+{
+  "map": {
+    "222d1d521fc463dfa85826e00514a3dcbb4f6a064f5c4a012d377b298c912aa4": {
+      "0": {
+        "filename": "./test.code",
+        "line": 64
+      },
+      "8": {
+        "filename": "./test.code",
+        "line": 65
+      },
+      "24": {
+        "filename": "./test.code",
+        "line": 66
+      },
+      "48": {
+        "filename": "./test.code",
+        "line": 67
+      },
+      "64": {
+        "filename": "./test.code",
+        "line": 68
+      },
+      "72": {
+        "filename": "./test.code",
+        "line": 69
+      },
+      "88": {
+        "filename": "test.sol",
+        "line": 15
+      },
+      "104": {
+        "filename": "test.sol",
+        "line": 15
+      },
+      "112": {
+        "filename": "test.sol",
+        "line": 15
+      },
+      "120": {
+        "filename": "./test.code",
+        "line": 77
+      },
+      "136": {
+        "filename": "./test.code",
+        "line": 80
+      },
+      "144": {
+        "filename": "./test.code",
+        "line": 81
+      },
+      "160": {
+        "filename": "./test.code",
+        "line": 82
+      },
+      "168": {
+        "filename": "./test.code",
+        "line": 83
+      },
+      "176": {
+        "filename": "./test.code",
+        "line": 84
+      },
+      "192": {
+        "filename": "./test.code",
+        "line": 85
+      },
+      "208": {
+        "filename": "./test.code",
+        "line": 86
+      },
+      "216": {
+        "filename": "./test.code",
+        "line": 87
+      },
+      "224": {
+        "filename": "./test.code",
+        "line": 88
+      },
+      "232": {
+        "filename": "./test.code",
+        "line": 89
+      },
+      "256": {
+        "filename": "./test.code",
+        "line": 90
+      },
+      "264": {
+        "filename": "./test.code",
+        "line": 91
+      },
+      "312": {
+        "filename": "./test.code",
+        "line": 92
+      },
+      "336": {
+        "filename": "./test.code",
+        "line": 93
+      },
+      "352": {
+        "filename": "./test.code",
+        "line": 94
+      },
+      "360": {
+        "filename": "./test.code",
+        "line": 95
+      },
+      "368": {
+        "filename": "./test.code",
+        "line": 96
+      },
+      "384": {
+        "filename": "./test.code",
+        "line": 98
+      },
+      "392": {
+        "filename": "./test.code",
+        "line": 99
+      },
+      "400": {
+        "filename": "./test.code",
+        "line": 101
+      },
+      "408": {
+        "filename": "./test.code",
+        "line": 102
+      },
+      "424": {
+        "filename": "./test.code",
+        "line": 105
+      }
+    },
+    "42aa676d16d19f95a85a3a8f6b8578c96167a12005f5a454dcdc62d5181d3cf4": {
+      "0": {
+        "filename": "./test.code",
+        "line": 4
+      },
+      "8": {
+        "filename": "./test.code",
+        "line": 5
+      },
+      "24": {
+        "filename": "./test.code",
+        "line": 6
+      },
+      "32": {
+        "filename": "./test.code",
+        "line": 7
+      },
+      "48": {
+        "filename": "./test.code",
+        "line": 10
+      },
+      "64": {
+        "filename": "./test.code",
+        "line": 11
+      },
+      "80": {
+        "filename": "./test.code",
+        "line": 12
+      },
+      "88": {
+        "filename": "./test.code",
+        "line": 13
+      },
+      "104": {
+        "filename": "./test.code",
+        "line": 14
+      },
+      "120": {
+        "filename": "./test.code",
+        "line": 17
+      }
+    },
+    "5f92e5ad08e197a2a83dfe52ccfd8cda4e774a7c2293b2dc41720b524280ba6c": {
+      "0": {
+        "filename": "test.sol",
+        "line": 16
+      },
+      "8": {
+        "filename": "test.sol",
+        "line": 16
+      }
+    },
+    "60488e96384d55db5809d3be340ce676908c99e02e0f6a89a307f1376c1ceb17": {
+      "0": {
+        "filename": "./test.code",
+        "line": 151
+      },
+      "16": {
+        "filename": "./test.code",
+        "line": 152
+      },
+      "32": {
+        "filename": "./test.code",
+        "line": 153
+      },
+      "40": {
+        "filename": "./test.code",
+        "line": 154
+      },
+      "56": {
+        "filename": "./test.code",
+        "line": 155
+      },
+      "72": {
+        "filename": "./test.code",
+        "line": 156
+      },
+      "88": {
+        "filename": "./test.code",
+        "line": 157
+      },
+      "96": {
+        "filename": "./test.code",
+        "line": 158
+      }
+    },
+    "6756ea8d3936b355037eecf00dc91523d250b86b3482191f9eb82a15054e8dde": {
+      "0": {
+        "filename": "<internal-selector>",
+        "line": 1
+      },
+      "24": {
+        "filename": "<internal-selector>",
+        "line": 2
+      },
+      "40": {
+        "filename": "<internal-selector>",
+        "line": 3
+      }
+    },
+    "ab3affad94ee30ab74c564a738e4f69e51ba89449fbcef0729e0114e76d9571a": {
+      "0": {
+        "filename": "./test.code",
+        "line": 20
+      },
+      "8": {
+        "filename": "./test.code",
+        "line": 21
+      },
+      "24": {
+        "filename": "./test.code",
+        "line": 22
+      },
+      "48": {
+        "filename": "./test.code",
+        "line": 23
+      },
+      "64": {
+        "filename": "./test.code",
+        "line": 24
+      },
+      "72": {
+        "filename": "./test.code",
+        "line": 25
+      },
+      "88": {
+        "filename": "test.sol",
+        "line": 12
+      },
+      "104": {
+        "filename": "test.sol",
+        "line": 12
+      },
+      "112": {
+        "filename": "test.sol",
+        "line": 12
+      },
+      "120": {
+        "filename": "./test.code",
+        "line": 33
+      },
+      "136": {
+        "filename": "./test.code",
+        "line": 36
+      },
+      "152": {
+        "filename": "./test.code",
+        "line": 39
+      }
+    },
+    "b6f27d187f26bd046272f9f471e9ae01f051b960e654874ac3fb0749c691c4c6": {
+      "0": {
+        "filename": "./test.code",
+        "line": 129
+      },
+      "16": {
+        "filename": "./test.code",
+        "line": 130
+      },
+      "24": {
+        "filename": "./test.code",
+        "line": 131
+      },
+      "40": {
+        "filename": "./test.code",
+        "line": 132
+      },
+      "56": {
+        "filename": "./test.code",
+        "line": 133
+      },
+      "72": {
+        "filename": "./test.code",
+        "line": 134
+      },
+      "80": {
+        "filename": "./test.code",
+        "line": 135
+      },
+      "96": {
+        "filename": "./test.code",
+        "line": 136
+      },
+      "104": {
+        "filename": "./test.code",
+        "line": 137
+      },
+      "120": {
+        "filename": "./test.code",
+        "line": 138
+      },
+      "136": {
+        "filename": "./test.code",
+        "line": 139
+      },
+      "152": {
+        "filename": "./test.code",
+        "line": 140
+      },
+      "168": {
+        "filename": "./test.code",
+        "line": 141
+      },
+      "192": {
+        "filename": "./test.code",
+        "line": 142
+      },
+      "208": {
+        "filename": "./test.code",
+        "line": 143
+      },
+      "216": {
+        "filename": "./test.code",
+        "line": 144
+      },
+      "232": {
+        "filename": "./test.code",
+        "line": 146
+      }
+    },
+    "bd4b1cf14908b5a0501126889719205d7662cf375a0f5de52b9e6838bb3070e2": {
+      "0": {
+        "filename": "./test.code",
+        "line": 177
+      },
+      "16": {
+        "filename": "./test.code",
+        "line": 178
+      },
+      "24": {
+        "filename": "./test.code",
+        "line": 179
+      },
+      "40": {
+        "filename": "./test.code",
+        "line": 180
+      },
+      "56": {
+        "filename": "./test.code",
+        "line": 181
+      },
+      "72": {
+        "filename": "./test.code",
+        "line": 182
+      },
+      "80": {
+        "filename": "./test.code",
+        "line": 183
+      },
+      "88": {
+        "filename": "./test.code",
+        "line": 184
+      },
+      "112": {
+        "filename": "./test.code",
+        "line": 185
+      },
+      "136": {
+        "filename": "./test.code",
+        "line": 186
+      },
+      "144": {
+        "filename": "./test.code",
+        "line": 187
+      },
+      "152": {
+        "filename": "./test.code",
+        "line": 188
+      },
+      "168": {
+        "filename": "./test.code",
+        "line": 189
+      },
+      "184": {
+        "filename": "./test.code",
+        "line": 193
+      },
+      "192": {
+        "filename": "./test.code",
+        "line": 194
+      },
+      "216": {
+        "filename": "./test.code",
+        "line": 195
+      },
+      "232": {
+        "filename": "./test.code",
+        "line": 196
+      },
+      "240": {
+        "filename": "./test.code",
+        "line": 197
+      },
+      "256": {
+        "filename": "./test.code",
+        "line": 201
+      },
+      "264": {
+        "filename": "./test.code",
+        "line": 202
+      },
+      "280": {
+        "filename": "./test.code",
+        "line": 205
+      }
+    },
+    "c96102003281e57d347d103a62949116a408411163dcf6097818ced3a67ef913": {
+      "0": {
+        "filename": "<entry-selector>",
+        "line": 1
+      },
+      "8": {
+        "filename": "<entry-selector>",
+        "line": 2
+      },
+      "24": {
+        "filename": "<entry-selector>",
+        "line": 3
+      },
+      "32": {
+        "filename": "<entry-selector>",
+        "line": 4
+      },
+      "48": {
+        "filename": "<entry-selector>",
+        "line": 5
+      },
+      "56": {
+        "filename": "<entry-selector>",
+        "line": 6
+      },
+      "72": {
+        "filename": "<entry-selector>",
+        "line": 7
+      },
+      "88": {
+        "filename": "<entry-selector>",
+        "line": 8
+      },
+      "96": {
+        "filename": "<entry-selector>",
+        "line": 9
+      },
+      "112": {
+        "filename": "<entry-selector>",
+        "line": 10
+      },
+      "128": {
+        "filename": "<entry-selector>",
+        "line": 11
+      }
+    },
+    "d4aaaeb571ca4586f4e7dffdd1ae4471fc53f06ec0af1cf61e45868ad9efa8fd": {
+      "0": {
+        "filename": "test.sol",
+        "line": 7
+      },
+      "8": {
+        "filename": "test.sol",
+        "line": 7
+      },
+      "24": {
+        "filename": "test.sol",
+        "line": 7
+      },
+      "32": {
+        "filename": "test.sol",
+        "line": 7
+      },
+      "40": {
+        "filename": "test.sol",
+        "line": 7
+      },
+      "48": {
+        "filename": "test.sol",
+        "line": 7
+      },
+      "56": {
+        "filename": "test.sol",
+        "line": 7
+      },
+      "64": {
+        "filename": "test.sol",
+        "line": 7
+      },
+      "72": {
+        "filename": "test.sol",
+        "line": 7
+      },
+      "88": {
+        "filename": "test.sol",
+        "line": 7
+      },
+      "96": {
+        "filename": "test.sol",
+        "line": 7
+      },
+      "120": {
+        "filename": "test.sol",
+        "line": 8
+      }
+    },
+    "d508a8f556c4eed66ae5dcb87e3a03906950dca6b075ffd8fbb523619aa60360": {
+      "0": {
+        "filename": "./test.code",
+        "line": 209
+      },
+      "16": {
+        "filename": "./test.code",
+        "line": 210
+      },
+      "24": {
+        "filename": "./test.code",
+        "line": 211
+      },
+      "40": {
+        "filename": "./test.code",
+        "line": 212
+      },
+      "56": {
+        "filename": "./test.code",
+        "line": 213
+      },
+      "72": {
+        "filename": "./test.code",
+        "line": 214
+      },
+      "80": {
+        "filename": "./test.code",
+        "line": 215
+      },
+      "96": {
+        "filename": "./test.code",
+        "line": 218
+      },
+      "112": {
+        "filename": "./test.code",
+        "line": 219
+      },
+      "120": {
+        "filename": "./test.code",
+        "line": 220
+      },
+      "136": {
+        "filename": "./test.code",
+        "line": 221
+      },
+      "152": {
+        "filename": "./test.code",
+        "line": 222
+      },
+      "168": {
+        "filename": "./test.code",
+        "line": 223
+      },
+      "176": {
+        "filename": "./test.code",
+        "line": 224
+      },
+      "192": {
+        "filename": "./test.code",
+        "line": 225
+      },
+      "200": {
+        "filename": "./test.code",
+        "line": 226
+      },
+      "208": {
+        "filename": "./test.code",
+        "line": 227
+      },
+      "216": {
+        "filename": "./test.code",
+        "line": 228
+      },
+      "224": {
+        "filename": "./test.code",
+        "line": 229
+      },
+      "240": {
+        "filename": "./test.code",
+        "line": 230
+      },
+      "248": {
+        "filename": "./test.code",
+        "line": 231
+      },
+      "264": {
+        "filename": "./test.code",
+        "line": 232
+      },
+      "272": {
+        "filename": "./test.code",
+        "line": 233
+      },
+      "288": {
+        "filename": "./test.code",
+        "line": 234
+      },
+      "304": {
+        "filename": "./test.code",
+        "line": 235
+      },
+      "320": {
+        "filename": "./test.code",
+        "line": 237
+      },
+      "328": {
+        "filename": "./test.code",
+        "line": 238
+      },
+      "344": {
+        "filename": "./test.code",
+        "line": 239
+      },
+      "352": {
+        "filename": "stdlib.sol",
+        "line": 61
+      },
+      "368": {
+        "filename": "stdlib.sol",
+        "line": 61
+      },
+      "376": {
+        "filename": "stdlib.sol",
+        "line": 61
+      },
+      "384": {
+        "filename": "stdlib.sol",
+        "line": 61
+      },
+      "400": {
+        "filename": "stdlib.sol",
+        "line": 62
+      },
+      "408": {
+        "filename": "stdlib.sol",
+        "line": 62
+      },
+      "424": {
+        "filename": "stdlib.sol",
+        "line": 62
+      },
+      "448": {
+        "filename": "stdlib.sol",
+        "line": 62
+      },
+      "456": {
+        "filename": "stdlib.sol",
+        "line": 62
+      },
+      "496": {
+        "filename": "stdlib.sol",
+        "line": 62
+      },
+      "504": {
+        "filename": "stdlib.sol",
+        "line": 62
+      },
+      "512": {
+        "filename": "stdlib.sol",
+        "line": 62
+      },
+      "528": {
+        "filename": "stdlib.sol",
+        "line": 63
+      },
+      "544": {
+        "filename": "./test.code",
+        "line": 241
+      },
+      "560": {
+        "filename": "./test.code",
+        "line": 242
+      },
+      "568": {
+        "filename": "./test.code",
+        "line": 243
+      },
+      "584": {
+        "filename": "./test.code",
+        "line": 244
+      },
+      "592": {
+        "filename": "./test.code",
+        "line": 245
+      },
+      "608": {
+        "filename": "./test.code",
+        "line": 246
+      },
+      "624": {
+        "filename": "./test.code",
+        "line": 247
+      },
+      "632": {
+        "filename": "./test.code",
+        "line": 248
+      },
+      "648": {
+        "filename": "./test.code",
+        "line": 251
+      }
+    },
+    "e0fb053e4efba3f353da19e00bb5b950022c182d07a4d306f45f33c21dca9b90": {
+      "0": {
+        "filename": "./test.code",
+        "line": 254
+      },
+      "8": {
+        "filename": "./test.code",
+        "line": 255
+      },
+      "56": {
+        "filename": "./test.code",
+        "line": 256
+      },
+      "64": {
+        "filename": "./test.code",
+        "line": 257
+      },
+      "80": {
+        "filename": "./test.code",
+        "line": 260
+      },
+      "88": {
+        "filename": "./test.code",
+        "line": 261
+      },
+      "136": {
+        "filename": "./test.code",
+        "line": 262
+      },
+      "144": {
+        "filename": "./test.code",
+        "line": 263
+      },
+      "160": {
+        "filename": "./test.code",
+        "line": 266
+      },
+      "168": {
+        "filename": "./test.code",
+        "line": 267
+      },
+      "216": {
+        "filename": "./test.code",
+        "line": 268
+      },
+      "224": {
+        "filename": "./test.code",
+        "line": 269
+      }
+    },
+    "f24e1e7aa04d89aad2945816b6e9b921f2b3892da9ba53e2383c148351b96d0c": {
+      "0": {
+        "filename": "./test.code",
+        "line": 190
+      },
+      "16": {
+        "filename": "./test.code",
+        "line": 191
+      }
+    },
+    "f2b6fee906959c240bebf2ae6014f1d4be66e2dc6e03df25aa5ea29205d3e249": {
+      "0": {
+        "filename": "./test.code",
+        "line": 118
+      },
+      "16": {
+        "filename": "./test.code",
+        "line": 119
+      },
+      "24": {
+        "filename": "./test.code",
+        "line": 120
+      },
+      "40": {
+        "filename": "./test.code",
+        "line": 121
+      },
+      "56": {
+        "filename": "./test.code",
+        "line": 122
+      },
+      "72": {
+        "filename": "./test.code",
+        "line": 123
+      },
+      "80": {
+        "filename": "./test.code",
+        "line": 124
+      },
+      "88": {
+        "filename": "./test.code",
+        "line": 125
+      },
+      "104": {
+        "filename": "./test.code",
+        "line": 126
+      }
+    }
+  }
+}
