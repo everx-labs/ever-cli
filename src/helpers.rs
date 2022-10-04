@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use crate::config::Config;
 
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use ton_client::abi::{
     Abi, AbiConfig, AbiContract, DecodedMessageBody, DeploySet, ParamsOfDecodeMessageBody,
     ParamsOfEncodeMessage, Signer,
@@ -42,6 +42,8 @@ pub const WORD_COUNT: u8 = 12;
 pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
 const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
 const GLOBAL_CONFIG_PATH: &str = ".tonos-cli.global.conf.json";
+
+const FILE_LOAD_TIMEOUT: u64 = 60; // default file loading timeout in seconds
 
 pub fn default_config_name() -> String {
     env::current_dir()
@@ -320,13 +322,20 @@ pub async fn load_ton_abi(abi_path: &str) -> Result<ton_abi::Contract, String> {
 }
 
 pub async fn load_file_with_url(url: &str) -> Result<Vec<u8>, String> {
-    let response = reqwest::get(url)
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(FILE_LOAD_TIMEOUT))
+        .build()
+        .map_err(|e| format!("Failed to create client: {e}"))?;
+    let res = client
+        .get(url)
+        .send()
         .await
-        .map_err(|e| format!("Failed to download the file data: {}", e))?;
-    let responce_bytes = response.bytes()
+        .map_err(|e| format!("Failed to send get request: {e}"))?
+        .bytes()
         .await
-        .map_err(|e| format!("Failed to decode network response: {}", e))?;
-    Ok(responce_bytes.to_vec())
+        .map_err(|e| format!("Failed to get response bytes: {e}"))?;
+    Ok(res.to_vec())
+
 }
 
 
