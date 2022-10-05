@@ -43,8 +43,6 @@ pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
 const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
 const GLOBAL_CONFIG_PATH: &str = ".tonos-cli.global.conf.json";
 
-const FILE_LOAD_TIMEOUT: u64 = 60; // default file loading timeout in seconds
-
 pub fn default_config_name() -> String {
     env::current_dir()
         .map(|dir| {
@@ -279,8 +277,10 @@ pub async fn decode_msg_body(
     abi_path: &str,
     body: &str,
     is_internal: bool,
+    config: &Config,
 ) -> Result<DecodedMessageBody, String> {
-    let abi = load_abi(abi_path).await?;
+
+    let abi = load_abi(abi_path, config).await?;
     ton_client::abi::decode_message_body(
         ton,
         ParamsOfDecodeMessageBody {
@@ -294,13 +294,13 @@ pub async fn decode_msg_body(
     .map_err(|e| format!("failed to decode body: {}", e))
 }
 
-pub async fn load_abi_str(abi_path: &str) -> Result<String, String> {
+pub async fn load_abi_str(abi_path: &str, config: &Config) -> Result<String, String> {
     let abi_from_json = serde_json::from_str::<AbiContract>(abi_path);
     if abi_from_json.is_ok() {
         return Ok(abi_path.to_string());
     }
     if Url::parse(abi_path).is_ok() {
-        let abi_bytes = load_file_with_url(abi_path).await?;
+        let abi_bytes = load_file_with_url(abi_path, config.timeout as u64).await?;
         return Ok(String::from_utf8(abi_bytes)
             .map_err(|e| format!("Downloaded string contains not valid UTF8 characters: {}", e))?);
     }
@@ -308,22 +308,22 @@ pub async fn load_abi_str(abi_path: &str) -> Result<String, String> {
         .map_err(|e| format!("failed to read ABI file: {}", e))?)
 }
 
-pub async fn load_abi(abi_path: &str) -> Result<Abi, String> {
-    let abi_str = load_abi_str(abi_path).await?;
+pub async fn load_abi(abi_path: &str, config: &Config) -> Result<Abi, String> {
+    let abi_str = load_abi_str(abi_path, config).await?;
     Ok(Contract(serde_json::from_str::<AbiContract>(&abi_str)
             .map_err(|e| format!("ABI is not a valid json: {}", e))?,
     ))
 }
 
-pub async fn load_ton_abi(abi_path: &str) -> Result<ton_abi::Contract, String> {
-    let abi_str = load_abi_str(abi_path).await?;
+pub async fn load_ton_abi(abi_path: &str, config: &Config) -> Result<ton_abi::Contract, String> {
+    let abi_str = load_abi_str(abi_path, config).await?;
     Ok(ton_abi::Contract::load(abi_str.as_bytes())
         .map_err(|e| format!("Failed to load ABI: {}", e))?)
 }
 
-pub async fn load_file_with_url(url: &str) -> Result<Vec<u8>, String> {
+pub async fn load_file_with_url(url: &str, timeout: u64) -> Result<Vec<u8>, String> {
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(FILE_LOAD_TIMEOUT))
+        .timeout(Duration::from_millis(timeout))
         .build()
         .map_err(|e| format!("Failed to create client: {e}"))?;
     let res = client
@@ -411,10 +411,11 @@ pub async fn print_message(ton: TonClient, message: &Value, abi: &str, is_intern
     let body = message["body"].as_str();
     if body.is_some() {
         let body = body.unwrap();
+        let def_config = Config::default();
         let result = ton_client::abi::decode_message_body(
             ton.clone(),
             ParamsOfDecodeMessageBody {
-                abi: load_abi(abi).await?,
+                abi: load_abi(abi, &def_config).await?,
                 body: body.to_owned(),
                 is_internal,
                 ..Default::default()
@@ -660,7 +661,7 @@ pub fn load_params(params: &str) -> Result<String, String> {
 pub async fn unpack_alternative_params(matches: &ArgMatches<'_>, abi_path: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
     if matches.is_present("PARAMS") {
         let params = matches.values_of("PARAMS").unwrap().collect::<Vec<_>>();
-        Ok(Some(parse_params(params, abi_path, method).await?))
+        Ok(Some(parse_params(params, abi_path, method, config).await?))
     } else {
         Ok(config.parameters.clone().or(Some("{}".to_string())))
     }

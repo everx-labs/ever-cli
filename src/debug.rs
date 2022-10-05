@@ -445,7 +445,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         !matches.is_present("IGNORE_HASHES"),
     ).await?;
 
-    decode_messages(tr.out_msgs, load_decode_abi(matches, config)).await?;
+    decode_messages(tr.out_msgs, load_decode_abi(matches, config), config).await?;
     if !config.is_json {
         println!("Log saved to {}.", trace_path);
     } else {
@@ -535,7 +535,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
 
     match result_trans {
         Ok(result_trans) => {
-            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config)).await?;
+            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config), config).await?;
             if !config.is_json {
                 println!("Execution finished.");
             }
@@ -586,7 +586,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
-    let loaded_abi = load_abi(opt_abi.as_ref().unwrap()).await?;
+    let loaded_abi = load_abi(opt_abi.as_ref().unwrap(), &full_config.config).await?;
     let params = unpack_alternative_params(
         matches,
         opt_abi.as_ref().unwrap(),
@@ -680,7 +680,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
     let mut out_res = vec![];
     let msg_string = match trans {
         Ok(trans) => {
-            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, &full_config.config)).await?;
+            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, &full_config.config), &full_config.config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -779,7 +779,7 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
 
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            decode_messages(trans.out_msgs,load_decode_abi(matches, config), config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -831,7 +831,8 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
         opt_abi.as_ref().unwrap(),
         params.as_ref().unwrap(),
         sign,
-        wc.unwrap()
+        wc.unwrap(),
+        config
     ).await?;
     let init_balance = matches.is_present("INIT_BALANCE");
     let ton_client = create_client(config)?;
@@ -887,7 +888,7 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
 
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            decode_messages(trans.out_msgs,load_decode_abi(matches, config), config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -904,7 +905,7 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     Ok(())
 }
 
-async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<Vec<Value>, String> {
+async fn decode_messages(msgs: OutMessages, abi: Option<String>, config: &Config) -> Result<Vec<Value>, String> {
     if !msgs.is_empty() {
         log::debug!(target: "executor", "Output messages:\n----------------");
     }
@@ -913,7 +914,7 @@ async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<Vec<V
 
     let mut res = vec![];
     for msg in msgs {
-        let mut ser_msg = serialize_msg(&msg.0, abi.clone()).await
+        let mut ser_msg = serialize_msg(&msg.0, abi.clone(), config).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
         let msg_str = base64::encode(
             &ton_types::cells_serialization::serialize_toc(

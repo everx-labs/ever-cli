@@ -228,7 +228,7 @@ complete -C __tonos-cli_completion tonos-cli
 ```
 
 After adding completion script, user can use `<Tab>` key to complete `--addr` option with aliases saved in the config
-file and `-m/--method` option with methods loaded from the abi file.
+file and `-m/--method` option with methods loaded from the ABI file.
 
 ### Windows debug build troubleshooting
 
@@ -355,7 +355,7 @@ List of available options:
 --project_id <PROJECT_ID>                     Project Id in Evercloud (dashboard.evercloud.dev).
 --pubkey <PUBKEY>                             User public key. Used by DeBot Browser.
 --retries <RETRIES>                           Number of attempts to call smart contract function if previous attempt was unsuccessful.
---timeout <TIMEOUT>                           Network `wait_for` timeout in ms.
+--timeout <TIMEOUT>                           Network `wait_for` timeout in ms. This value is also used as timeout for remote files (specified with link, e.g. ABI file) loading.
 --url <URL>                                   Url to connect.
 --wallet <WALLET>                             Multisig wallet address.
 --wc <WC>                                     Workchain id.

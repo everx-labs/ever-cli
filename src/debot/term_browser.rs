@@ -114,7 +114,8 @@ impl TerminalBrowser {
         let info: DebotInfo = dengine.init().await?.into();
         let abi_version = info.dabi_version.clone();
         let abi_ref = info.dabi.as_ref();
-        let abi = load_abi(abi_ref.ok_or("DeBot ABI is not defined".to_string())?).await?;
+        let def_config = Config::default();
+        let abi = load_abi(abi_ref.ok_or("DeBot ABI is not defined".to_string())?, &def_config).await?;
         if !autorun {
             Self::print_info(&info);
         }

@@ -22,6 +22,7 @@ use ton_client::abi::{
     encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage, Abi,
 };
 use ton_client::crypto::KeyPair;
+use crate::Config;
 use crate::message::{display_generated_message, EncodedMessage};
 
 pub async fn deploy_contract(
@@ -41,7 +42,7 @@ pub async fn deploy_contract(
         println!("Deploying...");
     }
 
-    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file.clone(), wc).await?;
+    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file.clone(), wc, &full_config.config).await?;
 
     let enc_msg = encode_message(ton.clone(), msg.clone()).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
@@ -54,7 +55,7 @@ pub async fn deploy_contract(
     }
 
     if config.async_call {
-        let abi = load_abi(&abi).await?;
+        let abi = load_abi(&abi, config).await?;
         send_message_and_wait(ton,
                               Some(abi),
                               enc_msg.message,
@@ -86,12 +87,12 @@ pub async fn generate_deploy_message(
     wc: i32,
     is_raw: bool,
     output: Option<&str>,
-    is_json: bool,
+    config: &Config,
 ) -> Result<(), String> {
 
     let ton = create_client_local()?;
 
-    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file, wc).await?;
+    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file, wc, config).await?;
     let msg = encode_message(ton, msg).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
@@ -101,8 +102,8 @@ pub async fn generate_deploy_message(
         expire: None,
         address: addr.to_owned(),
     };
-    display_generated_message(&msg, "constructor", is_raw, output, is_json)?;
-    if !is_json {
+    display_generated_message(&msg, "constructor", is_raw, output, config.is_json)?;
+    if !config.is_json {
         println!("Contract's address: {}", addr);
         println!("Succeeded.");
     }
@@ -114,9 +115,10 @@ pub async fn prepare_deploy_message(
     abi: &str,
     params: &str,
     keys_file: Option<String>,
-    wc: i32
+    wc: i32,
+    config: &Config,
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
-    let abi = load_abi(abi).await?;
+    let abi = load_abi(abi, config).await?;
 
     let keys = keys_file.map(|k| load_keypair(&k)).transpose()?;
 
