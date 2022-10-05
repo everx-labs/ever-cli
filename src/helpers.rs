@@ -33,8 +33,8 @@ use url::Url;
 use crate::call::parse_params;
 use crate::FullConfig;
 
-const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
-const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
+pub const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
+pub const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
 
 pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;

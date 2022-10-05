@@ -10,12 +10,14 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{contract_data_from_matches_or_config_alias, FullConfig, print_args, unpack_alternative_params};
+use crate::{contract_data_from_matches_or_config_alias, FullConfig, print_args,
+            unpack_alternative_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
                      TonClient, query_account_field, query_with_limit, create_client_verbose,
-                     abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config};
+                     abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config,
+                     TEST_MAX_LEVEL, MAX_LEVEL};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
@@ -47,6 +49,7 @@ const TRANSACTION_QUANTITY: u32 = 10;
 
 pub struct DebugLogger {
     tvm_trace: String,
+    ordinary_log_level: log::LevelFilter,
 }
 
 impl DebugLogger {
@@ -58,6 +61,14 @@ impl DebugLogger {
 
         DebugLogger {
             tvm_trace: path,
+            ordinary_log_level: if std::env::var("RUST_LOG")
+                .unwrap_or_default()
+                .eq_ignore_ascii_case("debug")
+            {
+                TEST_MAX_LEVEL
+            } else {
+                MAX_LEVEL
+            },
         }
     }
 }
@@ -87,11 +98,15 @@ impl log::Log for DebugLogger {
                 }
             }
             _ => {
-                match record.level() {
-                    log::Level::Error | log::Level::Warn => {
-                        eprintln!("{}", record.args());
+                if record.level() <= self.ordinary_log_level {
+                    match record.level() {
+                        log::Level::Error | log::Level::Warn => {
+                            eprintln!("{}", record.args());
+                        }
+                        _ => {
+                            println!("{}", record.args());
+                        }
                     }
-                    _ => {}
                 }
             }
         }

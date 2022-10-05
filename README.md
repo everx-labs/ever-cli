@@ -741,6 +741,80 @@ Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 {}
 ```
 
+## 2.10. Enabling verbose mode for SDK execution
+
+User can increase log level of the tool execution to see more messages. To do it one need to specify environment
+variable `RUST_LOG=debug`:
+
+```bash
+$ tonos-cli callx --addr 0:75186644bf5157d1b638390889ec2ba297a12250f6e90d935618918cb82d12c3 --abi ../samples/1_Accumulator.abi.json --keys keys/key0 -m add --value 1
+Input arguments:
+ address: 0:75186644bf5157d1b638390889ec2ba297a12250f6e90d935618918cb82d12c3
+  method: add
+  params: {"value":"1"}
+     abi: ../samples/1_Accumulator.abi.json
+    keys: keys/key0
+Connecting to:
+        Url: net.evercloud.dev
+        Endpoints: ["https://devnet.evercloud.dev/b2ad82504ee54fccb5bc6db8cbb3df1e"]
+
+MessageId: b3e24321924526dbfdc8ffdd9cc94aeb2da80edca7d87bd7f16f4a0a2afbfa20
+Succeeded.
+Result: {}
+
+# Enable verbose mode
+$ export RUST_LOG=debug
+
+$ tonos-cli callx --addr 0:75186644bf5157d1b638390889ec2ba297a12250f6e90d935618918cb82d12c3 --abi ../samples/1_Accumulator.abi.json --keys keys/key0 -m add --value 1
+Input arguments:
+ address: 0:75186644bf5157d1b638390889ec2ba297a12250f6e90d935618918cb82d12c3
+  method: add
+  params: {"value":"1"}
+     abi: ../samples/1_Accumulator.abi.json
+    keys: keys/key0
+Connecting to:
+        Url: net.evercloud.dev
+        Endpoints: ["https://devnet.evercloud.dev/b2ad82504ee54fccb5bc6db8cbb3df1e"]
+
+starting new connection: https://devnet.evercloud.dev/
+Last block "76657141a65727996dadf9b929d40887cc3c78df09a97b9daecabd8b3e01327a"
+MessageId: 64c98e8fbf5aa9ccf9d6526c6275bc617f6eb6f747b616f82e85cda7403c165b
+message_expiration_time 1664983987
+fetch_block_timeout 88688
+1664983931: block received {
+  "id": "b3ab65d5b8503dedfa1250d72b7d8247e802551dfedabb80b82454abb6e755ce",
+  "gen_utime": 1664983924,
+  "after_split": false,
+  "workchain_id": 0,
+  "shard": "7800000000000000",
+  "in_msg_descr": []
+}
+fetch_block_timeout 85461
+1664983933: block received {
+  "id": "8dc7cc2c4ab9be6b4ac0e9d3bcd6aac3179825683f4c8df02f76e9929a649ffc",
+  "gen_utime": 1664983926,
+  "after_split": false,
+  "workchain_id": 0,
+  "shard": "7800000000000000",
+  "in_msg_descr": []
+}
+fetch_block_timeout 83209
+1664983936: block received {
+  "id": "b6977305cf28b86a0547a7fd34c03ad0534a94fb5453c3639e5f28e18a0c5d6b",
+  "gen_utime": 1664983929,
+  "after_split": false,
+  "workchain_id": 0,
+  "shard": "7800000000000000",
+  "in_msg_descr": [
+    {
+      "msg_id": "64c98e8fbf5aa9ccf9d6526c6275bc617f6eb6f747b616f82e85cda7403c165b",
+      "transaction_id": "796ebf67fab053ea88bdf9a971d088fc6dbcb47b106f420c740815246f28c8b7"
+    }
+  ]
+}
+Succeeded.
+Result: {}
+```
 
 # 3. Cryptographic commands
 
