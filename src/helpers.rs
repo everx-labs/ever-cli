@@ -22,7 +22,7 @@ use ton_client::abi::{
 };
 use ton_client::crypto::{CryptoConfig, KeyPair};
 use ton_client::error::ClientError;
-use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection};
+use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection, NetworkConfig};
 use ton_client::{ClientConfig, ClientContext};
 use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
 use std::str::FromStr;
@@ -139,6 +139,21 @@ pub fn get_server_endpoints(config: &Config) -> Vec<String> {
     }
 }
 
+pub fn get_network_context(config: &Config) -> Result<Arc<ClientContext>, failure::Error> {
+    let endpoints = get_server_endpoints(config);
+    Ok(Arc::new(
+        ClientContext::new(ClientConfig {
+            network: NetworkConfig {
+                sending_endpoint_count: endpoints.len() as u8,
+                endpoints: Some(endpoints),
+                access_key: config.access_key.clone(),
+                ..Default::default()
+            },
+            ..Default::default()
+        })?
+    ))
+}
+
 pub fn create_client(config: &Config) -> Result<TonClient, String> {
     let modified_endpoints = get_server_endpoints(config);
     if !config.is_json {
@@ -158,6 +173,7 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
         },
         network: ton_client::net::NetworkConfig {
             server_address: Some(config.url.to_owned()),
+            sending_endpoint_count: modified_endpoints.len() as u8,
             endpoints: if modified_endpoints.is_empty() {
                     None
                 } else {
