@@ -511,7 +511,7 @@ async fn main_internal() -> Result <(), String> {
             .arg(Arg::with_name("ENDPOINTS")
                 .required(true)
                 .takes_value(true)
-                .help("List of endpoints.")))
+                .help("List of endpoints (comma separated).")))
         .subcommand(SubCommand::with_name("remove")
             .about("Remove endpoints list.")
             .arg(url_arg.clone()))
