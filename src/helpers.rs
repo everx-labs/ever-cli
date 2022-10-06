@@ -121,22 +121,18 @@ pub fn create_client_local() -> Result<TonClient, String> {
 }
 
 pub fn get_server_endpoints(config: &Config) -> Vec<String> {
-    if config.project_id.is_some() {
-        let mut cur_endpoints = match config.endpoints.len() {
-            0 => vec![config.url.clone()],
-            _ => config.endpoints.clone(),
-        };
-        cur_endpoints.iter_mut().map(|end| {
+    let mut cur_endpoints = match config.endpoints.len() {
+        0 => vec![config.url.clone()],
+        _ => config.endpoints.clone(),
+    };
+    cur_endpoints.iter_mut().map(|end| {
             let mut end = end.trim_end_matches('/').to_owned();
+        if config.project_id.is_some() {
             end.push_str("/");
             end.push_str(&config.project_id.clone().unwrap());
-            end.to_owned()
-        }).collect::<Vec<String>>()
-    } else {
-        config.endpoints.clone().iter_mut().map(|end| {
-            end.trim_end_matches('/').to_owned()
-        }).collect::<Vec<String>>()
-    }
+        }
+        end.to_owned()
+    }).collect::<Vec<String>>()
 }
 
 pub fn get_network_context(config: &Config) -> Result<Arc<ClientContext>, failure::Error> {
