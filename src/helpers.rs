@@ -12,7 +12,7 @@
  */
 use std::env;
 use std::path::PathBuf;
-use crate::config::Config;
+use crate::config::{Config, LOCALNET};
 
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -31,7 +31,7 @@ use serde_json::Value;
 use ton_client::abi::Abi::Contract;
 use url::Url;
 use crate::call::parse_params;
-use crate::FullConfig;
+use crate::{FullConfig, resolve_net_name};
 
 pub const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
 pub const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
@@ -160,6 +160,11 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
         println!("Connecting to:\n\tUrl: {}", config.url);
         println!("\tEndpoints: {:?}\n", modified_endpoints);
     }
+    let endpoints_cnt = if resolve_net_name(&config.url).unwrap_or(config.url.clone()).eq(LOCALNET) {
+        1_u8
+    } else {
+        modified_endpoints.len() as u8
+    };
     let cli_conf = ClientConfig {
         abi: AbiConfig {
             workchain: config.wc,
@@ -171,9 +176,9 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
             mnemonic_word_count: WORD_COUNT,
             hdkey_derivation_path: HD_PATH.to_string(),
         },
-        network: ton_client::net::NetworkConfig {
+        network: NetworkConfig {
             server_address: Some(config.url.to_owned()),
-            sending_endpoint_count: modified_endpoints.len() as u8,
+            sending_endpoint_count: endpoints_cnt,
             endpoints: if modified_endpoints.is_empty() {
                     None
                 } else {
