@@ -260,10 +260,10 @@ async fn multisig_send_command(matches: &ArgMatches<'_>, config: &Config) -> Res
     send(config, address.as_str(), dest, value, keys, comment).await
 }
 
-pub async fn encode_transfer_body(text: &str) -> Result<String, String> {
+pub async fn encode_transfer_body(text: &str, config: &Config) -> Result<String, String> {
     let text = hex::encode(text.as_bytes());
     let client = create_client_local()?;
-    let abi = load_abi(TRANSFER_WITH_COMMENT).await?;
+    let abi = load_abi(TRANSFER_WITH_COMMENT, config).await?;
     encode_message_body(
         client.clone(),
         ParamsOfEncodeMessageBody {
@@ -289,7 +289,7 @@ async fn send(
     comment: Option<&str>
 ) -> Result<(), String> {
     let body = if let Some(text) = comment {
-        encode_transfer_body(text).await?
+        encode_transfer_body(text, config).await?
     } else {
         "".to_owned()
     };
@@ -339,8 +339,8 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
         SAFEMULTISIG_LINK
     };
 
-    let tvc_bytes = load_file_with_url(target).await?;
-    let abi = load_abi(MSIG_ABI).await?;
+    let tvc_bytes = load_file_with_url(target, config.timeout as u64).await?;
+    let abi = load_abi(MSIG_ABI, config).await?;
 
     let keys = load_keypair(&keys)?;
 

@@ -31,7 +31,7 @@ pub async fn generate_address(
     let contract = std::fs::read(tvc)
         .map_err(|e| format!("failed to read smart contract file: {}", e))?;
 
-    let abi = load_abi(abi_path).await?;
+    let abi = load_abi(abi_path, config).await?;
 
     let phrase = if new_keys {
         gen_seed_phrase()?
@@ -79,7 +79,7 @@ pub async fn generate_address(
                 vec![0; 32]
             }
         };
-        let abi_str = load_abi_str(abi_path).await?;
+        let abi_str = load_abi_str(abi_path, config).await?;
         update_contract_state(tvc, &key_bytes, initial_data, &abi_str)?;
         if !config.is_json {
             println!("TVC file updated");

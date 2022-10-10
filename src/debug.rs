@@ -10,12 +10,14 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{contract_data_from_matches_or_config_alias, FullConfig, print_args, unpack_alternative_params};
+use crate::{contract_data_from_matches_or_config_alias, FullConfig, print_args,
+            unpack_alternative_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
                      TonClient, query_account_field, query_with_limit, create_client_verbose,
-                     abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config};
+                     abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config,
+                     TEST_MAX_LEVEL, MAX_LEVEL};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
@@ -47,6 +49,7 @@ const TRANSACTION_QUANTITY: u32 = 10;
 
 pub struct DebugLogger {
     tvm_trace: String,
+    ordinary_log_level: log::LevelFilter,
 }
 
 impl DebugLogger {
@@ -58,6 +61,14 @@ impl DebugLogger {
 
         DebugLogger {
             tvm_trace: path,
+            ordinary_log_level: if std::env::var("RUST_LOG")
+                .unwrap_or_default()
+                .eq_ignore_ascii_case("debug")
+            {
+                TEST_MAX_LEVEL
+            } else {
+                MAX_LEVEL
+            },
         }
     }
 }
@@ -87,11 +98,15 @@ impl log::Log for DebugLogger {
                 }
             }
             _ => {
-                match record.level() {
-                    log::Level::Error | log::Level::Warn => {
-                        eprintln!("{}", record.args());
+                if record.level() <= self.ordinary_log_level {
+                    match record.level() {
+                        log::Level::Error | log::Level::Warn => {
+                            eprintln!("{}", record.args());
+                        }
+                        _ => {
+                            println!("{}", record.args());
+                        }
                     }
-                    _ => {}
                 }
             }
         }
@@ -445,7 +460,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         !matches.is_present("IGNORE_HASHES"),
     ).await?;
 
-    decode_messages(tr.out_msgs, load_decode_abi(matches, config)).await?;
+    decode_messages(tr.out_msgs, load_decode_abi(matches, config), config).await?;
     if !config.is_json {
         println!("Log saved to {}.", trace_path);
     } else {
@@ -535,7 +550,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
 
     match result_trans {
         Ok(result_trans) => {
-            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config)).await?;
+            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config), config).await?;
             if !config.is_json {
                 println!("Execution finished.");
             }
@@ -586,7 +601,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
-    let loaded_abi = load_abi(opt_abi.as_ref().unwrap()).await?;
+    let loaded_abi = load_abi(opt_abi.as_ref().unwrap(), &full_config.config).await?;
     let params = unpack_alternative_params(
         matches,
         opt_abi.as_ref().unwrap(),
@@ -680,7 +695,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
     let mut out_res = vec![];
     let msg_string = match trans {
         Ok(trans) => {
-            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, &full_config.config)).await?;
+            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, &full_config.config), &full_config.config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -779,7 +794,7 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
 
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            decode_messages(trans.out_msgs,load_decode_abi(matches, config), config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -831,7 +846,8 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
         opt_abi.as_ref().unwrap(),
         params.as_ref().unwrap(),
         sign,
-        wc.unwrap()
+        wc.unwrap(),
+        config
     ).await?;
     let init_balance = matches.is_present("INIT_BALANCE");
     let ton_client = create_client(config)?;
@@ -887,7 +903,7 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
 
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            decode_messages(trans.out_msgs,load_decode_abi(matches, config), config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -904,7 +920,7 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     Ok(())
 }
 
-async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<Vec<Value>, String> {
+async fn decode_messages(msgs: OutMessages, abi: Option<String>, config: &Config) -> Result<Vec<Value>, String> {
     if !msgs.is_empty() {
         log::debug!(target: "executor", "Output messages:\n----------------");
     }
@@ -913,7 +929,7 @@ async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<Vec<V
 
     let mut res = vec![];
     for msg in msgs {
-        let mut ser_msg = serialize_msg(&msg.0, abi.clone()).await
+        let mut ser_msg = serialize_msg(&msg.0, abi.clone(), config).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
         let msg_str = base64::encode(
             &ton_types::cells_serialization::serialize_toc(

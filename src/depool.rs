@@ -400,10 +400,11 @@ async fn print_event(ton: TonClient, event: &serde_json::Value) -> Result<(), St
 
     let body = event["body"].as_str()
         .ok_or("failed to serialize event body")?;
+    let def_config = Config::default();
     let result = ton_client::abi::decode_message_body(
         ton.clone(),
         ParamsOfDecodeMessageBody {
-            abi: load_abi(DEPOOL_ABI).await.map_err(|e| format!("failed to load depool abi: {}", e))?,
+            abi: load_abi(DEPOOL_ABI, &def_config).await.map_err(|e| format!("failed to load depool abi: {}", e))?,
             body: body.to_owned(),
             is_internal: false,
             ..Default::default()
@@ -690,10 +691,11 @@ async fn set_donor(
 
 async fn encode_body(func: &str, params: serde_json::Value) -> Result<String, String> {
     let client = create_client_local()?;
+    let def_config = Config::default();
     ton_client::abi::encode_message_body(
         client.clone(),
         ParamsOfEncodeMessageBody {
-            abi: load_abi(DEPOOL_ABI).await?,
+            abi: load_abi(DEPOOL_ABI, &def_config).await?,
             call_set: CallSet::some_with_function_and_input(func, params)
                 .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
@@ -819,7 +821,7 @@ async fn call_contract_and_get_answer(
     answer_is_expected: bool
 ) -> Result<(), String> {
     let ton = create_client_verbose(&config)?;
-    let abi = load_abi(MSIG_ABI).await?;
+    let abi = load_abi(MSIG_ABI, config).await?;
     let start = now()?;
 
     let params = json!({

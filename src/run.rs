@@ -104,7 +104,7 @@ async fn run(
         }
     };
 
-    let abi = load_abi(&abi_path).await?;
+    let abi = load_abi(&abi_path, config).await?;
     let params = if is_alternative {
         unpack_alternative_params(matches, &abi_path, method, config).await?
     } else {

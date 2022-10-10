@@ -22,17 +22,19 @@ use failure::err_msg;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr, Block, HashmapAugType};
+use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable, Transaction,
+                TransactionDescr, Block, HashmapAugType};
 use ton_client::{
-    ClientConfig, ClientContext,
-    net::{AggregationFn, FieldAggregation, NetworkConfig, OrderBy, ParamsOfAggregateCollection, ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection},
+    net::{AggregationFn, FieldAggregation, OrderBy, ParamsOfAggregateCollection,
+          ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection},
 };
-use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TickTockTransactionExecutor, TransactionExecutor};
+use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor,
+                   TickTockTransactionExecutor, TransactionExecutor};
 use ton_types::{UInt256, serialize_tree_of_cells};
 use ton_vm::executor::{Engine, EngineTraceInfo};
 
 use crate::config::Config;
-use crate::helpers::{create_client, get_server_endpoints, query_account_field};
+use crate::helpers::{create_client, get_network_context, query_account_field};
 
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
 
@@ -62,17 +64,8 @@ pub async fn fetch(config: &Config, account_address: &str, filename: &str, fast_
         }
         return Ok(())
     }
-
-    let context = Arc::new(
-        ClientContext::new(ClientConfig {
-            network: NetworkConfig {
-                endpoints: Some(get_server_endpoints(config)),
-                access_key: config.access_key.clone(),
-                ..Default::default()
-            },
-            ..Default::default()
-        }).map_err(|e| format!("Failed to create ctx: {}", e))?,
-    );
+    let context = get_network_context(config)
+        .map_err(|e| format!("Failed to create ctx: {}", e))?;
 
     let filter = if let Some(lt_bound) = lt_bound {
         let lt_bound = format!("0x{:x}", lt_bound);
@@ -481,16 +474,7 @@ pub async fn replay(
 }
 
 pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Result<(), failure::Error> {
-    let context = Arc::new(
-        ClientContext::new(ClientConfig {
-            network: NetworkConfig {
-                endpoints: Some(get_server_endpoints(config)),
-                access_key: config.access_key.clone(),
-                ..Default::default()
-            },
-            ..Default::default()
-        })?
-    );
+    let context = get_network_context(config)?;
 
     let block = query_collection(
         context.clone(),

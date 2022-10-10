@@ -20,7 +20,7 @@ use crate::helpers::default_config_name;
 
 const TESTNET: &str = "net.evercloud.dev";
 const MAINNET: &str = "main.evercloud.dev";
-const LOCALNET: &str = "http://127.0.0.1/";
+pub const LOCALNET: &str = "http://127.0.0.1/";
 
 fn default_url() -> String {
     TESTNET.to_string()

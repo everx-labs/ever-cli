@@ -25,7 +25,7 @@ pub async fn create_proposal(
 	offline: bool,
 ) -> Result<(), String> {
 
-	let payload = encode_transfer_body(text).await?;
+	let payload = encode_transfer_body(text, config).await?;
 
 	let params = json!({
 		"dest": dest,
@@ -138,6 +138,7 @@ pub async fn decode_proposal(
 				TRANSFER_WITH_COMMENT,
 				body,
 				true,
+				config,
 			)
             .await
             .map_err(|e| format!("failed to decode proposal payload: {}", e))?;

@@ -68,8 +68,8 @@ fn parse_integer_param(value: &str) -> Result<String, String> {
     }
 }
 
-async fn build_json_from_params(params_vec: Vec<&str>, abi_path: &str, method: &str) -> Result<String, String> {
-    let abi_obj = load_ton_abi(abi_path).await?;
+async fn build_json_from_params(params_vec: Vec<&str>, abi_path: &str, method: &str, config: &Config) -> Result<String, String> {
+    let abi_obj = load_ton_abi(abi_path, config).await?;
     let functions = abi_obj.functions();
 
     let func_obj = functions.get(method).ok_or("failed to load function from abi")?;
@@ -78,7 +78,7 @@ async fn build_json_from_params(params_vec: Vec<&str>, abi_path: &str, method: &
     let mut params_json = json!({ });
     for input in inputs {
         let mut iter = params_vec.iter();
-        let _param = iter.find(|x| x.trim_start_matches('-') == input.name)
+        let _param = iter.find(|x| x.starts_with('-') && (x.trim_start_matches('-') == input.name))
             .ok_or(format!(r#"argument "{}" of type "{}" not found"#, input.name, input.kind))?;
 
         let value = iter.next()
@@ -282,7 +282,7 @@ pub async fn call_contract_with_client(
     is_fee: bool,
     matches: Option<&ArgMatches<'_>>,
 ) -> Result<Value, String> {
-    let abi = load_abi(abi_path).await?;
+    let abi = load_abi(abi_path, config).await?;
 
     let msg_params = prepare_message_params(
         addr,
@@ -400,7 +400,7 @@ pub async fn call_contract(
 
 pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: &str) -> Result<(), String> {
     let ton = create_client_verbose(&config)?;
-    let abi = load_abi(abi_path).await?;
+    let abi = load_abi(abi_path, config).await?;
 
     let (msg, _) = unpack_message(&str_msg)?;
     if config.is_json {
@@ -431,11 +431,11 @@ pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: 
     Ok(())
 }
 
-pub async fn parse_params(params_vec: Vec<&str>, abi_path: &str, method: &str) -> Result<String, String> {
+pub async fn parse_params(params_vec: Vec<&str>, abi_path: &str, method: &str, config: &Config) -> Result<String, String> {
     if params_vec.len() == 1 {
         // if there is only 1 parameter it must be a json string with arguments
         Ok(params_vec[0].to_owned())
     } else {
-        build_json_from_params(params_vec, abi_path, method).await
+        build_json_from_params(params_vec, abi_path, method, config).await
     }
 }

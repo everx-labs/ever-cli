@@ -511,7 +511,7 @@ async fn main_internal() -> Result <(), String> {
             .arg(Arg::with_name("ENDPOINTS")
                 .required(true)
                 .takes_value(true)
-                .help("List of endpoints.")))
+                .help("List of endpoints (comma separated).")))
         .subcommand(SubCommand::with_name("remove")
             .about("Remove endpoints list.")
             .arg(url_arg.clone()))
@@ -1170,7 +1170,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     let body = ton_client::abi::encode_message_body(
         client.clone(),
         ParamsOfEncodeMessageBody {
-            abi: load_abi(abi.as_ref().unwrap()).await?,
+            abi: load_abi(abi.as_ref().unwrap(), config).await?,
             call_set: CallSet::some_with_function_and_input(method.unwrap(), params)
                 .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
@@ -1326,7 +1326,7 @@ async fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, 
     }
     match deploy_type {
         DeployType::Full => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false, alias).await,
-        DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, raw, output, config.is_json).await,
+        DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, raw, output, config).await,
         DeployType::Fee => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, true, None).await,
     }
 }
