@@ -57,7 +57,7 @@ fn construct_blockchain_config_err(config_account: &Account) -> Result<Blockchai
     BlockchainConfig::with_config(config_params)
 }
 
-pub async fn fetch(config: &Config, account_address: &str, filename: &str, fast_stop: bool, lt_bound: Option<u64>, rewrite_file: bool) -> Result<(), String> {
+pub async fn fetch(config: &Config, account_address: &str, filename: &str, lt_bound: Option<u64>, rewrite_file: bool) -> Result<(), String> {
     if !rewrite_file && std::path::Path::new(filename).exists() {
         if !config.is_json {
             println!("File exists");
@@ -144,9 +144,6 @@ pub async fn fetch(config: &Config, account_address: &str, filename: &str, fast_
                 .map_err(|e| format!("failed to serialize account: {}", e))?));
         writer.write_all(data.as_bytes()).map_err(|e| format!("Failed to write to file: {}", e))?;
     }
-    if fast_stop {
-        return Ok(());
-    }
     let retry_strategy =
         tokio_retry::strategy::ExponentialBackoff::from_millis(10).take(5);
 
@@ -220,6 +217,17 @@ struct State {
     lines: Option<Lines<std::io::BufReader<File>>>,
 }
 
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            account: Account::default(),
+            account_addr: "".to_string(),
+            tr: None,
+            lines: None
+        }
+    }
+}
+
 impl State {
     fn new(filename: &str) -> Result<Self, String> {
         let file = File::open(filename)
@@ -238,15 +246,6 @@ impl State {
                                             .ok_or("failed to load account address")?);
 
         Ok(Self { account, account_addr, tr: None, lines: Some(lines) })
-    }
-
-    fn default() -> Result<Self, String> {
-        Ok(Self {
-            account: Account::default(),
-            account_addr: "".to_string(),
-            tr: None,
-            lines: None
-        })
     }
 
     pub fn set_account(&mut self, account: Account) {
@@ -285,7 +284,7 @@ fn choose<'a>(st1: &'a mut State, st2: &'a mut State) -> &'a mut State {
 
 pub async fn replay(
     input_filename: &str,
-    config_filename: &str,
+    config_filename: Option<&str>,
     txnid: &str,
     trace_callback: Option<Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync>>,
     init_trace_last_logger: impl Fn() -> Result<(), String>,
@@ -296,7 +295,7 @@ pub async fn replay(
 ) -> Result<Transaction, String> {
     let mut account_state = State::new(input_filename)?;
     let account_address = account_state.account_addr.clone();
-
+    let mut empty_config = false;
     let (mut config, mut config_state) = if load_current_net_config {
         let ton_client = create_client(cli_config)?;
         let config = query_account_field(
@@ -305,11 +304,22 @@ pub async fn replay(
             "boc",
         ).await?;
         let config = Account::construct_from_base64(&config).map_err(|_| "".to_string())?;
-        let mut state = State::default()?;
+        let mut state = State::default();
         state.set_account(config.clone());
         (construct_blockchain_config(&config)?, state)
     } else {
-        let config_state = State::new(config_filename)?;
+        let config_state = match config_filename {
+            Some(config_filename) => {
+                State::new(config_filename)?
+            }
+            None => {
+                empty_config = true;
+                State {
+                    account_addr: CONFIG_ADDR.to_string(),
+                    ..Default::default()
+                }
+            }
+        };
         assert_eq!(config_state.account_addr, CONFIG_ADDR);
         (BlockchainConfig::default(), config_state)
     };
@@ -330,7 +340,7 @@ pub async fn replay(
         let state = choose(&mut account_state, &mut config_state);
         let tr = state.tr.as_ref().ok_or("failed to obtain state transaction")?;
 
-        if !load_current_net_config {
+        if !(load_current_net_config || empty_config) {
             if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
                 assert!(tr.block_lt > cur_block_lt);
                 cur_block_lt = tr.block_lt;
@@ -530,7 +540,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
         fetch(config,
             account.as_str(),
             format!("{}.txns", account).as_str(),
-            false, Some(end_lt), false).await.map_err(err_msg)?;
+            Some(end_lt), false).await.map_err(err_msg)?;
     }
 
     let config_txns_path = format!("{}.txns", CONFIG_ADDR);
@@ -539,7 +549,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
         fetch(config,
             CONFIG_ADDR,
             config_txns_path.as_str(),
-            false, Some(end_lt), false).await.map_err(err_msg)?;
+            Some(end_lt), false).await.map_err(err_msg)?;
     }
 
     let acc = accounts[0].0.as_str();
@@ -548,7 +558,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
     let config_path = format!("config-{}.boc", txnid);
     if !std::path::Path::new(config_path.as_str()).exists() {
         println!("Computing config: replaying {} up to {}", acc, txnid);
-        replay(format!("{}.txns", acc).as_str(),config_txns_path.as_str(),
+        replay(format!("{}.txns", acc).as_str(),Some(config_txns_path.as_str()),
                txnid, None, || Ok(()), DUMP_CONFIG,
                config, false, true
         ).await.map_err(err_msg)?;
@@ -565,7 +575,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
             if !std::path::Path::new(format!("{}-{}.boc", account_filename, txnid).as_str()).exists() {
                 replay(
                     format!("{}.txns", account_filename).as_str(),
-                    format!("{}.txns", CONFIG_ADDR).as_str(),
+                    Some(format!("{}.txns", CONFIG_ADDR).as_str()),
                     &txnid,
                     None,
                     || Ok(()),
@@ -636,7 +646,6 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
     fetch(config,
         m.value_of("ADDRESS").ok_or("Missing account address")?,
         m.value_of("OUTPUT").ok_or("Missing output filename")?,
-        false,
         None,
         true
     ).await?;
@@ -655,7 +664,7 @@ pub async fn replay_command(m: &ArgMatches<'_>, cli_config: &Config) -> Result<(
         (m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?, false)
     };
     let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
-        config_txns, m.value_of("TXNID").ok_or("Missing final txn id")?,
+        Some(config_txns), m.value_of("TXNID").ok_or("Missing final txn id")?,
         None, ||{Ok(())}, DUMP_ALL, cli_config,
         load_config, !m.is_present("IGNORE_HASHES")
     ).await?;

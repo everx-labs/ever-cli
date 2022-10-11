@@ -404,17 +404,21 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         (tr_id, address)
     };
 
-    let config_path = match config_path {
-        Some(config_path) => {
-            config_path
-        },
-        _ => {
-            if !config.is_json {
-                println!("Fetching config contract transactions...");
+    let config_path = if is_empty_config {
+        None
+    } else {
+        Some(match config_path {
+            Some(config_path) => {
+                config_path
+            },
+            _ => {
+                if !config.is_json {
+                    println!("Fetching config contract transactions...");
+                }
+                fetch(config, CONFIG_ADDR, DEFAULT_CONFIG_PATH, None, true).await?;
+                DEFAULT_CONFIG_PATH
             }
-            fetch(config, CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config, None, true).await?;
-            DEFAULT_CONFIG_PATH
-        }
+        })
     };
     let contract_path = match contract_path {
         Some(contract_path) => {
@@ -424,7 +428,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
             if !config.is_json {
                 println!("Fetching contract transactions...");
             }
-            fetch(config, &address, DEFAULT_CONTRACT_PATH, false, None, true).await?;
+            fetch(config, &address, DEFAULT_CONTRACT_PATH, None, true).await?;
             DEFAULT_CONTRACT_PATH
         }
     };
@@ -456,7 +460,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         init_logger,
         dump_mask,
         config,
-        is_empty_config,
+        false,
         !matches.is_present("IGNORE_HASHES"),
     ).await?;
 
