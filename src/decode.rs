@@ -566,7 +566,20 @@ pub mod msg_printer {
             }
         };
         let output = res.value.take().ok_or("failed to obtain the result")?;
-        Ok(json!({res.name : output}))
+        let mut decoded = json!({res.name : output});
+        match res.header {
+            Some(header) => {
+                if header.expire.is_some() || header.pubkey.is_some() || header.time.is_some() {
+                    decoded["BodyHeader"] = json!({
+                        "expire": json!(header.expire.map(|exp| format!("{exp}")).unwrap_or("None".to_string())),
+                        "time": json!(header.time.map(|time| format!("{time}")).unwrap_or("None".to_string())),
+                        "pubkey": json!(header.pubkey.unwrap_or("None".to_string())),
+                    })
+                }
+            },
+            None => {}
+        }
+        Ok(decoded)
     }
 
     pub async fn serialize_msg(msg: &Message, abi_path: Option<String>, config: &Config) -> Result<Value, String> {

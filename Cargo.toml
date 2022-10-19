@@ -16,7 +16,7 @@ license = 'Apache-2.0'
 name = 'tonos-cli'
 readme = 'README.md'
 repository = 'https://github.com/tonlabs/tonos-cli'
-version = '0.28.19'
+version = '0.28.20'
 
 [dependencies]
 async-trait = '0.1.42'
@@ -46,13 +46,13 @@ tokio = { default-features = false, features = [ 'full' ], version = '1' }
 url = '2.3.1'
 ton_abi = { git = 'https://github.com/tonlabs/ton-labs-abi.git', tag = '2.3.7' }
 ton_block = { git = 'https://github.com/tonlabs/ton-labs-block.git', tag = '1.8.3' }
-ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.37.2' }
+ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.38.0' }
 ton_executor = { git = 'https://github.com/tonlabs/ton-labs-executor.git', tag = '1.15.89' }
 ton_labs_assembler = { git = 'https://github.com/tonlabs/ton-labs-assembler.git', tag = '1.2.48' }
-ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.37.2' }
+ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.38.0' }
 ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.11.4' }
 ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.44' }
-ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git', tag = '0.7.31' }
+ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git', tag = '0.7.33' }
 
 [dev-dependencies]
 assert_cmd = '1.0.3'

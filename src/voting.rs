@@ -47,7 +47,9 @@ pub async fn create_proposal(
 			keys,
 			lifetime,
 			false,
-			None).await
+			None,
+			None,
+		).await
 	} else {
 
 		call::call_contract(
@@ -88,6 +90,7 @@ pub async fn vote(
 			keys,
 			lifetime,
 			false,
+			None,
 			None,
 		).await
 	} else {
