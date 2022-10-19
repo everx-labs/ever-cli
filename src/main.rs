@@ -370,6 +370,10 @@ async fn main_internal() -> Result <(), String> {
             .long("--lifetime")
             .takes_value(true)
             .help("Period of time in seconds while message is valid."))
+        .arg(Arg::with_name("TIMESTAMP")
+            .long("--time")
+            .takes_value(true)
+            .help("Message creation time in milliseconds. If not specified, `now` is used."))
         .arg(output_arg.clone())
         .arg(raw_arg.clone());
 
@@ -1229,11 +1233,14 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
         CallType::Msg => {
             let lifetime = lifetime.map(|val| {
                     u32::from_str_radix(val, 10)
-                        .map_err(|e| format!("failed to parse lifetime: {}", e))
+                        .map_err(|e| format!("Failed to parse lifetime: {e}"))
                 })
                 .transpose()?
                 .unwrap_or(DEF_MSG_LIFETIME);
-
+            let timestamp = matches.value_of("TIMESTAMP").map(|val| {
+                u64::from_str_radix(val, 10)
+                    .map_err(|e| format!("Failed to parse timestamp: {e}"))
+            }).transpose()?;
             generate_message(
                 config,
                 address.as_str(),
@@ -1244,6 +1251,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
                 lifetime,
                 raw,
                 output,
+                timestamp,
             ).await
         },
     }
