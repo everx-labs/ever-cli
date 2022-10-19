@@ -2,7 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
-## Version: 0.27.28
+## Version: 0.28.12
+
+### New
+- Added ability to specify link to the abi file of json data instead of path.
+
+
+## Version: 0.28.3
+
+### Breaking changes:
+ - `debug` commands `call`, `run` and `deploy` now take function parameters in alternative syntax. 
+
+## Version: 0.28.1
+
+### New
+ - Updated version of SDK;
+ - Added global tonos-cli config which is used to create default configs;
+ - Added config parameters for Evercloud authentication;
+ - Added new input format for `tonos-cli decode message` command.
+
+## Version: 0.27.33
+
+### New
+- Added ability to call `account` command with address from config
+
+### Bug fixes
+- Fixed work with old config file
+
+
+## Version: 0.27.31
+
+### New
+ - Clear alternative syntax parameters
+ - Alias and abi methods completion
+
+
+## Version: 0.27.30
 
 ### New
 - Added alias functionality

@@ -10,9 +10,8 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE};
 use crate::config::Config;
-use crate::convert;
+use crate::{convert, print_args};
 use crate::depool_abi::{DEPOOL_ABI, PARTICIPANT_ABI};
 use crate::helpers::{
     create_client_local,
@@ -204,7 +203,7 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
 }
 
 struct CommandData<'a> {
-    config: Config,
+    config: &'a Config,
     depool: String,
     wallet: String,
     keys: String,
@@ -213,7 +212,7 @@ struct CommandData<'a> {
 }
 
 impl<'a> CommandData<'a> {
-    pub fn from_matches_and_conf(m: &'a ArgMatches, config: Config, depool: String) -> Result<Self, String> {
+    pub fn from_matches_and_conf(m: &'a ArgMatches, config: &'a Config, depool: String) -> Result<Self, String> {
         let (wallet, stake, keys) = parse_stake_data(m, &config)?;
         let depool_fee = config.depool_fee.clone().to_string();
         Ok(CommandData {config, depool, wallet, stake, keys, depool_fee})
@@ -241,15 +240,14 @@ fn parse_stake_data<'a>(m: &'a ArgMatches, config: &Config) -> Result<(String, &
     Ok((wallet, stake, keys))
 }
 
-pub async fn depool_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+pub async fn depool_command(m: &ArgMatches<'_>, config: &mut Config) -> Result<(), String> {
     let depool = m.value_of("ADDRESS")
         .map(|s| s.to_string())
         .or(config.addr.clone())
         .ok_or("depool address is not defined. Supply it in the config file or in command line.".to_string())?;
-    let depool = load_ton_address(&depool, &config)
+    let depool = load_ton_address(&depool, config)
         .map_err(|e| format!("invalid depool address: {}", e))?;
 
-    let mut config = config;
     let mut set_wait_answer = |m: &ArgMatches|  {
         if m.is_present("WAIT_ANSWER") {
             config.no_answer = false;
@@ -402,10 +400,11 @@ async fn print_event(ton: TonClient, event: &serde_json::Value) -> Result<(), St
 
     let body = event["body"].as_str()
         .ok_or("failed to serialize event body")?;
+    let def_config = Config::default();
     let result = ton_client::abi::decode_message_body(
         ton.clone(),
         ParamsOfDecodeMessageBody {
-            abi: load_abi(DEPOOL_ABI).map_err(|e| format!("failed to load depool abi: {}", e))?,
+            abi: load_abi(DEPOOL_ABI, &def_config).await.map_err(|e| format!("failed to load depool abi: {}", e))?,
             body: body.to_owned(),
             is_internal: false,
             ..Default::default()
@@ -692,10 +691,11 @@ async fn set_donor(
 
 async fn encode_body(func: &str, params: serde_json::Value) -> Result<String, String> {
     let client = create_client_local()?;
+    let def_config = Config::default();
     ton_client::abi::encode_message_body(
         client.clone(),
         ParamsOfEncodeMessageBody {
-            abi: load_abi(DEPOOL_ABI)?,
+            abi: load_abi(DEPOOL_ABI, &def_config).await?,
             call_set: CallSet::some_with_function_and_input(func, params)
                 .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
@@ -821,7 +821,7 @@ async fn call_contract_and_get_answer(
     answer_is_expected: bool
 ) -> Result<(), String> {
     let ton = create_client_verbose(&config)?;
-    let abi = load_abi(MSIG_ABI)?;
+    let abi = load_abi(MSIG_ABI, config).await?;
     let start = now()?;
 
     let params = json!({

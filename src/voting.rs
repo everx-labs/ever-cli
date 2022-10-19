@@ -25,7 +25,7 @@ pub async fn create_proposal(
 	offline: bool,
 ) -> Result<(), String> {
 
-	let payload = encode_transfer_body(text).await?;
+	let payload = encode_transfer_body(text, config).await?;
 
 	let params = json!({
 		"dest": dest,
@@ -41,19 +41,21 @@ pub async fn create_proposal(
 		message::generate_message(
 			config,
 			addr,
-			MSIG_ABI.to_string(),
+			MSIG_ABI,
 			"submitTransaction",
 			&params,
 			keys,
 			lifetime,
 			false,
-			None).await
+			None,
+			None,
+		).await
 	} else {
 
 		call::call_contract(
 			config,
 			addr,
-			MSIG_ABI.to_string(),
+			MSIG_ABI,
 			"submitTransaction",
 			&params,
 			keys,
@@ -82,19 +84,20 @@ pub async fn vote(
 		message::generate_message(
 			config,
 			addr,
-			MSIG_ABI.to_string(),
+			MSIG_ABI,
 			"confirmTransaction",
 			&params,
 			keys,
 			lifetime,
 			false,
 			None,
+			None,
 		).await
 	} else {
 		call::call_contract(
 			config,
 			addr,
-			MSIG_ABI.to_string(),
+			MSIG_ABI,
 			"confirmTransaction",
 			&params,
 			keys,
@@ -114,7 +117,7 @@ pub async fn decode_proposal(
 	let result = call::call_contract_with_result(
 		config,
 		addr,
-		MSIG_ABI.to_string(),
+		MSIG_ABI,
 		"getTransactions",
 		"{}",
 		None,
@@ -138,6 +141,7 @@ pub async fn decode_proposal(
 				TRANSFER_WITH_COMMENT,
 				body,
 				true,
+				config,
 			)
             .await
             .map_err(|e| format!("failed to decode proposal payload: {}", e))?;

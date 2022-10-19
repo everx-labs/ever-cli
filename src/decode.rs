@@ -10,16 +10,15 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_ton_address};
+use crate::{load_abi, print_args};
 use crate::config::Config;
-use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query_account_field};
+use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query_account_field, abi_from_matches_or_config, load_ton_address, load_ton_abi};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::{Cell, SliceData};
-use std::fs::File;
 use std::io::Cursor;
 use ton_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
-use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData, Abi};
+use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
 use serde::Serialize;
 
@@ -51,16 +50,19 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
             .arg(Arg::with_name("ABI")
                 .long("--abi")
                 .takes_value(true)
-                .help("Path to the contract ABI file.")))
+                .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file.")))
         .subcommand(SubCommand::with_name("msg")
             .about("Decodes message file.")
             .arg(Arg::with_name("MSG")
-                    .required(true)
-                    .help("Path to the message boc file."))
+                .required(true)
+                .help("Path to the message boc file (with binary data) or message in base64 if corresponding flag is used."))
             .arg(Arg::with_name("ABI")
-                    .long("--abi")
-                    .takes_value(true)
-                    .help("Path to the contract ABI file.")))
+                .long("--abi")
+                .takes_value(true)
+                .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file."))
+            .arg(Arg::with_name("BASE64")
+                .long("--base64")
+                .help("Flag that changes behavior of the command to work with data in base64.")))
         .subcommand(tvc_cmd)
         .subcommand(SubCommand::with_name("account")
             .about("Top level command of account decode commands.")
@@ -82,7 +84,7 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(Arg::with_name("ABI")
                     .long("--abi")
                     .takes_value(true)
-                    .help("Path to the contract ABI file.")))
+                    .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file.")))
             .subcommand(SubCommand::with_name("boc")
                 .about("Decodes data from the file with boc of the account and saves contract tvc file if needed.")
                 .arg(Arg::with_name("BOCFILE")
@@ -132,7 +134,7 @@ async fn decode_body_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), 
     if !config.is_json {
         print_args!(body, abi);
     }
-    decode_body(body.unwrap(), &abi.unwrap(), config.is_json).await?;
+    decode_body(body.unwrap(), &abi.unwrap(), config.is_json, config).await?;
     Ok(())
 }
 
@@ -229,9 +231,15 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: &Config) -> Result<(
     if !config.is_json {
         print_args!(msg, abi);
     }
-    let msg = msg.map(std::fs::read)
-        .transpose()
-        .map_err(|e| format!(" failed to read msg boc file: {}", e))?
+    let is_base64 = m.is_present("BASE64");
+    let msg = msg.map(|msg| if is_base64 {
+        base64::decode(msg)
+            .map_err(|e| format!(" failed to decode msg in base64: {}", e))
+    } else {
+        std::fs::read(msg)
+            .map_err(|e| format!(" failed to read msg from file {msg}: {}", e))
+    })
+        .transpose()?
         .unwrap();
     println!("{}", decode_message(msg, abi).await?);
     Ok(())
@@ -243,8 +251,7 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
     if !config.is_json {
         print_args!(tvc, abi);
     }
-    let abi = std::fs::read_to_string(abi.unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+    let abi = load_abi(abi.as_ref().unwrap(), config).await?;
     let state = StateInit::construct_from_file(tvc.unwrap())
         .map_err(|e| format!("failed to load StateInit from the tvc file: {}", e))?;
     let b64 = tree_of_cells_into_base64(state.data.as_ref())?;
@@ -252,7 +259,7 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
     let res = decode_account_data(
         ton,
         ParamsOfDecodeAccountData {
-                abi: Abi::Json(abi),
+                abi,
                 data: b64,
                 ..Default::default()
             }
@@ -273,8 +280,7 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<()
     if !config.is_json {
         print_args!(address, abi);
     }
-    let abi = std::fs::read_to_string(abi.unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
+    let abi = load_abi(abi.as_ref().unwrap(), config).await?;
 
     let ton = create_client_verbose(&config)?;
     let address = load_ton_address(address.unwrap(), &config)?;
@@ -283,7 +289,7 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<()
     let res = decode_account_data(
         ton,
         ParamsOfDecodeAccountData {
-                abi: Abi::Json(abi),
+                abi,
                 data,
                 ..Default::default()
             }
@@ -305,7 +311,7 @@ struct SortedFunctionHeader {
     expire: Option<u32>
 }
 
-async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool) -> Result<(), String> {
+async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool, config: &Config) -> Result<(), String> {
     let body_vec  = base64::decode(body_base64)
         .map_err(|e| format!("body is not a valid base64 string: {}", e))?;
 
@@ -318,13 +324,10 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool) -> Result
 
     let ton = create_client_local()?;
 
-    let abi = std::fs::read_to_string(abi_path)
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-
     let (mut res, is_external) = {
-        match decode_msg_body(ton.clone(), &abi, body_base64, false).await {
+        match decode_msg_body(ton.clone(), abi_path, body_base64, false, config).await {
             Ok(res) => (res, true),
-            Err(_) => (decode_msg_body(ton.clone(), &abi, body_base64, true).await?, false),
+            Err(_) => (decode_msg_body(ton.clone(), abi_path, body_base64, true, config).await?, false),
         }
     };
     let mut signature = None;
@@ -342,11 +345,7 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool) -> Result
             }
         }
     }
-    let contr = File::open(abi_path).map(|file| {
-        ton_abi::Contract::load(file)
-    })
-        .map_err(|e| format!("Failed to load abi: {}", e))?
-        .map_err(|e| format!("Failed to load abi: {}", e))?;
+    let contr = load_ton_abi(abi_path, config).await?;
 
     let (_, func_id, _) = ton_abi::Function::decode_header(contr.version(), orig_slice.clone(), contr.header(), !is_external)
         .map_err(|e| format!("Failed to decode header: {}", e))?;
@@ -377,16 +376,11 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool) -> Result
     Ok(())
 }
 
-
-
-async fn decode_message(msg_boc: Vec<u8>, abi: Option<String>) -> Result<String, String> {
-    let abi = abi.map(std::fs::read_to_string)
-        .transpose()
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-
+async fn decode_message(msg_boc: Vec<u8>, abi_path: Option<String>) -> Result<String, String> {
     let tvm_msg = ton_sdk::Contract::deserialize_message(&msg_boc[..])
         .map_err(|e| format!("failed to deserialize message boc: {}", e))?;
-    let result = msg_printer::serialize_msg(&tvm_msg, abi).await?;
+    let config = Config::default();
+    let result = msg_printer::serialize_msg(&tvm_msg, abi_path, &config).await?;
     Ok(serde_json::to_string_pretty(&result)
         .map_err(|e| format!("Failed to serialize the result: {}", e))?)
 }
@@ -448,6 +442,7 @@ pub mod msg_printer {
     use ton_types::Cell;
     use crate::helpers::{TonClient, create_client_local, decode_msg_body};
     use ton_client::boc::{get_compiler_version, ParamsOfGetCompilerVersion};
+    use crate::Config;
 
     pub fn tree_of_cells_into_base64(root_cell: Option<&Cell>) -> Result<String, String> {
         match root_cell {
@@ -556,7 +551,7 @@ pub mod msg_printer {
         }
     }
 
-    pub async fn serialize_body(body_vec: Vec<u8>, abi: &str, ton: TonClient) -> Result<Value, String> {
+    pub async fn serialize_body(body_vec: Vec<u8>, abi_path: &str, ton: TonClient, config: &Config) -> Result<Value, String> {
         let mut empty_boc = vec![];
         serialize_tree_of_cells(&Cell::default(), &mut empty_boc)
             .map_err(|e| format!("failed to serialize tree of cells: {}", e))?;
@@ -565,16 +560,29 @@ pub mod msg_printer {
         }
         let body_base64 = base64::encode(&body_vec);
         let mut res = {
-            match decode_msg_body(ton.clone(), abi, &body_base64, false).await {
+            match decode_msg_body(ton.clone(), abi_path, &body_base64, false, config).await {
                 Ok(res) => res,
-                Err(_) => decode_msg_body(ton.clone(), abi, &body_base64, true).await?,
+                Err(_) => decode_msg_body(ton.clone(), abi_path, &body_base64, true, config).await?,
             }
         };
         let output = res.value.take().ok_or("failed to obtain the result")?;
-        Ok(json!({res.name : output}))
+        let mut decoded = json!({res.name : output});
+        match res.header {
+            Some(header) => {
+                if header.expire.is_some() || header.pubkey.is_some() || header.time.is_some() {
+                    decoded["BodyHeader"] = json!({
+                        "expire": json!(header.expire.map(|exp| format!("{exp}")).unwrap_or("None".to_string())),
+                        "time": json!(header.time.map(|time| format!("{time}")).unwrap_or("None".to_string())),
+                        "pubkey": json!(header.pubkey.unwrap_or("None".to_string())),
+                    })
+                }
+            },
+            None => {}
+        }
+        Ok(decoded)
     }
 
-    pub async fn serialize_msg(msg: &Message, abi: Option<String>) -> Result<Value, String> {
+    pub async fn serialize_msg(msg: &Message, abi_path: Option<String>, config: &Config) -> Result<Value, String> {
         let mut res = json!({ });
         let ton = create_client_local()?;
         res["Type"] = serialize_msg_type(msg.header());
@@ -585,12 +593,12 @@ pub mod msg_printer {
         res["Body"] = json!(&tree_of_cells_into_base64(
             msg.body().map(|slice| slice.into_cell()).as_ref()
         )?);
-        if abi.is_some() && msg.body().is_some() {
-            let abi = abi.unwrap();
+        if abi_path.is_some() && msg.body().is_some() {
+            let abi_path = abi_path.unwrap();
             let mut body_vec = Vec::new();
             serialize_tree_of_cells(&msg.body().unwrap().into_cell(), &mut body_vec)
                 .map_err(|e| format!("failed to serialize body: {}", e))?;
-            res["BodyCall"] =  match serialize_body(body_vec, &abi, ton).await {
+            res["BodyCall"] =  match serialize_body(body_vec, &abi_path, ton, config).await {
                 Ok(res) => res,
                 Err(_) => {
                     json!("Undefined")
@@ -616,6 +624,7 @@ mod tests {
     #[tokio::test]
     async fn test_decode_body_json() {
         let body = "te6ccgEBAQEARAAAgwAAALqUCTqWL8OX7JivfJrAAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMQAAAAAAAAAAAAAAAEeGjADA==";
-        let _out = decode_body(body, "tests/samples/wallet.abi.json", true).await.unwrap();
+        let config = Config::default();
+        let _out = decode_body(body, "tests/samples/wallet.abi.json", true, &config).await.unwrap();
     }
 }

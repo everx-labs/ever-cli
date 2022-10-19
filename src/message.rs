@@ -13,9 +13,9 @@
 
 use chrono::{Local, TimeZone};
 use ton_client::abi::{Abi, CallSet, encode_message, FunctionHeader, ParamsOfEncodeMessage, Signer};
-use crate::{Config, create_client_local, load_abi, load_ton_address};
+use crate::config::Config;
+use crate::helpers::{create_client_local, load_abi, load_ton_address, now, TonClient};
 use crate::crypto::load_keypair;
-use crate::helpers::{now, TonClient};
 
 pub struct EncodedMessage {
     pub message_id: String,
@@ -153,24 +153,26 @@ pub fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String>
 pub async fn generate_message(
     config: &Config,
     addr: &str,
-    abi: String,
+    abi: &str,
     method: &str,
     params: &str,
     keys: Option<String>,
     lifetime: u32,
     is_raw: bool,
     output: Option<&str>,
+    timestamp: Option<u64>,
 ) -> Result<(), String> {
     let ton = create_client_local()?;
 
     let ton_addr = load_ton_address(addr, &config)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
 
-    let abi = load_abi(&abi)?;
+    let abi = load_abi(abi, config).await?;
 
-    let expire_at = lifetime + now()?;
+    let expire_at = lifetime + timestamp.clone().map(|millis| (millis / 1000) as u32).unwrap_or(now()?);
     let header = FunctionHeader {
         expire: Some(expire_at),
+        time: timestamp,
         ..Default::default()
     };
 

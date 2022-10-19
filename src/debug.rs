@@ -10,19 +10,26 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::{print_args, VERBOSE_MODE, abi_from_matches_or_config, load_params, load_debug_info, wc_from_matches_or_config};
+use crate::{contract_data_from_matches_or_config_alias, FullConfig, print_args,
+            unpack_alternative_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc, TonClient, query_account_field, query_with_limit, create_client_verbose};
+use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
+                     TonClient, query_account_field, query_with_limit, create_client_verbose,
+                     abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config,
+                     TEST_MAX_LEVEL, MAX_LEVEL};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
 use std::io::{Write, BufRead};
 use std::collections::{HashSet, HashMap};
-use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction, MsgAddressInt, CurrencyCollection, GasLimitsPrices, ConfigParamEnum};
+use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction,
+                MsgAddressInt, CurrencyCollection, GasLimitsPrices, ConfigParamEnum};
 use ton_types::{UInt256, HashmapE, Cell, AccountId};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
-use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TransactionExecutor};
+use ton_executor::{
+    BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TransactionExecutor
+};
 use std::sync::{Arc, atomic::AtomicU64};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDirection};
 use crate::crypto::load_keypair;
@@ -42,6 +49,7 @@ const TRANSACTION_QUANTITY: u32 = 10;
 
 pub struct DebugLogger {
     tvm_trace: String,
+    ordinary_log_level: log::LevelFilter,
 }
 
 impl DebugLogger {
@@ -53,6 +61,14 @@ impl DebugLogger {
 
         DebugLogger {
             tvm_trace: path,
+            ordinary_log_level: if std::env::var("RUST_LOG")
+                .unwrap_or_default()
+                .eq_ignore_ascii_case("debug")
+            {
+                TEST_MAX_LEVEL
+            } else {
+                MAX_LEVEL
+            },
         }
     }
 }
@@ -82,11 +98,15 @@ impl log::Log for DebugLogger {
                 }
             }
             _ => {
-                match record.level() {
-                    log::Level::Error | log::Level::Warn => {
-                        eprintln!("{}", record.args());
+                if record.level() <= self.ordinary_log_level {
+                    match record.level() {
+                        log::Level::Error | log::Level::Warn => {
+                            eprintln!("{}", record.args());
+                        }
+                        _ => {
+                            println!("{}", record.args());
+                        }
                     }
-                    _ => {}
                 }
             }
         }
@@ -109,29 +129,29 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .short("-d");
 
     let address_arg = Arg::with_name("ADDRESS")
-        .required(true)
+        .long("--addr")
         .takes_value(true)
-        .help("Contract address or path the file with saved contract state if corresponding flag is used.");
+        .help("Contract address or path the file with saved contract state if corresponding flag is used. Can be specified in th config file.");
 
     let method_arg = Arg::with_name("METHOD")
-        .required(true)
+        .long("--method")
+        .short("-m")
         .takes_value(true)
-        .help("Name of the function being called.");
+        .help("Name of the function being called. Can be specified in the config file.");
 
     let params_arg = Arg::with_name("PARAMS")
-        .required(true)
-        .takes_value(true)
-        .help("Function arguments. Can be specified with a filename, which contains json data.");
+        .help("Function arguments. Must be a list of `--name value` pairs, a json string with all arguments or path to the file with parameters. Can be specified in the config file.")
+        .multiple(true);
 
-    let sign_arg = Arg::with_name("SIGN")
-        .long("--sign")
+    let sign_arg = Arg::with_name("KEYS")
+        .long("--keys")
         .takes_value(true)
         .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.");
 
     let abi_arg = Arg::with_name("ABI")
         .long("--abi")
         .takes_value(true)
-        .help("Path to the contract ABI file. Can be specified in the config file.");
+        .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file.");
 
     let decode_abi_arg = Arg::with_name("DECODE_ABI")
         .long("--decode_abi")
@@ -161,13 +181,15 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
     let empty_config_arg = Arg::with_name("EMPTY_CONFIG")
         .help("Replay transaction without full dump of the config contract.")
         .long("--empty_config")
-        .short("-e");
+        .short("-e")
+        .conflicts_with("CONFIG_PATH");
 
     let config_save_path_arg = Arg::with_name("CONFIG_PATH")
         .help("Path to the file with saved config contract transactions. If not set transactions will be fetched to file \"config.txns\".")
         .long("--config")
         .short("-c")
-        .takes_value(true);
+        .takes_value(true)
+        .conflicts_with("EMPTY_CONFIG");
 
     let contract_path_arg = Arg::with_name("CONTRACT_PATH")
         .help("Path to the file with saved target contract transactions. If not set transactions will be fetched to file \"contract.txns\".")
@@ -193,6 +215,11 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .long("--now")
         .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.");
+
+    let ignore_hashes = Arg::with_name("IGNORE_HASHES")
+        .help("Ignore hashes mismatch. This flag must be set while replaying a contract after setcode on the Node SE.")
+        .long("--ignore_hashes")
+        .short("-i");
 
     let msg_cmd = SubCommand::with_name("message")
         .about("Play message locally with trace")
@@ -275,7 +302,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(decode_abi_arg.clone())
             .arg(tx_id_arg.clone())
             .arg(dump_config_arg.clone())
-            .arg(dump_contract_arg.clone()))
+            .arg(dump_contract_arg.clone())
+            .arg(ignore_hashes.clone()))
         .subcommand(SubCommand::with_name("account")
             .about("Loads list of the last transactions for the specified account. User should choose which one to debug.")
             .arg(empty_config_arg.clone())
@@ -287,7 +315,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(decode_abi_arg.clone())
             .arg(address_arg.clone())
             .arg(dump_config_arg.clone())
-            .arg(dump_contract_arg.clone()))
+            .arg(dump_contract_arg.clone())
+            .arg(ignore_hashes.clone()))
         .subcommand(SubCommand::with_name("replay")
             .about("Replay transaction on the saved account state.")
             .arg(output_arg.clone())
@@ -298,7 +327,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(decode_abi_arg.clone())
             .arg(Arg::with_name("UPDATE_STATE")
                 .help("Update state of the contract.")
-                .long("--update_state"))
+                .long("--update")
+                .short("-u"))
             .arg(Arg::with_name("INPUT")
                 .help("Path to the saved account state.")
                 .required(true)
@@ -316,7 +346,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(msg_cmd)
 }
 
-pub async fn debug_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+pub async fn debug_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Result<(), String> {
+    let config = &full_config.config;
     if let Some(matches) = matches.subcommand_matches("transaction") {
         return debug_transaction_command(matches, config, false).await;
     }
@@ -324,10 +355,10 @@ pub async fn debug_command(matches: &ArgMatches<'_>, config: &Config) -> Result<
         return debug_transaction_command(matches, config, true).await;
     }
     if let Some(matches) = matches.subcommand_matches("call") {
-        return debug_call_command(matches, config, false).await;
+        return debug_call_command(matches, full_config, false).await;
     }
     if let Some(matches) = matches.subcommand_matches("run") {
-        return debug_call_command(matches, config, true).await;
+        return debug_call_command(matches, full_config, true).await;
     }
     if let Some(matches) = matches.subcommand_matches("message") {
         return debug_message_command(matches, config).await;
@@ -358,14 +389,19 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         let address = query_address(tx_id.unwrap(), &config).await?;
         (tx_id.unwrap().to_string(), address)
     } else {
-        let address = matches.value_of("ADDRESS");
+        let address =
+            Some(matches.value_of("ADDRESS")
+               .map(|s| s.to_string())
+               .or(config.addr.clone())
+               .ok_or("ADDRESS is not defined. Supply it in the config file or command line."
+                   .to_string())?);
         if !config.is_json {
             print_args!(address, trace_path, config_path, contract_path);
         }
         let address = address.unwrap();
-        let transactions = query_transactions(address, &config).await?;
+        let transactions = query_transactions(&address, &config).await?;
         let tr_id = choose_transaction(transactions)?;
-        (tr_id, address.to_string())
+        (tr_id, address)
     };
 
     let config_path = match config_path {
@@ -376,7 +412,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
             if !config.is_json {
                 println!("Fetching config contract transactions...");
             }
-            fetch(&config.url, CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config, None, true).await?;
+            fetch(config, CONFIG_ADDR, DEFAULT_CONFIG_PATH, is_empty_config, None, true).await?;
             DEFAULT_CONFIG_PATH
         }
     };
@@ -388,7 +424,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
             if !config.is_json {
                 println!("Fetching contract transactions...");
             }
-            fetch(&config.url, &address, DEFAULT_CONTRACT_PATH, false, None, true).await?;
+            fetch(config, &address, DEFAULT_CONTRACT_PATH, false, None, true).await?;
             DEFAULT_CONTRACT_PATH
         }
     };
@@ -416,16 +452,19 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         contract_path,
         config_path,
         &tx_id,
-        false,
         generate_callback(Some(matches), config),
         init_logger,
         dump_mask,
-        if is_empty_config { Some(&config) } else { None },
+        config,
+        is_empty_config,
+        !matches.is_present("IGNORE_HASHES"),
     ).await?;
 
-    decode_messages(tr.out_msgs, load_decode_abi(matches, config)).await?;
+    decode_messages(tr.out_msgs, load_decode_abi(matches, config), config).await?;
     if !config.is_json {
         println!("Log saved to {}.", trace_path);
+    } else {
+        println!("{{}}");
     }
     Ok(())
 }
@@ -511,7 +550,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
 
     match result_trans {
         Ok(result_trans) => {
-            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config)).await?;
+            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config), config).await?;
             if !config.is_json {
                 println!("Execution finished.");
             }
@@ -554,24 +593,27 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: &Config) -> Option<String> 
     }
 }
 
-async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter: bool) -> Result<(), String> {
-    let input = matches.value_of("ADDRESS");
+async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_getter: bool) -> Result<(), String> {
+    let (input, opt_abi, sign) = contract_data_from_matches_or_config_alias(matches, full_config)?;
+    let input = input.as_ref();
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
-    let method = matches.value_of("METHOD");
-    let params = matches.value_of("PARAMS");
-    let sign = matches.value_of("SIGN")
-        .map(|s| s.to_string())
-        .or(config.keys_path.clone());
+    let method = Some(matches.value_of("METHOD").or(full_config.config.method.as_deref())
+        .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
-    let params = Some(load_params(params.unwrap())?);
+    let loaded_abi = load_abi(opt_abi.as_ref().unwrap(), &full_config.config).await?;
+    let params = unpack_alternative_params(
+        matches,
+        opt_abi.as_ref().unwrap(),
+        method.unwrap(),
+        &full_config.config
+    ).await?;
 
-    if !config.is_json {
+    if !full_config.config.is_json {
         print_args!(input, method, params, sign, opt_abi, output);
     }
 
-    let ton_client = create_client(&config)?;  // TODO: create local for boc and tvc
+    let ton_client = create_client(&full_config.config)?;  // TODO: create local for boc and tvc
     let input = input.unwrap();
     let mut account = if is_tvc {
         construct_account_from_tvc(input,
@@ -581,15 +623,12 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         Account::construct_from_file(input)
             .map_err(|e| format!(" failed to load account from the file {}: {}", input, e))?
     } else {
-        let address = load_ton_address(input, &config)?;
+        let address = load_ton_address(input, &full_config.config)?;
         let account = query_account_field(ton_client.clone(), &address, "boc").await?;
         Account::construct_from_base64(&account)
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };
 
-    let abi = std::fs::read_to_string(&opt_abi.clone().unwrap())
-        .map_err(|e| format!("failed to read ABI file: {}", e))?;
-    let abi = load_abi(&abi)?;
     let params = serde_json::from_str(&params.unwrap())
         .map_err(|e| format!("params are not in json format: {}", e))?;
 
@@ -598,7 +637,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
     let now = parse_now(matches)?;
 
     let header = FunctionHeader {
-        expire: Some((now / 1000) as u32 + config.lifetime),
+        expire: Some((now / 1000) as u32 + full_config.config.lifetime),
         time: Some(now),
         ..Default::default()
     };
@@ -608,7 +647,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         header: Some(header)
     };
     let msg_params = ParamsOfEncodeMessage {
-        abi,
+        abi: loaded_abi,
         address: Some(format!("0:{}", "0".repeat(64))),  // TODO: add option or get from input
         call_set: Some(call_set),
         signer: if keys.is_some() {
@@ -650,13 +689,13 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         now,
         now,
         is_getter,
-        config,
+        &full_config.config,
     ).await;
 
     let mut out_res = vec![];
     let msg_string = match trans {
         Ok(trans) => {
-            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, &full_config.config), &full_config.config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -677,14 +716,14 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
             .map_err(|e| format!("Failed to construct account: {}", e))?
             .write_to_file(input)
             .map_err(|e| format!("Failed to dump account: {}", e))?;
-        if !config.is_json {
+        if !full_config.config.is_json {
             println!("{} successfully updated", input);
         }
     }
 
     let print_res = is_getter && !out_res.is_empty();
     if print_res {
-        if !config.is_json {
+        if !full_config.config.is_json {
             print!("Output: ");
         }
         for msg in out_res {
@@ -693,7 +732,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, config: &Config, is_getter
         }
     }
 
-    if !config.is_json {
+    if !full_config.config.is_json {
         println!("{}", msg_string);
         println!("Log saved to {}", trace_path);
     } else if !print_res {
@@ -755,7 +794,7 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
 
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            decode_messages(trans.out_msgs,load_decode_abi(matches, config), config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -788,11 +827,15 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
         .or(load_debug_info(opt_abi.as_ref().unwrap()));
-    let params = matches.value_of("PARAMS");
-    let sign = matches.value_of("SIGN")
+    let sign = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
-    let params = Some(load_params(params.unwrap())?);
+    let params = unpack_alternative_params(
+        matches,
+        opt_abi.as_ref().unwrap(),
+        "constructor",
+        config
+    ).await?;
     let wc = Some(wc_from_matches_or_config(matches, config)?);
     if !config.is_json {
         print_args!(tvc, params, sign, opt_abi, output, debug_info);
@@ -803,7 +846,8 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
         opt_abi.as_ref().unwrap(),
         params.as_ref().unwrap(),
         sign,
-        wc.unwrap()
+        wc.unwrap(),
+        config
     ).await?;
     let init_balance = matches.is_present("INIT_BALANCE");
     let ton_client = create_client(config)?;
@@ -859,7 +903,7 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
 
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config)).await?;
+            decode_messages(trans.out_msgs,load_decode_abi(matches, config), config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -876,7 +920,7 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     Ok(())
 }
 
-async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<Vec<Value>, String> {
+async fn decode_messages(msgs: OutMessages, abi: Option<String>, config: &Config) -> Result<Vec<Value>, String> {
     if !msgs.is_empty() {
         log::debug!(target: "executor", "Output messages:\n----------------");
     }
@@ -885,7 +929,7 @@ async fn decode_messages(msgs: OutMessages, abi: Option<String>) -> Result<Vec<V
 
     let mut res = vec![];
     for msg in msgs {
-        let mut ser_msg = serialize_msg(&msg.0, abi.clone()).await
+        let mut ser_msg = serialize_msg(&msg.0, abi.clone(), config).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
         let msg_str = base64::encode(
             &ton_types::cells_serialization::serialize_toc(
@@ -1048,7 +1092,7 @@ pub async fn execute_debug(
     } else {
         bc_config
     };
-
+    
     let executor = Box::new(
         OrdinaryTransactionExecutor::new(
             bc_config.clone(),

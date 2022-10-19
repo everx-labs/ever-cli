@@ -12,10 +12,16 @@
  */
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use clap::ArgMatches;
 use lazy_static::lazy_static;
 use regex::Regex;
+use crate::global_config_path;
+use crate::helpers::default_config_name;
 
-const TESTNET: &str = "net.ton.dev";
+const TESTNET: &str = "net.evercloud.dev";
+const MAINNET: &str = "main.evercloud.dev";
+pub const LOCALNET: &str = "http://127.0.0.1/";
+
 fn default_url() -> String {
     TESTNET.to_string()
 }
@@ -49,12 +55,24 @@ fn default_lifetime() -> u32 {
 }
 
 fn default_endpoints() -> Vec<String> {
-    vec!()
+    vec![]
+}
+
+fn default_aliases() -> BTreeMap<String, ContractData> {
+    BTreeMap::new()
+}
+
+fn default_endpoints_map() -> BTreeMap<String, Vec<String>> {
+    FullConfig::default_map()
 }
 
 fn default_trace() -> String { "None".to_string() }
 
-#[derive(Serialize, Deserialize, Clone)]
+fn default_config() -> Config {
+    Config::new()
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Config {
     #[serde(default = "default_url")]
     pub url: String,
@@ -91,6 +109,12 @@ pub struct Config {
     pub async_call: bool,
     #[serde(default = "default_trace")]
     pub debug_fail: String,
+
+    // SDK authentication parameters
+    pub project_id: Option<String>,
+    pub access_key: Option<String>,
+    ////////////////////////////////
+
     #[serde(default = "default_endpoints")]
     pub endpoints: Vec<String>,
 }
@@ -104,14 +128,60 @@ pub struct ContractData {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct FullConfig {
+    #[serde(default = "default_config")]
     pub config: Config,
-    endpoints_map: BTreeMap<String, Vec<String>>,
+    #[serde(default = "default_endpoints_map")]
+    pub endpoints_map: BTreeMap<String, Vec<String>>,
+    #[serde(default = "default_aliases")]
     pub aliases: BTreeMap<String, ContractData>,
+    #[serde(default = "default_config_name")]
     pub path: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
+        Config {
+            url: default_url(),
+            wc: default_wc(),
+            addr: None,
+            method: None,
+            parameters: None,
+            wallet: None,
+            pubkey: None,
+            abi_path: None,
+            keys_path: None,
+            retries: default_retries(),
+            timeout: default_timeout(),
+            message_processing_timeout: default_timeout(),
+            is_json: default_false(),
+            depool_fee: default_depool_fee(),
+            lifetime: default_lifetime(),
+            no_answer: default_true(),
+            balance_in_tons: default_false(),
+            local_run: default_false(),
+            async_call: default_false(),
+            endpoints: default_endpoints(),
+            out_of_sync_threshold: default_out_of_sync(),
+            debug_fail: default_trace(),
+            project_id: None,
+            access_key: None,
+        }
+    }
+}
+
+impl Default for FullConfig {
+    fn default() -> Self {
+        FullConfig {
+            config: default_config(),
+            endpoints_map: default_endpoints_map(),
+            aliases: default_aliases(),
+            path: default_config_name(),
+        }
+    }
+}
+
+impl Config {
+    fn new() -> Self {
         let url = default_url();
         let endpoints = FullConfig::default_map()[&url].clone();
         Config {
@@ -137,95 +207,105 @@ impl Default for Config {
             endpoints,
             out_of_sync_threshold: default_out_of_sync(),
             debug_fail: default_trace(),
+            project_id: None,
+            access_key: None,
         }
-    }
-}
-
-impl Config {
-    pub fn from_file(path: &str) -> Option<Self> {
-        let conf_str = std::fs::read_to_string(path).ok()?;
-        let config: serde_json::error::Result<FullConfig>  = serde_json::from_str(&conf_str);
-        config.map(|c| c.config).or_else(|_| serde_json::from_str(&conf_str)).ok()
-    }
-
-    pub fn to_file(&self, path: &str) -> Result<(), String> {
-        let mut fconf= FullConfig::from_file(path);
-        fconf.config = self.clone();
-        fconf.to_file(path)
     }
 }
 
 
 lazy_static! {
     static ref MAIN_ENDPOINTS: Vec<String> = vec![
-        "https://eri01.main.everos.dev".to_string(),
-        "https://gra01.main.everos.dev".to_string(),
-        "https://gra02.main.everos.dev".to_string(),
-        "https://lim01.main.everos.dev".to_string(),
-        "https://rbx01.main.everos.dev".to_string(),
+        "https://mainnet.evercloud.dev".to_string()
     ];
 
     static ref NET_ENDPOINTS: Vec<String> = vec![
-        "https://eri01.net.everos.dev".to_string(),
-        "https://rbx01.net.everos.dev".to_string(),
-        "https://gra01.net.everos.dev".to_string(),
+        "https://devnet.evercloud.dev".to_string()
     ];
 
     static ref SE_ENDPOINTS: Vec<String> = vec![
-        "http://0.0.0.0/".to_string(),
-        "http://127.0.0.1/".to_string(),
-        "http://localhost/".to_string(),
+        "http://0.0.0.0".to_string(),
+        "http://127.0.0.1".to_string(),
+        "http://localhost".to_string(),
     ];
 }
 
 pub fn resolve_net_name(url: &str) -> Option<String> {
-    let url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.ton\.dev)\s*")
+    let url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.evercloud\.dev)\s*")
         .expect("Regex compilation error");
-    if let Some(captures) = url_regex.captures(url) {
-        let net = captures.name("net")
-            .expect("Unexpected: capture <net> was not found")
-            .as_str();
-        if FullConfig::default_map().contains_key(net) {
-            return Some(net.to_owned());
+    let ton_url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.ton\.dev)\s*")
+        .expect("Regex compilation error");
+    let everos_url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.everos\.dev)\s*")
+        .expect("Regex compilation error");
+    let mut net = None;
+    for regex in [url_regex, ton_url_regex, everos_url_regex] {
+        if let Some(captures) = regex.captures(url) {
+            net = Some(captures.name("net")
+                .expect("Unexpected: capture <net> was not found")
+                .as_str()
+                .replace("ton", "evercloud")
+                .replace("everos", "evercloud"));
         }
+    }
+    if let Some(net) = net {
+        if FullConfig::default_map().contains_key(&net) {
+            return Some(net);
+        }
+    }
+    if url == "main" {
+        return Some(MAINNET.to_string());
+    }
+    if url == "dev" || url == "devnet" {
+        return Some(TESTNET.to_string());
     }
     if url.contains("127.0.0.1") ||
         url.contains("0.0.0.0") ||
         url.contains("localhost") {
-        return Some("http://127.0.0.1/".to_string());
+        return Some(LOCALNET.to_string());
     }
     None
 }
 
 impl FullConfig {
-    pub fn new(path: String) -> Self {
+    fn new(config: Config,path: String) -> Self {
         FullConfig {
-            config: Config::default(),
+            config,
             endpoints_map: Self::default_map(),
             aliases: BTreeMap::new(),
             path,
         }
     }
-    pub fn default_map() -> BTreeMap<String, Vec<String>> {
-        [("main.ton.dev".to_owned(), MAIN_ENDPOINTS.to_owned()),
-            ("net.ton.dev".to_owned(), NET_ENDPOINTS.to_owned()),
-            ("http://127.0.0.1/".to_owned(), SE_ENDPOINTS.to_owned()),
-        ].iter().cloned().collect()
-    }
 
-    pub fn get_map(path: &str) -> BTreeMap<String, Vec<String>> {
-        FullConfig::from_file(path).endpoints_map
+    pub fn default_map() -> BTreeMap<String, Vec<String>> {
+        [(MAINNET.to_owned(), MAIN_ENDPOINTS.to_owned()),
+            (TESTNET.to_owned(), NET_ENDPOINTS.to_owned()),
+            (LOCALNET.to_owned(), SE_ENDPOINTS.to_owned()),
+        ].iter().cloned().collect()
     }
 
     pub fn from_file(path: &str) -> FullConfig {
         let conf_str = std::fs::read_to_string(path).ok().unwrap_or_default();
-        serde_json::from_str(&conf_str).ok().unwrap_or(FullConfig::new(path.to_string()))
+        let config: serde_json::error::Result<Config>  = serde_json::from_str(&conf_str);
+        if config.is_ok() && config.as_ref().unwrap() != &Config::default() {
+            return FullConfig::new(config.unwrap(), path.to_string());
+        }
+        let full_config: serde_json::error::Result<FullConfig> = serde_json::from_str(&conf_str);
+        if full_config.is_err() {
+            let conf_str = std::fs::read_to_string(&global_config_path()).ok()
+                .unwrap_or_default();
+            let mut global_config = serde_json::from_str::<FullConfig>(&conf_str)
+                .unwrap_or(FullConfig::default());
+            global_config.path = path.to_string();
+            global_config
+        } else {
+            full_config.unwrap()
+        }
     }
 
     pub fn to_file(&self, path: &str) -> Result<(), String>{
         let conf_str = serde_json::to_string_pretty(self)
             .map_err(|_| "failed to serialize config object".to_string())?;
-        std::fs::write(path, conf_str).map_err(|e| format!("failed to write config file: {}", e))?;
+        std::fs::write(path, conf_str).map_err(|e| format!("failed to write config file {}: {}", path, e))?;
         Ok(())
     }
 
@@ -291,71 +371,92 @@ impl FullConfig {
 }
 
 pub fn clear_config(
-    mut config: Config,
-    path: &str,
-    url: bool,
-    addr: bool,
-    wallet: bool,
-    abi: bool,
-    keys: bool,
-    wc: bool,
-    retries: bool,
-    timeout: bool,
-    depool_fee: bool,
-    lifetime: bool,
-    no_answer: bool,
-    balance_in_tons: bool,
-    local_run: bool,
+    full_config: &mut FullConfig,
+    matches: &ArgMatches,
+    is_json: bool,
 ) -> Result<(), String> {
-    let is_json = config.is_json;
-    if url {
+    let mut config = &mut full_config.config;
+    let is_json = config.is_json || is_json;
+    if matches.is_present("URL") {
         let url = default_url();
         config.endpoints = FullConfig::default_map()[&url].clone();
         config.url = url;
     }
-    if addr {
+    if matches.is_present("ADDR") {
         config.addr = None;
     }
-    if wallet {
+    if matches.is_present("WALLET") {
         config.wallet = None;
     }
-    if abi {
+    if matches.is_present("ABI") {
         config.abi_path = None;
     }
-    if keys {
+    if matches.is_present("KEYS") {
         config.keys_path = None;
     }
-    if retries {
+    if matches.is_present("METHOD") {
+        config.method = None;
+    }
+    if matches.is_present("PARAMETERS") {
+        config.parameters = None;
+    }
+    if matches.is_present("PUBKEY") {
+        config.pubkey = None;
+    }
+    if matches.is_present("RETRIES") {
         config.retries = default_retries();
     }
-    if lifetime {
+    if matches.is_present("LIFETIME") {
         config.lifetime = default_lifetime();
     }
-    if timeout {
+    if matches.is_present("TIMEOUT") {
         config.timeout = default_timeout();
     }
-    if wc {
+    if matches.is_present("MSG_TIMEOUT") {
+        config.timeout = default_timeout();
+    }
+    if matches.is_present("WC") {
         config.wc = default_wc();
     }
-    if depool_fee {
+    if matches.is_present("DEPOOL_FEE") {
         config.depool_fee = default_depool_fee();
     }
-    if no_answer {
+    if matches.is_present("NO_ANSWER") {
         config.no_answer = default_true();
     }
-    if balance_in_tons {
+    if matches.is_present("BALANCE_IN_TONS") {
         config.balance_in_tons = default_false();
     }
-    if local_run {
+    if matches.is_present("LOCAL_RUN") {
         config.local_run = default_false();
     }
-
-    if !(url || addr || wallet || abi || keys || retries || timeout || wc || depool_fee || lifetime
-        || no_answer || balance_in_tons || local_run) {
-        config = Config::default();
+    if matches.is_present("ASYNC_CALL") {
+        config.async_call = default_false();
+    }
+    if matches.is_present("DEBUG_FAIL") {
+        config.debug_fail = default_trace();
+    }
+    if matches.is_present("OUT_OF_SYNC") {
+        config.out_of_sync_threshold = default_out_of_sync();
+    }
+    if matches.is_present("IS_JSON") {
+        config.is_json = default_false();
+    }
+    if matches.is_present("PROJECT_ID") {
+        config.project_id = None;
+        if config.access_key.is_some() && !config.is_json {
+            println!("Warning: You have access_key set without project_id. It has no sense in case of authentication.");
+        }
+    }
+    if matches.is_present("ACCESS_KEY") {
+        config.access_key = None;
     }
 
-    config.to_file(path)?;
+    if matches.args.is_empty() {
+        *config = Config::new();
+    }
+
+    full_config.to_file(&full_config.path)?;
     if !is_json {
         println!("Succeeded.");
     }
@@ -363,104 +464,85 @@ pub fn clear_config(
 }
 
 pub fn set_config(
-    mut config: Config,
-    path: &str,
-    url: Option<&str>,
-    addr: Option<&str>,
-    wallet: Option<&str>,
-    pubkey: Option<&str>,
-    abi: Option<&str>,
-    keys: Option<&str>,
-    wc: Option<&str>,
-    retries: Option<&str>,
-    timeout: Option<&str>,
-    message_processing_timeout: Option<&str>,
-    depool_fee: Option<&str>,
-    lifetime:  Option<&str>,
-    no_answer:  Option<&str>,
-    balance_in_tons: Option<&str>,
-    local_run: Option<&str>,
-    async_call: Option<&str>,
-    out_of_sync_threshold: Option<&str>,
-    debug_fail: Option<&str>,
-    is_json: Option<&str>,
-    method: Option<&str>,
-    parameters: Option<&str>,
+    full_config: &mut FullConfig,
+    matches: &ArgMatches,
+    is_json: bool,
 ) -> Result<(), String> {
-    if let Some(s) = url {
+    let mut config= &mut full_config.config;
+    if let Some(s) = matches.value_of("URL") {
         let resolved_url = resolve_net_name(s).unwrap_or(s.to_owned());
         let empty : Vec<String> = Vec::new();
-        config.endpoints = FullConfig::get_map(path).get(&resolved_url).unwrap_or(&empty).clone();
+        config.endpoints = full_config.endpoints_map.get(&resolved_url).unwrap_or(&empty).clone();
         config.url = resolved_url;
     }
-    if let Some(s) = addr {
+    if let Some(s) = matches.value_of("ADDR") {
         config.addr = Some(s.to_string());
     }
-    if let Some(method) = method {
+    if let Some(method) = matches.value_of("METHOD") {
         config.method = Some(method.to_string());
     }
-    if let Some(parameters) = parameters {
+    if let Some(parameters) = matches.value_of("PARAMETERS") {
         config.parameters = Some(parameters.to_string());
     }
-    if let Some(s) = wallet {
+    if let Some(s) = matches.value_of("WALLET") {
         config.wallet = Some(s.to_string());
     }
-    if let Some(s) = pubkey {
+    if let Some(s) = matches.value_of("PUBKEY") {
         config.pubkey = Some(s.to_string());
     }
-    if let Some(s) = abi {
+    if let Some(s) = matches.value_of("ABI") {
         config.abi_path = Some(s.to_string());
     }
-    if let Some(s) = keys {
+    if let Some(s) = matches.value_of("KEYS") {
         config.keys_path = Some(s.to_string());
     }
-    if let Some(retries) = retries {
+    if let Some(retries) = matches.value_of("RETRIES") {
         config.retries = u8::from_str_radix(retries, 10)
             .map_err(|e| format!(r#"failed to parse "retries": {}"#, e))?;
     }
-    if let Some(lifetime) = lifetime {
+    if let Some(lifetime) = matches.value_of("LIFETIME") {
         config.lifetime = u32::from_str_radix(lifetime, 10)
             .map_err(|e| format!(r#"failed to parse "lifetime": {}"#, e))?;
         if config.lifetime < 2 * config.out_of_sync_threshold {
             config.out_of_sync_threshold = config.lifetime >> 1;
         }
     }
-    if let Some(timeout) = timeout {
+    if let Some(timeout) = matches.value_of("TIMEOUT") {
         config.timeout = u32::from_str_radix(timeout, 10)
             .map_err(|e| format!(r#"failed to parse "timeout": {}"#, e))?;
     }
-    if let Some(message_processing_timeout) = message_processing_timeout {
+    if let Some(message_processing_timeout) = matches.value_of("MSG_TIMEOUT") {
         config.message_processing_timeout = u32::from_str_radix(message_processing_timeout, 10)
             .map_err(|e| format!(r#"failed to parse "message_processing_timeout": {}"#, e))?;
     }
-    if let Some(wc) = wc {
+    if let Some(wc) = matches.value_of("WC") {
         config.wc = i32::from_str_radix(wc, 10)
             .map_err(|e| format!(r#"failed to parse "workchain id": {}"#, e))?;
     }
-    if let Some(depool_fee) = depool_fee {
+    if let Some(depool_fee) = matches.value_of("DEPOOL_FEE") {
         config.depool_fee = depool_fee.parse::<f32>()
             .map_err(|e| format!(r#"failed to parse "depool_fee": {}"#, e))?;
+        if config.depool_fee < 0.5 {
+            return Err("Minimal value for depool fee is 0.5".to_string());
+        }
     }
-    if config.depool_fee < 0.5 {
-        return Err("Minimal value for depool fee is 0.5".to_string());
-    }
-    if let Some(no_answer) = no_answer {
+    if let Some(no_answer) = matches.value_of("NO_ANSWER") {
         config.no_answer = no_answer.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "no_answer": {}"#, e))?;
     }
-    if let Some(balance_in_tons) = balance_in_tons {
+    if let Some(balance_in_tons) = matches.value_of("BALANCE_IN_TONS") {
         config.balance_in_tons = balance_in_tons.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "balance_in_tons": {}"#, e))?;
     }
-    if let Some(local_run) = local_run {
+    if let Some(local_run) = matches.value_of("LOCAL_RUN") {
         config.local_run = local_run.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "local_run": {}"#, e))?;
     }
-    if let Some(async_call) = async_call {
+    if let Some(async_call) = matches.value_of("ASYNC_CALL") {
         config.async_call = async_call.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "async_call": {}"#, e))?;
     }
-    if let Some(out_of_sync_threshold) = out_of_sync_threshold {
+    if let Some(out_of_sync_threshold) = matches.value_of("OUT_OF_SYNC") {
         let time = u32::from_str_radix(out_of_sync_threshold, 10)
             .map_err(|e| format!(r#"failed to parse "out_of_sync_threshold": {}"#, e))?;
         if time * 2 > config.lifetime {
@@ -468,7 +550,7 @@ pub fn set_config(
         }
         config.out_of_sync_threshold = time;
     }
-    if let Some(debug_fail) = debug_fail {
+    if let Some(debug_fail) = matches.value_of("DEBUG_FAIL") {
         let debug_fail = debug_fail.to_lowercase();
         config.debug_fail = if debug_fail == "full" {
             "Full".to_string()
@@ -480,13 +562,22 @@ pub fn set_config(
             return Err(r#"Wrong value for "debug_fail" config."#.to_string())
         };
     }
-    if let Some(is_json) = is_json {
+    if let Some(is_json) = matches.value_of("IS_JSON") {
         config.is_json = is_json.parse::<bool>()
             .map_err(|e| format!(r#"failed to parse "is_json": {}"#, e))?;
     }
+    if let Some(s) = matches.value_of("PROJECT_ID") {
+        config.project_id = Some(s.to_string());
+    }
+    if let Some(s) = matches.value_of("ACCESS_KEY") {
+        config.access_key = Some(s.to_string());
+        if config.project_id.is_none() && !(config.is_json || is_json) {
+            println!("Warning: You have access_key set without project_id. It has no sense in case of authentication.");
+        }
+    }
 
-    config.to_file(path)?;
-    if !config.is_json {
+    full_config.to_file(&full_config.path)?;
+    if !(full_config.config.is_json || is_json) {
         println!("Succeeded.");
     }
     Ok(())
@@ -495,7 +586,7 @@ pub fn set_config(
 
 #[cfg(test)]
 mod tests {
-    use super::{resolve_net_name};
+    use super::{resolve_net_name, LOCALNET, TESTNET, MAINNET};
 
     #[test]
     fn test_endpoints_resolver() {
@@ -504,28 +595,37 @@ mod tests {
         assert_eq!(resolve_net_name("https://rustnet.ton.dev"), None);
         assert_eq!(resolve_net_name("rustnet.ton.com"), None);
         assert_eq!(resolve_net_name("https://example.com"), None);
-        assert_eq!(resolve_net_name("http://localhost"), Some("http://127.0.0.1/".to_owned()));
-        assert_eq!(resolve_net_name("https://localhost"), Some("http://127.0.0.1/".to_owned()));
-        assert_eq!(resolve_net_name("localhost"), Some("http://127.0.0.1/".to_owned()));
-        assert_eq!(resolve_net_name("http://127.0.0.1"), Some("http://127.0.0.1/".to_owned()));
-        assert_eq!(resolve_net_name("https://127.0.0.1"), Some("http://127.0.0.1/".to_owned()));
+        assert_eq!(resolve_net_name("http://localhost"), Some(LOCALNET.to_owned()));
+        assert_eq!(resolve_net_name("https://localhost"), Some(LOCALNET.to_owned()));
+        assert_eq!(resolve_net_name("localhost"), Some(LOCALNET.to_owned()));
+        assert_eq!(resolve_net_name("http://127.0.0.1"), Some(LOCALNET.to_owned()));
+        assert_eq!(resolve_net_name("https://127.0.0.1"), Some(LOCALNET.to_owned()));
         assert_eq!(resolve_net_name("https://127.0.0.2"), None);
         assert_eq!(resolve_net_name("https://127.1.0.1"), None);
         assert_eq!(resolve_net_name("https://0.0.0.1"), None);
         assert_eq!(resolve_net_name("https://1.0.0.0"), None);
 
-        assert_eq!(resolve_net_name("https://main.ton.dev"), Some("main.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("http://main.ton.dev"), Some("main.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("  http://main.ton.dev  "), Some("main.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("  https://main.ton.dev  "), Some("main.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("main.ton.dev"), Some("main.ton.dev".to_owned()));
+        assert_eq!(resolve_net_name("https://main.ton.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("https://main.everos.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("https://main.evercloud.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("http://main.ton.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("  http://main.ton.dev  "), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("  https://main.ton.dev  "), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("main.ton.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("main.everos.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("main.evercloud.dev"), Some(MAINNET.to_owned()));
+        assert_eq!(resolve_net_name("main"), Some(MAINNET.to_owned()));
         assert_eq!(resolve_net_name("main.ton.com"), None);
 
-        assert_eq!(resolve_net_name("https://net.ton.dev"), Some("net.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("http://net.ton.dev"), Some("net.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("  http://net.ton.dev  "), Some("net.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("  https://net.ton.dev  "), Some("net.ton.dev".to_owned()));
-        assert_eq!(resolve_net_name("net.ton.dev"), Some("net.ton.dev".to_owned()));
+        assert_eq!(resolve_net_name("https://net.ton.dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("https://net.everos.dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("https://net.evercloud.dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("http://net.ton.dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("  http://net.ton.dev  "), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("  https://net.ton.dev  "), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("net.ton.dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("dev"), Some(TESTNET.to_owned()));
+        assert_eq!(resolve_net_name("devnet"), Some(TESTNET.to_owned()));
         assert_eq!(resolve_net_name("net.ton.com"), None);
     }
 }

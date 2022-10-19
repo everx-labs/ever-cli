@@ -2,9 +2,9 @@
 authors = [ 'TON DEV SOLUTIONS LTD <support@tonlabs.io>' ]
 build = 'build.rs'
 description = 'command line tool for TON blockchain'
-documentation = 'https://docs.ton.dev'
+documentation = 'https://docs.everos.dev/'
 edition = '2018'
-homepage = 'https://ton.dev'
+homepage = 'https://docs.everos.dev/'
 keywords = [
     'TON',
     'SDK',
@@ -16,7 +16,7 @@ license = 'Apache-2.0'
 name = 'tonos-cli'
 readme = 'README.md'
 repository = 'https://github.com/tonlabs/tonos-cli'
-version = '0.27.32'
+version = '0.28.21'
 
 [dependencies]
 async-trait = '0.1.42'
@@ -43,15 +43,16 @@ tokio-retry = '0.3'
 log = { features = [ 'std' ], version = '0.4.11' }
 serde = { features = [ 'derive' ], version = '1.0' }
 tokio = { default-features = false, features = [ 'full' ], version = '1' }
-ton_abi = { git = 'https://github.com/tonlabs/ton-labs-abi.git', tag = '2.3.1' }
-ton_block = { git = 'https://github.com/tonlabs/ton-labs-block.git', tag = '1.8.0' }
-ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.37.0' }
-ton_executor = { git = 'https://github.com/tonlabs/ton-labs-executor.git', tag = '1.15.78' }
-ton_labs_assembler = { git = 'https://github.com/tonlabs/ton-labs-assembler.git', tag = '1.2.44' }
-ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.37.0' }
-ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.11.3' }
-ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.40' }
-ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git', tag = '0.7.24' }
+url = '2.3.1'
+ton_abi = { git = 'https://github.com/tonlabs/ton-labs-abi.git', tag = '2.3.7' }
+ton_block = { git = 'https://github.com/tonlabs/ton-labs-block.git', tag = '1.8.3' }
+ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.38.0' }
+ton_executor = { git = 'https://github.com/tonlabs/ton-labs-executor.git', tag = '1.15.89' }
+ton_labs_assembler = { git = 'https://github.com/tonlabs/ton-labs-assembler.git', tag = '1.2.48' }
+ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.38.0' }
+ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.11.4' }
+ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.44' }
+ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git', tag = '0.7.33' }
 sold = { path = '../sol2tvm/pub/sold' }
 
 [dev-dependencies]

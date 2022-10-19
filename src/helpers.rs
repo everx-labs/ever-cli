@@ -10,29 +10,55 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::config::Config;
+use std::env;
+use std::path::PathBuf;
+use crate::config::{Config, LOCALNET};
 
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use ton_client::abi::{
     Abi, AbiConfig, AbiContract, DecodedMessageBody, DeploySet, ParamsOfDecodeMessageBody,
     ParamsOfEncodeMessage, Signer,
 };
 use ton_client::crypto::{CryptoConfig, KeyPair};
 use ton_client::error::ClientError;
-use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection};
+use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection, NetworkConfig};
 use ton_client::{ClientConfig, ClientContext};
 use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
 use std::str::FromStr;
+use clap::ArgMatches;
 use serde_json::Value;
+use ton_client::abi::Abi::Contract;
+use url::Url;
+use crate::call::parse_params;
+use crate::{FullConfig, resolve_net_name};
 
-const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
-const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
+pub const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
+pub const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
 
 pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
 
 pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
+const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
+const GLOBAL_CONFIG_PATH: &str = ".tonos-cli.global.conf.json";
+
+pub fn default_config_name() -> String {
+    env::current_dir()
+        .map(|dir| {
+            dir.join(PathBuf::from(CONFIG_BASE_NAME)).to_str().unwrap().to_string()
+        })
+        .unwrap_or(CONFIG_BASE_NAME.to_string())
+}
+
+pub fn global_config_path() -> String {
+    env::current_exe()
+        .map(|mut dir| {
+            dir.set_file_name(GLOBAL_CONFIG_PATH);
+            dir.to_str().unwrap().to_string()
+        })
+        .unwrap_or(GLOBAL_CONFIG_PATH.to_string())
+}
 
 struct SimpleLogger;
 
@@ -94,11 +120,47 @@ pub fn create_client_local() -> Result<TonClient, String> {
     Ok(Arc::new(cli))
 }
 
+pub fn get_server_endpoints(config: &Config) -> Vec<String> {
+    let mut cur_endpoints = match config.endpoints.len() {
+        0 => vec![config.url.clone()],
+        _ => config.endpoints.clone(),
+    };
+    cur_endpoints.iter_mut().map(|end| {
+            let mut end = end.trim_end_matches('/').to_owned();
+        if config.project_id.is_some() {
+            end.push_str("/");
+            end.push_str(&config.project_id.clone().unwrap());
+        }
+        end.to_owned()
+    }).collect::<Vec<String>>()
+}
+
+pub fn get_network_context(config: &Config) -> Result<Arc<ClientContext>, failure::Error> {
+    let endpoints = get_server_endpoints(config);
+    Ok(Arc::new(
+        ClientContext::new(ClientConfig {
+            network: NetworkConfig {
+                sending_endpoint_count: endpoints.len() as u8,
+                endpoints: Some(endpoints),
+                access_key: config.access_key.clone(),
+                ..Default::default()
+            },
+            ..Default::default()
+        })?
+    ))
+}
+
 pub fn create_client(config: &Config) -> Result<TonClient, String> {
+    let modified_endpoints = get_server_endpoints(config);
     if !config.is_json {
         println!("Connecting to:\n\tUrl: {}", config.url);
-        println!("\tEndpoints: {:?}\n", config.endpoints);
+        println!("\tEndpoints: {:?}\n", modified_endpoints);
     }
+    let endpoints_cnt = if resolve_net_name(&config.url).unwrap_or(config.url.clone()).eq(LOCALNET) {
+        1_u8
+    } else {
+        modified_endpoints.len() as u8
+    };
     let cli_conf = ClientConfig {
         abi: AbiConfig {
             workchain: config.wc,
@@ -110,19 +172,19 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
             mnemonic_word_count: WORD_COUNT,
             hdkey_derivation_path: HD_PATH.to_string(),
         },
-        network: ton_client::net::NetworkConfig {
+        network: NetworkConfig {
             server_address: Some(config.url.to_owned()),
-            endpoints: if config.endpoints.is_empty() {
+            sending_endpoint_count: endpoints_cnt,
+            endpoints: if modified_endpoints.is_empty() {
                     None
                 } else {
-                    Some(config.endpoints.to_owned())
+                    Some(modified_endpoints)
                 },
-            // network_retries_count: 3,
             message_retries_count: config.retries as i8,
             message_processing_timeout: 30000,
             wait_for_timeout: config.timeout,
             out_of_sync_threshold: config.out_of_sync_threshold * 1000,
-            // max_reconnect_timeout: 1000,
+            access_key: config.access_key.clone(),
             ..Default::default()
         },
         ..Default::default()
@@ -229,11 +291,13 @@ pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> 
 
 pub async fn decode_msg_body(
     ton: TonClient,
-    abi_str: &str,
+    abi_path: &str,
     body: &str,
     is_internal: bool,
+    config: &Config,
 ) -> Result<DecodedMessageBody, String> {
-    let abi = load_abi(abi_str)?;
+
+    let abi = load_abi(abi_path, config).await?;
     ton_client::abi::decode_message_body(
         ton,
         ParamsOfDecodeMessageBody {
@@ -247,12 +311,50 @@ pub async fn decode_msg_body(
     .map_err(|e| format!("failed to decode body: {}", e))
 }
 
-pub fn load_abi(abi: &str) -> Result<Abi, String> {
-    Ok(Abi::Contract(
-        serde_json::from_str::<AbiContract>(abi)
+pub async fn load_abi_str(abi_path: &str, config: &Config) -> Result<String, String> {
+    let abi_from_json = serde_json::from_str::<AbiContract>(abi_path);
+    if abi_from_json.is_ok() {
+        return Ok(abi_path.to_string());
+    }
+    if Url::parse(abi_path).is_ok() {
+        let abi_bytes = load_file_with_url(abi_path, config.timeout as u64).await?;
+        return Ok(String::from_utf8(abi_bytes)
+            .map_err(|e| format!("Downloaded string contains not valid UTF8 characters: {}", e))?);
+    }
+    Ok(std::fs::read_to_string(&abi_path)
+        .map_err(|e| format!("failed to read ABI file: {}", e))?)
+}
+
+pub async fn load_abi(abi_path: &str, config: &Config) -> Result<Abi, String> {
+    let abi_str = load_abi_str(abi_path, config).await?;
+    Ok(Contract(serde_json::from_str::<AbiContract>(&abi_str)
             .map_err(|e| format!("ABI is not a valid json: {}", e))?,
     ))
 }
+
+pub async fn load_ton_abi(abi_path: &str, config: &Config) -> Result<ton_abi::Contract, String> {
+    let abi_str = load_abi_str(abi_path, config).await?;
+    Ok(ton_abi::Contract::load(abi_str.as_bytes())
+        .map_err(|e| format!("Failed to load ABI: {}", e))?)
+}
+
+pub async fn load_file_with_url(url: &str, timeout: u64) -> Result<Vec<u8>, String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(timeout))
+        .build()
+        .map_err(|e| format!("Failed to create client: {e}"))?;
+    let res = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send get request: {e}"))?
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to get response bytes: {e}"))?;
+    Ok(res.to_vec())
+
+}
+
 
 pub async fn calc_acc_address(
     tvc: &[u8],
@@ -272,6 +374,7 @@ pub async fn calc_acc_address(
         tvc: base64::encode(tvc),
         workchain_id: Some(wc),
         initial_data: init_data_json,
+        initial_pubkey: pubkey.clone(),
         ..Default::default()
     };
     let result = ton_client::abi::encode_message(
@@ -310,7 +413,7 @@ pub fn events_filter(addr: &str, since: u32) -> serde_json::Value {
     })
 }
 
-pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &str, is_internal: bool) -> Result<(String, String), String> {
+pub async fn print_message(ton: TonClient, message: &Value, abi: &str, is_internal: bool) -> Result<(String, String), String> {
     println!("Id: {}", message["id"].as_str().unwrap_or("Undefined"));
     let value = message["value"].as_str().unwrap_or("0x0");
     let value = u64::from_str_radix(value.trim_start_matches("0x"), 16)
@@ -325,10 +428,11 @@ pub async fn print_message(ton: TonClient, message: &serde_json::Value, abi: &st
     let body = message["body"].as_str();
     if body.is_some() {
         let body = body.unwrap();
+        let def_config = Config::default();
         let result = ton_client::abi::decode_message_body(
             ton.clone(),
             ParamsOfDecodeMessageBody {
-                abi: load_abi(abi)?,
+                abi: load_abi(abi, &def_config).await?,
                 body: body.to_owned(),
                 is_internal,
                 ..Default::default()
@@ -528,4 +632,88 @@ pub fn check_file_exists(path: &str, trim: &[&str], ending: &str) -> Option<Stri
         return Some(path);
     }
     None
+}
+
+pub fn abi_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> Result<String, String> {
+    matches.value_of("ABI")
+        .map(|s| s.to_string())
+        .or(config.abi_path.clone())
+        .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())
+}
+
+pub fn parse_lifetime(lifetime: Option<&str>, config: &Config) -> Result<u32, String> {
+    Ok(lifetime.map(|val| {
+        u32::from_str_radix(val, 10)
+            .map_err(|e| format!("failed to parse lifetime: {}", e))
+    })
+        .transpose()?
+        .unwrap_or(config.lifetime))
+}
+
+
+#[macro_export]
+macro_rules! print_args {
+    ($( $arg:ident ),* ) => {
+        println!("Input arguments:");
+        $(
+            println!(
+                "{:>width$}: {}",
+                stringify!($arg),
+                if let Some(ref arg) = $arg { arg.as_ref() } else { "None" },
+                width = 8
+            );
+        )*
+    };
+}
+
+pub fn load_params(params: &str) -> Result<String, String> {
+    Ok(if params.find('{').is_none() {
+        std::fs::read_to_string(params)
+            .map_err(|e| format!("failed to load params from file: {}", e))?
+    } else {
+        params.to_string()
+    })
+}
+
+pub async fn unpack_alternative_params(matches: &ArgMatches<'_>, abi_path: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
+    if matches.is_present("PARAMS") {
+        let params = matches.values_of("PARAMS").unwrap().collect::<Vec<_>>();
+        Ok(Some(parse_params(params, abi_path, method, config).await?))
+    } else {
+        Ok(config.parameters.clone().or(Some("{}".to_string())))
+    }
+}
+
+pub fn wc_from_matches_or_config(matches: &ArgMatches<'_>, config: &Config) -> Result<i32 ,String> {
+    Ok(matches.value_of("WC")
+        .map(|v| i32::from_str_radix(v, 10))
+        .transpose()
+        .map_err(|e| format!("failed to parse workchain id: {}", e))?
+        .unwrap_or(config.wc))
+}
+
+pub fn contract_data_from_matches_or_config_alias(
+    matches: &ArgMatches<'_>,
+    full_config: &FullConfig
+) -> Result<(Option<String>, Option<String>, Option<String>), String> {
+    let address = matches.value_of("ADDRESS")
+        .map(|s| s.to_string())
+        .or(full_config.config.addr.clone())
+        .ok_or("ADDRESS is not defined. Supply it in the config file or command line.".to_string())?;
+    let (address, abi, keys) = if full_config.aliases.contains_key(&address) {
+        let alias = full_config.aliases.get(&address).unwrap();
+        (alias.address.clone(), alias.abi_path.clone(), alias.key_path.clone())
+    } else {
+        (Some(address), None, None)
+    };
+    let abi = matches.value_of("ABI")
+        .map(|s| s.to_string())
+        .or(full_config.config.abi_path.clone())
+        .or(abi)
+        .ok_or("ABI file is not defined. Supply it in the config file or command line.".to_string())?;
+    let keys = matches.value_of("KEYS")
+        .map(|s| s.to_string())
+        .or(full_config.config.keys_path.clone())
+        .or(keys);
+    Ok((address, Some(abi), keys))
 }
