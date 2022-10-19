@@ -160,6 +160,7 @@ pub async fn generate_message(
     lifetime: u32,
     is_raw: bool,
     output: Option<&str>,
+    timestamp: Option<u64>,
 ) -> Result<(), String> {
     let ton = create_client_local()?;
 
@@ -168,9 +169,10 @@ pub async fn generate_message(
 
     let abi = load_abi(abi, config).await?;
 
-    let expire_at = lifetime + now()?;
+    let expire_at = lifetime + timestamp.clone().map(|millis| (millis / 1000) as u32).unwrap_or(now()?);
     let header = FunctionHeader {
         expire: Some(expire_at),
+        time: timestamp,
         ..Default::default()
     };
 
