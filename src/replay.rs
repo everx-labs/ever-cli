@@ -34,7 +34,7 @@ use ton_types::{UInt256, serialize_tree_of_cells};
 use ton_vm::executor::{Engine, EngineTraceInfo};
 
 use crate::config::Config;
-use crate::helpers::{create_client, get_network_context, query_account_field};
+use crate::helpers::{create_client, query_account_field};
 
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
 
@@ -64,8 +64,7 @@ pub async fn fetch(config: &Config, account_address: &str, filename: &str, fast_
         }
         return Ok(())
     }
-    let context = get_network_context(config)
-        .map_err(|e| format!("Failed to create ctx: {}", e))?;
+    let context = create_client(config)?;
 
     let filter = if let Some(lt_bound) = lt_bound {
         let lt_bound = format!("0x{:x}", lt_bound);
@@ -474,7 +473,8 @@ pub async fn replay(
 }
 
 pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Result<(), failure::Error> {
-    let context = get_network_context(config)?;
+    let context = create_client(config)
+        .map_err(|e| err_msg(format!("Failed to create ctx: {}", e)))?;
 
     let block = query_collection(
         context.clone(),
