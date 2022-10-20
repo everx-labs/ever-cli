@@ -135,21 +135,6 @@ pub fn get_server_endpoints(config: &Config) -> Vec<String> {
     }).collect::<Vec<String>>()
 }
 
-pub fn get_network_context(config: &Config) -> Result<Arc<ClientContext>, failure::Error> {
-    let endpoints = get_server_endpoints(config);
-    Ok(Arc::new(
-        ClientContext::new(ClientConfig {
-            network: NetworkConfig {
-                sending_endpoint_count: endpoints.len() as u8,
-                endpoints: Some(endpoints),
-                access_key: config.access_key.clone(),
-                ..Default::default()
-            },
-            ..Default::default()
-        })?
-    ))
-}
-
 pub fn create_client(config: &Config) -> Result<TonClient, String> {
     let modified_endpoints = get_server_endpoints(config);
     if !config.is_json {
