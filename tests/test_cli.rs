@@ -3244,7 +3244,7 @@ fn test_alternative_paths() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
+#[cfg(feature = "sold")]
 fn check_compiled_files_and_delete(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     assert!(std::path::Path::new(&format!("{path}.code")).exists());
     fs::remove_file(&format!("{path}.code"))?;
@@ -3258,6 +3258,7 @@ fn check_compiled_files_and_delete(path: &str) -> Result<(), Box<dyn std::error:
 }
 
 #[test]
+#[cfg(feature = "sold")]
 fn test_solidity_compile() -> Result<(), Box<dyn std::error::Error>> {
     let contract_path = "tests/samples/1_Accumulator";
 

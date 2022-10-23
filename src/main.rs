@@ -40,6 +40,7 @@ mod replay;
 mod debug;
 mod run;
 mod message;
+#[cfg(feature = "sold")]
 mod compile;
 
 use account::{get_account, calc_storage, wait_for_change};
@@ -64,6 +65,7 @@ use voting::{create_proposal, decode_proposal, vote};
 use replay::{fetch_block_command, fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use crate::account::dump_accounts;
+#[cfg(feature = "sold")]
 use crate::compile::{compile_command, create_compile_command};
 
 use crate::config::{FullConfig, resolve_net_name};
@@ -874,14 +876,14 @@ async fn main_internal() -> Result <(), String> {
             .long("--ignore_hashes")
             .short("-i"));
 
+    let version = format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
+                          env!("CARGO_PKG_VERSION"),
+                          env!("BUILD_GIT_COMMIT"),
+                          env!("BUILD_TIME"),
+                          env!("BUILD_GIT_DATE"),
+                          env!("BUILD_GIT_BRANCH"));
     let matches = App::new("tonos_cli")
-        .version(&*format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
-                           env!("CARGO_PKG_VERSION"),
-                           env!("BUILD_GIT_COMMIT"),
-                           env!("BUILD_TIME"),
-                           env!("BUILD_GIT_DATE"),
-                           env!("BUILD_GIT_BRANCH"))
-        )
+        .version(&*version)
         .author("TONLabs")
         .about("TONLabs console tool for TON")
         .arg(Arg::with_name("NETWORK")
@@ -923,7 +925,6 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(create_decode_command())
         .subcommand(create_debot_command())
         .subcommand(create_debug_command())
-        .subcommand(create_compile_command())
         .subcommand(getconfig_cmd)
         .subcommand(bcconfig_cmd)
         .subcommand(nodeid_cmd)
@@ -935,8 +936,11 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(deployx_cmd)
         .subcommand(runx_cmd)
         .subcommand(update_config_param_cmd)
-        .setting(AppSettings::SubcommandRequired)
-        .get_matches_safe()
+        .setting(AppSettings::SubcommandRequired);
+#[cfg(feature = "sold")]
+    let matches = matches.subcommand(create_compile_command());
+
+    let matches = matches.get_matches_safe()
         .map_err(|e| match e.kind {
             clap::ErrorKind::VersionDisplayed => { println!(); exit(0); },
             clap::ErrorKind::HelpDisplayed => { println!("{}", e); exit(0); },
@@ -1107,6 +1111,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     if let Some(m) = matches.subcommand_matches("replay") {
         return replay_command(m, config).await;
     }
+#[cfg(feature = "sold")]
     if let Some(m) = matches.subcommand_matches("compile") {
         return compile_command(m, &config).await;
     }

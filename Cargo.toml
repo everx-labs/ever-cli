@@ -18,6 +18,9 @@ readme = 'README.md'
 repository = 'https://github.com/tonlabs/tonos-cli'
 version = '0.28.22'
 
+[features]
+sold = ["dep:sold"]
+
 [dependencies]
 async-trait = '0.1.42'
 base64 = '0.10.1'
@@ -53,7 +56,7 @@ ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.38.0' }
 ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.11.4' }
 ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.44' }
 ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git', tag = '0.7.33' }
-sold = { git = 'https://github.com/tonlabs/TON-Solidity-Compiler.git', tag = '0.65.0' }
+sold = { git = 'https://github.com/tonlabs/TON-Solidity-Compiler.git', branch = 'test', optional = true }
 
 [dev-dependencies]
 assert_cmd = '1.0.3'
