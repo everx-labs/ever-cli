@@ -854,7 +854,8 @@ async fn main_internal() -> Result <(), String> {
             .long("--config")
             .short("-c")
             .takes_value(true)
-            .help("File containing zerostate and txns of -1:555..5 account."))
+            .help("File containing zerostate and txns of -1:555..5 account.")
+            .conflicts_with("DEFAULT_CONFIG"))
         .arg(Arg::with_name("INPUT_TXNS")
             .required(true)
             .takes_value(true)
@@ -863,14 +864,11 @@ async fn main_internal() -> Result <(), String> {
             .required(true)
             .takes_value(true)
             .help("Dump account state before this transaction ID and stop replaying."))
-        .arg(Arg::with_name("CURRENT_CONFIG")
-            .help("Replay transaction with current network config.")
-            .long("--current_config")
-            .short("-e"))
-        .arg(Arg::with_name("IGNORE_HASHES")
-            .help("Ignore hashes mismatch. This flag must be set while replaying a contract after setcode on the Node SE.")
-            .long("--ignore_hashes")
-            .short("-i"));
+        .arg(Arg::with_name("DEFAULT_CONFIG")
+            .help("Replay transaction with current network config or default if it is not available.")
+            .long("--default_config")
+            .short("-e")
+            .conflicts_with("CONFIG_TXNS"));
 
     let matches = App::new("tonos_cli")
         .version(&*format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",

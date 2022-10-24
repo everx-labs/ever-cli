@@ -17,7 +17,7 @@ use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
                      TonClient, query_account_field, query_with_limit, create_client_verbose,
                      abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config,
-                     TEST_MAX_LEVEL, MAX_LEVEL};
+                     TEST_MAX_LEVEL, MAX_LEVEL, get_blockchain_config};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
 };
@@ -178,18 +178,18 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .short("-c")
         .takes_value(true);
 
-    let empty_config_arg = Arg::with_name("EMPTY_CONFIG")
-        .help("Replay transaction without full dump of the config contract.")
-        .long("--empty_config")
+    let default_config_arg = Arg::with_name("DEFAULT_CONFIG")
+        .help("Execute debug with current blockchain config or default if it is not available.")
+        .long("--default_config")
         .short("-e")
-        .conflicts_with("CONFIG_PATH");
+        .conflicts_with_all(&["CONFIG_PATH", "CONFIG_BOC"]);
 
     let config_save_path_arg = Arg::with_name("CONFIG_PATH")
-        .help("Path to the file with saved config contract transactions. If not set transactions will be fetched to file \"config.txns\".")
+        .help("Path to the file with saved config contract transactions. If not set and config contract state is not specified with other options transactions will be fetched to file \"config.txns\".")
         .long("--config")
         .short("-c")
         .takes_value(true)
-        .conflicts_with("EMPTY_CONFIG");
+        .conflicts_with_all(&["DEFAULT_CONFIG", "CONFIG_BOC"]);
 
     let contract_path_arg = Arg::with_name("CONTRACT_PATH")
         .help("Path to the file with saved target contract transactions. If not set transactions will be fetched to file \"contract.txns\".")
@@ -199,7 +199,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
 
     let dump_config_arg = Arg::with_name("DUMP_CONFIG")
         .help("Dump the replayed config contract account state.")
-        .long("--dump_config");
+        .long("--dump_config")
+        .conflicts_with("CONFIG_BOC");
 
     let dump_contract_arg = Arg::with_name("DUMP_CONTRACT")
         .help("Dump the replayed target contract account state.")
@@ -215,11 +216,6 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .long("--now")
         .help("Now timestamp (in milliseconds) for execution. If not set it is equal to the current timestamp.");
-
-    let ignore_hashes = Arg::with_name("IGNORE_HASHES")
-        .help("Ignore hashes mismatch. This flag must be set while replaying a contract after setcode on the Node SE.")
-        .long("--ignore_hashes")
-        .short("-i");
 
     let msg_cmd = SubCommand::with_name("message")
         .about("Play message locally with trace")
@@ -289,11 +285,17 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .arg(sign_arg.clone())
         .arg(update_arg.clone());
 
+    let config_boc_arg = Arg::with_name("CONFIG_BOC")
+        .help("Path to the config contract boc.")
+        .long("--config_boc")
+        .takes_value(true)
+        .conflicts_with_all(&["CONFIG_PATH", "DEFAULT_CONFIG"]);
+
     SubCommand::with_name("debug")
         .about("Debug commands.")
         .subcommand(SubCommand::with_name("transaction")
             .about("Replay transaction with specified ID.")
-            .arg(empty_config_arg.clone())
+            .arg(default_config_arg.clone())
             .arg(config_save_path_arg.clone())
             .arg(contract_path_arg.clone())
             .arg(output_arg.clone())
@@ -303,10 +305,10 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(tx_id_arg.clone())
             .arg(dump_config_arg.clone())
             .arg(dump_contract_arg.clone())
-            .arg(ignore_hashes.clone()))
+            .arg(config_boc_arg.clone()))
         .subcommand(SubCommand::with_name("account")
             .about("Loads list of the last transactions for the specified account. User should choose which one to debug.")
-            .arg(empty_config_arg.clone())
+            .arg(default_config_arg.clone())
             .arg(config_save_path_arg.clone())
             .arg(contract_path_arg.clone())
             .arg(output_arg.clone())
@@ -316,7 +318,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(address_arg.clone())
             .arg(dump_config_arg.clone())
             .arg(dump_contract_arg.clone())
-            .arg(ignore_hashes.clone()))
+            .arg(config_boc_arg.clone()))
         .subcommand(SubCommand::with_name("replay")
             .about("Replay transaction on the saved account state.")
             .arg(output_arg.clone())
@@ -379,8 +381,8 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
     let trace_path = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let config_path = matches.value_of("CONFIG_PATH");
     let contract_path = matches.value_of("CONTRACT_PATH");
-    let is_empty_config = matches.is_present("EMPTY_CONFIG");
-
+    let is_default_config = matches.is_present("DEFAULT_CONFIG");
+    let config_boc = matches.value_of("CONFIG_BOC");
     let (tx_id, address) = if !is_account {
         let tx_id = matches.value_of("TX_ID");
         if !config.is_json {
@@ -404,10 +406,10 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         (tr_id, address)
     };
 
-    let config_path = if is_empty_config {
-        None
+    let config_path = if is_default_config || config_boc.is_some() {
+        ""
     } else {
-        Some(match config_path {
+        match config_path {
             Some(config_path) => {
                 config_path
             },
@@ -418,7 +420,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
                 fetch(config, CONFIG_ADDR, DEFAULT_CONFIG_PATH, None, true).await?;
                 DEFAULT_CONFIG_PATH
             }
-        })
+        }
     };
     let contract_path = match contract_path {
         Some(contract_path) => {
@@ -450,8 +452,16 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         dump_mask |= DUMP_ACCOUNT;
     }
     if !config.is_json {
-        println!("Replaying the last transactions...");
+        println!("Replaying the transactions...");
     }
+
+    let blockchain_config = if is_default_config || config_boc.is_some() {
+        let bc_config = get_blockchain_config(config, config_boc).await?;
+        Some(bc_config)
+    } else {
+      None
+    };
+
     let tr = replay(
         contract_path,
         config_path,
@@ -460,8 +470,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         init_logger,
         dump_mask,
         config,
-        false,
-        !matches.is_present("IGNORE_HASHES"),
+        blockchain_config
     ).await?;
 
     decode_messages(tr.out_msgs, load_decode_abi(matches, config), config).await?;

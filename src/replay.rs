@@ -22,8 +22,8 @@ use failure::err_msg;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable, Transaction,
-                TransactionDescr, Block, HashmapAugType};
+use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable,
+                Transaction, TransactionDescr, Block, HashmapAugType};
 use ton_client::{
     net::{AggregationFn, FieldAggregation, OrderBy, ParamsOfAggregateCollection,
           ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection},
@@ -34,7 +34,7 @@ use ton_types::{UInt256, serialize_tree_of_cells};
 use ton_vm::executor::{Engine, EngineTraceInfo};
 
 use crate::config::Config;
-use crate::helpers::{create_client, query_account_field};
+use crate::helpers::{create_client, get_blockchain_config};
 
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
 
@@ -248,10 +248,6 @@ impl State {
         Ok(Self { account, account_addr, tr: None, lines: Some(lines) })
     }
 
-    pub fn set_account(&mut self, account: Account) {
-        self.account = account;
-    }
-
     pub fn next_transaction(&mut self) -> Option<()> {
         if self.lines.is_some() {
             match self.lines.as_mut().unwrap().next() {
@@ -284,42 +280,22 @@ fn choose<'a>(st1: &'a mut State, st2: &'a mut State) -> &'a mut State {
 
 pub async fn replay(
     input_filename: &str,
-    config_filename: Option<&str>,
+    config_filename: &str,
     txnid: &str,
     trace_callback: Option<Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync>>,
     init_trace_last_logger: impl Fn() -> Result<(), String>,
     dump_mask: u8,
     cli_config: &Config,
-    load_current_net_config: bool,
-    exit_on_wrong_contract_hash: bool,
+    blockchain_config: Option<BlockchainConfig>,
 ) -> Result<Transaction, String> {
     let mut account_state = State::new(input_filename)?;
     let account_address = account_state.account_addr.clone();
-    let mut empty_config = false;
-    let (mut config, mut config_state) = if load_current_net_config {
-        let ton_client = create_client(cli_config)?;
-        let config = query_account_field(
-            ton_client.clone(),
-            CONFIG_ADDR,
-            "boc",
-        ).await?;
-        let config = Account::construct_from_base64(&config).map_err(|_| "".to_string())?;
-        let mut state = State::default();
-        state.set_account(config.clone());
-        (construct_blockchain_config(&config)?, state)
+    let mut iterate_config = true;
+    let (mut config, mut config_state) = if let Some(bc_config) = blockchain_config {
+        iterate_config = false;
+        (bc_config, State::default())
     } else {
-        let config_state = match config_filename {
-            Some(config_filename) => {
-                State::new(config_filename)?
-            }
-            None => {
-                empty_config = true;
-                State {
-                    account_addr: CONFIG_ADDR.to_string(),
-                    ..Default::default()
-                }
-            }
-        };
+        let config_state = State::new(config_filename)?;
         assert_eq!(config_state.account_addr, CONFIG_ADDR);
         (BlockchainConfig::default(), config_state)
     };
@@ -340,7 +316,7 @@ pub async fn replay(
         let state = choose(&mut account_state, &mut config_state);
         let tr = state.tr.as_ref().ok_or("failed to obtain state transaction")?;
 
-        if !(load_current_net_config || empty_config) {
+        if iterate_config {
             if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
                 assert!(tr.block_lt > cur_block_lt);
                 cur_block_lt = tr.block_lt;
@@ -360,9 +336,7 @@ pub async fn replay(
                          account_old_hash_remote.to_hex_string(),
                          account_old_hash_local.to_hex_string());
             }
-            if exit_on_wrong_contract_hash {
-                exit(1);
-            }
+            exit(1);
         }
         if tr.id == txnid {
             if dump_mask & DUMP_ACCOUNT != 0 {
@@ -459,14 +433,12 @@ pub async fn replay(
                          account_new_hash_remote.to_hex_string(),
                          account_new_hash_local.to_hex_string(), tr.id);
             }
-            if exit_on_wrong_contract_hash {
-                let local_desc = tr_local.read_description()
-                    .map_err(|e| format!("failed to read description: {}", e))?;
-                let remote_desc = tr.tr.read_description()
-                    .map_err(|e| format!("failed to read description: {}", e))?;
-                assert_eq!(remote_desc, local_desc);
-                exit(2);
-            }
+            let local_desc = tr_local.read_description()
+                .map_err(|e| format!("failed to read description: {}", e))?;
+            let remote_desc = tr.tr.read_description()
+                .map_err(|e| format!("failed to read description: {}", e))?;
+            assert_eq!(remote_desc, local_desc);
+            exit(2);
         }
 
         if tr.id == txnid {
@@ -558,9 +530,9 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
     let config_path = format!("config-{}.boc", txnid);
     if !std::path::Path::new(config_path.as_str()).exists() {
         println!("Computing config: replaying {} up to {}", acc, txnid);
-        replay(format!("{}.txns", acc).as_str(),Some(config_txns_path.as_str()),
+        replay(format!("{}.txns", acc).as_str(),config_txns_path.as_str(),
                txnid, None, || Ok(()), DUMP_CONFIG,
-               config, false, true
+               config, None
         ).await.map_err(err_msg)?;
     } else {
         println!("Using pre-computed config {}", config_path);
@@ -575,14 +547,13 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
             if !std::path::Path::new(format!("{}-{}.boc", account_filename, txnid).as_str()).exists() {
                 replay(
                     format!("{}.txns", account_filename).as_str(),
-                    Some(format!("{}.txns", CONFIG_ADDR).as_str()),
+                    format!("{}.txns", CONFIG_ADDR).as_str(),
                     &txnid,
                     None,
                     || Ok(()),
                     DUMP_ACCOUNT,
                     &_config,
-                    false,
-                    true,
+                    None,
                 ).await.map_err(err_msg).unwrap();
             }
         })
@@ -658,15 +629,14 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
 }
 
 pub async fn replay_command(m: &ArgMatches<'_>, cli_config: &Config) -> Result<(), String> {
-    let (config_txns, load_config) = if m.is_present("CURRENT_CONFIG") {
-        ("", true)
+    let (config_txns, bc_config) = if m.is_present("DEFAULT_CONFIG") {
+        ("", Some(get_blockchain_config(cli_config, None).await?))
     } else {
-        (m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?, false)
+        (m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?, None)
     };
     let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
-        Some(config_txns), m.value_of("TXNID").ok_or("Missing final txn id")?,
-        None, ||{Ok(())}, DUMP_ALL, cli_config,
-        load_config, !m.is_present("IGNORE_HASHES")
+        config_txns, m.value_of("TXNID").ok_or("Missing final txn id")?,
+        None, ||{Ok(())}, DUMP_ALL, cli_config, bc_config
     ).await?;
     Ok(())
 }
