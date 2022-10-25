@@ -12,7 +12,7 @@
  */
 use crate::{load_abi, print_args};
 use crate::config::Config;
-use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query_account_field, abi_from_matches_or_config, load_ton_address, load_ton_abi};
+use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query_account_field, abi_from_matches_or_config, load_ton_address, load_ton_abi, create_client, query_message};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ton_types::cells_serialization::serialize_tree_of_cells;
 use ton_types::{Cell, SliceData};
@@ -55,14 +55,14 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
             .about("Decodes message file.")
             .arg(Arg::with_name("MSG")
                 .required(true)
-                .help("Path to the message boc file (with binary data) or message in base64 if corresponding flag is used."))
+                .help("Path to the message boc file (with binary data), message in base64 or message id."))
             .arg(Arg::with_name("ABI")
                 .long("--abi")
                 .takes_value(true)
                 .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file."))
             .arg(Arg::with_name("BASE64")
                 .long("--base64")
-                .help("Flag that changes behavior of the command to work with data in base64.")))
+                .help("Flag that changes behavior of the command to work with data in base64 (FLAG IS DEPRECATED).")))
         .subcommand(tvc_cmd)
         .subcommand(SubCommand::with_name("account")
             .about("Top level command of account decode commands.")
@@ -231,17 +231,45 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: &Config) -> Result<(
     if !config.is_json {
         print_args!(msg, abi);
     }
-    let is_base64 = m.is_present("BASE64");
-    let msg = msg.map(|msg| if is_base64 {
-        base64::decode(msg)
-            .map_err(|e| format!(" failed to decode msg in base64: {}", e))
+    if m.is_present("BASE64") && !config.is_json {
+        println!("Flag --base64 is deprecated. Command can be used for base64 input without this flag.")
+    }
+    let input = msg.unwrap();
+    let decoded_message = if std::path::Path::new(input).exists() {
+        let msg_bytes = std::fs::read(input)
+            .map_err(|e| format!(" failed to read msg from file {input}: {}", e))?;
+        match decode_message(msg_bytes.clone(), abi.clone()).await {
+            Ok(result) => result,
+            Err(e) => {
+                let message_str = String::from_utf8(msg_bytes)
+                    .map_err(|_| format!("Failed to decode message from file: {e}"))?;
+                let message_bytes = base64::decode(&message_str)
+                    .map_err(|e2| format!("Failed to decode message data: {e2}"))?;
+                decode_message(message_bytes, abi).await
+                    .map_err(|e2| format!("Failed to decode message from file: {e2}"))?
+            }
+        }
     } else {
-        std::fs::read(msg)
-            .map_err(|e| format!(" failed to read msg from file {msg}: {}", e))
-    })
-        .transpose()?
-        .unwrap();
-    println!("{}", decode_message(msg, abi).await?);
+        let base64_decode = base64::decode(input)
+            .map_err(|e| format!("{e}"));
+        let msg_decode = match base64_decode {
+            Ok(base64_decode) => decode_message(base64_decode, abi.clone()).await,
+            Err(e) => Err(e)
+        };
+        match msg_decode {
+            Ok(result) => result,
+            Err(e) => {
+                let ton_client = create_client(config)?;
+                let query_boc = query_message(ton_client, input).await
+                    .map_err(|e2| format!("Failed to decode message, specify path to the file, message id or message in base64.\nBase64 error: {e}\nQuery error: {e2}"))?;
+                let message_bytes = base64::decode(&query_boc)
+                    .map_err(|e2| format!("Failed to decode queried message: {e2}"))?;
+                decode_message(message_bytes, abi).await
+                    .map_err(|e2| format!("Failed to decode queried message: {e2}"))?
+            }
+        }
+    };
+    println!("{decoded_message}");
     Ok(())
 }
 
