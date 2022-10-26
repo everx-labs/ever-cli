@@ -3286,4 +3286,65 @@ fn test_alternative_paths() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[cfg(feature = "sold")]
+fn check_compiled_files_and_delete(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    assert!(std::path::Path::new(&format!("{path}.code")).exists());
+    fs::remove_file(&format!("{path}.code"))?;
+    assert!(std::path::Path::new(&format!("{path}.abi.json")).exists());
+    fs::remove_file(&format!("{path}.abi.json"))?;
+    assert!(std::path::Path::new(&format!("{path}.debug.json")).exists());
+    fs::remove_file(&format!("{path}.debug.json"))?;
+    assert!(std::path::Path::new(&format!("{path}.tvc")).exists());
+    fs::remove_file(&format!("{path}.tvc"))?;
+    Ok(())
+}
 
+#[test]
+#[cfg(feature = "sold")]
+fn test_solidity_compile() -> Result<(), Box<dyn std::error::Error>> {
+    let contract_path = "tests/samples/1_Accumulator";
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("compile")
+        .arg("solidity")
+        .arg(format!("{contract_path}.sol"));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Raw address: 0:f45b9b2538dcc4aef9d2b6e43228e73157a63ea27c78589135fbf29a16e6354a"));
+
+    check_compiled_files_and_delete("1_Accumulator")?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("compile")
+        .arg("solidity")
+        .arg(format!("{contract_path}.sol"))
+        .arg("-O")
+        .arg("tests/samples/")
+        .arg("-P")
+        .arg("contract");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Raw address: 0:f45b9b2538dcc4aef9d2b6e43228e73157a63ea27c78589135fbf29a16e6354a"));
+
+    check_compiled_files_and_delete("tests/samples/contract")?;
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("compile")
+        .arg("solidity")
+        .arg(format!("{contract_path}.sol"))
+        .arg("--function-ids");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""add": "0x25efb208","#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("compile")
+        .arg("solidity")
+        .arg(format!("{contract_path}.sol"))
+        .arg("--private-function-ids");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(r#""id": 3297096926,"#));
+
+    Ok(())
+}
