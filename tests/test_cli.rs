@@ -10,6 +10,7 @@ mod common;
 use common::{BIN_NAME, NETWORK, giver_v2, grep_address, set_config, GIVER_V2_ABI,
              GIVER_V2_ADDR, GIVER_V2_KEY, generate_key_and_address, GIVER_ABI,
              generate_phrase_and_key};
+use crate::common::grep_message_id;
 
 const DEPOOL_ABI: &str = "tests/samples/fakeDepool.abi.json";
 const DEPOOL_TVC: &str = "tests/samples/fakeDepool.tvc";
@@ -1236,7 +1237,6 @@ fn test_decode_msg() -> Result<(), Box<dyn std::error::Error>> {
         .arg(SAFEMSIG_ABI_LINK)
         .assert()
         .success()
-        .stdout(predicate::str::contains("sendTransaction"))
         .stdout(predicate::str::contains("dest"))
         .stdout(predicate::str::contains("value"))
         .stdout(predicate::str::contains("bounce"))
@@ -1260,7 +1260,20 @@ fn test_decode_msg() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("--json")
         .arg("decode")
         .arg("msg")
-        .arg("--base64")
+        .arg("tests/deploy_msg.base64")
+        .arg("--abi")
+        .arg("tests/samples/accumulator.abi.json")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#"Type": "external inbound message"#))
+        .stdout(predicate::str::contains(r#""destination": "0:ff5ccc94e0f9e71720a21ddccfd520542cf7766ed0d33ba42e012c13d27a5f8b"#))
+        .stdout(predicate::str::contains(r#""Body": "te6ccgEBAQEAcwAA4dFBEQoq0xgjjctNZukvkYBlQyFLMl8vHJtswO29MAkkFQmzGSxewgSp+iHDxxTEjqG7hAcLAhBvpP3Es+9KoAOAAADBi8crwjGMO0wS99kEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADLA""#))
+        .stdout(predicate::str::contains(r#""value": "0x0000000000000000000000000000000000000000000000000000000000000065""#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json")
+        .arg("decode")
+        .arg("msg")
         .arg("te6ccgEBAgEAmQABRYgB/rmZKcHzzi5BRDu5n6pAqFnu7N2hpndIXAJYJ6T0vxYMAQDh0UERCirTGCONy01m6S+RgGVDIUsyXy8cm2zA7b0wCSQVCbMZLF7CBKn6IcPHFMSOobuEBwsCEG+k/cSz70qgA4AAAMGLxyvCMYw7TBL32QQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMsA=")
         .arg("--abi")
         .arg("tests/samples/accumulator.abi.json")
@@ -1270,6 +1283,35 @@ fn test_decode_msg() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#""destination": "0:ff5ccc94e0f9e71720a21ddccfd520542cf7766ed0d33ba42e012c13d27a5f8b"#))
         .stdout(predicate::str::contains(r#""Body": "te6ccgEBAQEAcwAA4dFBEQoq0xgjjctNZukvkYBlQyFLMl8vHJtswO29MAkkFQmzGSxewgSp+iHDxxTEjqG7hAcLAhBvpP3Es+9KoAOAAADBi8crwjGMO0wS99kEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADLA""#))
         .stdout(predicate::str::contains(r#""value": "0x0000000000000000000000000000000000000000000000000000000000000065""#));
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    let output = cmd.arg("call")
+        .arg("--abi")
+        .arg(GIVER_V2_ABI)
+        .arg(GIVER_V2_ADDR)
+        .arg("--sign")
+        .arg(GIVER_V2_KEY)
+        .arg("sendTransaction")
+        .arg(format!(r#"{{"dest":"{}","value":100000000000,"bounce":false}}"#, GIVER_V2_ADDR))
+        .output()
+        .expect("Failed to send message.");
+
+    let message_id = grep_message_id(&output.stdout);
+
+    let mut cmd = Command::cargo_bin(BIN_NAME)?;
+    cmd.arg("--json")
+        .arg("decode")
+        .arg("msg")
+        .arg(message_id)
+        .arg("--abi")
+        .arg(GIVER_V2_ABI)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("dest"))
+        .stdout(predicate::str::contains("value"))
+        .stdout(predicate::str::contains("bounce"))
+        .stdout(predicate::str::contains("BodyCall"))
+        .stdout(predicate::str::contains("sendTransaction"));
 
     Ok(())
 }

@@ -87,6 +87,17 @@ pub fn grep_address(output: &[u8]) -> String {
 }
 
 #[allow(dead_code)]
+pub fn grep_message_id(output: &[u8]) -> String {
+    let mut message_id = String::from_utf8_lossy(output).to_string();
+    let index = message_id.find("MessageId: ").map(|i| i + "MessageId: ".len()).unwrap_or(0);
+    message_id.replace_range(..index, "");
+    if message_id.len() >= 64 {
+        message_id.replace_range(64.., "");
+    }
+    message_id
+}
+
+#[allow(dead_code)]
 pub fn generate_key_and_address(
     key_path: &str,
     tvc_path: &str,

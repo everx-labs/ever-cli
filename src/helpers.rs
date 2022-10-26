@@ -196,7 +196,6 @@ pub fn create_client_verbose(config: &Config) -> Result<TonClient, String> {
     create_client(config)
 }
 
-
 pub async fn query_raw(
     config: &Config,
     collection: &str,
@@ -231,15 +230,14 @@ pub async fn query_raw(
     Ok(())
 }
 
-
 pub async fn query_with_limit(
     ton: TonClient,
     collection: &str,
-    filter: serde_json::Value,
+    filter: Value,
     result: &str,
     order: Option<Vec<OrderBy>>,
     limit: Option<u32>,
-) -> Result<Vec<serde_json::Value>, ClientError> {
+) -> Result<Vec<Value>, ClientError> {
     query_collection(
         ton,
         ParamsOfQueryCollection {
@@ -253,6 +251,27 @@ pub async fn query_with_limit(
     )
         .await
         .map(|r| r.result)
+}
+
+pub async fn query_message(
+    ton: TonClient,
+    message_id: &str,
+) -> Result<String, String> {
+    let messages = query_with_limit(
+        ton.clone(),
+        "messages",
+        json!({ "id": { "eq": message_id } }),
+        "boc",
+        None,
+        Some(1),
+    ).await
+        .map_err(|e| format!("failed to query account data: {}", e))?;
+    if messages.is_empty() {
+        Err("message with specified id was not found.".to_string())
+    }
+    else {
+        Ok(messages[0]["boc"].as_str().ok_or("Failed to obtain message boc.".to_string())?.to_string())
+    }
 }
 
 pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> Result<String, String> {
