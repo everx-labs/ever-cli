@@ -2523,7 +2523,7 @@ dependencies = [
 [[package]]
 name = "ton_block"
 version = "1.8.3"
-source = "git+https://github.com/tonlabs/ton-labs-block.git?tag=1.8.3#19a77eb0cccf6dc097ac934458976e1e91402ade"
+source = "git+https://github.com/tonlabs/ton-labs-block.git?tag=1.8.3#86ae75c09870cd947b94f7f42257727533a5e7b0"
 dependencies = [
  "base64 0.13.1",
  "crc 3.0.0",
@@ -2541,7 +2541,7 @@ dependencies = [
 [[package]]
 name = "ton_block_json"
 version = "0.7.33"
-source = "git+https://github.com/tonlabs/ton-labs-block-json.git?tag=0.7.33#04cd85e67446e0cdb78c163433c9fba01f074aaa"
+source = "git+https://github.com/tonlabs/ton-labs-block-json.git?tag=0.7.33#6b93bce23702c86992191af383095a3f1f81c98f"
 dependencies = [
  "base64 0.13.1",
  "failure",
@@ -2685,7 +2685,7 @@ dependencies = [
 [[package]]
 name = "ton_types"
 version = "1.11.4"
-source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.4#7f0063faa486298ba57ceb97e1d6e38447d6e0e3"
+source = "git+https://github.com/tonlabs/ton-labs-types.git?tag=1.11.4#363c35e9d0d7e954bbfc2e845f8a51b9dbbc166d"
 dependencies = [
  "base64 0.13.1",
  "crc 1.8.1",
