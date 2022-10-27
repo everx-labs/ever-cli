@@ -3310,7 +3310,7 @@ fn test_solidity_compile() -> Result<(), Box<dyn std::error::Error>> {
         .arg(format!("{contract_path}.sol"));
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Raw address: 0:f45b9b2538dcc4aef9d2b6e43228e73157a63ea27c78589135fbf29a16e6354a"));
+        .stdout(predicate::str::contains("Raw address: 0:2712519fefb219d76d640028943fe76287a280e3a9e75a0700147cea4e1b94c6"));
 
     check_compiled_files_and_delete("1_Accumulator")?;
 
@@ -3324,7 +3324,7 @@ fn test_solidity_compile() -> Result<(), Box<dyn std::error::Error>> {
         .arg("contract");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Raw address: 0:f45b9b2538dcc4aef9d2b6e43228e73157a63ea27c78589135fbf29a16e6354a"));
+        .stdout(predicate::str::contains("Raw address: 0:2712519fefb219d76d640028943fe76287a280e3a9e75a0700147cea4e1b94c6"));
 
     check_compiled_files_and_delete("tests/samples/contract")?;
 
