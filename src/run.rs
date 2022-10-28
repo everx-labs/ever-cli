@@ -22,7 +22,7 @@ use crate::debug::{execute_debug, DebugLogger};
 use crate::helpers::{create_client, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient,
                      contract_data_from_matches_or_config_alias, abi_from_matches_or_config,
                      AccountSource, create_client_local, create_client_verbose, load_abi,
-                     load_account, load_params, unpack_alternative_params};
+                     load_account, load_params, unpack_alternative_params, get_blockchain_config};
 use crate::message::prepare_message;
 
 pub async fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_alternative: bool) -> Result<(), String> {
@@ -169,8 +169,7 @@ async fn run(
         let message = Message::construct_from_base64(&msg.message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
         match execute_debug(
-            Some(matches),
-            Some(ton_client),
+            get_blockchain_config(config, None).await?,
             &mut account,
             Some(&message),
             (now / 1000) as u32,

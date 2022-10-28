@@ -15,11 +15,11 @@ use crate::{contract_data_from_matches_or_config_alias, FullConfig, print_args,
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
-                     TonClient, query_account_field, query_with_limit, create_client_verbose,
+                     query_account_field, query_with_limit, create_client_verbose,
                      abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config,
                      TEST_MAX_LEVEL, MAX_LEVEL, get_blockchain_config};
 use crate::replay::{
-    fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT, construct_blockchain_config
+    fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT
 };
 use std::io::{Write, BufRead};
 use std::collections::{HashSet, HashMap};
@@ -540,8 +540,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
     let result_trans = execute_debug(
-        Some(matches),
-        Some(ton_client),
+        get_blockchain_config(config, config_path).await?,
         &mut account,
         msg.as_ref(),
         trans.now(),
@@ -694,8 +693,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
     let trans = execute_debug(
-        Some(matches),
-        Some(ton_client),
+        get_blockchain_config(&full_config.config, matches.value_of("CONFIG_PATH")).await?,
         &mut acc_root,
         Some(&message),
         (now / 1000) as u32,
@@ -794,8 +792,7 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
 
     let now = parse_now(matches)?;
     let trans = execute_debug(
-        Some(matches),
-        Some(ton_client),
+        get_blockchain_config(config, matches.value_of("CONFIG_PATH")).await?,
         &mut acc_root,
         Some(&message),
         (now / 1000) as u32,
@@ -903,8 +900,7 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     let now = parse_now(matches)?;
 
     let trans = execute_debug(
-        Some(matches),
-        Some(ton_client),
+        get_blockchain_config(config, matches.value_of("CONFIG_PATH")).await?,
         &mut acc_root,
         Some(&message),
         (now / 1000) as u32,
@@ -1050,8 +1046,7 @@ fn choose_transaction(transactions: Vec<TrDetails>) -> Result<String, String> {
 }
 
 pub async fn execute_debug(
-    matches: Option<&ArgMatches<'_>>,
-    ton_client: Option<TonClient>,
+    bc_config: BlockchainConfig,
     account: &mut Cell,
     message: Option<&Message>,
     block_unixtime: u32,
@@ -1060,29 +1055,6 @@ pub async fn execute_debug(
     is_getter: bool,
     tonos_config: &Config,
 ) -> Result<Transaction, String> {
-    let config_account = match matches {
-        Some(matches) => {
-            match matches.value_of("CONFIG_PATH") {
-                Some(bc_config) => {
-                    Some(Account::construct_from_file(bc_config))
-                }
-                _ => None
-            }
-        }
-        _ => None
-    };
-    let config_account = match config_account {
-        Some(config_account) => {config_account }
-        _ => {
-            let acc = query_account_field(
-                ton_client.unwrap().clone(),
-                CONFIG_ADDR,
-                "boc",
-            ).await?;
-            Account::construct_from_base64(&acc)
-        }
-    }.map_err(|e| format!("Failed to construct config account: {}", e))?;
-    let bc_config = construct_blockchain_config(&config_account)?;
     let bc_config = if is_getter {
         let mut config = bc_config.raw_config().to_owned();
         let gas = GasLimitsPrices {
@@ -1118,7 +1090,7 @@ pub async fn execute_debug(
         last_tr_lt: Arc::new(AtomicU64::new(last_tr_lt)),
         seed_block: UInt256::default(),
         debug: true,
-        trace_callback: generate_callback(matches, tonos_config),
+        trace_callback: generate_callback(None, tonos_config),
         ..ExecuteParams::default()
     };
 
