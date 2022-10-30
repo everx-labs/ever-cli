@@ -321,7 +321,6 @@ pub async fn send_with_body(
         &params,
         Some(keys.to_owned()),
         false,
-        None,
     ).await
 }
 
@@ -383,7 +382,6 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
             &params,
             None,
             false,
-            None,
         ).await?;
     }
 

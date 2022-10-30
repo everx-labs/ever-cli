@@ -29,9 +29,11 @@ use std::str::FromStr;
 use clap::ArgMatches;
 use serde_json::Value;
 use ton_client::abi::Abi::Contract;
+use ton_executor::BlockchainConfig;
 use url::Url;
 use crate::call::parse_params;
 use crate::{FullConfig, resolve_net_name};
+use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 
 pub const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
 pub const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
@@ -194,7 +196,6 @@ pub fn create_client_verbose(config: &Config) -> Result<TonClient, String> {
     create_client(config)
 }
 
-
 pub async fn query_raw(
     config: &Config,
     collection: &str,
@@ -229,15 +230,14 @@ pub async fn query_raw(
     Ok(())
 }
 
-
 pub async fn query_with_limit(
     ton: TonClient,
     collection: &str,
-    filter: serde_json::Value,
+    filter: Value,
     result: &str,
     order: Option<Vec<OrderBy>>,
     limit: Option<u32>,
-) -> Result<Vec<serde_json::Value>, ClientError> {
+) -> Result<Vec<Value>, ClientError> {
     query_collection(
         ton,
         ParamsOfQueryCollection {
@@ -251,6 +251,27 @@ pub async fn query_with_limit(
     )
         .await
         .map(|r| r.result)
+}
+
+pub async fn query_message(
+    ton: TonClient,
+    message_id: &str,
+) -> Result<String, String> {
+    let messages = query_with_limit(
+        ton.clone(),
+        "messages",
+        json!({ "id": { "eq": message_id } }),
+        "boc",
+        None,
+        Some(1),
+    ).await
+        .map_err(|e| format!("failed to query account data: {}", e))?;
+    if messages.is_empty() {
+        Err("message with specified id was not found.".to_string())
+    }
+    else {
+        Ok(messages[0]["boc"].as_str().ok_or("Failed to obtain message boc.".to_string())?.to_string())
+    }
 }
 
 pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> Result<String, String> {
@@ -599,22 +620,25 @@ pub async fn load_account(
 
 
 pub fn load_debug_info(abi: &str) -> Option<String> {
-    check_file_exists(abi, &[".json", ".abi"], ".dbg.json")
+    check_file_exists(abi, &[".json", ".abi"], &[".dbg.json", ".debug.json", ".map.json"])
 }
 
 pub fn load_abi_from_tvc(tvc: &str) -> Option<String> {
-    check_file_exists(tvc, &[".tvc"], ".abi.json")
+    check_file_exists(tvc, &[".tvc"], &[".abi.json"])
 }
 
-pub fn check_file_exists(path: &str, trim: &[&str], ending: &str) -> Option<String> {
+pub fn check_file_exists(path: &str, trim: &[&str], ending: &[&str]) -> Option<String> {
     let mut path = path;
     for end in trim {
         path = path.trim_end_matches(end);
     }
-    let mut path = path.to_string();
-    path.push_str(ending);
-    if std::path::Path::new(&path).exists() {
-        return Some(path);
+    let path = path.to_string();
+    for end in ending {
+        let mut new_path = path.clone();
+        new_path.push_str(end);
+        if std::path::Path::new(&new_path).exists() {
+            return Some(new_path);
+        }
     }
     None
 }
@@ -701,4 +725,319 @@ pub fn contract_data_from_matches_or_config_alias(
         .or(full_config.config.keys_path.clone())
         .or(keys);
     Ok((address, Some(abi), keys))
+}
+
+pub fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String> {
+    // Default config params from evernode-se https://github.com/tonlabs/evernode-se/blob/master/docker/ton-node/blockchain.conf.json
+    let json = r#"{
+  "p0": "5555555555555555555555555555555555555555555555555555555555555555",
+  "p1": "3333333333333333333333333333333333333333333333333333333333333333",
+  "p2": "0000000000000000000000000000000000000000000000000000000000000000",
+  "p7": [
+    {
+      "currency": 239,
+      "value": "666666666666"
+    },
+    {
+      "currency": 4294967279,
+      "value": "1000000000000"
+    }
+  ],
+  "p8": {
+    "version": 5,
+    "capabilities": "1180974"
+  },
+  "p9": [
+    0,
+    1,
+    9,
+    10,
+    12,
+    14,
+    15,
+    16,
+    17,
+    18,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    28,
+    34
+  ],
+  "p10": [
+    0,
+    1,
+    9,
+    10,
+    12,
+    14,
+    15,
+    16,
+    17,
+    32,
+    34,
+    36,
+    4294966295,
+    4294966296,
+    4294966297
+  ],
+  "p11": {
+    "normal_params": {
+      "min_tot_rounds": 2,
+      "max_tot_rounds": 3,
+      "min_wins": 2,
+      "max_losses": 2,
+      "min_store_sec": 1000000,
+      "max_store_sec": 10000000,
+      "bit_price": 1,
+      "cell_price": 500
+    },
+    "critical_params": {
+      "min_tot_rounds": 4,
+      "max_tot_rounds": 7,
+      "min_wins": 4,
+      "max_losses": 2,
+      "min_store_sec": 5000000,
+      "max_store_sec": 20000000,
+      "bit_price": 2,
+      "cell_price": 1000
+    }
+  },
+  "p12": [
+    {
+      "workchain_id": 0,
+      "enabled_since": 1605687562,
+      "actual_min_split": 0,
+      "min_split": 4,
+      "max_split": 8,
+      "active": true,
+      "accept_msgs": true,
+      "flags": 0,
+      "zerostate_root_hash": "c52f085257330ec9b73b94a45b591f997849405a4de5b778edbde5f9775f9a8b",
+      "zerostate_file_hash": "bd1e95b4e69afbaf5b5186eeeca15a87e16c13feff53595ae6891c12a5790b05",
+      "version": 0,
+      "basic": true,
+      "vm_version": -1,
+      "vm_mode": 0
+    },
+    {
+      "workchain_id": 777,
+      "enabled_since": 1605687544,
+      "actual_min_split": 0,
+      "min_split": 5,
+      "max_split": 8,
+      "active": true,
+      "accept_msgs": false,
+      "flags": 0,
+      "zerostate_root_hash": "ee2f085257330ec9b73b94a45b591f997849405a4de5b778edbde5f9775f9a8b",
+      "zerostate_file_hash": "ff1e95b4e69afbaf5b5186eeeca15a87e16c13feff53595ae6891c12a5790b05",
+      "version": 0,
+      "basic": true,
+      "vm_version": -1,
+      "vm_mode": 0
+    }
+  ],
+  "p13": {
+    "boc": "te6ccgEBAQEADQAAFRpRdIdugAEBIB9I"
+  },
+  "p14": {
+    "masterchain_block_fee": "1700000000",
+    "basechain_block_fee": "1000000000"
+  },
+  "p15": {
+    "validators_elected_for": 14400,
+    "elections_start_before": 7200,
+    "elections_end_before": 1800,
+    "stake_held_for": 7200
+  },
+  "p16": {
+    "max_validators": 1000,
+    "max_main_validators": 100,
+    "min_validators": 5
+  },
+  "p17": {
+    "min_stake": "10000000000000",
+    "max_stake": "10000000000000000",
+    "min_total_stake": "100000000000000",
+    "max_stake_factor": 196608
+  },
+  "p18": [
+    {
+      "utime_since": 0,
+      "bit_price_ps": "1",
+      "cell_price_ps": "500",
+      "mc_bit_price_ps": "1000",
+      "mc_cell_price_ps": "500000"
+    }
+  ],
+  "p20": {
+    "flat_gas_limit": "1000",
+    "flat_gas_price": "10000000",
+    "gas_price": "655360000",
+    "gas_limit": "1000000",
+    "special_gas_limit": "100000000",
+    "gas_credit": "10000",
+    "block_gas_limit": "11000000",
+    "freeze_due_limit": "100000000",
+    "delete_due_limit": "1000000000"
+  },
+  "p21": {
+    "flat_gas_limit": "1000",
+    "flat_gas_price": "1000000",
+    "gas_price": "65536000",
+    "gas_limit": "1000000",
+    "special_gas_limit": "1000000",
+    "gas_credit": "10000",
+    "block_gas_limit": "10000000",
+    "freeze_due_limit": "100000000",
+    "delete_due_limit": "1000000000"
+  },
+  "p22": {
+    "bytes": {
+      "underload": 131072,
+      "soft_limit": 524288,
+      "hard_limit": 1048576
+    },
+    "gas": {
+      "underload": 900000,
+      "soft_limit": 1200000,
+      "hard_limit": 2000000
+    },
+    "lt_delta": {
+      "underload": 1000,
+      "soft_limit": 5000,
+      "hard_limit": 10000
+    }
+  },
+  "p23": {
+    "bytes": {
+      "underload": 131072,
+      "soft_limit": 524288,
+      "hard_limit": 1048576
+    },
+    "gas": {
+      "underload": 900000,
+      "soft_limit": 1200000,
+      "hard_limit": 2000000
+    },
+    "lt_delta": {
+      "underload": 1000,
+      "soft_limit": 5000,
+      "hard_limit": 10000
+    }
+  },
+  "p24": {
+    "lump_price": "10000000",
+    "bit_price": "655360000",
+    "cell_price": "65536000000",
+    "ihr_price_factor": 98304,
+    "first_frac": 21845,
+    "next_frac": 21845
+  },
+  "p25": {
+    "lump_price": "1000000",
+    "bit_price": "65536000",
+    "cell_price": "6553600000",
+    "ihr_price_factor": 98304,
+    "first_frac": 21845,
+    "next_frac": 21845
+  },
+  "p28": {
+    "shuffle_mc_validators": true,
+    "mc_catchain_lifetime": 250,
+    "shard_catchain_lifetime": 250,
+    "shard_validators_lifetime": 1000,
+    "shard_validators_num": 7
+  },
+  "p29": {
+    "new_catchain_ids": true,
+    "round_candidates": 3,
+    "next_candidate_delay_ms": 2000,
+    "consensus_timeout_ms": 16000,
+    "fast_attempts": 3,
+    "attempt_duration": 8,
+    "catchain_max_deps": 4,
+    "max_block_bytes": 2097152,
+    "max_collated_bytes": 2097152
+  },
+  "p31": [
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "04f64c6afbff3dd10d8ba6707790ac9670d540f37a9448b0337baa6a5a92acac",
+    "3333333333333333333333333333333333333333333333333333333333333333"
+  ],
+  "p34": {
+    "utime_since": 1605687562,
+    "utime_until": 1605698362,
+    "total": 7,
+    "main": 7,
+    "total_weight": "119",
+    "list": [
+      {
+        "public_key": "5457fef5bf496f65ea64d1d8bb4a90694f61fe2787cdb67d16f9ffe548d0b8d9",
+        "weight": "17"
+      },
+      {
+        "public_key": "d3ccd99924c61509fc6f1c940a3b027cc2c68f351be9eecb2ce259b4721d9aee",
+        "weight": "17"
+      },
+      {
+        "public_key": "51c45bdff0adbf75b61c186129f93361aad0bacff4b729d6061519dee5bc360c",
+        "weight": "17"
+      },
+      {
+        "public_key": "f752195a66941a6526c5bd3aef65f07d20aa4b7d9ae57a0dbb01e9d4849ca30d",
+        "weight": "17"
+      },
+      {
+        "public_key": "3d0537cd35cc24d1a2098e359b49594665f72cd9c8744c1e1b2e456c7060829a",
+        "weight": "17"
+      },
+      {
+        "public_key": "b8639405595ec2a40d65673020e7638c4588d1a72dd2c6a80ecf47499913f509",
+        "weight": "17"
+      },
+      {
+        "public_key": "bfa0d77ec39ac4fc386cfd0fb2a940b746502adbbdc361271042cea05f14e7fb",
+        "weight": "17"
+      }
+    ]
+  }
+}"#;
+    let map = serde_json::from_str::<serde_json::Map<String, Value>>(&json)
+        .map_err(|e| format!("Failed to parse config params as json: {e}"))?;
+    let config_params = ton_block_json::parse_config(&map)
+        .map_err(|e| format!("Failed to parse config params: {e}"))?;
+    BlockchainConfig::with_config(config_params)
+        .map_err(|e| format!("Failed to construct default config: {e}"))
+}
+
+// loads blockchain config from the config contract boc, if it is none tries to load config contract
+// from the network, if it is unavailable returns default.
+pub async fn get_blockchain_config(cli_config: &Config, config_contract_boc_path: Option<&str>) ->
+    Result<BlockchainConfig, String> {
+    match config_contract_boc_path {
+        Some(config_path) => {
+            let acc =Account::construct_from_file(config_path)
+                .map_err(|e| format!("Failed to load config contract account from file {config_path}: {e}"))?;
+            construct_blockchain_config(&acc)
+        },
+        None => {
+            let ton_client = create_client(cli_config)?;
+            let config = query_account_field(
+                ton_client.clone(),
+                CONFIG_ADDR,
+                "boc",
+            ).await;
+            let config_account = config.and_then(|config|
+                Account::construct_from_base64(&config)
+                    .map_err(|e| format!("Failed to construct config account: {e}")));
+            match config_account {
+                Ok(config) => construct_blockchain_config(&config),
+                Err(_) => blockchain_config_from_default_json()
+            }
+        }
+    }
 }

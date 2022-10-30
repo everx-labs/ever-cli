@@ -40,6 +40,8 @@ mod replay;
 mod debug;
 mod run;
 mod message;
+#[cfg(feature = "sold")]
+mod compile;
 
 use account::{get_account, calc_storage, wait_for_change};
 use call::{call_contract, call_contract_with_msg};
@@ -63,6 +65,8 @@ use voting::{create_proposal, decode_proposal, vote};
 use replay::{fetch_block_command, fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use crate::account::dump_accounts;
+#[cfg(feature = "sold")]
+use crate::compile::{compile_command, create_compile_command};
 
 use crate::config::{FullConfig, resolve_net_name};
 use crate::getconfig::gen_update_config_message;
@@ -106,11 +110,6 @@ async fn main_internal() -> Result <(), String> {
         .takes_value(true)
         .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config file.");
 
-    let config_path_arg = Arg::with_name("CONFIG_PATH")
-        .help("Path to the file with saved config contract state. Is used for debug on fail.")
-        .long("--saved_config")
-        .takes_value(true);
-
     let method_opt_arg = Arg::with_name("METHOD")
         .takes_value(true)
         .long("--method")
@@ -137,8 +136,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(abi_arg.clone())
         .arg(keys_arg.clone())
         .arg(method_opt_arg.clone())
-        .arg(multi_params_arg.clone())
-        .arg(config_path_arg.clone());
+        .arg(multi_params_arg.clone());
 
     let tvc_arg = Arg::with_name("TVC")
         .takes_value(true)
@@ -208,8 +206,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(multi_params_arg.clone())
         .arg(boc_flag.clone())
         .arg(tvc_flag.clone())
-        .arg(bc_config_arg.clone())
-        .arg(config_path_arg.clone());
+        .arg(bc_config_arg.clone());
 
     let runget_cmd = SubCommand::with_name("runget")
         .about("Runs get-method of a FIFT contract.")
@@ -344,8 +341,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(method_arg.clone())
         .arg(params_arg.clone())
         .arg(abi_arg.clone())
-        .arg(sign_arg.clone())
-        .arg(config_path_arg.clone());
+        .arg(sign_arg.clone());
 
     let send_cmd = SubCommand::with_name("send")
         .about("Sends a prepared message to the contract.")
@@ -398,8 +394,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(abi_arg.clone())
         .arg(boc_flag.clone())
         .arg(tvc_flag.clone())
-        .arg(bc_config_arg.clone())
-        .arg(config_path_arg.clone());
+        .arg(bc_config_arg.clone());
 
     let config_clear_cmd = SubCommand::with_name("clear")
         .setting(AppSettings::AllowLeadingHyphen)
@@ -854,7 +849,8 @@ async fn main_internal() -> Result <(), String> {
             .long("--config")
             .short("-c")
             .takes_value(true)
-            .help("File containing zerostate and txns of -1:555..5 account."))
+            .help("File containing zerostate and txns of -1:555..5 account.")
+            .conflicts_with("DEFAULT_CONFIG"))
         .arg(Arg::with_name("INPUT_TXNS")
             .required(true)
             .takes_value(true)
@@ -863,23 +859,20 @@ async fn main_internal() -> Result <(), String> {
             .required(true)
             .takes_value(true)
             .help("Dump account state before this transaction ID and stop replaying."))
-        .arg(Arg::with_name("CURRENT_CONFIG")
-            .help("Replay transaction with current network config.")
-            .long("--current_config")
-            .short("-e"))
-        .arg(Arg::with_name("IGNORE_HASHES")
-            .help("Ignore hashes mismatch. This flag must be set while replaying a contract after setcode on the Node SE.")
-            .long("--ignore_hashes")
-            .short("-i"));
+        .arg(Arg::with_name("DEFAULT_CONFIG")
+            .help("Replay transaction with current network config or default if it is not available.")
+            .long("--default_config")
+            .short("-e")
+            .conflicts_with("CONFIG_TXNS"));
 
+    let version = format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
+                          env!("CARGO_PKG_VERSION"),
+                          env!("BUILD_GIT_COMMIT"),
+                          env!("BUILD_TIME"),
+                          env!("BUILD_GIT_DATE"),
+                          env!("BUILD_GIT_BRANCH"));
     let matches = App::new("tonos_cli")
-        .version(&*format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
-                           env!("CARGO_PKG_VERSION"),
-                           env!("BUILD_GIT_COMMIT"),
-                           env!("BUILD_TIME"),
-                           env!("BUILD_GIT_DATE"),
-                           env!("BUILD_GIT_BRANCH"))
-        )
+        .version(&*version)
         .author("TONLabs")
         .about("TONLabs console tool for TON")
         .arg(Arg::with_name("NETWORK")
@@ -932,8 +925,11 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(deployx_cmd)
         .subcommand(runx_cmd)
         .subcommand(update_config_param_cmd)
-        .setting(AppSettings::SubcommandRequired)
-        .get_matches_safe()
+        .setting(AppSettings::SubcommandRequired);
+#[cfg(feature = "sold")]
+    let matches = matches.subcommand(create_compile_command());
+
+    let matches = matches.get_matches_safe()
         .map_err(|e| match e.kind {
             clap::ErrorKind::VersionDisplayed => { println!(); exit(0); },
             clap::ErrorKind::HelpDisplayed => { println!("{}", e); exit(0); },
@@ -1104,6 +1100,10 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     if let Some(m) = matches.subcommand_matches("replay") {
         return replay_command(m, config).await;
     }
+#[cfg(feature = "sold")]
+    if let Some(m) = matches.subcommand_matches("compile") {
+        return compile_command(m, &config).await;
+    }
     if matches.subcommand_matches("version").is_some() {
         if config.is_json {
             println!("{{");
@@ -1227,7 +1227,6 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
                 &params.unwrap(),
                 keys,
                 is_fee,
-                Some(matches)
             ).await
         },
         CallType::Msg => {
@@ -1284,7 +1283,6 @@ async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Re
         &params.unwrap(),
         keys,
         false,
-        Some(matches),
     ).await
 }
 
@@ -1419,7 +1417,7 @@ async fn genaddr_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
     let tvc = matches.value_of("TVC");
     let wc = matches.value_of("WC");
     let keys = matches.value_of("GENKEY").or(matches.value_of("SETKEY"));
-    let new_keys = matches.is_present("GENKEY") ;
+    let new_keys = matches.is_present("GENKEY");
     let init_data = matches.value_of("DATA");
     let update_tvc = matches.is_present("SAVE");
     let abi = match abi_from_matches_or_config(matches, config) {

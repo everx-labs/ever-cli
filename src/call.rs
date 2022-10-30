@@ -12,7 +12,8 @@
  */
 use crate::config::Config;
 use crate::convert;
-use crate::helpers::{TonClient, now_ms, create_client_verbose, load_abi, query_account_field, SDK_EXECUTION_ERROR_CODE, create_client, load_ton_abi};
+use crate::helpers::{TonClient, now_ms, create_client_verbose, load_abi, query_account_field,
+                     SDK_EXECUTION_ERROR_CODE, create_client, load_ton_abi, get_blockchain_config};
 
 use ton_client::abi::{encode_message, decode_message, ParamsOfDecodeMessage, ParamsOfEncodeMessage,
                       Abi};
@@ -31,7 +32,6 @@ use ton_client::tvm::{
 };
 use ton_block::{Account, Serializable, Deserializable, Message};
 use std::str::FromStr;
-use clap::ArgMatches;
 use serde_json::{Value};
 use ton_abi::ParamType;
 use ton_client::error::ClientError;
@@ -256,7 +256,6 @@ pub async fn call_contract_with_result(
     params: &str,
     keys: Option<String>,
     is_fee: bool,
-    matches: Option<&ArgMatches<'_>>,
 ) -> Result<Value, String> {
     let ton = if config.debug_fail != "None".to_string() {
         let log_path = format!("call_{}_{}.log", addr, method);
@@ -268,7 +267,7 @@ pub async fn call_contract_with_result(
     } else {
         create_client_verbose(config)?
     };
-    call_contract_with_client(ton, config, addr, abi_path, method, params, keys, is_fee, matches).await
+    call_contract_with_client(ton, config, addr, abi_path, method, params, keys, is_fee).await
 }
 
 pub async fn call_contract_with_client(
@@ -280,7 +279,6 @@ pub async fn call_contract_with_client(
     params: &str,
     keys: Option<String>,
     is_fee: bool,
-    matches: Option<&ArgMatches<'_>>,
 ) -> Result<Value, String> {
     let abi = load_abi(abi_path, config).await?;
 
@@ -331,7 +329,7 @@ pub async fn call_contract_with_client(
             .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
         let now = now_ms();
-        Some((account, message.unwrap(), now))
+        Some((account, message.unwrap(), now, get_blockchain_config(config, None).await?))
     } else {
         None
     };
@@ -351,10 +349,10 @@ pub async fn call_contract_with_client(
             println!("Error: {:#}", res.clone().err().unwrap());
             println!("Execution failed. Starting debug...");
         }
-        let (mut account, message, now) = dump.unwrap();
+        let (mut account, message, now, bc_config) = dump.unwrap();
         let message = Message::construct_from_base64(&message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        let _ = execute_debug(matches, Some(ton.clone()), &mut account, Some(&message), (now / 1000) as u32, now,now, false, config).await?;
+        let _ = execute_debug(bc_config, &mut account, Some(&message), (now / 1000) as u32, now,now, false, config).await?;
 
         if !config.is_json {
             let log_path = format!("call_{}_{}.log", addr, method);
@@ -387,9 +385,8 @@ pub async fn call_contract(
     params: &str,
     keys: Option<String>,
     is_fee: bool,
-    matches: Option<&ArgMatches<'_>>,
 ) -> Result<(), String> {
-    let result = call_contract_with_result(config, addr, abi_path, method, params, keys, is_fee, matches).await?;
+    let result = call_contract_with_result(config, addr, abi_path, method, params, keys, is_fee).await?;
     if !config.is_json {
         println!("Succeeded.");
     }

@@ -2,11 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.29.1
+
+### New
+- Added [sold](https://github.com/tonlabs/TON-Solidity-Compiler/tree/master/sold) functionality as feature;
+- Improved behavior of the `decode msg` command. Now it doesn't require `--base64` flag to decode base64 input. It can
+  also decode message by id in the blockchain and decode files with messages not in binary but with text in base64;
+- Changed `debug transaction` and `debug account` commands flag `--empty_config` to `--default_config` which uses 
+  current network config or default one if it is unavailable;
+- Removed option `--saved_config` from call and run commands.
+
 ## Version: 0.28.12
 
 ### New
 - Added ability to specify link to the abi file of json data instead of path.
-
 
 ## Version: 0.28.3
 
