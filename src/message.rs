@@ -83,16 +83,16 @@ pub fn prepare_message_params (
 }
 
 pub fn print_encoded_message(msg: &EncodedMessage, is_json:bool) {
-    let expire = if msg.expire.is_some() {
-        let expire_at = Local.timestamp(msg.expire.unwrap() as i64, 0);
-        expire_at.to_rfc2822()
+    let (expire, ut) = if let Some(expire) = msg.expire {
+        let expire_at = Local.timestamp(expire as i64, 0);
+        (expire_at.to_rfc2822(), format!("{}", expire))
     } else {
-        "unknown".to_string()
+        ("unknown".to_string(), "unknown".to_string())
     };
     if !is_json {
         println!();
         println!("MessageId: {}", msg.message_id);
-        println!("Expire at: {}", expire);
+        println!("Expire at: {} (unix time: {})", expire, ut);
     } else {
         println!("  \"MessageId\": \"{}\",", msg.message_id);
         println!("  \"Expire at\": \"{}\",", expire);
