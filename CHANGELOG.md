@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.29.2
+
+### New
+- Added the `sign` command. It makes signaure for data encoded in base64 or hex using common `--keys` option;
+
 ## Version: 0.29.1
 
 ### New
