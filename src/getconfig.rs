@@ -424,7 +424,8 @@ fn prepare_message_new_config_param(
     let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
     let mut header = ExternalInboundMessageHeader::new(AddrNone, config_contract_address);
     header.import_fee = Grams::zero();
-    let message = Message::with_ext_in_header_and_body(header, cell.into());
+    let body = SliceData::from(cell.into_cell().unwrap());
+    let message = Message::with_ext_in_header_and_body(header, body);
 
     Ok(message)
 }

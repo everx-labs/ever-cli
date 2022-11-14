@@ -504,7 +504,7 @@ pub mod msg_printer {
     pub async fn serialize_state_init (state: &StateInit, ton: TonClient) -> Result<Value, String> {
         let code = tree_of_cells_into_base64(state.code.as_ref())?;
         Ok(json!({
-            "split_depth" : state.split_depth.as_ref().map(|x| format!("{:?}", (x.0 as u8))).unwrap_or("None".to_string()),
+            "split_depth" : state.split_depth.as_ref().map(|x| format!("{:?}", (x.as_u32()))).unwrap_or("None".to_string()),
             "special" : state.special.as_ref().map(|x| format!("{:?}", x)).unwrap_or("None".to_string()),
             "data" : tree_of_cells_into_base64(state.data.as_ref())?,
             "code" : code.clone(),
@@ -526,7 +526,7 @@ pub mod msg_printer {
     }
 
     fn serialize_grams(grams: &Grams) -> Value {
-        json!(grams.0.to_string())
+        json!(grams.to_string())
     }
 
     fn serialize_currency_collection(cc: &CurrencyCollection) -> Value {
@@ -536,7 +536,7 @@ pub mod msg_printer {
         }
         let mut other = json!({});
         cc.other.iterate_with_keys(|key: u32, value| {
-            other[key.to_string()] = json!(value.0.to_string());
+            other[key.to_string()] = json!(value.to_string());
             Ok(true)
         }).ok();
         json!({
