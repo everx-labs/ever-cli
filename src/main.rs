@@ -53,17 +53,18 @@ use decode::{create_decode_command, decode_command};
 use debug::{create_debug_command, debug_command};
 use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
-use helpers::{load_ton_address, load_abi, create_client_local, query_raw,
-              contract_data_from_matches_or_config_alias};
+use ed25519_dalek::Signer;
 use genaddr::generate_address;
 use getconfig::{query_global_config, dump_blockchain_config};
+use helpers::{load_ton_address, load_abi, create_client_local, query_raw,
+              contract_data_from_matches_or_config_alias};
 use multisig::{create_multisig_command, multisig_command};
+use replay::{fetch_block_command, fetch_command, replay_command};
 use std::env;
 use std::collections::BTreeMap;
 use std::process::exit;
-use voting::{create_proposal, decode_proposal, vote};
-use replay::{fetch_block_command, fetch_command, replay_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
+use voting::{create_proposal, decode_proposal, vote};
 use crate::account::dump_accounts;
 #[cfg(feature = "sold")]
 use crate::compile::{compile_command, create_compile_command};
@@ -130,7 +131,7 @@ async fn main_internal() -> Result <(), String> {
         .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
         .multiple(true);
 
-    let author = "EVERLabs";
+    let author = "EverX";
 
     let callx_cmd = SubCommand::with_name("callx")
         .about("Sends an external message with encoded function call to the contract (alternative syntax).")
@@ -1228,9 +1229,9 @@ async fn sign_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
             }
         }
     };
-    let (secret, public_key) = pair.decode()
+    let keypair = pair.decode()
         .map_err(|err| format!("cannot decode keypair {}", err))?;
-    let signature = secret.sign(&data, &public_key);
+    let signature = keypair.sign(&data);
     let signature = base64::encode(signature.as_ref());
     if !config.is_json {
         println!("Signature: {}", signature);

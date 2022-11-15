@@ -84,7 +84,7 @@ pub fn prepare_message_params (
 
 pub fn print_encoded_message(msg: &EncodedMessage, is_json:bool) {
     let expire = if msg.expire.is_some() {
-        let expire_at = Local.timestamp(msg.expire.unwrap() as i64, 0);
+        let expire_at = Local.timestamp_opt(msg.expire.unwrap() as i64, 0).single().unwrap();
         expire_at.to_rfc2822()
     } else {
         "unknown".to_string()
