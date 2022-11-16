@@ -52,9 +52,9 @@ pub fn nodeid_from_pubkey(key: &[u8]) -> Result<String, String> {
     }
     let mut hasher = Sha256::new();
     // node id magic
-    hasher.input(&[0xc6, 0xb4, 0x13, 0x48]);
+    hasher.update(&[0xc6, 0xb4, 0x13, 0x48]);
     //key
-    hasher.input(key);
+    hasher.update(key);
 
-    Ok(hex::encode(&hasher.result()))
+    Ok(hex::encode(&hasher.finalize()))
 }

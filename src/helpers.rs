@@ -1041,3 +1041,13 @@ pub async fn get_blockchain_config(cli_config: &Config, config_contract_boc_path
         }
     }
 }
+
+pub fn decode_data(data: &str, param_name: &str) -> Result<Vec<u8>, String> {
+    if let Ok(data) = base64::decode(data) {
+        Ok(data)
+    } else if let Ok(data) = hex::decode(data) {
+        Ok(data)
+    } else {
+        Err(format!("the {} parameter should be base64 or hex encoded", param_name))
+    }
+}

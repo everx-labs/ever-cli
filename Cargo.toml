@@ -23,29 +23,29 @@ sold = ["dep:sold"]
 
 [dependencies]
 async-trait = '0.1.42'
-base64 = '0.10.1'
+base64 = '0.13'
 chrono = '0.4'
 clap = '2.32'
-crc16 = '0.4.0'
-ed25519-dalek = '1.0.0-pre.3'
-failure = '0.1.6'
-futures = '0.3.21'
-hex = '0.3.2'
+crc16 = '0.4'
+ed25519-dalek = '1.0'
+failure = '0.1'
+futures = '0.3'
+hex = '0.4'
 indicatif = '0.16'
-lazy_static = '1.4.0'
+lazy_static = '1.4'
 num-bigint = '0.4'
 num-traits = '0.2'
-qr2term = '0.2.0'
-regex = '1.5.4'
+qr2term = '0.2'
+regex = '1.5'
 reqwest = '0.11'
-serde_derive = '1.0.91'
+serde_derive = '1.0'
 serde_json = '1.0'
-sha2 = '0.8'
-simplelog = '0.8.0'
+sha2 = '0.10'
+simplelog = '0.8'
 tokio-retry = '0.3'
-log = { features = [ 'std' ], version = '0.4.11' }
+log = { features = [ 'std' ], version = '0.4' }
 serde = { features = [ 'derive' ], version = '1.0' }
-tokio = { default-features = false, features = [ 'full' ], version = '1' }
+tokio = { default-features = false, features = [ 'full' ], version = '1.21' }
 url = '2.3.1'
 ton_abi = { git = 'https://github.com/tonlabs/ton-labs-abi.git', tag = '2.3.7' }
 ton_block = { git = 'https://github.com/tonlabs/ton-labs-block.git', tag = '1.8.3' }

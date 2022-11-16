@@ -57,13 +57,15 @@ use ed25519_dalek::Signer;
 use genaddr::generate_address;
 use getconfig::{query_global_config, dump_blockchain_config};
 use helpers::{load_ton_address, load_abi, create_client_local, query_raw,
-              contract_data_from_matches_or_config_alias};
+              contract_data_from_matches_or_config_alias, decode_data};
 use multisig::{create_multisig_command, multisig_command};
 use replay::{fetch_block_command, fetch_command, replay_command};
-use std::env;
 use std::collections::BTreeMap;
+use std::env;
 use std::process::exit;
+use std::sync::Arc;
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
+use ton_types::deserialize_tree_of_cells_inmem;
 use voting::{create_proposal, decode_proposal, vote};
 use crate::account::dump_accounts;
 #[cfg(feature = "sold")]
@@ -400,7 +402,13 @@ async fn main_internal() -> Result <(), String> {
             .long("--data")
             .short("-d")
             .takes_value(true)
-            .help("Bytestring for signing.")
+            .help("Bytestring for signing base64 or hex encoded.")
+        )
+        .arg(Arg::with_name("CELL")
+            .long("--cell")
+            .short("-c")
+            .takes_value(true)
+            .help("Serialized TOC for signing base64 or hex encoded.")
         )
         .arg(keys_arg.clone());
 
@@ -1011,7 +1019,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return body_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("sign") {
-        return sign_command(m, config).await;
+        return sign_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("message") {
         return call_command(m, config, CallType::Msg).await;
@@ -1207,18 +1215,16 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     Ok(())
 }
 
-async fn sign_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let data = match matches.value_of("DATA") {
-        Some(data) => {
-            if let Ok(data) = base64::decode(data) {
-                data
-            } else if let Ok(data) = hex::decode(data) {
-                data
-            } else {
-                return Err("the data parameter should be base64 or hex encoded".to_string())
-            }
-        }
-        None => return Err("no data parameter".to_string())
+fn sign_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let data = if let Some(data) = matches.value_of("DATA") {
+        decode_data(data, "data")?
+    } else if let Some(data) = matches.value_of("CELL") {
+        let data = decode_data(data, "cell")?;
+        let cell = deserialize_tree_of_cells_inmem(Arc::new(data))
+            .map_err(|err| format!("Cannot deserialize tree of cells {}", err))?;
+        cell.repr_hash().into_vec()
+    } else {
+        return Err("nor data neither cell parameter".to_string())
     };
     let pair = match matches.value_of("KEYS") {
         Some(keys) => crypto::load_keypair(&keys)?,
