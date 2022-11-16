@@ -392,9 +392,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.0.24"
+version = "4.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60494cedb60cb47462c0ff7be53de32c0e42a6fc2c772184554fa12bd9489c03"
+checksum = "2148adefda54e14492fb9bddcc600b4344c5d1a3123bd666dcb939c6f0e0e57e"
 dependencies = [
  "atty",
  "bitflags",
@@ -2020,9 +2020,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.11.12"
+version = "0.11.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "431949c384f4e2ae07605ccaa56d1d9d2ecdb5cadd4f9577ccfab29f2e5149fc"
+checksum = "68cc60575865c7831548863cc02356512e3f1dc2f3f82cb837d7fc4cc8f3c97c"
 dependencies = [
  "base64 0.13.1",
  "bytes",
@@ -2372,7 +2372,7 @@ version = "0.66.0"
 source = "git+https://github.com/tonlabs/TON-Solidity-Compiler.git?tag=0.66.0#0436b43674dad4e61e7ccb910df169735f324eae"
 dependencies = [
  "atty",
- "clap 4.0.24",
+ "clap 4.0.26",
  "cmake",
  "dunce",
  "failure",
@@ -2951,14 +2951,14 @@ version = "0.29.2"
 dependencies = [
  "assert_cmd",
  "async-trait",
- "base64 0.10.1",
+ "base64 0.13.1",
  "chrono",
  "clap 2.34.0",
  "crc16",
  "ed25519-dalek",
  "failure",
  "futures",
- "hex 0.3.2",
+ "hex 0.4.3",
  "indicatif",
  "lazy_static",
  "log",
@@ -2971,7 +2971,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "sha2 0.8.2",
+ "sha2 0.10.6",
  "simplelog 0.8.0",
  "sold",
  "string-error",
