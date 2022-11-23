@@ -95,7 +95,7 @@ async fn get_events(config: &Config, abi: Abi, addr: &str, since: u32) -> Result
             order: Some(vec![OrderBy{ path: "created_at".to_owned(), direction: SortDirection::DESC }]),
             ..Default::default()
         },
-    ).await.map_err(|e| format!("failed to query depool events: {}", e))?;
+    ).await.map_err(|e| format!("failed to query account events: {}", e))?;
     println!("{} events found", events.result.len());
     for event in &events.result {
         print_event(ton.clone(), &abi, event).await?;
