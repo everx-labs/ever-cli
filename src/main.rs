@@ -30,6 +30,7 @@ mod debot;
 mod deploy;
 mod depool;
 mod depool_abi;
+mod events;
 mod genaddr;
 mod getconfig;
 mod helpers;
@@ -53,6 +54,7 @@ use decode::{create_decode_command, decode_command};
 use debug::{create_debug_command, debug_command};
 use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
+use events::events_command;
 use helpers::{load_ton_address, load_abi, create_client_local, query_raw,
               contract_data_from_matches_or_config_alias};
 use genaddr::generate_address;
@@ -864,6 +866,20 @@ async fn main_internal() -> Result <(), String> {
             .long("--default_config")
             .short("-e")
             .conflicts_with("CONFIG_TXNS"));
+    let events_cmd = SubCommand::with_name("events")
+        .about("Prints account events.")
+        .setting(AppSettings::AllowLeadingHyphen)
+        .arg(abi_arg.clone())
+        .arg(address_arg.clone())
+        .arg(Arg::with_name("SINCE")
+            .takes_value(true)
+            .long("--since")
+            .short("-s")
+            .help("Prints events since this unixtime."))
+        .arg(Arg::with_name("WAITONE")
+            .long("--wait-one")
+            .short("-w")
+            .help("Waits until new event will be emitted."));
 
     let version = format!("{}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
                           env!("CARGO_PKG_VERSION"),
@@ -925,6 +941,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(deployx_cmd)
         .subcommand(runx_cmd)
         .subcommand(update_config_param_cmd)
+        .subcommand(events_cmd)
         .setting(AppSettings::SubcommandRequired);
 #[cfg(feature = "sold")]
     let matches = matches.subcommand(create_compile_command());
@@ -1099,6 +1116,9 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
     if let Some(m) = matches.subcommand_matches("replay") {
         return replay_command(m, config).await;
+    }
+    if let Some(m) = matches.subcommand_matches("events") {
+        return events_command(m, &config).await
     }
 #[cfg(feature = "sold")]
     if let Some(m) = matches.subcommand_matches("compile") {
