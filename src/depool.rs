@@ -21,13 +21,12 @@ use crate::helpers::{
     now,
     TonClient,
     answer_filter,
-    events_filter,
     print_message,
 };
 use crate::multisig::{send_with_body, MSIG_ABI};
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 
-use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet, ParamsOfDecodeMessageBody};
+use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, ParamsOfWaitForCollection, SortDirection};
 use crate::call::{process_message};
 
@@ -188,18 +187,6 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(wallet_arg.clone())
                 .arg(wait_answer.clone())
                 .arg(keys_arg.clone())))
-        .subcommand(SubCommand::with_name("events")
-            .about("Prints depool events.")
-            .setting(AppSettings::AllowLeadingHyphen)
-            .arg(Arg::with_name("SINCE")
-                .takes_value(true)
-                .long("--since")
-                .short("-s")
-                .help("Prints events since this unixtime."))
-            .arg(Arg::with_name("WAITONE")
-                .long("--wait-one")
-                .short("-w")
-                .help("Waits until new event will be emitted.")) )
 }
 
 struct CommandData<'a> {
@@ -313,9 +300,6 @@ pub async fn depool_command(m: &ArgMatches<'_>, config: &mut Config) -> Result<(
             return set_withdraw_command(&config, &depool, &wallet, &keys, enable_withdraw).await;
         }
     }
-    if let Some(m) = m.subcommand_matches("events") {
-        return events_command(m, &config, &depool).await
-    }
     if let Some(m) = m.subcommand_matches("answers") {
         return answer_command(m, &config, &depool).await
     }
@@ -372,103 +356,6 @@ async fn print_answer(ton: TonClient, message: &serde_json::Value) -> Result <()
     Ok(())
 }
 
-/*
- * Events command
- */
-
-async fn events_command(m: &ArgMatches<'_>, config: &Config, depool: &str) -> Result<(), String> {
-    let since = m.value_of("SINCE");
-    let wait_for = m.is_present("WAITONE");
-    let depool = Some(depool);
-    print_args!(depool, since);
-    if !wait_for {
-        let since = since.map(|s| {
-                u32::from_str_radix(s, 10)
-                    .map_err(|e| format!(r#"cannot parse "since" option: {}"#, e))
-            })
-            .transpose()?
-            .unwrap_or(0);
-        get_events(config, depool.unwrap(), since).await
-    } else {
-        wait_for_event(config, depool.unwrap()).await
-    }
-}
-
-async fn print_event(ton: TonClient, event: &serde_json::Value) -> Result<(), String> {
-    println!("event {}", event["id"].as_str()
-        .ok_or("failed to serialize event id")?);
-
-    let body = event["body"].as_str()
-        .ok_or("failed to serialize event body")?;
-    let def_config = Config::default();
-    let result = ton_client::abi::decode_message_body(
-        ton.clone(),
-        ParamsOfDecodeMessageBody {
-            abi: load_abi(DEPOOL_ABI, &def_config).await.map_err(|e| format!("failed to load depool abi: {}", e))?,
-            body: body.to_owned(),
-            is_internal: false,
-            ..Default::default()
-        },
-    ).await;
-    let (name, args) = if result.is_err() {
-        ("unknown".to_owned(), "{}".to_owned())
-    } else {
-        let result = result.unwrap();
-        (result.name, serde_json::to_string(&result.value)
-            .map_err(|e| format!("failed to serialize the result: {}", e))?)
-    };
-
-    println!("{} {} ({})\n{}\n",
-        name,
-        event["created_at"].as_u64().ok_or("failed to serialize event field")?,
-        event["created_at_string"].as_str().ok_or("failed to serialize event field")?,
-        args
-    );
-    Ok(())
-}
-
-async fn get_events(config: &Config, depool: &str, since: u32) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
-    let _addr = load_ton_address(depool, &config)?;
-
-    let events = ton_client::net::query_collection(
-        ton.clone(),
-        ParamsOfQueryCollection {
-            collection: "messages".to_owned(),
-            filter: Some(events_filter(depool, since)),
-            result: "id body created_at created_at_string".to_owned(),
-            order: Some(vec![OrderBy{ path: "created_at".to_owned(), direction: SortDirection::DESC }]),
-            ..Default::default()
-        },
-    ).await.map_err(|e| format!("failed to query depool events: {}", e))?;
-    println!("{} events found", events.result.len());
-    for event in &events.result {
-        print_event(ton.clone(), event).await?;
-    }
-    println!("Done");
-    Ok(())
-}
-
-async fn wait_for_event(config: &Config, depool: &str) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
-    let _addr = load_ton_address(depool, &config)?;
-    println!("Waiting for a new event...");
-    let event = ton_client::net::wait_for_collection(
-        ton.clone(),
-        ParamsOfWaitForCollection {
-            collection: "messages".to_owned(),
-            filter: Some(events_filter(depool, now()?)),
-            result: "id body created_at created_at_string".to_owned(),
-            timeout: Some(config.timeout),
-            ..Default::default()
-        },
-
-    ).await.map_err(|e| println!("failed to query event: {}", e));
-    if event.is_ok() {
-        print_event(ton.clone(), &event.unwrap().result).await?;
-    }
-    Ok(())
-}
 /*
  * Stake commands
  */

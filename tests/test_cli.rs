@@ -1610,20 +1610,20 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#"value": "1000000000"#));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("--addr")
-        .arg(&depool_addr)
-        .arg("events");
+    cmd.arg("events")
+        .arg("--abi")
+        .arg("tests/depool-abi.json")
+        .arg(&depool_addr);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(r#"StakeSigningRequested"#))
         .stdout(predicate::str::contains(r#"{"electionId":"1","proxy":"0:0000000000000000000000000000000000000000000000000000000000000002"}"#));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("depool")
-        .arg("--addr")
+    cmd.arg("events")
+        .arg("--abi")
+        .arg("tests/depool-abi.json")
         .arg(&depool_addr)
-        .arg("events")
         .arg("-w");
     cmd.assert()
         .success();
