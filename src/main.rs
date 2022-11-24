@@ -15,11 +15,6 @@
 #![allow(clippy::or_fun_call)]
 #![allow(clippy::too_many_arguments)]
 
-extern crate clap;
-#[macro_use] extern crate log;
-#[macro_use] extern crate serde_json;
-extern crate core;
-
 mod account;
 mod call;
 mod config;
@@ -60,6 +55,7 @@ use helpers::{load_ton_address, load_abi, create_client_local, query_raw,
               contract_data_from_matches_or_config_alias, decode_data};
 use multisig::{create_multisig_command, multisig_command};
 use replay::{fetch_block_command, fetch_command, replay_command};
+use serde_json::json;
 use std::collections::BTreeMap;
 use std::env;
 use std::process::exit;

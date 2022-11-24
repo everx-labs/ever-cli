@@ -9,6 +9,7 @@ use crate::debot::term_signing_box::TerminalSigningBox;
 use crate::debot::{ChainProcessor, ProcessorError};
 use tokio::sync::RwLock;
 use std::sync::Arc;
+use serde_json::json;
 
 pub const ID: &str = "c13024e101c95e71afb1f5fa6d72f633d51e721de0320d73dfd6121a54e4d40a";
 

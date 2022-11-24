@@ -30,7 +30,7 @@ use ton_client::{
 };
 use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor,
                    TickTockTransactionExecutor, TransactionExecutor};
-use ton_types::{UInt256, serialize_tree_of_cells};
+use ton_types::{BuilderData, SliceData, UInt256, serialize_tree_of_cells};
 use ton_vm::executor::{Engine, EngineTraceInfo};
 
 use crate::config::Config;
@@ -357,9 +357,9 @@ pub async fn replay(
             }
             if dump_mask & DUMP_EXECUTOR_CONFIG != 0 {
                 // config.boc suitable for creating ton-labs-executor tests
-                let mut config_data = ton_types::SliceData::from(config_account.get_data()
-                    .ok_or("Failed to get config data")?);
-                let mut cfg = ton_types::BuilderData::new();
+                let mut config_data = SliceData::load_cell(config_account.get_data()
+                    .ok_or("Failed to get config data")?).unwrap();
+                let mut cfg = BuilderData::default();
                 cfg.append_raw(&config_data.get_next_bytes(32)
                     .map_err(|e| format!("Failed to read config data: {}", e))?, 256)
                     .map_err(|e| format!("Failed to append config data: {}", e))?;

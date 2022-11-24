@@ -27,7 +27,7 @@ use ton_client::{ClientConfig, ClientContext};
 use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
 use std::str::FromStr;
 use clap::ArgMatches;
-use serde_json::Value;
+use serde_json::{Value, json};
 use ton_client::abi::Abi::Contract;
 use ton_executor::BlockchainConfig;
 use url::Url;

@@ -17,6 +17,7 @@ use crate::convert;
 use crate::deploy::prepare_deploy_message_params;
 use crate::helpers::{create_client_local, load_abi, load_ton_address, create_client_verbose, load_file_with_url};
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
+use serde_json::json;
 use ton_client::abi::{encode_message_body, ParamsOfEncodeMessageBody, CallSet};
 use crate::crypto::load_keypair;
 

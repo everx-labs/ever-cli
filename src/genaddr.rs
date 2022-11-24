@@ -13,6 +13,7 @@
 use crate::config::Config;
 use crate::helpers::{create_client_local, read_keys, load_abi, calc_acc_address, load_abi_str};
 use ed25519_dalek::PublicKey;
+use serde_json::json;
 use std::fs::OpenOptions;
 
 use crate::crypto::{gen_seed_phrase, generate_keypair_from_mnemonic};

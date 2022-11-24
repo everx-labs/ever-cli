@@ -35,7 +35,7 @@ use ton_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDi
 use crate::crypto::load_keypair;
 use std::fmt;
 use std::fs::File;
-use serde_json::Value;
+use serde_json::{Value, json};
 use ton_labs_assembler::DbgInfo;
 use ton_vm::executor::{Engine, EngineTraceInfo, EngineTraceInfoType};
 use crate::decode::msg_printer::serialize_msg;

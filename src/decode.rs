@@ -12,15 +12,15 @@
  */
 use crate::{load_abi, print_args};
 use crate::config::Config;
+use crate::decode::msg_printer::tree_of_cells_into_base64;
 use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query_account_field, abi_from_matches_or_config, load_ton_address, load_ton_abi, create_client, query_message};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
-use ton_types::cells_serialization::serialize_tree_of_cells;
-use ton_types::{Cell, SliceData};
+use ton_types::{Cell, SliceData, serialize_tree_of_cells};
 use std::io::Cursor;
 use ton_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData};
-use crate::decode::msg_printer::tree_of_cells_into_base64;
 use serde::Serialize;
+use serde_json::json;
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
     let tvc_cmd = SubCommand::with_name("stateinit")
@@ -362,7 +362,7 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool, config: &
 
     let cell = ton_types::cells_serialization::deserialize_tree_of_cells(&mut Cursor::new(&body_vec))
         .map_err(|e| format!("Failed to create cell: {}", e))?;
-    let orig_slice: SliceData = cell.into();
+    let orig_slice = SliceData::load_cell(cell).unwrap();
     if is_external {
         let mut slice = orig_slice.clone();
         let flag = slice.get_next_bit();
@@ -464,7 +464,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), S
 }
 
 pub mod msg_printer {
-    use serde_json::Value;
+    use serde_json::{Value, json};
     use ton_block::{CurrencyCollection, StateInit, Message, CommonMsgInfo, Grams};
     use ton_types::cells_serialization::serialize_tree_of_cells;
     use ton_types::Cell;
