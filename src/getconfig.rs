@@ -21,6 +21,7 @@ use ton_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
 use ton_types::{BuilderData, Cell, IBitstring, SliceData};
 
 const PREFIX_UPDATE_CONFIG_MESSAGE_DATA: &str = "43665021";
+const PREFIX_UPDATE_CONFIG_KEY_MESSAGE_DATA: &str = "50624b21";
 
 const QUERY_FIELDS: &str = r#"
 master { 
@@ -351,6 +352,40 @@ pub async fn gen_update_config_message(
     Ok(())
 }
 
+pub async fn gen_update_config_key_message(
+    seqno: &str,
+    config_master_file: &str,
+    new_config_master_file: &str,
+    is_json: bool
+) -> Result<(), String> {
+    let seqno = u32::from_str_radix(seqno, 10)
+        .map_err(|e| format!(r#"failed to parse "seqno": {}"#, e))?;
+
+    let config_master_address = std::fs::read(&*(config_master_file.to_string() + ".addr"))
+        .map_err(|e| format!(r#"failed to read "config_master": {}"#, e))?;
+    let config_account = ton_types::AccountId::from_raw(config_master_address, 32*8);
+
+    let private_key = std::fs::read(&*(config_master_file.to_string() + ".pk"))
+        .map_err(|e| format!(r#"failed to read "config_master": {}"#, e))?;
+
+    let new_private_key = std::fs::read(&*(new_config_master_file.to_string() + ".pk"))
+        .map_err(|e| format!(r#"failed to read "new_config_master": {}"#, e))?;
+
+    let message = prepare_message_new_config_key(seqno, config_account, private_key, new_private_key)?;
+
+    let msg_bytes = message.write_to_bytes()
+        .map_err(|e| format!(r#"failed to serialize message": {}"#, e))?;
+    let msg_hex = hex::encode(&msg_bytes);
+
+    if is_json {
+        println!("{{\"Message\": \"{}\"}}", msg_hex);
+    } else {
+        println!("Message: {}", msg_hex);
+    }
+
+    Ok(())
+}
+
 pub fn serialize_config_param(config_str: String) -> Result<(Cell, u32), String> {
     let config_json: serde_json::Value = serde_json::from_str(&*config_str)
         .map_err(|e| format!(r#"failed to parse "new_param_file": {}"#, e))?;
@@ -420,6 +455,50 @@ fn prepare_message_new_config_param(
     cell.append_u32(since_the_epoch).unwrap();
     cell.append_i32(key_number as i32).unwrap();
     cell.append_reference_cell(config_param);
+
+    let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
+    let mut header = ExternalInboundMessageHeader::new(AddrNone, config_contract_address);
+    header.import_fee = Grams::zero();
+    let message = Message::with_ext_in_header_and_body(header, cell.into());
+
+    Ok(message)
+}
+
+fn prepare_message_new_config_key(
+    seqno: u32,
+    config_account: SliceData,
+    private_key_of_config_account: Vec<u8>,
+    new_private_key_of_config_account: Vec<u8>
+) -> Result<Message, String> {
+    let prefix = hex::decode(PREFIX_UPDATE_CONFIG_KEY_MESSAGE_DATA).unwrap();
+    let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32 + 100; // timestamp + 100 secs
+
+    let new_exp_key = ed25519_dalek::ExpandedSecretKey::from(
+        &ed25519_dalek::SecretKey::from_bytes(new_private_key_of_config_account.as_slice()
+        )
+            .map_err(|e| format!(r#"failed to read new private key from new config-master file": {}"#, e))?);
+    let new_pub_key = ed25519_dalek::PublicKey::from(&new_exp_key);
+    let new_pub_key_bytes = new_pub_key.as_bytes();
+
+    let mut cell = BuilderData::default();
+    cell.append_raw(prefix.as_slice(), 32).unwrap();
+    cell.append_u32(seqno).unwrap();
+    cell.append_u32(since_the_epoch).unwrap();
+    cell.append_raw(new_pub_key_bytes, 256).unwrap();
+
+    let exp_key = ed25519_dalek::ExpandedSecretKey::from(
+        &ed25519_dalek::SecretKey::from_bytes(private_key_of_config_account.as_slice()
+        )
+            .map_err(|e| format!(r#"failed to read private key from config-master file": {}"#, e))?);
+    let pub_key = ed25519_dalek::PublicKey::from(&exp_key);
+    let msg_signature = exp_key.sign(cell.finalize(0).unwrap().repr_hash().into_vec().as_slice(), &pub_key).to_bytes().to_vec();
+
+    let mut cell = BuilderData::default();
+    cell.append_raw(msg_signature.as_slice(), 64*8).unwrap();
+    cell.append_raw(prefix.as_slice(), 32).unwrap();
+    cell.append_u32(seqno).unwrap();
+    cell.append_u32(since_the_epoch).unwrap();
+    cell.append_raw(new_pub_key_bytes, 256).unwrap();
 
     let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
     let mut header = ExternalInboundMessageHeader::new(AddrNone, config_contract_address);

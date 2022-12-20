@@ -70,6 +70,7 @@ use crate::compile::{compile_command, create_compile_command};
 
 use crate::config::{FullConfig, resolve_net_name};
 use crate::getconfig::gen_update_config_message;
+use crate::getconfig::gen_update_config_key_message;
 use crate::helpers::{abi_from_matches_or_config, AccountSource, default_config_name, global_config_path, load_abi_from_tvc, load_params, parse_lifetime, unpack_alternative_params, wc_from_matches_or_config};
 use crate::message::generate_message;
 use crate::run::{run_command, run_get_method};
@@ -781,6 +782,18 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true)
             .help("New config param value"));
 
+    let update_config_key_param_cmd = SubCommand::with_name("update_config_key")
+        .about("Generates message with update of config master key.")
+        .arg(Arg::with_name("SEQNO")
+            .takes_value(true)
+            .help("Current seqno from config contract"))
+        .arg(Arg::with_name("CONFIG_MASTER_KEY_FILE")
+            .takes_value(true)
+            .help("path to current config-master files (both .addr and .pk are needed)"))
+        .arg(Arg::with_name("NEW_CONFIG_MASTER_KEY_FILE")
+            .takes_value(true)
+            .help("path to new config-master files (only .pk file is required)"));
+
     let bcconfig_cmd = SubCommand::with_name("dump")
         .about("Commands to dump network entities.")
         .version(&*version_string)
@@ -925,6 +938,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(deployx_cmd)
         .subcommand(runx_cmd)
         .subcommand(update_config_param_cmd)
+        .subcommand(update_config_key_param_cmd)
         .setting(AppSettings::SubcommandRequired);
 #[cfg(feature = "sold")]
     let matches = matches.subcommand(create_compile_command());
@@ -1061,6 +1075,9 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
     if let Some(m) = matches.subcommand_matches("update_config") {
         return update_config_command(m, config).await;
+    }
+    if let Some(m) = matches.subcommand_matches("update_config_key") {
+        return update_config_key_command(m, config).await;
     }
     if let Some(matches) = matches.subcommand_matches("dump") {
         if let Some(m) = matches.subcommand_matches("config") {
@@ -1583,6 +1600,16 @@ async fn update_config_command(matches: &ArgMatches<'_>, config: &Config) -> Res
         print_args!(seqno, config_master, new_param);
     }
     gen_update_config_message(seqno.unwrap(), config_master.unwrap(), new_param.unwrap(), config.is_json).await
+}
+
+async fn update_config_key_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let seqno = matches.value_of("SEQNO");
+    let config_master = matches.value_of("CONFIG_MASTER_KEY_FILE");
+    let new_config_master = matches.value_of("NEW_CONFIG_MASTER_KEY_FILE");
+    if !config.is_json {
+        print_args!(seqno, config_master, new_config_master);
+    }
+    gen_update_config_key_message(seqno.unwrap(), config_master.unwrap(), new_config_master.unwrap(), config.is_json).await
 }
 
 async fn dump_bc_config_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
