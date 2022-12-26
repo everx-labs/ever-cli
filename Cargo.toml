@@ -59,9 +59,9 @@ ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git' }
 sold = { git = 'https://github.com/tonlabs/TON-Solidity-Compiler.git', optional = true }
 
 [dev-dependencies]
-assert_cmd = '1.0.3'
-lazy_static = '1.4.0'
-predicates = '1'
+assert_cmd = '2.0'
+lazy_static = '1.4'
+predicates = '2.1'
 string-error = '0.1.0'
 
 [[bin]]

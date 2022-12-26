@@ -363,8 +363,8 @@ pub async fn replay(
                 cfg.append_raw(&config_data.get_next_bytes(32)
                     .map_err(|e| format!("Failed to read config data: {}", e))?, 256)
                     .map_err(|e| format!("Failed to append config data: {}", e))?;
-                cfg.append_reference_cell(config_data.reference(0)
-                    .map_err(|e| format!("Failed to get config zero reference: {}", e))?);
+                cfg.checked_append_reference(config_data.reference(0)
+                    .map_err(|e| format!("Failed to get config zero reference: {}", e))?)?;
                 let path = format!("config-{}-test.boc", txnid);
                 cfg.into_cell().map_err(|e| format!("Failed to finalize builder: {}", e))?
                     .write_to_file(&path);
