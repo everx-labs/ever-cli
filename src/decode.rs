@@ -362,7 +362,8 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool, config: &
 
     let cell = ton_types::cells_serialization::deserialize_tree_of_cells(&mut Cursor::new(&body_vec))
         .map_err(|e| format!("Failed to create cell: {}", e))?;
-    let orig_slice = SliceData::load_cell(cell).unwrap();
+    let orig_slice = SliceData::load_cell(cell)
+        .map_err(|e| format!("Failed to load cell: {}", e))?;
     if is_external {
         let mut slice = orig_slice.clone();
         let flag = slice.get_next_bit();

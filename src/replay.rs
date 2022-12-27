@@ -357,14 +357,18 @@ pub async fn replay(
             }
             if dump_mask & DUMP_EXECUTOR_CONFIG != 0 {
                 // config.boc suitable for creating ton-labs-executor tests
-                let mut config_data = SliceData::load_cell(config_account.get_data()
-                    .ok_or("Failed to get config data")?).unwrap();
+                let cell = config_account.get_data()
+                    .ok_or("Failed to get config data")?;
+                let mut config_data = SliceData::load_cell(cell)
+                    .map_err(|e| format!("Failed to load config data cell: {}", e))?;
                 let mut cfg = BuilderData::default();
                 cfg.append_raw(&config_data.get_next_bytes(32)
                     .map_err(|e| format!("Failed to read config data: {}", e))?, 256)
                     .map_err(|e| format!("Failed to append config data: {}", e))?;
-                cfg.checked_append_reference(config_data.reference(0)
-                    .map_err(|e| format!("Failed to get config zero reference: {}", e))?).unwrap();
+                let cell = config_data.reference(0)
+                    .map_err(|e| format!("Failed to get config zero reference: {}", e))?;
+                cfg.checked_append_reference(cell)
+                    .map_err(|e| format!("Failed to append config reference: {}", e))?;
                 let path = format!("config-{}-test.boc", txnid);
                 cfg.into_cell().map_err(|e| format!("Failed to finalize builder: {}", e))?
                     .write_to_file(&path);
