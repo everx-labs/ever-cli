@@ -404,7 +404,7 @@ fn prepare_message_new_config_param(
     cell.append_u32(seqno).unwrap();
     cell.append_u32(since_the_epoch).unwrap();
     cell.append_i32(key_number as i32).unwrap();
-    cell.append_reference_cell(config_param.clone());
+    cell.checked_append_reference(config_param.clone()).unwrap();
 
     let exp_key = ed25519_dalek::ExpandedSecretKey::from(
         &ed25519_dalek::SecretKey::from_bytes(private_key_of_config_account.as_slice()
@@ -419,12 +419,13 @@ fn prepare_message_new_config_param(
     cell.append_u32(seqno).unwrap();
     cell.append_u32(since_the_epoch).unwrap();
     cell.append_i32(key_number as i32).unwrap();
-    cell.append_reference_cell(config_param);
+    cell.checked_append_reference(config_param).unwrap();
 
     let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
     let mut header = ExternalInboundMessageHeader::new(AddrNone, config_contract_address);
     header.import_fee = Grams::zero();
-    let message = Message::with_ext_in_header_and_body(header, cell.into());
+    let body = SliceData::load_builder(cell).unwrap();
+    let message = Message::with_ext_in_header_and_body(header, body);
 
     Ok(message)
 }

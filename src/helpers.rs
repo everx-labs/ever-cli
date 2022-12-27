@@ -27,7 +27,7 @@ use ton_client::{ClientConfig, ClientContext};
 use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
 use std::str::FromStr;
 use clap::ArgMatches;
-use serde_json::Value;
+use serde_json::{Value, json};
 use ton_client::abi::Abi::Contract;
 use ton_executor::BlockchainConfig;
 use url::Url;
@@ -1039,5 +1039,15 @@ pub async fn get_blockchain_config(cli_config: &Config, config_contract_boc_path
                 Err(_) => blockchain_config_from_default_json()
             }
         }
+    }
+}
+
+pub fn decode_data(data: &str, param_name: &str) -> Result<Vec<u8>, String> {
+    if let Ok(data) = base64::decode(data) {
+        Ok(data)
+    } else if let Ok(data) = hex::decode(data) {
+        Ok(data)
+    } else {
+        Err(format!("the {} parameter should be base64 or hex encoded", param_name))
     }
 }

@@ -15,6 +15,7 @@ use crate::config::Config;
 use crate::helpers::{create_client, load_ton_address, load_abi, TonClient};
 use std::io::{self, BufRead, Write};
 use std::sync::Arc;
+use serde_json::json;
 use ton_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, ParamsOfDecodeMessage,
     encode_internal_message, decode_message};
 use ton_client::boc::{ParamsOfParse, parse_message};
@@ -160,7 +161,7 @@ impl TerminalBrowser {
             .ok_or_else(|| "Internal browser error: debot not found".to_owned())?;
         if let Some(result) = self.interfaces.try_execute(&msg, &interface_id, &debot.info.dabi_version).await {
             let (func_id, return_args) = result?;
-            debug!("response: {} ({})", func_id, return_args);
+            log::debug!("response: {} ({})", func_id, return_args);
             let call_set = match func_id {
                 0 => None,
                 _ => CallSet::some_with_function_and_input(&format!("0x{:x}", func_id), return_args),
