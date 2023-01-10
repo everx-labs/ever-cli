@@ -593,7 +593,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("GLOBAL_TIMEOUT")
             .long("--global_timeout")
             .takes_value(true)
-            .help("Time restriction for process message operations."))
+            .help("Time restriction for process message operations in seconds."))
         .arg(Arg::with_name("MSG_TIMEOUT")
             .long("--message_processing_timeout")
             .takes_value(true)

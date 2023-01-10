@@ -74,7 +74,7 @@ fn default_config() -> Config {
 }
 
 fn default_global_timeout() -> u32 {
-    120
+    300
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
