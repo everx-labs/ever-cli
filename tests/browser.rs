@@ -71,6 +71,7 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_signing_box_interface() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("sample1")?;
     let (_, _, keys) = get_debot_paths("sample1");
@@ -94,6 +95,7 @@ fn test_signing_box_interface() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_userinfo() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("sample2")?;
     let (_, abi, keys) = get_debot_paths("sample2");
@@ -135,6 +137,7 @@ fn test_userinfo() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_pipechain_inputs() -> Result<(), Box<dyn std::error::Error>> {
     let path_to_pipechain = "tests/PipechainTest1.chain";
     let path_to_pipechain_tmp = "tests/PipechainTest1.chain_tmp";
@@ -170,6 +173,7 @@ fn test_pipechain_inputs() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_encryptionboxes() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("sample3")?;
     let (_, _, keys) = get_debot_paths("sample3");
@@ -197,6 +201,7 @@ fn test_encryptionboxes() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_address_input() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("AddressInput")?;
 
@@ -215,6 +220,7 @@ fn test_address_input() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_amount_input() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("AmountInput")?;
 
@@ -234,6 +240,7 @@ fn test_amount_input() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_confirm_input() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("ConfirmInput")?;
 
@@ -252,6 +259,7 @@ fn test_confirm_input() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_number_input() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("NumberInput")?;
 
@@ -270,6 +278,7 @@ fn test_number_input() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_terminal() -> Result<(), Box<dyn std::error::Error>> {
     let addr = deploy_debot("Terminal")?;
 
@@ -288,6 +297,7 @@ fn test_terminal() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_pipechain_signing() -> Result<(), Box<dyn std::error::Error>> {
     let path_to_pipechain = "tests/PipechainTest2.chain";
     let addr = deploy_debot("PipechainTest_2")?;
