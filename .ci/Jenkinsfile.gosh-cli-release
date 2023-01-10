@@ -15,7 +15,7 @@ pipeline {
             steps {
                 script {
                     env.VERSION = sh script: 'grep "^version" "./Cargo.toml" | tr -d "\'"', returnStdout: true
-                    currentBuild.displayName = "${BUILD_NUMBER}_${BRANCH}_${VERSION}"
+                    currentBuild.displayName = "${BUILD_NUMBER}_${sha1}_${VERSION}"
                     withCredentials([[
                         $class: 'UsernamePasswordMultiBinding',
                         credentialsId: 'teamgosh-dockerhub',
