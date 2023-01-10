@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4.2
 
 # Base builder ---------------------------
-FROM --platform=$BUILDPLATFORM rust:1.66-bullseye as rust-builder
+FROM --platform=$BUILDPLATFORM rust:1.65-bullseye as rust-builder
 
 WORKDIR /build
 
@@ -20,6 +20,8 @@ RUN \
     build-essential \
     protobuf-compiler \
     cmake \
+    pkg-config \
+    libssl-dev \
     g++-x86-64-linux-gnu libc6-dev-amd64-cross \
     g++-aarch64-linux-gnu libc6-dev-arm64-cross
 RUN rustup target add \
@@ -34,6 +36,7 @@ ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc \
 
 # amd64 build ----------------------------
 FROM --platform=$BUILDPLATFORM rust-builder AS build-amd64
+
 RUN \
     --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
@@ -66,7 +69,7 @@ FROM --platform=arm64 final-base as final-arm64
 COPY --from=build-arm64 --link /usr/local/cargo/bin/gosh-cli /usr/local/bin/gosh-cli
 
 FROM final-${TARGETARCH}
-# ENV GOSH_TRACE=1
+ENV GOSH_TRACE=1
 WORKDIR /workdir
-ENTRYPOINT [ "git" ]
+ENTRYPOINT [ "gosh-cli" ]
 CMD [ "help" ]

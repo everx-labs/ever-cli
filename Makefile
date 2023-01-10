@@ -13,15 +13,15 @@ TARGET_ARCH := "x86_64-unknown-linux-gnu"
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD | tr / _)
 
+RELEASE_VERSION :=$(patsubst "%",%,$(strip $(subst version =,,$(shell grep "^version" "./Cargo.toml" | tr -d "'"))))
+
 IMAGE_NAME := teamgosh/gosh-cli
 # use current branch if not set
 IMAGE_TAG  ?= ${GIT_BRANCH}
 
 # TAG_COMMIT := ${IMAGE_NAME}:${GIT_COMMIT}
-FULL_IMAGE_NAME ?= ${IMAGE_NAME}:${IMAGE_TAG}
+FULL_IMAGE_NAME ?= ${IMAGE_NAME}:${RELEASE_VERSION}
 TAG_LATEST := ${IMAGE_NAME}:latest
-
-RELEASE_VERSION :=$(patsubst "%",%,$(strip $(subst version =,,$(shell grep "^version" "./Cargo.toml"))))
 
 .PHONY: build
 build: 
