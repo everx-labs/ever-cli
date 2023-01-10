@@ -73,6 +73,10 @@ fn default_config() -> Config {
     Config::new()
 }
 
+fn default_global_timeout() -> u32 {
+    120
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Config {
     #[serde(default = "default_url")]
@@ -110,6 +114,8 @@ pub struct Config {
     pub async_call: bool,
     #[serde(default = "default_trace")]
     pub debug_fail: String,
+    #[serde(default = "default_global_timeout")]
+    pub global_timeout: u32,
 
     // SDK authentication parameters
     pub project_id: Option<String>,
@@ -164,6 +170,7 @@ impl Default for Config {
             endpoints: default_endpoints(),
             out_of_sync_threshold: default_out_of_sync(),
             debug_fail: default_trace(),
+            global_timeout: default_global_timeout(),
             project_id: None,
             access_key: None,
         }
@@ -206,6 +213,7 @@ impl Config {
             endpoints: default_endpoints(),
             out_of_sync_threshold: default_out_of_sync(),
             debug_fail: default_trace(),
+            global_timeout: default_global_timeout(),
             project_id: None,
             access_key: None,
         }
@@ -519,6 +527,10 @@ pub fn set_config(
     if let Some(timeout) = matches.value_of("TIMEOUT") {
         config.timeout = u32::from_str_radix(timeout, 10)
             .map_err(|e| format!(r#"failed to parse "timeout": {}"#, e))?;
+    }
+    if let Some(timeout) = matches.value_of("GLOBAL_TIMEOUT") {
+        config.global_timeout = u32::from_str_radix(timeout, 10)
+            .map_err(|e| format!(r#"failed to parse "global_timeout": {}"#, e))?;
     }
     if let Some(message_processing_timeout) = matches.value_of("MSG_TIMEOUT") {
         config.message_processing_timeout = u32::from_str_radix(message_processing_timeout, 10)
