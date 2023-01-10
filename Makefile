@@ -1,5 +1,5 @@
 DOCKER              ?= docker
-DOCKER_BUILDER_NAME ?= public-gosh-builder
+DOCKER_BUILDER_NAME ?= public-gosh-cli-builder
 PLATFORM            ?= linux/amd64,linux/arm64
 PROGRESS            ?= linear
 # PROGRESS            ?= plain
