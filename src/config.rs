@@ -20,10 +20,11 @@ use crate::helpers::default_config_name;
 
 const TESTNET: &str = "net.evercloud.dev";
 const MAINNET: &str = "main.evercloud.dev";
+const GOSH: &str = "gosh.sh";
 pub const LOCALNET: &str = "http://127.0.0.1/";
 
 fn default_url() -> String {
-    TESTNET.to_string()
+    "".to_string()
 }
 
 fn default_wc() -> i32 {
@@ -31,7 +32,7 @@ fn default_wc() -> i32 {
 }
 
 fn default_retries() -> u8 {
-    5
+    0
 }
 
 fn default_depool_fee() -> f32 {
@@ -51,11 +52,11 @@ fn default_false() -> bool {
 fn default_true() -> bool { true }
 
 fn default_lifetime() -> u32 {
-    60
+    40
 }
 
 fn default_endpoints() -> Vec<String> {
-    vec![]
+    Vec::new()
 }
 
 fn default_aliases() -> BTreeMap<String, ContractData> {
@@ -70,6 +71,10 @@ fn default_trace() -> String { "None".to_string() }
 
 fn default_config() -> Config {
     Config::new()
+}
+
+fn default_global_timeout() -> u32 {
+    300
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
@@ -109,6 +114,8 @@ pub struct Config {
     pub async_call: bool,
     #[serde(default = "default_trace")]
     pub debug_fail: String,
+    #[serde(default = "default_global_timeout")]
+    pub global_timeout: u32,
 
     // SDK authentication parameters
     pub project_id: Option<String>,
@@ -163,6 +170,7 @@ impl Default for Config {
             endpoints: default_endpoints(),
             out_of_sync_threshold: default_out_of_sync(),
             debug_fail: default_trace(),
+            global_timeout: default_global_timeout(),
             project_id: None,
             access_key: None,
         }
@@ -182,10 +190,8 @@ impl Default for FullConfig {
 
 impl Config {
     fn new() -> Self {
-        let url = default_url();
-        let endpoints = FullConfig::default_map()[&url].clone();
         Config {
-            url,
+            url: default_url(),
             wc: default_wc(),
             addr: None,
             method: None,
@@ -204,9 +210,10 @@ impl Config {
             balance_in_tons: default_false(),
             local_run: default_false(),
             async_call: default_false(),
-            endpoints,
+            endpoints: default_endpoints(),
             out_of_sync_threshold: default_out_of_sync(),
             debug_fail: default_trace(),
+            global_timeout: default_global_timeout(),
             project_id: None,
             access_key: None,
         }
@@ -227,6 +234,11 @@ lazy_static! {
         "http://0.0.0.0".to_string(),
         "http://127.0.0.1".to_string(),
         "http://localhost".to_string(),
+    ];
+    static ref GOSH_ENDPOINTS: Vec<String> = vec![
+        "https://bhs01.network.gosh.sh".to_string(),
+        "https://eri01.network.gosh.sh".to_string(),
+        "https://gra01.network.gosh.sh".to_string()
     ];
 }
 
@@ -262,6 +274,9 @@ pub fn resolve_net_name(url: &str) -> Option<String> {
         url.contains("0.0.0.0") ||
         url.contains("localhost") {
         return Some(LOCALNET.to_string());
+    }
+    if url == "network.gosh.sh" || url == "gosh.sh" || url == "gosh" {
+        return Some(GOSH.to_string());
     }
     None
 }
@@ -512,6 +527,10 @@ pub fn set_config(
     if let Some(timeout) = matches.value_of("TIMEOUT") {
         config.timeout = u32::from_str_radix(timeout, 10)
             .map_err(|e| format!(r#"failed to parse "timeout": {}"#, e))?;
+    }
+    if let Some(timeout) = matches.value_of("GLOBAL_TIMEOUT") {
+        config.global_timeout = u32::from_str_radix(timeout, 10)
+            .map_err(|e| format!(r#"failed to parse "global_timeout": {}"#, e))?;
     }
     if let Some(message_processing_timeout) = matches.value_of("MSG_TIMEOUT") {
         config.message_processing_timeout = u32::from_str_radix(message_processing_timeout, 10)
