@@ -21,7 +21,6 @@ use ton_client::processing::{
     ParamsOfSendMessage,
     ParamsOfWaitForTransaction,
     ParamsOfProcessMessage,
-    ProcessingEvent,
     wait_for_transaction,
     send_message,
 };
@@ -222,9 +221,10 @@ pub async fn process_message(
     config: &Config,
 ) -> Result<Value, ClientError> {
     let callback = |event| { async move {
-        if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
-            println!("MessageId: {}", message_id)
-        }
+        // if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
+        //     println!("MessageId: {}", message_id)
+        // }
+        println!("MessageId: {:?}", event);
     }};
 
     let mut process_with_timeout: JoinSet<Result<Value, ClientError>> = JoinSet::new();
