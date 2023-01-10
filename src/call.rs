@@ -21,7 +21,6 @@ use ton_client::processing::{
     ParamsOfSendMessage,
     ParamsOfWaitForTransaction,
     ParamsOfProcessMessage,
-    ProcessingEvent,
     wait_for_transaction,
     send_message,
 };
@@ -32,7 +31,10 @@ use ton_client::tvm::{
 };
 use ton_block::{Account, Serializable, Deserializable, Message};
 use std::str::FromStr;
+use std::time::Duration;
 use serde_json::{json, Value};
+use tokio::task::JoinSet;
+use tokio::time::sleep;
 use ton_abi::ParamType;
 use ton_client::error::ClientError;
 use crate::debug::{execute_debug, DebugLogger};
@@ -219,33 +221,51 @@ pub async fn process_message(
     config: &Config,
 ) -> Result<Value, ClientError> {
     let callback = |event| { async move {
-        if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
-            println!("MessageId: {}", message_id)
-        }
+        // if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
+        //     println!("MessageId: {}", message_id)
+        // }
+        println!("MessageId: {:?}", event);
     }};
-    let res = if !config.is_json {
-        ton_client::processing::process_message(
-            ton.clone(),
-            ParamsOfProcessMessage {
-                message_encode_params: msg.clone(),
-                send_events: true,
-                ..Default::default()
-            },
-            callback,
-        ).await
-    } else {
-        ton_client::processing::process_message(
-            ton.clone(),
-            ParamsOfProcessMessage {
-                message_encode_params: msg.clone(),
-                send_events: true,
-                ..Default::default()
-            },
-            |_| { async move {} },
-        ).await
-    }?;
 
-    Ok(res.decoded.and_then(|d| d.output).unwrap_or(json!({})))
+    let mut process_with_timeout: JoinSet<Result<Value, ClientError>> = JoinSet::new();
+    let send_events = !config.is_json;
+    process_with_timeout.spawn(
+      async move {
+          let res =
+              ton_client::processing::process_message(
+                  ton.clone(),
+                  ParamsOfProcessMessage {
+                      message_encode_params: msg.clone(),
+                      send_events: send_events,
+                      ..Default::default()
+                  },
+                  callback,
+              ).await?;
+
+          Ok(res.decoded.and_then(|d| d.output).unwrap_or(json!({})))
+      }
+    );
+    let timeout = config.global_timeout as u64;
+    process_with_timeout.spawn(
+        async move {
+            sleep(Duration::from_secs(timeout)).await;
+            Err(ClientError::with_code_message(99999, "Message processing with gosh-cli has been timed out.".to_string()))
+        }
+    );
+    while let Some(finished_task) = process_with_timeout.join_next().await {
+        match finished_task {
+            Err(_) => {
+                panic!("Failed to run process message with global timeout")
+            }
+            Ok(Err(e)) => {
+                return Err(e);
+            }
+            Ok(Ok(res)) => {
+                return Ok(res);
+            }
+        }
+    }
+    panic!("Failed to run process message with global timeout")
 }
 
 pub async fn call_contract_with_result(
