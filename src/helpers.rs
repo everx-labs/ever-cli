@@ -139,7 +139,7 @@ pub fn get_server_endpoints(config: &Config) -> Vec<String> {
 
 pub fn create_client(config: &Config) -> Result<TonClient, String> {
     if config.url.is_empty() {
-        return Err("Network is not set. Specify it with `tonos-cli config --url <network>` command.\nExamples:\n\ttonos-cli config --url localhost\n\ttonos-cli config --url gosh".to_string());
+        return Err("Network is not set. Specify it with `gosh-cli config --url <network>` command.\nExamples:\n\tgosh-cli config --url localhost\n\tgosh-cli config --url gosh".to_string());
     }
     let modified_endpoints = get_server_endpoints(config);
     if !config.is_json {
