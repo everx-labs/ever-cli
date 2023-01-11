@@ -28,12 +28,12 @@ build:
 	GOSH_BUILD_VERSION=cargo build --release --bin gosh-cli --target=${TARGET_ARCH}
 
 .PHONY: install
-install: copy_abi clear_screen
+install:
 	cargo install --path .
 
 .PHONY: test
 test:
-	cargo test
+	cargo test --release -j 8
 
 .PHONY: qemu
 qemu: ## may need to setup qemu
