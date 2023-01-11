@@ -1,0 +1,37 @@
+pipeline {
+    agent none
+    parameters {
+        gitParameter branchFilter: 'origin/(.*)', defaultValue: 'master', name: 'sha1', type: 'PT_BRANCH', quickFilterEnabled: true
+    }
+
+    stages {
+        stage('Publish: push GOSH CLI Docker image') {
+            agent {
+                docker {
+                    image 'jenkins-docker-agent:1'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock -v /opt/giver.keys.json:/opt/giver.keys.json --group-add docker'
+                }
+            }
+            steps {
+                script {
+                    env.VERSION = sh script: 'grep "^version" "./Cargo.toml" | tr -d "version = \'"', returnStdout: true
+                    currentBuild.displayName = "${BUILD_NUMBER}_${sha1}_${VERSION}"
+                    withCredentials([[
+                        $class: 'UsernamePasswordMultiBinding',
+                        credentialsId: 'teamgosh-dockerhub',
+                        usernameVariable: 'USERNAME',
+                        passwordVariable: 'PASSWORD'
+                    ]]) {
+                        sh 'docker login -u $USERNAME -p $PASSWORD'
+                    }
+                    sh "make publish DOCKER_BUILDX_ARGS='--tag=teamgosh/gosh-cli:latest' PLATFORM=linux/amd64,linux/arm64"
+                }
+            } 
+            post {
+                always {
+                    cleanWs()
+                }
+            }  
+        }
+    }
+}
