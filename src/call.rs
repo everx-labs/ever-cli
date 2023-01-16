@@ -253,6 +253,7 @@ pub async fn process_message(
         }
     );
     while let Some(finished_task) = process_with_timeout.join_next().await {
+        process_with_timeout.shutdown().await;
         match finished_task {
             Err(_) => {
                 panic!("Failed to run process message with global timeout")
