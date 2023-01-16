@@ -124,7 +124,7 @@ pub fn create_client_local() -> Result<TonClient, String> {
 
 pub fn get_server_endpoints(config: &Config) -> Vec<String> {
     let mut cur_endpoints = match config.endpoints.len() {
-        0 => vec![config.url.clone()],
+        0 => panic!("Network endpoints are not set. Specify it with `gosh-cli config -e <endpoints>` command.\nExamples:\n\tgosh-cli config -e localhost\n\tgosh-cli config -e gosh\n\tgosh-cli config -e https://bhs01.network.gosh.sh,https://eri01.network.gosh.sh,https://gra01.network.gosh.sh"),
         _ => config.endpoints.clone(),
     };
     cur_endpoints.iter_mut().map(|end| {
@@ -138,19 +138,10 @@ pub fn get_server_endpoints(config: &Config) -> Vec<String> {
 }
 
 pub fn create_client(config: &Config) -> Result<TonClient, String> {
-    if config.url.is_empty() {
-        return Err("Network is not set. Specify it with `gosh-cli config --url <network>` command.\nExamples:\n\tgosh-cli config --url localhost\n\tgosh-cli config --url gosh".to_string());
-    }
     let modified_endpoints = get_server_endpoints(config);
     if !config.is_json {
-        println!("Connecting to:\n\tUrl: {}", config.url);
         println!("\tEndpoints: {:?}\n", modified_endpoints);
     }
-    let endpoints_cnt = if resolve_net_name(&config.url).unwrap_or(config.url.clone()).eq(LOCALNET) {
-        1_u8
-    } else {
-        modified_endpoints.len() as u8
-    };
     let cli_conf = ClientConfig {
         abi: AbiConfig {
             workchain: config.wc,
@@ -163,13 +154,9 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
             hdkey_derivation_path: HD_PATH.to_string(),
         },
         network: NetworkConfig {
-            server_address: Some(config.url.to_owned()),
-            sending_endpoint_count: endpoints_cnt,
-            endpoints: if modified_endpoints.is_empty() {
-                    None
-                } else {
-                    Some(modified_endpoints)
-                },
+            server_address: None,
+            sending_endpoint_count: modified_endpoints.len() as u8,
+            endpoints: Some(modified_endpoints),
             message_retries_count: config.retries as i8,
             message_processing_timeout: 30000,
             wait_for_timeout: config.timeout,

@@ -23,10 +23,6 @@ const MAINNET: &str = "main.evercloud.dev";
 const GOSH: &str = "gosh.sh";
 pub const LOCALNET: &str = "http://127.0.0.1/";
 
-fn default_url() -> String {
-    "".to_string()
-}
-
 fn default_wc() -> i32 {
     0
 }
@@ -63,10 +59,6 @@ fn default_aliases() -> BTreeMap<String, ContractData> {
     BTreeMap::new()
 }
 
-fn default_endpoints_map() -> BTreeMap<String, Vec<String>> {
-    FullConfig::default_map()
-}
-
 fn default_trace() -> String { "None".to_string() }
 
 fn default_config() -> Config {
@@ -79,8 +71,6 @@ fn default_global_timeout() -> u32 {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Config {
-    #[serde(default = "default_url")]
-    pub url: String,
     #[serde(default = "default_wc")]
     pub wc: i32,
     pub addr: Option<String>,
@@ -137,8 +127,6 @@ pub struct ContractData {
 pub struct FullConfig {
     #[serde(default = "default_config")]
     pub config: Config,
-    #[serde(default = "default_endpoints_map")]
-    pub endpoints_map: BTreeMap<String, Vec<String>>,
     #[serde(default = "default_aliases")]
     pub aliases: BTreeMap<String, ContractData>,
     #[serde(default = "default_config_name")]
@@ -148,7 +136,6 @@ pub struct FullConfig {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            url: default_url(),
             wc: default_wc(),
             addr: None,
             method: None,
@@ -181,7 +168,6 @@ impl Default for FullConfig {
     fn default() -> Self {
         FullConfig {
             config: default_config(),
-            endpoints_map: default_endpoints_map(),
             aliases: default_aliases(),
             path: default_config_name(),
         }
@@ -191,7 +177,6 @@ impl Default for FullConfig {
 impl Config {
     fn new() -> Self {
         Config {
-            url: default_url(),
             wc: default_wc(),
             addr: None,
             method: None,
@@ -285,7 +270,6 @@ impl FullConfig {
     fn new(config: Config,path: String) -> Self {
         FullConfig {
             config,
-            endpoints_map: Self::default_map(),
             aliases: BTreeMap::new(),
             path,
         }
@@ -326,16 +310,6 @@ impl FullConfig {
         Ok(())
     }
 
-    pub fn print_endpoints(path: &str) {
-        let fconf = FullConfig::from_file(path);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&fconf.endpoints_map).unwrap_or(
-                "Failed to print endpoints map.".to_owned()
-            )
-        );
-    }
-
     pub fn print_aliases(&self) {
         println!(
             "{}",
@@ -354,37 +328,6 @@ impl FullConfig {
         self.aliases.remove(alias);
         self.to_file(&self.path)
     }
-
-    pub fn add_endpoint(path: &str, url: &str, endpoints: &str) -> Result<(), String> {
-        let mut fconf = FullConfig::from_file(path);
-        let mut new_endpoints : Vec<String> = endpoints
-            .replace('[', "")
-            .replace(']', "")
-            .split(',')
-            .map(|s| s.to_string())
-            .collect();
-
-        let old_endpoints = fconf.endpoints_map.entry(url.to_string()).or_insert(vec![]);
-        old_endpoints.append(&mut new_endpoints);
-        old_endpoints.sort();
-        old_endpoints.dedup();
-        fconf.to_file(path)
-    }
-
-    pub fn remove_endpoint(path: &str, url: &str) -> Result<(), String> {
-        let mut fconf = FullConfig::from_file(path);
-        if !fconf.endpoints_map.contains_key(url) {
-            return Err("Endpoints map doesn't contain such url.".to_owned());
-        }
-        fconf.endpoints_map.remove(url);
-        fconf.to_file(path)
-    }
-
-    pub fn reset_endpoints(path: &str) -> Result<(), String> {
-        let mut fconf = FullConfig::from_file(path);
-        fconf.endpoints_map = FullConfig::default_map();
-        fconf.to_file(path)
-    }
 }
 
 pub fn clear_config(
@@ -394,11 +337,6 @@ pub fn clear_config(
 ) -> Result<(), String> {
     let mut config = &mut full_config.config;
     let is_json = config.is_json || is_json;
-    if matches.is_present("URL") {
-        let url = default_url();
-        config.endpoints = FullConfig::default_map()[&url].clone();
-        config.url = url;
-    }
     if matches.is_present("ADDR") {
         config.addr = None;
     }
@@ -480,17 +418,28 @@ pub fn clear_config(
     Ok(())
 }
 
+pub fn parse_endpoints(
+    config: &mut Config,
+    endpoints_str: &str
+) {
+    let new_endpoints : Vec<String> = endpoints_str
+        .replace('[', "")
+        .replace(']', "")
+        .split(',')
+        .map(|s| s.to_string())
+        .collect();
+
+    config.endpoints = new_endpoints;
+}
+
 pub fn set_config(
     full_config: &mut FullConfig,
     matches: &ArgMatches,
     is_json: bool,
 ) -> Result<(), String> {
     let mut config= &mut full_config.config;
-    if let Some(s) = matches.value_of("URL") {
-        let resolved_url = resolve_net_name(s).unwrap_or(s.to_owned());
-        let empty : Vec<String> = Vec::new();
-        config.endpoints = full_config.endpoints_map.get(&resolved_url).unwrap_or(&empty).clone();
-        config.url = resolved_url;
+    if let Some(endpoints) = matches.value_of("ENDPOINTS") {
+        parse_endpoints(config, endpoints);
     }
     if let Some(s) = matches.value_of("ADDR") {
         config.addr = Some(s.to_string());

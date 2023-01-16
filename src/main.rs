@@ -67,7 +67,7 @@ use crate::account::dump_accounts;
 #[cfg(feature = "sold")]
 use crate::compile::{compile_command, create_compile_command};
 
-use crate::config::{FullConfig, resolve_net_name};
+use crate::config::{FullConfig, parse_endpoints, resolve_net_name};
 use crate::getconfig::gen_update_config_message;
 use crate::helpers::{abi_from_matches_or_config, AccountSource, default_config_name, global_config_path, load_abi_from_tvc, load_params, parse_lifetime, unpack_alternative_params, wc_from_matches_or_config};
 use crate::message::generate_message;
@@ -519,27 +519,6 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(SubCommand::with_name("reset")
             .about("Clear the aliases map."));
 
-    let url_arg = Arg::with_name("URL")
-        .required(true)
-        .takes_value(true)
-        .help("Url of the endpoints list.");
-    let config_endpoint_cmd = SubCommand::with_name("endpoint")
-        .about("Commands to work with the endpoints map.")
-        .subcommand(SubCommand::with_name("add")
-            .about("Add endpoints list.")
-            .arg(url_arg.clone())
-            .arg(Arg::with_name("ENDPOINTS")
-                .required(true)
-                .takes_value(true)
-                .help("List of endpoints (comma separated).")))
-        .subcommand(SubCommand::with_name("remove")
-            .about("Remove endpoints list.")
-            .arg(url_arg.clone()))
-        .subcommand(SubCommand::with_name("reset")
-            .about("Reset the endpoints map."))
-        .subcommand(SubCommand::with_name("print")
-            .about("Print current endpoints map."));
-
     let config_cmd = SubCommand::with_name("config")
         .setting(AppSettings::AllowLeadingHyphen)
         .about("Allows to tune certain default values for options in the config file.")
@@ -549,10 +528,11 @@ async fn main_internal() -> Result <(), String> {
             .long("--global")
             .short("-g")
             .help("Change parameters of the global config which contains default values for ordinary configs."))
-        .arg(Arg::with_name("URL")
-            .long("--url")
+        .arg(Arg::with_name("ENDPOINTS")
+            .long("--endpoints")
+            .short("-e")
             .takes_value(true)
-            .help("Url to connect."))
+            .help("List of endpoints, separated with commas (can be specified with alias for GOSH or localhost network)."))
         .arg(Arg::with_name("ABI")
             .long("--abi")
             .takes_value(true)
@@ -647,7 +627,6 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true)
             .help("Project secret or JWT in Evercloud (dashboard.evercloud.dev)."))
         .subcommand(config_clear_cmd)
-        .subcommand(config_endpoint_cmd)
         .subcommand(alias_cmd);
 
     let account_cmd = SubCommand::with_name("account")
@@ -991,10 +970,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     let config = &mut full_config.config;
 
     if let Some(url) = matches.value_of("NETWORK") {
-        let resolved_url = resolve_net_name(url).unwrap_or(url.to_owned());
-        let empty : Vec<String> = Vec::new();
-        config.endpoints = full_config.endpoints_map.get(&resolved_url).unwrap_or(&empty).clone();
-        config.url = resolved_url;
+        parse_endpoints(config, url);
     }
 
     if let Some(m) = matches.subcommand_matches("callx") {
@@ -1424,19 +1400,6 @@ fn config_command(matches: &ArgMatches, mut full_config: FullConfig, is_json: bo
     if !matches.is_present("LIST") {
         if let Some(clear_matches) = matches.subcommand_matches("clear") {
             result = clear_config(&mut full_config, clear_matches, is_json);
-        } else if let Some(endpoint_matches) = matches.subcommand_matches("endpoint") {
-            if let Some(endpoint_matches) = endpoint_matches.subcommand_matches("add") {
-                let url = endpoint_matches.value_of("URL").unwrap();
-                let endpoints = endpoint_matches.value_of("ENDPOINTS").unwrap();
-                FullConfig::add_endpoint(full_config.path.as_str(), url, endpoints)?;
-            } else if let Some(endpoint_matches) = endpoint_matches.subcommand_matches("remove") {
-                let url = endpoint_matches.value_of("URL").unwrap();
-                FullConfig::remove_endpoint(full_config.path.as_str(), url)?;
-            } else if endpoint_matches.subcommand_matches("reset").is_some() {
-                FullConfig::reset_endpoints(full_config.path.as_str())?;
-            }
-            FullConfig::print_endpoints(full_config.path.as_str());
-            return Ok(());
         } else if let Some(alias_matches) = matches.subcommand_matches("alias") {
             if let Some(alias_matches) = alias_matches.subcommand_matches("add") {
                 full_config.add_alias(

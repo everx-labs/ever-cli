@@ -308,7 +308,7 @@ pub async fn run_debot_browser(
     signkey_path: Option<String>,
 ) -> Result<Option<serde_json::Value>, String> {
     if !config.is_json {
-        println!("Network: {}", config.url);
+        println!("Endpoints: {:?}", config.endpoints);
     }
     let ton = create_client(&config)?;
 

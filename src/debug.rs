@@ -1361,7 +1361,7 @@ async fn make_sequence_diagram(
     let txns = fetch_transactions(config, &addresses).await?;
     let inbound_map = map_inbound_messages_onto_tr(&txns);
 
-    let mut url = config.url.replace(".dev", ".live");
+    let mut url = config.endpoints[0].replace(".dev", ".live");
     if !url.starts_with("https://") {
         url = format!("https://{}", url);
     }
