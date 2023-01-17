@@ -52,7 +52,7 @@ pub async fn deploy_contract(
     }
 
     if config.async_call {
-        let abi = load_abi(&abi, config).await?;
+        let abi = load_abi(abi, config).await?;
         send_message_and_wait(ton, Some(abi), enc_msg.message, config).await?;
     } else {
         process_message(ton.clone(), msg, config)
@@ -130,7 +130,7 @@ pub async fn prepare_deploy_message_params(
     keys: Option<KeyPair>,
     wc: i32,
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
-    let tvc_base64 = base64::encode(&tvc_bytes);
+    let tvc_base64 = base64::encode(tvc_bytes);
 
     let addr = calc_acc_address(
         tvc_bytes,

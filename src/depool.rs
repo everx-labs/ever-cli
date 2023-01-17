@@ -276,10 +276,10 @@ pub async fn depool_command(m: &ArgMatches<'_>, config: &mut Config) -> Result<(
         if let Some(matches) = matches {
             let is_vesting = m.subcommand_matches("vesting").is_some();
             set_wait_answer(matches);
-            let (wallet, keys) = parse_wallet_data(&matches, &config)?;
+            let (wallet, keys) = parse_wallet_data(matches, config)?;
             return set_donor_command(
                 matches,
-                &config,
+                config,
                 depool.as_str(),
                 &wallet,
                 &keys,
@@ -336,23 +336,23 @@ pub async fn depool_command(m: &ArgMatches<'_>, config: &mut Config) -> Result<(
         let matches = m.subcommand_matches("on").or(m.subcommand_matches("off"));
         if let Some(matches) = matches {
             set_wait_answer(matches);
-            let (wallet, keys) = parse_wallet_data(&matches, &config)?;
+            let (wallet, keys) = parse_wallet_data(matches, config)?;
             let enable_withdraw = m.subcommand_matches("on").is_some();
-            return set_withdraw_command(&config, &depool, &wallet, &keys, enable_withdraw).await;
+            return set_withdraw_command(config, &depool, &wallet, &keys, enable_withdraw).await;
         }
     }
     if let Some(m) = m.subcommand_matches("events") {
-        return events_command(m, &config, &depool).await;
+        return events_command(m, config, &depool).await;
     }
     if let Some(m) = m.subcommand_matches("answers") {
-        return answer_command(m, &config, &depool).await;
+        return answer_command(m, config, &depool).await;
     }
     if let Some(m) = m.subcommand_matches("replenish") {
         return replenish_command(CommandData::from_matches_and_conf(m, config, depool)?).await;
     }
     if let Some(m) = m.subcommand_matches("ticktock") {
-        let (wallet, keys) = parse_wallet_data(&m, &config)?;
-        return ticktock_command(&config, &depool, &wallet, &keys).await;
+        let (wallet, keys) = parse_wallet_data(m, config)?;
+        return ticktock_command(config, &depool, &wallet, &keys).await;
     }
     Err("unknown depool command".to_owned())
 }
@@ -475,8 +475,8 @@ async fn print_event(ton: TonClient, event: &serde_json::Value) -> Result<(), St
 }
 
 async fn get_events(config: &Config, depool: &str, since: u32) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
-    let _addr = load_ton_address(depool, &config)?;
+    let ton = create_client_verbose(config)?;
+    let _addr = load_ton_address(depool, config)?;
 
     let events = ton_client::net::query_collection(
         ton.clone(),
@@ -502,8 +502,8 @@ async fn get_events(config: &Config, depool: &str, since: u32) -> Result<(), Str
 }
 
 async fn wait_for_event(config: &Config, depool: &str) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
-    let _addr = load_ton_address(depool, &config)?;
+    let ton = create_client_verbose(config)?;
+    let _addr = load_ton_address(depool, config)?;
     println!("Waiting for a new event...");
     let event = ton_client::net::wait_for_collection(
         ton.clone(),
@@ -512,7 +512,6 @@ async fn wait_for_event(config: &Config, depool: &str) -> Result<(), String> {
             filter: Some(events_filter(depool, now()?)),
             result: "id body created_at created_at_string".to_owned(),
             timeout: Some(config.timeout),
-            ..Default::default()
         },
     )
     .await
@@ -699,7 +698,7 @@ async fn add_ordinary_stake(cmd: CommandData<'_>) -> Result<(), String> {
         .map_err(|e| format!(r#"failed to parse depool fee value: {}"#, e))?;
     let value = (fee + stake) as f64 * 1.0 / 1e9;
     call_contract(
-        &cmd.config,
+        cmd.config,
         &cmd.wallet,
         &cmd.depool,
         &format!("{}", value),
@@ -713,7 +712,7 @@ async fn add_ordinary_stake(cmd: CommandData<'_>) -> Result<(), String> {
 async fn replenish_stake(cmd: CommandData<'_>) -> Result<(), String> {
     let body = encode_replenish_stake().await?;
     call_contract(
-        &cmd.config,
+        cmd.config,
         &cmd.wallet,
         &cmd.depool,
         cmd.stake,
@@ -741,7 +740,7 @@ async fn add_exotic_stake(
     tp: u32,
     is_vesting: bool,
 ) -> Result<(), String> {
-    let beneficiary = load_ton_address(beneficiary, &cmd.config)?;
+    let beneficiary = load_ton_address(beneficiary, cmd.config)?;
     let stake = u64::from_str_radix(&convert::convert_token(cmd.stake)?, 10)
         .map_err(|e| format!(r#"failed to parse stake value: {}"#, e))?;
     let body = if is_vesting {
@@ -753,7 +752,7 @@ async fn add_exotic_stake(
         .map_err(|e| format!(r#"failed to parse depool fee value: {}"#, e))?;
     let value = (fee + stake) as f64 * 1.0 / 1e9;
     call_contract(
-        &cmd.config,
+        cmd.config,
         &cmd.wallet,
         &cmd.depool,
         &format!("{}", value),
@@ -773,7 +772,7 @@ async fn remove_stake(cmd: CommandData<'_>) -> Result<(), String> {
     let stake = get_stake(cmd.stake)?;
     let body = encode_remove_stake(stake).await?;
     call_contract(
-        &cmd.config,
+        cmd.config,
         &cmd.wallet,
         &cmd.depool,
         &cmd.depool_fee,
@@ -788,7 +787,7 @@ async fn withdraw_stake(cmd: CommandData<'_>) -> Result<(), String> {
     let stake = get_stake(cmd.stake)?;
     let body = encode_withdraw_stake(stake).await?;
     call_contract(
-        &cmd.config,
+        cmd.config,
         &cmd.wallet,
         &cmd.depool,
         &cmd.depool_fee,
@@ -800,11 +799,11 @@ async fn withdraw_stake(cmd: CommandData<'_>) -> Result<(), String> {
 }
 
 async fn transfer_stake(cmd: CommandData<'_>, dest: &str) -> Result<(), String> {
-    let dest = load_ton_address(dest, &cmd.config)?;
+    let dest = load_ton_address(dest, cmd.config)?;
     let stake = get_stake(cmd.stake)?;
     let body = encode_transfer_stake(dest.as_str(), stake).await?;
     call_contract(
-        &cmd.config,
+        cmd.config,
         &cmd.wallet,
         &cmd.depool,
         &cmd.depool_fee,
@@ -826,10 +825,10 @@ async fn set_withdraw(
     let value = config.depool_fee.to_string();
     call_contract(
         config,
-        &wallet,
-        &depool,
+        wallet,
+        depool,
         &value.to_string(),
-        &keys,
+        keys,
         &body,
         true,
     )
@@ -848,10 +847,10 @@ async fn set_donor(
     let value = config.depool_fee.to_string();
     call_contract(
         config,
-        &wallet,
-        &depool,
+        wallet,
+        depool,
         &value.to_string(),
-        &keys,
+        keys,
         &body,
         true,
     )
@@ -999,7 +998,7 @@ async fn call_contract_and_get_answer(
     body: &str,
     answer_is_expected: bool,
 ) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(config)?;
     let abi = load_abi(MSIG_ABI, config).await?;
     let start = now()?;
 
@@ -1036,7 +1035,6 @@ async fn call_contract_and_get_answer(
             filter: Some(answer_filter(src_addr, dest_addr, start)),
             result: "id body created_at created_at_string".to_owned(),
             timeout: Some(config.timeout),
-            ..Default::default()
         },
     )
     .await
@@ -1080,7 +1078,6 @@ async fn call_contract_and_get_answer(
                 filter: Some(answer_filter(dest_addr, src_addr, start)),
                 result: "id body created_at created_at_string value".to_owned(),
                 timeout: Some(config.timeout),
-                ..Default::default()
             },
         )
         .await

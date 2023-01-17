@@ -200,7 +200,6 @@ pub async fn send_message_and_wait(
             message: msg.clone(),
             abi: abi.clone(),
             send_events: false,
-            ..Default::default()
         },
         callback,
     )
@@ -248,8 +247,7 @@ pub async fn process_message(
             ton.clone(),
             ParamsOfProcessMessage {
                 message_encode_params: msg.clone(),
-                send_events: send_events,
-                ..Default::default()
+                send_events,
             },
             callback,
         )
@@ -291,7 +289,7 @@ pub async fn call_contract_with_result(
     keys: Option<String>,
     is_fee: bool,
 ) -> Result<Value, String> {
-    let ton = if config.debug_fail != "None".to_string() {
+    let ton = if config.debug_fail != *"None" {
         let log_path = format!("call_{}_{}.log", addr, method);
         log::set_max_level(log::LevelFilter::Trace);
         log::set_boxed_logger(Box::new(DebugLogger::new(log_path)))
@@ -318,7 +316,7 @@ pub async fn call_contract_with_client(
     let msg_params = prepare_message_params(addr, abi.clone(), method, params, None, keys.clone())?;
 
     let needs_encoded_msg =
-        is_fee || config.async_call || config.local_run || config.debug_fail != "None".to_string();
+        is_fee || config.async_call || config.local_run || config.debug_fail != *"None";
 
     let message = if needs_encoded_msg {
         let msg = encode_message(ton.clone(), msg_params.clone())
@@ -339,7 +337,7 @@ pub async fn call_contract_with_client(
         None
     };
 
-    let dump = if config.debug_fail != "None".to_string() {
+    let dump = if config.debug_fail != *"None" {
         let acc_boc = query_account_field(ton.clone(), addr, "boc").await?;
         let account = Account::construct_from_base64(&acc_boc)
             .map_err(|e| format!("Failed to construct account: {}", e))?
@@ -359,7 +357,7 @@ pub async fn call_contract_with_client(
 
     let res = process_message(ton.clone(), msg_params, config).await;
 
-    if config.debug_fail != "None".to_string()
+    if config.debug_fail != *"None"
         && res.is_err()
         && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE
     {
@@ -437,7 +435,7 @@ pub async fn call_contract_with_msg(
     str_msg: String,
     abi_path: &str,
 ) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(config)?;
     let abi = load_abi(abi_path, config).await?;
 
     let (msg, _) = unpack_message(&str_msg)?;

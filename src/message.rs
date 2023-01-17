@@ -64,22 +64,22 @@ pub fn prepare_message_params(
     keys: Option<String>,
 ) -> Result<ParamsOfEncodeMessage, String> {
     let keys = keys.map(|k| load_keypair(&k)).transpose()?;
-    let params = serde_json::from_str(&params)
+    let params = serde_json::from_str(params)
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
 
     let call_set = Some(CallSet {
         function_name: method.into(),
         input: Some(params),
-        header: header.clone(),
+        header,
     });
 
     Ok(ParamsOfEncodeMessage {
         abi,
         address: Some(addr.to_owned()),
         call_set,
-        signer: if keys.is_some() {
+        signer: if let Some(keys) = keys {
             Signer::Keys {
-                keys: keys.unwrap(),
+                keys,
             }
         } else {
             Signer::None
@@ -178,14 +178,13 @@ pub async fn generate_message(
 ) -> Result<(), String> {
     let ton = create_client_local()?;
 
-    let ton_addr = load_ton_address(addr, &config)
-        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
+    let ton_addr = load_ton_address(addr, config)
+        .map_err(|e| format!("failed to parse address: {}", e))?;
 
     let abi = load_abi(abi, config).await?;
 
     let expire_at = lifetime
         + timestamp
-            .clone()
             .map(|millis| (millis / 1000) as u32)
             .unwrap_or(now()?);
     let header = FunctionHeader {
@@ -224,8 +223,8 @@ pub fn display_generated_message(
     print_encoded_message(msg, is_json);
 
     let msg_bytes = pack_message(msg, method, is_raw)?;
-    if output.is_some() {
-        let out_file = output.unwrap();
+    if let Some(output) = output {
+        let out_file = output;
         std::fs::write(out_file, msg_bytes)
             .map_err(|e| format!("cannot write message to file: {}", e))?;
         if !is_json {

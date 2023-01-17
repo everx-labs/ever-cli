@@ -42,7 +42,7 @@ async fn query_accounts(
     addresses: Vec<String>,
     fields: &str,
 ) -> Result<Vec<Value>, String> {
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(config)?;
 
     if !config.is_json {
         println!("Processing...");
@@ -103,7 +103,7 @@ pub async fn get_account(
         }
         return Ok(());
     }
-    let accounts = query_accounts(&config, addresses.clone(), ACCOUNT_FIELDS).await?;
+    let accounts = query_accounts(config, addresses.clone(), ACCOUNT_FIELDS).await?;
     if !config.is_json {
         println!("Succeeded.");
     }
@@ -179,7 +179,7 @@ pub async fn get_account(
                     );
                 } else {
                     print_account(
-                        &config,
+                        config,
                         Some(acc_type),
                         Some(address.clone()),
                         Some(balance),
@@ -203,7 +203,7 @@ pub async fn get_account(
                 );
             } else {
                 print_account(
-                    &config,
+                    config,
                     Some(acc_type),
                     Some(address.clone()),
                     None,
@@ -239,12 +239,10 @@ pub async fn get_account(
         }
     } else if config.is_json {
         println!("{{\n}}");
+    } else if config.is_json {
+        println!("{{\n}}");
     } else {
-        if config.is_json {
-            println!("{{\n}}");
-        } else {
-            println!("Account not found.");
-        }
+        println!("Account not found.");
     }
 
     if dumptvc.is_some() || dumpboc.is_some() && addresses.len() == 1 && accounts.len() == 1 {
@@ -291,22 +289,20 @@ pub async fn get_account(
 }
 
 pub async fn calc_storage(config: &Config, addr: &str, period: u32) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(config)?;
 
     if !config.is_json {
         println!("Processing...");
     }
 
     let boc = query_account_field(ton.clone(), addr, "boc")
-        .await
-        .map_err(|e| e)?;
+        .await?;
 
     let res = calc_storage_fee(
         ton.clone(),
         ParamsOfCalcStorageFee {
             account: boc,
             period,
-            ..Default::default()
         },
     )
     .await
@@ -328,7 +324,7 @@ pub async fn dump_accounts(
     addresses: Vec<String>,
     path: Option<&str>,
 ) -> Result<(), String> {
-    let accounts = query_accounts(&config, addresses.clone(), "id boc").await?;
+    let accounts = query_accounts(config, addresses.clone(), "id boc").await?;
     let mut addresses = addresses.clone();
     check_dir(path.unwrap_or(""))?;
     for account in accounts.iter() {
@@ -393,7 +389,6 @@ pub async fn wait_for_change(
             limit: None,
             order: None,
             result: "last_trans_lt".to_owned(),
-            ..Default::default()
         },
     )
     .await
@@ -436,7 +431,6 @@ pub async fn wait_for_change(
                 },
             })),
             result: "last_trans_lt".to_owned(),
-            ..Default::default()
         },
         callback,
     )

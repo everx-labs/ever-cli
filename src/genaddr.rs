@@ -88,7 +88,7 @@ pub async fn generate_address(
     if new_keys && keys_file.is_some() {
         let keys_json = serde_json::to_string_pretty(&keys.clone().unwrap())
             .map_err(|e| format!("failed to serialize the keypair: {}", e))?;
-        std::fs::write(keys_file.unwrap(), &keys_json)
+        std::fs::write(keys_file.unwrap(), keys_json)
             .map_err(|e| format!("failed to save the keypair: {}", e))?;
     }
 
@@ -151,7 +151,6 @@ fn calc_userfriendly_address(address: &str, bounce: bool, test: bool) -> Result<
                 bounce,
                 test,
             },
-            ..Default::default()
         },
     )
     .map(|r| r.address)

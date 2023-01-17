@@ -107,7 +107,6 @@ pub async fn fetch(
                 field: "fn".to_owned(),
                 aggregation_fn: AggregationFn::COUNT,
             }]),
-            ..Default::default()
         },
     )
     .await
@@ -136,7 +135,6 @@ pub async fn fetch(
             result: "accounts { id boc }".to_owned(),
             limit: Some(1),
             order: None,
-            ..Default::default()
         },
     )
     .await;
@@ -170,7 +168,7 @@ pub async fn fetch(
             "{{\"id\":\"{}\",\"boc\":\"{}\"}}\n",
             account_address,
             base64::encode(
-                &Account::default()
+                Account::default()
                     .write_to_bytes()
                     .map_err(|e| format!("failed to serialize account: {}", e))?
             )
@@ -213,7 +211,6 @@ pub async fn fetch(
                         path: "lt".to_owned(),
                         direction: SortDirection::ASC,
                     }]),
-                    ..Default::default()
                 },
             );
             query.await
@@ -373,12 +370,10 @@ pub async fn replay(
             .as_ref()
             .ok_or("failed to obtain state transaction")?;
 
-        if iterate_config {
-            if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
-                assert!(tr.block_lt > cur_block_lt);
-                cur_block_lt = tr.block_lt;
-                config = construct_blockchain_config(&config_account)?;
-            }
+        if iterate_config && ( cur_block_lt == 0 || cur_block_lt != tr.block_lt) {
+            assert!(tr.block_lt > cur_block_lt);
+            cur_block_lt = tr.block_lt;
+            config = construct_blockchain_config(&config_account)?;
         }
 
         let mut account_root = state
@@ -454,7 +449,7 @@ pub async fn replay(
             }
             if trace_callback.is_some() {
                 init_trace_last_logger()?;
-                let executor = Box::new(OrdinaryTransactionExecutor::new(config.clone()));
+                let executor = Box::new(OrdinaryTransactionExecutor::new(config));
                 let msg = tr
                     .tr
                     .in_msg_cell()
@@ -575,7 +570,6 @@ pub async fn fetch_block(
             result: "workchain_id end_lt boc".to_owned(),
             limit: None,
             order: None,
-            ..Default::default()
         },
     )
     .await?;

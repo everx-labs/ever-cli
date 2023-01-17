@@ -140,7 +140,7 @@ pub fn get_server_endpoints(config: &Config) -> Vec<String> {
         .map(|end| {
             let mut end = end.trim_end_matches('/').to_owned();
             if config.project_id.is_some() {
-                end.push_str("/");
+                end.push('/');
                 end.push_str(&config.project_id.clone().unwrap());
             }
             end.to_owned()
@@ -208,7 +208,7 @@ pub async fn query_raw(
     let context = create_client_verbose(config)?;
 
     let filter = filter
-        .map(|s| serde_json::from_str(s))
+        .map(serde_json::from_str)
         .transpose()
         .map_err(|e| format!("Failed to parse filter field: {}", e))?;
     let limit = limit
@@ -216,7 +216,7 @@ pub async fn query_raw(
         .transpose()
         .map_err(|e| format!("Failed to parse limit field: {}", e))?;
     let order = order
-        .map(|s| serde_json::from_str(s))
+        .map(serde_json::from_str)
         .transpose()
         .map_err(|e| format!("Failed to parse order field: {}", e))?;
 
@@ -228,7 +228,6 @@ pub async fn query_raw(
             limit,
             order,
             result: result.to_owned(),
-            ..Default::default()
         },
     )
     .await
@@ -254,7 +253,6 @@ pub async fn query_with_limit(
             result: result.to_owned(),
             order,
             limit,
-            ..Default::default()
         },
     )
     .await
@@ -335,17 +333,15 @@ pub async fn load_abi_str(abi_path: &str, config: &Config) -> Result<String, Str
     }
     if Url::parse(abi_path).is_ok() {
         let abi_bytes = load_file_with_url(abi_path, config.timeout as u64).await?;
-        return Ok(String::from_utf8(abi_bytes).map_err(|e| {
+        return String::from_utf8(abi_bytes).map_err(|e| {
             format!(
                 "Downloaded string contains not valid UTF8 characters: {}",
                 e
             )
-        })?);
+        });
     }
-    Ok(
-        std::fs::read_to_string(&abi_path)
-            .map_err(|e| format!("failed to read ABI file: {}", e))?,
-    )
+    std::fs::read_to_string(abi_path)
+        .map_err(|e| format!("failed to read ABI file: {}", e))
 }
 
 pub async fn load_abi(abi_path: &str, config: &Config) -> Result<Abi, String> {
@@ -358,8 +354,8 @@ pub async fn load_abi(abi_path: &str, config: &Config) -> Result<Abi, String> {
 
 pub async fn load_ton_abi(abi_path: &str, config: &Config) -> Result<ton_abi::Contract, String> {
     let abi_str = load_abi_str(abi_path, config).await?;
-    Ok(ton_abi::Contract::load(abi_str.as_bytes())
-        .map_err(|e| format!("Failed to load ABI: {}", e))?)
+    ton_abi::Contract::load(abi_str.as_bytes())
+        .map_err(|e| format!("Failed to load ABI: {}", e))
 }
 
 pub async fn load_file_with_url(url: &str, timeout: u64) -> Result<Vec<u8>, String> {
@@ -397,7 +393,6 @@ pub async fn calc_acc_address(
         workchain_id: Some(wc),
         initial_data: init_data_json,
         initial_pubkey: pubkey.clone(),
-        ..Default::default()
     };
     let result = ton_client::abi::encode_message(
         ton.clone(),
@@ -628,7 +623,7 @@ pub async fn load_account(
         AccountSource::NETWORK => {
             let ton_client = match ton_client {
                 Some(ton_client) => ton_client,
-                None => create_client(&config)?,
+                None => create_client(config)?,
             };
             let boc = query_account_field(ton_client.clone(), source, "boc").await?;
             Ok((
@@ -648,7 +643,7 @@ pub async fn load_account(
             let account_bytes = account
                 .write_to_bytes()
                 .map_err(|e| format!(" failed to load data from the account: {}", e))?;
-            Ok((account, base64::encode(&account_bytes)))
+            Ok((account, base64::encode(account_bytes)))
         }
     }
 }
@@ -1064,7 +1059,7 @@ pub fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String>
     ]
   }
 }"#;
-    let map = serde_json::from_str::<serde_json::Map<String, Value>>(&json)
+    let map = serde_json::from_str::<serde_json::Map<String, Value>>(json)
         .map_err(|e| format!("Failed to parse config params as json: {e}"))?;
     let config_params = ton_block_json::parse_config(&map)
         .map_err(|e| format!("Failed to parse config params: {e}"))?;

@@ -39,7 +39,7 @@ pub async fn run_command(
     } else {
         (
             matches.value_of("ADDRESS").unwrap().to_string(),
-            abi_from_matches_or_config(matches, &config)?,
+            abi_from_matches_or_config(matches, config)?,
         )
     };
     let account_source = if matches.is_present("TVC") {
@@ -51,7 +51,7 @@ pub async fn run_command(
     };
 
     let ton_client = if account_source == AccountSource::NETWORK {
-        if config.debug_fail != "None".to_string() {
+        if config.debug_fail != *"None" {
             let method = if is_alternative {
                 matches
                     .value_of("METHOD")
@@ -62,18 +62,18 @@ pub async fn run_command(
             };
             let log_path = format!("run_{}_{}.log", address, method);
             log::set_max_level(log::LevelFilter::Trace);
-            log::set_boxed_logger(Box::new(DebugLogger::new(log_path.to_string())))
+            log::set_boxed_logger(Box::new(DebugLogger::new(log_path)))
                 .map_err(|e| format!("Failed to set logger: {}", e))?;
-            create_client(&config)?
+            create_client(config)?
         } else {
-            create_client_verbose(&config)?
+            create_client_verbose(config)?
         }
     } else {
         create_client_local()?
     };
 
     let (account, account_boc) =
-        load_account(&account_source, &address, Some(ton_client.clone()), &config).await?;
+        load_account(&account_source, &address, Some(ton_client.clone()), config).await?;
     let address = match account_source {
         AccountSource::NETWORK => address,
         AccountSource::BOC => account.get_addr().unwrap().to_string(),
@@ -136,7 +136,7 @@ async fn run(
 
     let msg = prepare_message(
         ton_client.clone(),
-        &address,
+        address,
         abi.clone(),
         method,
         &params.unwrap(),
@@ -160,7 +160,7 @@ async fn run(
     )
     .await;
 
-    if config.debug_fail != "None".to_string()
+    if config.debug_fail != *"None"
         && result.is_err()
         && result.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE
     {
@@ -188,7 +188,7 @@ async fn run(
         let now = now_ms();
         let message = Message::construct_from_base64(&msg.message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        match execute_debug(
+        if let Err(e) = execute_debug(
             get_blockchain_config(config, None).await?,
             &mut account,
             Some(&message),
@@ -200,12 +200,9 @@ async fn run(
         )
         .await
         {
-            Err(e) => {
-                if !e.contains("Contract did not accept message") {
-                    return Err(e);
-                }
+            if !e.contains("Contract did not accept message") {
+                return Err(e);
             }
-            Ok(_) => {}
         }
 
         if !config.is_json {
@@ -240,7 +237,7 @@ fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<Execution
     if let Some(config) = bc_config {
         let bytes = std::fs::read(config)
             .map_err(|e| format!("Failed to read data from file {}: {}", config, e))?;
-        let config_boc = base64::encode(&bytes);
+        let config_boc = base64::encode(bytes);
         let ex_opt = ExecutionOptions {
             blockchain_config: Some(config_boc),
             ..Default::default()
@@ -259,7 +256,7 @@ pub async fn run_get_method(
     bc_config: Option<&str>,
 ) -> Result<(), String> {
     let ton = if source_type == AccountSource::NETWORK {
-        create_client_verbose(&config)?
+        create_client_verbose(config)?
     } else {
         create_client_local()?
     };
@@ -286,7 +283,7 @@ pub async fn run_get_method(
         },
     )
     .await
-    .map_err(|e| format!("run failed: {}", e.to_string()))?
+    .map_err(|e| format!("run failed: {}", e))?
     .output;
 
     if !config.is_json {
@@ -299,7 +296,7 @@ pub async fn run_get_method(
                 let mut i = 0;
                 for val in array.iter() {
                     res.insert(format!("value{}", i), val.to_owned());
-                    i = 1 + i;
+                    i += 1;
                 }
             }
             _ => {

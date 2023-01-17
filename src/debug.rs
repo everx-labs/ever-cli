@@ -403,7 +403,7 @@ async fn debug_transaction_command(
         if !config.is_json {
             print_args!(tx_id, trace_path, config_path, contract_path);
         }
-        let address = query_address(tx_id.unwrap(), &config).await?;
+        let address = query_address(tx_id.unwrap(), config).await?;
         (tx_id.unwrap().to_string(), address)
     } else {
         let address = Some(
@@ -420,7 +420,7 @@ async fn debug_transaction_command(
             print_args!(address, trace_path, config_path, contract_path);
         }
         let address = address.unwrap();
-        let transactions = query_transactions(&address, &config).await?;
+        let transactions = query_transactions(&address, config).await?;
         let tr_id = choose_transaction(transactions)?;
         (tr_id, address)
     };
@@ -511,7 +511,7 @@ async fn replay_transaction_command(
         print_args!(input, tx_id, output, config_path);
     }
 
-    let ton_client = create_client(&config)?;
+    let ton_client = create_client(config)?;
     let trans = query_collection(
         ton_client.clone(),
         ParamsOfQueryCollection {
@@ -524,7 +524,6 @@ async fn replay_transaction_command(
             result: "lt block { start_lt } boc".to_string(),
             limit: Some(1),
             order: None,
-            ..Default::default()
         },
     )
     .await
@@ -622,7 +621,7 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: &Config) -> Option<String> 
     let abi = matches
         .value_of("DECODE_ABI")
         .map(|s| s.to_owned())
-        .or(abi_from_matches_or_config(matches, &config).ok());
+        .or(abi_from_matches_or_config(matches, config).ok());
     match abi {
         Some(path) => match std::fs::read_to_string(path) {
             Ok(res) => Some(res),
@@ -757,12 +756,10 @@ async fn debug_call_command(
         Err(e) => {
             if !is_getter {
                 format!("Execution failed: {}", e)
+            } else if e.contains("Contract did not accept message") {
+                "Execution finished.".to_string()
             } else {
-                if e.to_string().contains("Contract did not accept message") {
-                    "Execution finished.".to_string()
-                } else {
-                    format!("Execution failed: {}", e)
-                }
+                format!("Execution failed: {}", e)
             }
         }
     };
@@ -810,13 +807,13 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
         print_args!(input, message, output, debug_info);
     }
 
-    let ton_client = create_client(&config)?;
+    let ton_client = create_client(config)?;
     let input = input.unwrap();
     let account = if is_boc {
         Account::construct_from_file(input)
             .map_err(|e| format!(" failed to load account from the file {}: {}", input, e))?
     } else {
-        let address = load_ton_address(input, &config)?;
+        let address = load_ton_address(input, config)?;
         let account = query_account_field(ton_client.clone(), &address, "boc").await?;
         Account::construct_from_base64(&account)
             .map_err(|e| format!("Failed to construct account: {}", e))?
@@ -884,7 +881,7 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
 async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let tvc = matches.value_of("TVC");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let opt_abi = Some(abi_from_matches_or_config(matches, config)?);
     let debug_info = matches
         .value_of("DBG_INFO")
         .map(|s| s.to_string())
@@ -1149,7 +1146,7 @@ pub async fn execute_debug(
         bc_config
     };
 
-    let executor = Box::new(OrdinaryTransactionExecutor::new(bc_config.clone()));
+    let executor = Box::new(OrdinaryTransactionExecutor::new(bc_config));
     let params = ExecuteParams {
         state_libs: HashmapE::default(),
         block_unixtime,
@@ -1201,7 +1198,7 @@ fn trace_callback(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {
 }
 
 fn trace_callback_minimal(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {
-    let position = match get_position(info, &debug_info) {
+    let position = match get_position(info, debug_info) {
         Some(position) => position,
         _ => "".to_string(),
     };
@@ -1262,7 +1259,7 @@ fn generate_callback(
                 Arc::new(move |_, info| trace_callback_minimal(info, &debug_info))
             })
         }
-        _ => Some(if config.debug_fail == "Full".to_string() {
+        _ => Some(if config.debug_fail == *"Full" {
             Arc::new(move |_, info| trace_callback(info, &None))
         } else {
             Arc::new(move |_, info| trace_callback_minimal(info, &None))
