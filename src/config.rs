@@ -18,9 +18,6 @@ use regex::Regex;
 use crate::global_config_path;
 use crate::helpers::default_config_name;
 
-const TESTNET: &str = "net.evercloud.dev";
-const MAINNET: &str = "main.evercloud.dev";
-const GOSH: &str = "gosh.sh";
 pub const LOCALNET: &str = "http://127.0.0.1/";
 
 fn default_wc() -> i32 {
@@ -207,14 +204,6 @@ impl Config {
 
 
 lazy_static! {
-    static ref MAIN_ENDPOINTS: Vec<String> = vec![
-        "https://mainnet.evercloud.dev".to_string()
-    ];
-
-    static ref NET_ENDPOINTS: Vec<String> = vec![
-        "https://devnet.evercloud.dev".to_string()
-    ];
-
     static ref SE_ENDPOINTS: Vec<String> = vec![
         "http://0.0.0.0".to_string(),
         "http://127.0.0.1".to_string(),
@@ -228,12 +217,6 @@ lazy_static! {
 }
 
 pub fn resolve_net_name(url: &str) -> Option<Vec<String>> {
-    if url == "main" {
-        return Some(MAIN_ENDPOINTS.to_owned());
-    }
-    if url == "dev" || url == "devnet" {
-        return Some(NET_ENDPOINTS.to_owned());
-    }
     if url.contains("127.0.0.1") ||
         url.contains("0.0.0.0") ||
         url.contains("localhost") {
