@@ -3,9 +3,9 @@ use crate::crypto::load_keypair;
 use crate::helpers::{TonClient, HD_PATH};
 use std::io::{self};
 use ton_client::crypto::{
-    register_encryption_box, remove_encryption_box,
-    EncryptionBoxHandle, RegisteredEncryptionBox, ChaCha20ParamsEB, ChaCha20EncryptionBox,
-    NaclBoxParamsEB, NaclEncryptionBox, NaclSecretBoxParamsEB, NaclSecretEncryptionBox
+    register_encryption_box, remove_encryption_box, ChaCha20EncryptionBox, ChaCha20ParamsEB,
+    EncryptionBoxHandle, NaclBoxParamsEB, NaclEncryptionBox, NaclSecretBoxParamsEB,
+    NaclSecretEncryptionBox, RegisteredEncryptionBox,
 };
 
 #[derive(Clone, Copy)]
@@ -58,26 +58,34 @@ impl TerminalEncryptionBox {
             EncryptionBoxType::SecretNaCl => {
                 register_encryption_box(
                     params.context.clone(),
-                    NaclSecretEncryptionBox::new(NaclSecretBoxParamsEB {
-                        key,
-                        nonce: params.nonce,
-                    },
-                    Some(HD_PATH.to_owned()))
+                    NaclSecretEncryptionBox::new(
+                        NaclSecretBoxParamsEB {
+                            key,
+                            nonce: params.nonce,
+                        },
+                        Some(HD_PATH.to_owned()),
+                    ),
                 )
-                .await.map_err(|e| e.to_string())?.handle
-            },
+                .await
+                .map_err(|e| e.to_string())?
+                .handle
+            }
             EncryptionBoxType::NaCl => {
                 register_encryption_box(
                     params.context.clone(),
-                    NaclEncryptionBox::new(NaclBoxParamsEB {
-                        their_public: params.their_pubkey,
-                        secret: key,
-                        nonce: params.nonce,
-                    },
-                    Some(HD_PATH.to_owned()))
+                    NaclEncryptionBox::new(
+                        NaclBoxParamsEB {
+                            their_public: params.their_pubkey,
+                            secret: key,
+                            nonce: params.nonce,
+                        },
+                        Some(HD_PATH.to_owned()),
+                    ),
                 )
-                .await.map_err(|e| e.to_string())?.handle
-            },
+                .await
+                .map_err(|e| e.to_string())?
+                .handle
+            }
             EncryptionBoxType::ChaCha20 => {
                 register_encryption_box(
                     params.context.clone(),
@@ -86,11 +94,14 @@ impl TerminalEncryptionBox {
                             key,
                             nonce: params.nonce,
                         },
-                        Some(HD_PATH.to_owned())
-                    ).map_err(|e| e.to_string())?
+                        Some(HD_PATH.to_owned()),
+                    )
+                    .map_err(|e| e.to_string())?,
                 )
-                .await.map_err(|e| e.to_string())?.handle
-            },
+                .await
+                .map_err(|e| e.to_string())?
+                .handle
+            }
         };
         Ok(Self {
             handle: registered_box,
@@ -101,4 +112,3 @@ impl TerminalEncryptionBox {
         self.handle.clone()
     }
 }
-

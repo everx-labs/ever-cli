@@ -1,6 +1,6 @@
-use serde_json::{Value, json};
-use ton_client::debot::{DebotInterface, InterfaceResult};
+use serde_json::{json, Value};
 use ton_client::abi::Abi;
+use ton_client::debot::{DebotInterface, InterfaceResult};
 
 const STDOUT_ID: &str = "c91dcc3fddb30485a3a07eb7c1e5e2aceaf75f4bc2678111de1f25291cdda80b";
 
@@ -30,17 +30,16 @@ pub const STDOUT_ABI: &str = r#"{
 	]
 }"#;
 
-
 pub struct Stdout {}
 impl Stdout {
-	pub fn new() -> Self {
-		Self {}
-	}
+    pub fn new() -> Self {
+        Self {}
+    }
     pub fn print(&self, args: &Value) -> InterfaceResult {
-		let text_vec = hex::decode(args["message"].as_str().unwrap()).unwrap();
-		let text = std::str::from_utf8(&text_vec).unwrap();
-		println!("{}", text);
-		Ok((0, json!({})))
+        let text_vec = hex::decode(args["message"].as_str().unwrap()).unwrap();
+        let text = std::str::from_utf8(&text_vec).unwrap();
+        println!("{}", text);
+        Ok((0, json!({})))
     }
 }
 

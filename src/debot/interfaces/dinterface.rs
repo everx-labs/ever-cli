@@ -1,8 +1,8 @@
 use super::echo::Echo;
 use super::stdout::Stdout;
 use super::{
-    AddressInput, AmountInput, ConfirmInput, Menu, NumberInput, SigningBoxInput,
-    EncryptionBoxInput, Terminal, UserInfo, InputInterface
+    AddressInput, AmountInput, ConfirmInput, EncryptionBoxInput, InputInterface, Menu, NumberInput,
+    SigningBoxInput, Terminal, UserInfo,
 };
 use crate::config::Config;
 use crate::debot::ChainProcessor;
@@ -49,9 +49,12 @@ impl SupportedInterfaces {
     pub fn new(client: TonClient, config: &Config, processor: Arc<RwLock<ChainProcessor>>) -> Self {
         let mut interfaces = HashMap::new();
 
-        let iw = InterfaceWrapper { processor: processor.clone() };
+        let iw = InterfaceWrapper {
+            processor: processor.clone(),
+        };
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AddressInput::new(config.clone())));
+        let iface: Arc<dyn DebotInterface + Send + Sync> =
+            iw.wrap(Arc::new(AddressInput::new(config.clone())));
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(AmountInput::new()));
@@ -69,22 +72,19 @@ impl SupportedInterfaces {
         let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(Echo::new());
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(
-            Arc::new(Terminal::new(Printer {processor}))
-        );
+        let iface: Arc<dyn DebotInterface + Send + Sync> =
+            iw.wrap(Arc::new(Terminal::new(Printer { processor })));
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(Arc::new(Menu::new()));
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = Arc::new(
-            SigningBoxInput::new(client.clone(), iw.processor.clone())
-        );
+        let iface: Arc<dyn DebotInterface + Send + Sync> =
+            Arc::new(SigningBoxInput::new(client.clone(), iw.processor.clone()));
         interfaces.insert(iface.get_id(), iface);
 
-        let iface: Arc<dyn DebotInterface + Send + Sync> = iw.wrap(
-            Arc::new(UserInfo::new(client.clone(), config.clone()))
-        );
+        let iface: Arc<dyn DebotInterface + Send + Sync> =
+            iw.wrap(Arc::new(UserInfo::new(client.clone(), config.clone())));
         interfaces.insert(iface.get_id(), iface);
 
         let iface: Arc<dyn DebotInterface + Send + Sync> =

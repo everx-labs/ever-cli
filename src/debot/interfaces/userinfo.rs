@@ -2,7 +2,7 @@ use super::dinterface::decode_answer_id;
 use crate::config::Config;
 use crate::debot::term_signing_box::TerminalSigningBox;
 use crate::helpers::TonClient;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 

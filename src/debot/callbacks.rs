@@ -182,8 +182,7 @@ impl BrowserCallbacks for Callbacks {
                 }
                 info += &format!("  Message signer public key: {}\n", signkey);
                 if setcode {
-                    info +=
-                        "  Warning: the transaction will change the account's code\n";
+                    info += "  Warning: the transaction will change the account's code\n";
                 }
                 "Confirm the transaction (y/n)?"
             }

@@ -1,12 +1,14 @@
-use super::dinterface::{decode_answer_id, decode_nonce, decode_prompt, decode_arg, decode_num_arg};
+use super::dinterface::{
+    decode_answer_id, decode_arg, decode_nonce, decode_num_arg, decode_prompt,
+};
 use crate::debot::term_encryption_box::{
     EncryptionBoxType, ParamsOfTerminalEncryptionBox, TerminalEncryptionBox,
 };
 use crate::helpers::TonClient;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use tokio::sync::RwLock;
-use ton_client::{abi::Abi, crypto::EncryptionBoxHandle};
 use ton_client::debot::{DebotInterface, InterfaceResult};
+use ton_client::{abi::Abi, crypto::EncryptionBoxHandle};
 
 const ID: &str = "5b5f76b54d976d72f1ada3063d1af2e5352edaf1ba86b3b311170d4d81056d61";
 
@@ -119,8 +121,12 @@ impl EncryptionBoxInput {
             box_type: EncryptionBoxType::NaCl,
             their_pubkey,
             nonce,
-        }).await;
-        Ok((answer_id, json!({ "handle": self.insert_box(result).await.0 })))
+        })
+        .await;
+        Ok((
+            answer_id,
+            json!({ "handle": self.insert_box(result).await.0 }),
+        ))
     }
     async fn get_nacl_secret_box(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
@@ -134,7 +140,10 @@ impl EncryptionBoxInput {
             nonce,
         })
         .await;
-        Ok((answer_id, json!({ "handle": self.insert_box(result).await.0})))
+        Ok((
+            answer_id,
+            json!({ "handle": self.insert_box(result).await.0}),
+        ))
     }
     async fn get_chacha20_box(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
@@ -148,7 +157,10 @@ impl EncryptionBoxInput {
             nonce,
         })
         .await;
-        Ok((answer_id, json!({ "handle": self.insert_box(result).await.0})))
+        Ok((
+            answer_id,
+            json!({ "handle": self.insert_box(result).await.0}),
+        ))
     }
     async fn remove_handle(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
@@ -173,13 +185,16 @@ impl EncryptionBoxInput {
             }),
         ))
     }
-    async fn insert_box(&self, result_box: Result<TerminalEncryptionBox, String>) -> EncryptionBoxHandle {
+    async fn insert_box(
+        &self,
+        result_box: Result<TerminalEncryptionBox, String>,
+    ) -> EncryptionBoxHandle {
         match result_box {
             Ok(enc_box) => {
                 let handle = enc_box.handle();
                 self.handles.write().await.push(enc_box);
                 handle
-            },
+            }
             Err(_) => 0.into(),
         }
     }
@@ -206,4 +221,3 @@ impl DebotInterface for EncryptionBoxInput {
         }
     }
 }
-
