@@ -42,8 +42,8 @@ pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
 
 pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
-const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
-const GLOBAL_CONFIG_PATH: &str = ".tonos-cli.global.conf.json";
+const CONFIG_BASE_NAME: &str = "gosh-cli.conf.json";
+const GLOBAL_CONFIG_PATH: &str = ".gosh-cli.global.conf.json";
 
 pub fn default_config_name() -> String {
     env::current_dir()
@@ -124,7 +124,7 @@ pub fn create_client_local() -> Result<TonClient, String> {
 
 pub fn get_server_endpoints(config: &Config) -> Vec<String> {
     let mut cur_endpoints = match config.endpoints.len() {
-        0 => panic!("Network endpoints are not set. Specify it with `gosh-cli config -e <endpoints>` command.\nExamples:\n\tgosh-cli config -e localhost\n\tgosh-cli config -e gosh\n\tgosh-cli config -e https://bhs01.network.gosh.sh,https://eri01.network.gosh.sh,https://gra01.network.gosh.sh"),
+        0 => panic!("\nNetwork endpoints are not set. Specify it with `gosh-cli config -e <endpoints>` command.\nExamples:\n\tgosh-cli config -e localhost\n\tgosh-cli config -e gosh\n\tgosh-cli config -e https://bhs01.network.gosh.sh,https://eri01.network.gosh.sh,https://gra01.network.gosh.sh\n"),
         _ => config.endpoints.clone(),
     };
     cur_endpoints.iter_mut().map(|end| {
