@@ -166,7 +166,12 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
         },
         network: NetworkConfig {
             server_address: None,
-            sending_endpoint_count: modified_endpoints.len() as u8,
+            sending_endpoint_count: if modified_endpoints.contains(&"http://localhost".to_string())
+            {
+                1
+            } else {
+                modified_endpoints.len() as u8
+            },
             endpoints: Some(modified_endpoints),
             message_retries_count: config.retries as i8,
             message_processing_timeout: 30000,
@@ -340,8 +345,7 @@ pub async fn load_abi_str(abi_path: &str, config: &Config) -> Result<String, Str
             )
         });
     }
-    std::fs::read_to_string(abi_path)
-        .map_err(|e| format!("failed to read ABI file: {}", e))
+    std::fs::read_to_string(abi_path).map_err(|e| format!("failed to read ABI file: {}", e))
 }
 
 pub async fn load_abi(abi_path: &str, config: &Config) -> Result<Abi, String> {
@@ -354,8 +358,7 @@ pub async fn load_abi(abi_path: &str, config: &Config) -> Result<Abi, String> {
 
 pub async fn load_ton_abi(abi_path: &str, config: &Config) -> Result<ton_abi::Contract, String> {
     let abi_str = load_abi_str(abi_path, config).await?;
-    ton_abi::Contract::load(abi_str.as_bytes())
-        .map_err(|e| format!("Failed to load ABI: {}", e))
+    ton_abi::Contract::load(abi_str.as_bytes()).map_err(|e| format!("Failed to load ABI: {}", e))
 }
 
 pub async fn load_file_with_url(url: &str, timeout: u64) -> Result<Vec<u8>, String> {

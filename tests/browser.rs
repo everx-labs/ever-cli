@@ -21,7 +21,7 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("config")
-        .arg("--url")
+        .arg("-e")
         .arg(&*NETWORK)
         .arg("--wc")
         .arg("0");

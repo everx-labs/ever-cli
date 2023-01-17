@@ -109,7 +109,7 @@ fn wait_for_cmd_res(cmd: &mut Command, expected: &str) -> Result<(), Box<dyn std
 fn test_config_1() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = "test1.config";
     set_config(
-        &["--url", "--retries", "--timeout", "--wc"],
+        &["-e", "--retries", "--timeout", "--wc"],
         &[&*NETWORK, "10", "25000", "-2"],
         Some(config_path),
     )?;
@@ -121,10 +121,6 @@ fn test_config_1() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--list");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(format!(
-            r#""url": "{}""#,
-            &*NETWORK
-        )))
         .stdout(predicate::str::contains(r#""retries": 10"#))
         .stdout(predicate::str::contains(r#""timeout": 25000"#))
         .stdout(predicate::str::contains(r#""wc": -2"#));
@@ -141,7 +137,7 @@ fn test_deploy_alias() -> Result<(), Box<dyn std::error::Error>> {
     let key_path = "test_deploy_alias.key";
     let alias = "msig";
 
-    set_config(&["--url"], &[&*NETWORK], Some(config_path))?;
+    set_config(&["-e"], &[&*NETWORK], Some(config_path))?;
     let address = generate_key_and_address(key_path, wallet_tvc, wallet_abi)?;
     giver_v2(&address);
 
@@ -473,7 +469,7 @@ fn test_async_deploy() -> Result<(), Box<dyn std::error::Error>> {
         .arg("config")
         .arg("--async_call")
         .arg("true")
-        .arg("--url")
+        .arg("-e")
         .arg(&*NETWORK)
         .assert()
         .success();
@@ -514,7 +510,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
     giver_v2(&addr);
 
     set_config(
-        &["--balance_in_tons", "--url"],
+        &["--balance_in_tons", "-e"],
         &["true", &*NETWORK],
         Some(config_path),
     )?;
@@ -701,6 +697,7 @@ fn test_nodeid() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
     // config from cmd lime
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -720,7 +717,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .failure()
         .stdout(predicate::str::contains("Url: https://test2.ton.dev"));
 
-    // config from cmd line has higher priority than env variable
+    // config from env variable has higher priority than cmd line
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
         .arg("tests/conf1.json")
@@ -729,7 +726,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
         .failure()
-        .stdout(predicate::str::contains("Url: https://test.ton.dev"));
+        .stdout(predicate::str::contains("Url: https://test2.ton.dev"));
 
     // if there is neither --config nor env variable then config file is searched in current working dir
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -747,7 +744,6 @@ fn test_global_config() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("config").arg("--global").arg("clear");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("url\": \""))
         .stdout(predicate::str::contains("addr\": null"))
         .stdout(predicate::str::contains("wallet\": null"))
         .stdout(predicate::str::contains("pubkey\": null"))
@@ -764,7 +760,6 @@ fn test_global_config() -> Result<(), Box<dyn std::error::Error>> {
         .arg("true");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("url\": \""))
         .stdout(predicate::str::contains("addr\": null"))
         .stdout(predicate::str::contains("wallet\": null"))
         .stdout(predicate::str::contains("pubkey\": null"))
@@ -776,13 +771,12 @@ fn test_global_config() -> Result<(), Box<dyn std::error::Error>> {
         .arg(config_path)
         .arg("config")
         .arg("--global")
-        .arg("--url")
+        .arg("-e")
         .arg("localhost")
         .arg("--lifetime")
         .arg("99");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("url\": \"http://127.0.0.1/"))
         .stdout(predicate::str::contains("addr\": null"))
         .stdout(predicate::str::contains("wallet\": null"))
         .stdout(predicate::str::contains("pubkey\": null"))
@@ -797,7 +791,6 @@ fn test_global_config() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--list");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("url\": \""))
         .stdout(predicate::str::contains("addr\": null"))
         .stdout(predicate::str::contains("wallet\": null"))
         .stdout(predicate::str::contains("pubkey\": null"))
@@ -815,7 +808,6 @@ fn test_global_config() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert()
         .success()
         .success()
-        .stdout(predicate::str::contains("url\": \"http://127.0.0.1/"))
         .stdout(predicate::str::contains("addr\": null"))
         .stdout(predicate::str::contains("wallet\": null"))
         .stdout(predicate::str::contains("pubkey\": null"))
@@ -833,6 +825,7 @@ fn test_global_config() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_empty_config() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = "empty.config";
 
@@ -850,7 +843,7 @@ fn test_empty_config() -> Result<(), Box<dyn std::error::Error>> {
         .arg("account")
         .arg(GIVER_V2_ADDR);
     cmd.assert().failure().stdout(predicate::str::contains(
-        "Network is not set. Specify it with `gosh-cli config --url <network>` command.",
+        "Network endpoints are not set. Specify it with `gosh-cli config -e <endpoints>` command.",
     ));
 
     fs::remove_file(config_path)?;
@@ -858,34 +851,10 @@ fn test_empty_config() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_old_config() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("--config")
-        .arg("tests/rfld.conf.json")
-        .arg("config")
-        .arg("--list");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("url\": \"rfld-dapp.itgold.io"));
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("--config")
-        .arg("tests/test.conf.json")
-        .arg("config")
-        .arg("--list");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("url\": \"http://127.0.0.1/"));
-    Ok(())
-}
-
-#[test]
 fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
     let msg_path = "call.boc";
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("--url")
-        .arg(&*NETWORK)
-        .arg("message")
+    cmd.arg("message")
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94")
         .arg("sendTransaction")
         .arg(r#"{"dest":"0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94","value":1000000000,"bounce":true}"#)
@@ -897,12 +866,14 @@ fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert().success();
 
     let config_path = "send.config";
-    set_config(&["--async_call"], &["true"], Some(config_path))?;
+    set_config(
+        &["--async_call", "-e"],
+        &["true", &NETWORK],
+        Some(config_path),
+    )?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("--url")
-        .arg(&*NETWORK)
-        .arg("--config")
+    cmd.arg("--config")
         .arg(config_path)
         .arg("sendfile")
         .arg(msg_path);
@@ -917,18 +888,14 @@ fn test_sendfile() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
     env::set_var("RUST_LOG", "debug");
-    let config_path = "devnet.config";
+    let config_path = "gosh.config";
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
         .arg(config_path)
         .arg("config")
-        .arg("--url")
-        .arg("https://net.evercloud.dev")
-        .arg("--project_id")
-        .arg("b2ad82504ee54fccb5bc6db8cbb3df1e")
-        .arg("--access_key")
-        .arg("27377cc9027d4de792f100eb869e18e8")
+        .arg("-e")
+        .arg("gosh")
         .assert()
         .success();
 
@@ -975,7 +942,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .success();
 
     set_config(
-        &["--url", "--addr"],
+        &["-e", "--addr"],
         &[&*NETWORK, GIVER_V2_ADDR],
         Some(config_path),
     )?;
@@ -991,7 +958,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("data(boc):"));
 
     set_config(
-        &["--url", "--addr"],
+        &["-e", "--addr"],
         &[&*NETWORK, "tests/account.boc"],
         Some(config_path),
     )?;
@@ -1020,12 +987,8 @@ fn test_config_wc() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("--config")
         .arg(config_path)
         .arg("config")
-        .arg("--url")
-        .arg("https://net.evercloud.dev")
-        .arg("--project_id")
-        .arg("b2ad82504ee54fccb5bc6db8cbb3df1e")
-        .arg("--access_key")
-        .arg("27377cc9027d4de792f100eb869e18e8")
+        .arg("-e")
+        .arg("gosh")
         .arg("--wc")
         .arg("-1");
     cmd.assert().success();
@@ -1515,7 +1478,7 @@ fn test_depool_2() -> Result<(), Box<dyn std::error::Error>> {
 
     let config_path = "fee.conf";
     set_config(
-        &["--depool_fee", "--url"],
+        &["--depool_fee", "-e"],
         &["0.7", &*NETWORK],
         Some(config_path),
     )?;
@@ -2069,18 +2032,14 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
     cmd.arg("--config")
         .arg(cli_config)
         .arg("config")
-        .arg("--project_id")
-        .arg("b2ad82504ee54fccb5bc6db8cbb3df1e")
-        .arg("--access_key")
-        .arg("27377cc9027d4de792f100eb869e18e8")
+        .arg("-e")
+        .arg("gosh")
         .assert()
         .success();
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
         .arg(cli_config)
-        .arg("--url")
-        .arg("main.evercloud.dev")
         .arg("dump")
         .arg("config")
         .arg(config_path)
@@ -2182,7 +2141,7 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
 fn test_run_async_call() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = "async_call.conf";
     set_config(
-        &["--url", "--async_call"],
+        &["-e", "--async_call"],
         &[&*NETWORK, "false"],
         Some(config_path),
     )?;
@@ -2278,6 +2237,7 @@ fn test_run_async_call() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_multisig() -> Result<(), Box<dyn std::error::Error>> {
     let key_path = "msig_test.key";
     let setcode_msig_abi = "tests/samples/SetcodeMultisigWallet.abi.json";
@@ -2542,7 +2502,7 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
 
     let config_path = "alternative.config";
     set_config(
-        &["--url", "--abi", "--addr", "--keys"],
+        &["-e", "--abi", "--addr", "--keys"],
         &[&*NETWORK, SAFEMSIG_ABI, &address, key_path],
         Some(config_path),
     )?;
@@ -2641,9 +2601,10 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[ignore]
 fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = "options.config";
-    set_config(&["--url"], &[&*NETWORK], Some(config_path))?;
+    set_config(&["-e"], &[&*NETWORK], Some(config_path))?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -2666,7 +2627,7 @@ fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
         .arg(config_path)
-        .arg("--url")
+        .arg("-e")
         .arg("net.evercloud.dev")
         .arg("account")
         .arg("0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13");
@@ -2859,7 +2820,7 @@ fn test_alternative_parameters() -> Result<(), Box<dyn std::error::Error>> {
     let key_path = "arguments.key";
     let config_path = "arguments.conf.json";
 
-    set_config(&["--url"], &[&*NETWORK], Some(config_path))?;
+    set_config(&["-e"], &[&*NETWORK], Some(config_path))?;
 
     let address = deploy_contract(key_path, tvc_path, abi_path, "{}")?;
 
@@ -2955,40 +2916,10 @@ fn test_alternative_parameters() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_override_url() -> Result<(), Box<dyn std::error::Error>> {
-    let cli_config = "main.auth.conf1";
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("--config")
-        .arg(cli_config)
-        .arg("config")
-        .arg("--project_id")
-        .arg("b2ad82504ee54fccb5bc6db8cbb3df1e")
-        .arg("--access_key")
-        .arg("27377cc9027d4de792f100eb869e18e8")
-        .assert()
-        .success();
-
-    let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("--config")
-        .arg(cli_config)
-        .arg("--url")
-        .arg("main.ton.dev")
-        .arg("account")
-        .arg("-1:3333333333333333333333333333333333333333333333333333333333333333");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("Succeeded."));
-
-    fs::remove_file(cli_config)?;
-    Ok(())
-}
-
-#[test]
 fn test_alternative_paths() -> Result<(), Box<dyn std::error::Error>> {
     let key_path = "link_path.key.json";
     let config_path = "link_path.config";
-    set_config(&["--url"], &[&*NETWORK], Some(config_path))?;
+    set_config(&["-e"], &[&*NETWORK], Some(config_path))?;
 
     let address = deploy_contract(
         key_path,

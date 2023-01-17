@@ -370,7 +370,7 @@ pub async fn replay(
             .as_ref()
             .ok_or("failed to obtain state transaction")?;
 
-        if iterate_config && ( cur_block_lt == 0 || cur_block_lt != tr.block_lt) {
+        if iterate_config && (cur_block_lt == 0 || cur_block_lt != tr.block_lt) {
             assert!(tr.block_lt > cur_block_lt);
             cur_block_lt = tr.block_lt;
             config = construct_blockchain_config(&config_account)?;

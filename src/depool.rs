@@ -277,15 +277,8 @@ pub async fn depool_command(m: &ArgMatches<'_>, config: &mut Config) -> Result<(
             let is_vesting = m.subcommand_matches("vesting").is_some();
             set_wait_answer(matches);
             let (wallet, keys) = parse_wallet_data(matches, config)?;
-            return set_donor_command(
-                matches,
-                config,
-                depool.as_str(),
-                &wallet,
-                &keys,
-                is_vesting,
-            )
-            .await;
+            return set_donor_command(matches, config, depool.as_str(), &wallet, &keys, is_vesting)
+                .await;
         }
     }
 

@@ -78,9 +78,7 @@ pub fn prepare_message_params(
         address: Some(addr.to_owned()),
         call_set,
         signer: if let Some(keys) = keys {
-            Signer::Keys {
-                keys,
-            }
+            Signer::Keys { keys }
         } else {
             Signer::None
         },
@@ -178,8 +176,8 @@ pub async fn generate_message(
 ) -> Result<(), String> {
     let ton = create_client_local()?;
 
-    let ton_addr = load_ton_address(addr, config)
-        .map_err(|e| format!("failed to parse address: {}", e))?;
+    let ton_addr =
+        load_ton_address(addr, config).map_err(|e| format!("failed to parse address: {}", e))?;
 
     let abi = load_abi(abi, config).await?;
 

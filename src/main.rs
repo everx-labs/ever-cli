@@ -1810,8 +1810,7 @@ fn nodeid_command(matches: &ArgMatches, config: &Config) -> Result<(), String> {
     } else if let Some(pair) = keypair {
         let pair = crypto::load_keypair(pair)?;
         convert::nodeid_from_pubkey(
-            &hex::decode(pair.public)
-                .map_err(|e| format!("failed to decode public key: {}", e))?,
+            &hex::decode(pair.public).map_err(|e| format!("failed to decode public key: {}", e))?,
         )?
     } else {
         return Err("Either public key or key pair parameter should be provided".to_owned());

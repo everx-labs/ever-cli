@@ -514,15 +514,13 @@ pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), S
 
     let bc_config = get_blockchain_config(
         ton.clone(),
-        ParamsOfGetBlockchainConfig {
-            block_boc: block,
-        },
+        ParamsOfGetBlockchainConfig { block_boc: block },
     )
     .await
     .map_err(|e| format!("Failed to get blockchain config: {}", e))?;
 
-    let bc_config = base64::decode(bc_config.config_boc)
-        .map_err(|e| format!("Failed to decode BOC: {}", e))?;
+    let bc_config =
+        base64::decode(bc_config.config_boc).map_err(|e| format!("Failed to decode BOC: {}", e))?;
     std::fs::write(path, bc_config)
         .map_err(|e| format!("Failed to write data to the file {}: {}", path, e))?;
     if !config.is_json {

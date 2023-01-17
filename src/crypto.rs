@@ -89,13 +89,9 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
 
 pub fn generate_keypair_from_secret(secret: String) -> Result<KeyPair, String> {
     let client = create_client_local()?;
-    let mut keypair: KeyPair = nacl_sign_keypair_from_secret_key(
-        client,
-        ParamsOfNaclSignKeyPairFromSecret {
-            secret,
-        },
-    )
-    .map_err(|e| format!("failed to get KeyPair from secret key: {}", e))?;
+    let mut keypair: KeyPair =
+        nacl_sign_keypair_from_secret_key(client, ParamsOfNaclSignKeyPairFromSecret { secret })
+            .map_err(|e| format!("failed to get KeyPair from secret key: {}", e))?;
     // special case if secret contains public key too.
     let secret =
         hex::decode(&keypair.secret).map_err(|e| format!("failed to decode the keypair: {}", e))?;

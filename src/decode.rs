@@ -546,13 +546,7 @@ pub mod msg_printer {
     }
 
     async fn get_code_version(ton: TonClient, code: String) -> String {
-        let result = get_compiler_version(
-            ton,
-            ParamsOfGetCompilerVersion {
-                code,
-            },
-        )
-        .await;
+        let result = get_compiler_version(ton, ParamsOfGetCompilerVersion { code }).await;
 
         if let Ok(result) = result {
             if let Some(version) = result.version {
@@ -729,7 +723,7 @@ mod tests {
     async fn test_decode_body_json() {
         let body = "te6ccgEBAQEARAAAgwAAALqUCTqWL8OX7JivfJrAAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMQAAAAAAAAAAAAAAAEeGjADA==";
         let config = Config::default();
-        let _out = decode_body(body, "tests/samples/wallet.abi.json", true, config)
+        let _out = decode_body(body, "tests/samples/wallet.abi.json", true, &config)
             .await
             .unwrap();
     }

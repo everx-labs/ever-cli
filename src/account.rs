@@ -295,8 +295,7 @@ pub async fn calc_storage(config: &Config, addr: &str, period: u32) -> Result<()
         println!("Processing...");
     }
 
-    let boc = query_account_field(ton.clone(), addr, "boc")
-        .await?;
+    let boc = query_account_field(ton.clone(), addr, "boc").await?;
 
     let res = calc_storage_fee(
         ton.clone(),
