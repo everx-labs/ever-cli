@@ -3,6 +3,7 @@ target
 .solc_imports
 /tonlabs-cli.conf.json
 /tonos-cli.conf.json
+gosh-cli.conf.json
 /call.boc
 /key1
 /tests/data.tvc

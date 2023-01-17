@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-use std::path::Path;
-use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
-use sold_lib::{Args, build, solidity_version};
 use crate::generate_address;
+use clap::{App, Arg, ArgMatches, SubCommand};
+use sold_lib::{build, solidity_version, Args};
+use std::path::Path;
 
 pub fn create_compile_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("compile")
@@ -106,8 +106,9 @@ async fn compile_solidity(matches: &ArgMatches<'_>, config: &Config) -> Result<(
         println!("Solidity compiler version: {}", solidity_version());
         return Ok(());
     }
-    let input= matches.value_of("INPUT").unwrap().to_owned();
-    let include_path = matches.value_of("INCLUDE_PATH")
+    let input = matches.value_of("INPUT").unwrap().to_owned();
+    let include_path = matches
+        .value_of("INCLUDE_PATH")
         .map(|input| {
             input
                 .trim_end_matches('[')
@@ -143,18 +144,37 @@ async fn compile_solidity(matches: &ArgMatches<'_>, config: &Config) -> Result<(
         print_code,
     };
     build(args).map_err(|e| format!("Failed to compile the contract: {}", e))?;
-    if function_ids || private_function_ids || ast_compact_json || ast_json || abi_json ||
-        print_code {
+    if function_ids
+        || private_function_ids
+        || ast_compact_json
+        || ast_json
+        || abi_json
+        || print_code
+    {
         return Ok(());
     }
-    let input_canonical = Path::new(&input).canonicalize()
+    let input_canonical = Path::new(&input)
+        .canonicalize()
         .map_err(|e| format!("Failed to format input path: {}", e))?;
-    let stem = matches.value_of("OUTPUT_PREFIX").map(|s| s.to_owned())
-        .unwrap_or(input_canonical.file_stem()
-            .ok_or("Failed to format input path".to_owned())?
-        .to_str().unwrap_or("").to_owned());
-    let stem = format!("{}/{}", matches.value_of("OUTPUT_DIR").unwrap_or(".")
-        .trim_end_matches("/"), stem);
+    let stem = matches
+        .value_of("OUTPUT_PREFIX")
+        .map(|s| s.to_owned())
+        .unwrap_or(
+            input_canonical
+                .file_stem()
+                .ok_or("Failed to format input path".to_owned())?
+                .to_str()
+                .unwrap_or("")
+                .to_owned(),
+        );
+    let stem = format!(
+        "{}/{}",
+        matches
+            .value_of("OUTPUT_DIR")
+            .unwrap_or(".")
+            .trim_end_matches("/"),
+        stem
+    );
     let tvc_path = format!("{}.tvc", stem);
     let abi_path = format!("{}.abi.json", stem);
     if !config.is_json {

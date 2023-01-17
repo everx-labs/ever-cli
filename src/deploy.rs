@@ -10,20 +10,14 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address};
-use crate::config::{FullConfig};
+use crate::call::{emulate_locally, process_message, send_message_and_wait};
+use crate::config::FullConfig;
 use crate::crypto::load_keypair;
-use crate::call::{
-    emulate_locally,
-    process_message,
-    send_message_and_wait,
-};
-use ton_client::abi::{
-    encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage, Abi,
-};
-use ton_client::crypto::KeyPair;
-use crate::Config;
+use crate::helpers::{calc_acc_address, create_client_local, create_client_verbose, load_abi};
 use crate::message::{display_generated_message, EncodedMessage};
+use crate::Config;
+use ton_client::abi::{encode_message, Abi, CallSet, DeploySet, ParamsOfEncodeMessage, Signer};
+use ton_client::crypto::KeyPair;
 
 pub async fn deploy_contract(
     full_config: &mut FullConfig,
@@ -42,9 +36,12 @@ pub async fn deploy_contract(
         println!("Deploying...");
     }
 
-    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file.clone(), wc, &full_config.config).await?;
+    let (msg, addr) =
+        prepare_deploy_message(tvc, abi, params, keys_file.clone(), wc, &full_config.config)
+            .await?;
 
-    let enc_msg = encode_message(ton.clone(), msg.clone()).await
+    let enc_msg = encode_message(ton.clone(), msg.clone())
+        .await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
     if config.local_run || is_fee {
@@ -55,13 +52,11 @@ pub async fn deploy_contract(
     }
 
     if config.async_call {
-        let abi = load_abi(&abi, config).await?;
-        send_message_and_wait(ton,
-                              Some(abi),
-                              enc_msg.message,
-                              config).await?;
+        let abi = load_abi(abi, config).await?;
+        send_message_and_wait(ton, Some(abi), enc_msg.message, config).await?;
     } else {
-        process_message(ton.clone(), msg, config).await
+        process_message(ton.clone(), msg, config)
+            .await
             .map_err(|e| format!("{:#}", e))?;
     }
 
@@ -89,11 +84,11 @@ pub async fn generate_deploy_message(
     output: Option<&str>,
     config: &Config,
 ) -> Result<(), String> {
-
     let ton = create_client_local()?;
 
     let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file, wc, config).await?;
-    let msg = encode_message(ton, msg).await
+    let msg = encode_message(ton, msg)
+        .await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
     let msg = EncodedMessage {
@@ -122,30 +117,29 @@ pub async fn prepare_deploy_message(
 
     let keys = keys_file.map(|k| load_keypair(&k)).transpose()?;
 
-    let tvc_bytes = &std::fs::read(tvc)
-        .map_err(|e| format!("failed to read smart contract file: {}", e))?;
+    let tvc_bytes =
+        &std::fs::read(tvc).map_err(|e| format!("failed to read smart contract file: {}", e))?;
 
     return prepare_deploy_message_params(tvc_bytes, abi, params, keys, wc).await;
-
 }
-
 
 pub async fn prepare_deploy_message_params(
     tvc_bytes: &[u8],
     abi: Abi,
     params: &str,
     keys: Option<KeyPair>,
-    wc: i32
+    wc: i32,
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
-    let tvc_base64 = base64::encode(&tvc_bytes);
+    let tvc_base64 = base64::encode(tvc_bytes);
 
     let addr = calc_acc_address(
         tvc_bytes,
         wc,
         keys.as_ref().map(|k| k.public.clone()),
         None,
-        abi.clone()
-    ).await?;
+        abi.clone(),
+    )
+    .await?;
 
     let dset = DeploySet {
         tvc: tvc_base64,
@@ -155,16 +149,21 @@ pub async fn prepare_deploy_message_params(
     let params = serde_json::from_str(params)
         .map_err(|e| format!("function arguments is not a json: {}", e))?;
 
-    Ok((ParamsOfEncodeMessage {
-        abi,
-        address: Some(addr.clone()),
-        deploy_set: Some(dset),
-        call_set: CallSet::some_with_function_and_input("constructor", params),
-        signer: if keys.is_some() {
-            Signer::Keys{ keys: keys.unwrap() }
-        } else {
-            Signer::None
+    Ok((
+        ParamsOfEncodeMessage {
+            abi,
+            address: Some(addr.clone()),
+            deploy_set: Some(dset),
+            call_set: CallSet::some_with_function_and_input("constructor", params),
+            signer: if keys.is_some() {
+                Signer::Keys {
+                    keys: keys.unwrap(),
+                }
+            } else {
+                Signer::None
+            },
+            ..Default::default()
         },
-        ..Default::default()
-    }, addr))
+        addr,
+    ))
 }

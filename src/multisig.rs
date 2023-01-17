@@ -14,12 +14,14 @@ extern crate reqwest;
 use crate::call;
 use crate::config::Config;
 use crate::convert;
-use crate::deploy::prepare_deploy_message_params;
-use crate::helpers::{create_client_local, load_abi, load_ton_address, create_client_verbose, load_file_with_url};
-use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
-use serde_json::json;
-use ton_client::abi::{encode_message_body, ParamsOfEncodeMessageBody, CallSet};
 use crate::crypto::load_keypair;
+use crate::deploy::prepare_deploy_message_params;
+use crate::helpers::{
+    create_client_local, create_client_verbose, load_abi, load_file_with_url, load_ton_address,
+};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use serde_json::json;
+use ton_client::abi::{encode_message_body, CallSet, ParamsOfEncodeMessageBody};
 
 const SAFEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/safemultisig/SafeMultisigWallet.tvc?raw=true";
 const SETCODEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/setcodemultisig/SetcodeMultisigWallet.tvc?raw=true";
@@ -247,17 +249,21 @@ pub async fn multisig_command(m: &ArgMatches<'_>, config: &Config) -> Result<(),
 }
 
 async fn multisig_send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let address = matches.value_of("ADDRESS")
+    let address = matches
+        .value_of("ADDRESS")
         .ok_or("--addr parameter is not defined".to_string())?;
-    let dest = matches.value_of("DEST")
+    let dest = matches
+        .value_of("DEST")
         .ok_or("--dst parameter is not defined".to_string())?;
-    let keys = matches.value_of("SIGN")
+    let keys = matches
+        .value_of("SIGN")
         .ok_or("--sign parameter is not defined".to_string())?;
-    let value = matches.value_of("VALUE")
+    let value = matches
+        .value_of("VALUE")
         .ok_or("--value parameter is not defined".to_string())?;
     let comment = matches.value_of("PURPOSE");
 
-    let address = load_ton_address(address, &config)?;
+    let address = load_ton_address(address, config)?;
     send(config, address.as_str(), dest, value, keys, comment).await
 }
 
@@ -269,14 +275,13 @@ pub async fn encode_transfer_body(text: &str, config: &Config) -> Result<String,
         client.clone(),
         ParamsOfEncodeMessageBody {
             abi,
-            call_set: CallSet::some_with_function_and_input(
-                "transfer",
-                json!({ "comment": text    }),
-            ).ok_or("failed to create CallSet with specified parameters")?,
+            call_set: CallSet::some_with_function_and_input("transfer", json!({ "comment": text }))
+                .ok_or("failed to create CallSet with specified parameters")?,
             is_internal: true,
             ..Default::default()
         },
-    ).await
+    )
+    .await
     .map_err(|e| format!("failed to encode transfer body: {}", e))
     .map(|r| r.body)
 }
@@ -287,7 +292,7 @@ async fn send(
     dest: &str,
     value: &str,
     keys: &str,
-    comment: Option<&str>
+    comment: Option<&str>,
 ) -> Result<(), String> {
     let body = if let Some(text) = comment {
         encode_transfer_body(text, config).await?
@@ -312,7 +317,8 @@ pub async fn send_with_body(
         "bounce": true,
         "allBalance": false,
         "payload": body,
-    }).to_string();
+    })
+    .to_string();
 
     call::call_contract(
         config,
@@ -322,14 +328,19 @@ pub async fn send_with_body(
         &params,
         Some(keys.to_owned()),
         false,
-    ).await
+    )
+    .await
 }
 
 async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let keys = matches.value_of("KEYS")
+    let keys = matches
+        .value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone())
-        .ok_or("keypair file is not defined. Supply it in the config file or command line.".to_string())?;
+        .ok_or(
+            "keypair file is not defined. Supply it in the config file or command line."
+                .to_string(),
+        )?;
 
     let is_setcode = matches.is_present("SETCODE");
 
@@ -345,32 +356,30 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
     let keys = load_keypair(&keys)?;
 
     let owners_string = if let Some(owners) = matches.value_of("OWNERS") {
-        owners.replace('[', "")
-            .replace(']', "")
-            .replace('\"', "")
-            .replace('\'', "")
+        owners
+            .replace(['[', ']', '\"', '\''], "")
             .replace("0x", "")
             .split(',')
-            .map(|o|
-                format!("\"0x{}\"", o)
-            )
+            .map(|o| format!("\"0x{}\"", o))
             .collect::<Vec<String>>()
             .join(",")
     } else {
         format!(r#""0x{}""#, keys.public.clone())
     };
-    let param_str = format!(r#"{{"owners":[{}],"reqConfirms":{}}}"#,
-                            owners_string,
-                            matches.value_of("CONFIRMS").unwrap_or("1")
+    let param_str = format!(
+        r#"{{"owners":[{}],"reqConfirms":{}}}"#,
+        owners_string,
+        matches.value_of("CONFIRMS").unwrap_or("1")
     );
 
-    let (msg, address) = prepare_deploy_message_params(&tvc_bytes, abi, &param_str, Some(keys), config.wc).await?;
+    let (msg, address) =
+        prepare_deploy_message_params(&tvc_bytes, abi, &param_str, Some(keys), config.wc).await?;
 
     if !config.is_json {
         println!("Wallet address: {}", address);
     }
 
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(config)?;
 
     if let Some(value) = matches.value_of("VALUE") {
         let params = format!(r#"{{"dest":"{}","amount":"{}"}}"#, address, value);
@@ -383,14 +392,21 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
             &params,
             None,
             false,
-        ).await?;
+        )
+        .await?;
     }
 
-    let res = call::process_message(ton.clone(), msg, config).await
+    let res = call::process_message(ton.clone(), msg, config)
+        .await
         .map_err(|e| format!("{:#}", e));
 
     if res.is_err() {
-        if res.clone().err().unwrap().contains("Account does not exist.") {
+        if res
+            .clone()
+            .err()
+            .unwrap()
+            .contains("Account does not exist.")
+        {
             if !config.is_json {
                 println!("Your account should have initial balance for deployment. Please transfer some value to your wallet address before deploy.");
             } else {

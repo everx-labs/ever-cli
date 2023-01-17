@@ -8,34 +8,43 @@ use common::BIN_NAME;
 #[test]
 fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("genpubkey").arg("abuse boss fly battle rubber wasp afraid hamster guide essence vibrant tattoo");
+    cmd.arg("genpubkey")
+        .arg("abuse boss fly battle rubber wasp afraid hamster guide essence vibrant tattoo");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Succeeded."))
-        .stdout(predicate::str::contains("Public key: 0cd34af58fc9cef235e1ad3aafb3d9c18c388b99c7089842eb9a49538e18d67d"));
-
+        .stdout(predicate::str::contains(
+            "Public key: 0cd34af58fc9cef235e1ad3aafb3d9c18c388b99c7089842eb9a49538e18d67d",
+        ));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("genpubkey");
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("The following required arguments were not provided:"))
+        .stderr(predicate::str::contains(
+            "The following required arguments were not provided:",
+        ))
         .stderr(predicate::str::contains("<PHRASE>"));
 
-   //just test check exits all other checks in test_invalid_mnemonic
-    const WRONG_SEED: &str = "unit follow zone decline glare flower crisp vocal adapt magic much mesh cherry ";
+    //just test check exits all other checks in test_invalid_mnemonic
+    const WRONG_SEED: &str =
+        "unit follow zone decline glare flower crisp vocal adapt magic much mesh cherry ";
     const WRONG_SEED_ERROR_TEXT: &str = "Invalid bip39 phrase";
-    
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("genpubkey").arg(WRONG_SEED);
     cmd.assert()
-        .failure()     
+        .failure()
         .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
-    
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("getkeypair").arg("-o").arg("test.json").arg("-p").arg(WRONG_SEED);
+    cmd.arg("getkeypair")
+        .arg("-o")
+        .arg("test.json")
+        .arg("-p")
+        .arg(WRONG_SEED);
     cmd.assert()
-        .failure()     
+        .failure()
         .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -48,7 +57,7 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--sign")
         .arg(WRONG_SEED);
     cmd.assert()
-        .failure()     
+        .failure()
         .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -68,10 +77,9 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--bounce")
         .arg("true");
     cmd.assert()
-        .failure()     
-        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));    
-        
-    
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("deploy")
         .arg("tests/samples/wallet.tvc")
@@ -81,15 +89,15 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--sign")
         .arg(WRONG_SEED);
     cmd.assert()
-        .failure()     
-        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));   
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-        cmd.arg("config")
-            .arg("--addr")
-            .arg("0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13")
-            .assert()
-            .success();
+    cmd.arg("config")
+        .arg("--addr")
+        .arg("0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13")
+        .assert()
+        .success();
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -101,8 +109,8 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("-s")
         .arg(WRONG_SEED);
     cmd.assert()
-        .failure()     
-        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));  
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -115,8 +123,8 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("-s")
         .arg(WRONG_SEED);
     cmd.assert()
-        .failure()     
-        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));  
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -135,9 +143,9 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--sign")
         .arg(WRONG_SEED);
     cmd.assert()
-        .failure()     
-        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));    
-     
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
         .arg("stake")
@@ -154,10 +162,9 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("30")
         .arg("--sign")
         .arg(WRONG_SEED);
-        cmd.assert()
-        .failure()     
-        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));     
-
+    cmd.assert()
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -170,8 +177,8 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--sign")
         .arg(WRONG_SEED);
     cmd.assert()
-    .failure()     
-    .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));  
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -186,8 +193,8 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--sign")
         .arg(WRONG_SEED);
     cmd.assert()
-    .failure()     
-    .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));  
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("depool")
@@ -200,9 +207,8 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--sign")
         .arg(WRONG_SEED);
     cmd.assert()
-    .failure()     
-    .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));  
- 
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("multisig")
@@ -218,18 +224,15 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--sign")
         .arg(WRONG_SEED);
     cmd.assert()
-        .failure()     
-        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT)); 
-
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.arg("nodeid")
-        .arg("--keypair")
-        .arg(WRONG_SEED);
+    cmd.arg("nodeid").arg("--keypair").arg(WRONG_SEED);
     cmd.assert()
-        .failure()     
-        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT)); 
-     
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
+
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("message")
         .arg("0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13")
@@ -244,9 +247,9 @@ fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--sign")
         .arg(WRONG_SEED);
     cmd.assert()
-        .failure()     
-        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT)); 
+        .failure()
+        .stdout(predicate::str::contains(WRONG_SEED_ERROR_TEXT));
     //TODO debot
-    //TODO proposal 
+    //TODO proposal
     Ok(())
 }

@@ -2,8 +2,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
 
-fn default_init_method() -> String { "start".to_string() }
-fn default_mandatory() -> bool { false }
+fn default_init_method() -> String {
+    "start".to_string()
+}
+fn default_mandatory() -> bool {
+    false
+}
 
 #[derive(Deserialize, Clone, PartialEq)]
 pub enum ApproveKind {
@@ -53,6 +57,6 @@ pub enum ChainLink {
         ifeq: Option<String>,
     },
     SigningBox {
-        handle: u32
+        handle: u32,
     },
 }

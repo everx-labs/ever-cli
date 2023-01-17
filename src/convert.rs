@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 pub fn convert_token(amount: &str) -> Result<String, String> {
     convert_amount(amount, 9)
@@ -32,8 +32,7 @@ pub fn convert_amount(amount: &str, decimals: usize) -> Result<String, String> {
             result += &"0".repeat(decimals);
         }
         let result = result.trim_start_matches('0').to_string();
-        u64::from_str_radix(&result, 10)
-            .map_err(|e| format!("failed to parse amount: {}", e))?;
+        u64::from_str_radix(&result, 10).map_err(|e| format!("failed to parse amount: {}", e))?;
 
         return Ok(result);
     }
@@ -52,9 +51,9 @@ pub fn nodeid_from_pubkey(key: &[u8]) -> Result<String, String> {
     }
     let mut hasher = Sha256::new();
     // node id magic
-    hasher.update(&[0xc6, 0xb4, 0x13, 0x48]);
+    hasher.update([0xc6, 0xb4, 0x13, 0x48]);
     //key
     hasher.update(key);
 
-    Ok(hex::encode(&hasher.finalize()))
+    Ok(hex::encode(hasher.finalize()))
 }
