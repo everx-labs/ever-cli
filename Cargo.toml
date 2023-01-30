@@ -52,7 +52,7 @@ ton_block = { git = 'https://github.com/tonlabs/ton-labs-block.git', tag = '1.9.
 ton_block_json = { git = 'https://github.com/tonlabs/ton-labs-block-json.git', tag = '0.7.83' }
 ton_client = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.40.0' }
 ton_executor = { default-features = false, git = 'https://github.com/tonlabs/ton-labs-executor.git', tag = '1.15.154' }
-ton_labs_assembler = { git = 'https://github.com/tonlabs/ton-labs-assembler.git', tag = '1.2.76' }
+ton_labs_assembler = { git = 'https://github.com/tonlabs/ton-labs-assembler.git', tag = '1.2.77' }
 ton_sdk = { git = 'https://github.com/tonlabs/TON-SDK.git', tag = '1.40.0' }
 ton_types = { git = 'https://github.com/tonlabs/ton-labs-types.git', tag = '1.12.6' }
 ton_vm = { git = 'https://github.com/tonlabs/ton-labs-vm.git', tag = '1.8.96' }
