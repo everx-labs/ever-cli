@@ -712,12 +712,10 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         Err(e) => {
             if !is_getter {
                 format!("Execution failed: {}", e)
+            } else if e.to_string().contains("Contract did not accept message") {
+                "Execution finished.".to_string()
             } else {
-                if e.to_string().contains("Contract did not accept message") {
-                    "Execution finished.".to_string()
-                } else {
-                    format!("Execution failed: {}", e)
-                }
+                format!("Execution failed: {}", e)
             }
         }
     };

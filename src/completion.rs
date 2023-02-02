@@ -72,13 +72,11 @@ fn print_paths(prefix: &str) {
         return;
     }
     let mut saved_path: Vec<PathBuf> = vec![];
-    for path in paths.unwrap() {
-        if let Ok(path) = path {
-            let path = path.path();
-            let path_str = path.to_str().unwrap();
-            if path_str.starts_with(prefix) {
-                saved_path.push(path);
-            }
+    for path in paths.unwrap().flatten() {
+        let path = path.path();
+        let path_str = path.to_str().unwrap();
+        if path_str.starts_with(prefix) {
+            saved_path.push(path);
         }
     }
     if saved_path.len() == 1 && saved_path[0].is_dir() {
@@ -112,7 +110,7 @@ fn main() {
         }
     }
     let config_path = options_map.get(&"-c")
-        .or(options_map.get(&"--config")
+        .or_else(|| options_map.get(&"--config")
             .or(Some(&CONFIG_BASE_NAME))).unwrap();
     let conf_str = std::fs::read_to_string(config_path).ok().unwrap_or_default();
     let config: serde_json::Result<FullConfig> = serde_json::from_str(&conf_str);
@@ -150,7 +148,7 @@ fn main() {
         if abi_path.is_none() {
             return;
         }
-        if let Ok(abi) = std::fs::read_to_string(&abi_path.unwrap()) {
+        if let Ok(abi) = std::fs::read_to_string(abi_path.unwrap()) {
             if let Ok(abi_contract) = serde_json::from_str::<AbiContract>(&abi) {
                 for function in abi_contract.functions {
                     if function.name.starts_with(word_being_completed) {
