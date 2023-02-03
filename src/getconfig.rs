@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 TON DEV SOLUTIONS LTD.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -10,10 +10,14 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
+
+use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer};
+use num_bigint::BigUint;
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::helpers::{create_client_verbose, query_with_limit};
 use crate::config::Config;
-use serde_json::{json};
+use crate::helpers::{create_client_verbose, query_with_limit};
+use serde_json::json;
+use ton_abi::{Contract, Token, TokenValue, Uint};
 use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, Serializable};
 use ton_block::MsgAddressExt::AddrNone;
 use ton_client::net::{OrderBy, SortDirection};
@@ -317,26 +321,29 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
 }
 
 pub async fn gen_update_config_message(
-    seqno: &str,
+    abi: Option<&str>,
+    seqno: Option<&str>,
     config_master_file: &str,
     new_param_file: &str,
     is_json: bool
 ) -> Result<(), String> {
-    let seqno = u32::from_str_radix(seqno, 10)
-        .map_err(|e| format!(r#"failed to parse "seqno": {}"#, e))?;
-
     let config_master_address = std::fs::read(&*(config_master_file.to_string() + ".addr"))
         .map_err(|e| format!(r#"failed to read "config_master": {}"#, e))?;
     let config_account = ton_types::AccountId::from_raw(config_master_address, 32*8);
 
-    let private_key = std::fs::read(&*(config_master_file.to_string() + ".pk"))
+    let private_key_of_config_account = std::fs::read(&*(config_master_file.to_string() + ".pk"))
         .map_err(|e| format!(r#"failed to read "config_master": {}"#, e))?;
 
     let config_str = std::fs::read_to_string(new_param_file)
         .map_err(|e| format!(r#"failed to read "new_param_file": {}"#, e))?;
 
     let (config_cell, key_number) = serialize_config_param(config_str)?;
-    let message = prepare_message_new_config_param(config_cell, seqno, key_number, config_account, private_key)?;
+    let message = if let Some(abi) = abi {
+        prepare_message_new_config_param_solidity(abi, config_cell, key_number, config_account, &private_key_of_config_account)?
+    } else {
+        let seqno = seqno.unwrap().parse().map_err(|e| format!(r#"failed to parse "seqno": {}"#, e))?;
+        prepare_message_new_config_param(config_cell, seqno, key_number, config_account, &private_key_of_config_account)?
+    };
 
     let msg_bytes = message.write_to_bytes()
         .map_err(|e| format!(r#"failed to serialize message": {}"#, e))?;
@@ -394,7 +401,7 @@ fn prepare_message_new_config_param(
     seqno: u32,
     key_number: u32,
     config_account: SliceData,
-    private_key_of_config_account: Vec<u8>
+    private_key_of_config_account: &[u8]
 ) -> Result<Message, String> {
     let prefix = hex::decode(PREFIX_UPDATE_CONFIG_MESSAGE_DATA).unwrap();
     let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32 + 100; // timestamp + 100 secs
@@ -406,15 +413,15 @@ fn prepare_message_new_config_param(
     cell.append_i32(key_number as i32).unwrap();
     cell.checked_append_reference(config_param.clone()).unwrap();
 
-    let exp_key = ed25519_dalek::ExpandedSecretKey::from(
-        &ed25519_dalek::SecretKey::from_bytes(private_key_of_config_account.as_slice()
-        )
-            .map_err(|e| format!(r#"failed to read private key from config-master file": {}"#, e))?);
-    let pub_key = ed25519_dalek::PublicKey::from(&exp_key);
-    let msg_signature = exp_key.sign(cell.finalize(0).unwrap().repr_hash().into_vec().as_slice(), &pub_key).to_bytes().to_vec();
+    let secret = SecretKey::from_bytes(private_key_of_config_account)
+        .map_err(|e| format!(r#"failed to read private key from config-master file": {}"#, e))?;
+    let public = PublicKey::from(&secret);
+    let keypair = Keypair { secret, public };
+        
+    let msg_signature = keypair.sign(cell.finalize(0).unwrap().repr_hash().as_slice()).to_bytes();
 
     let mut cell = BuilderData::default();
-    cell.append_raw(msg_signature.as_slice(), 64*8).unwrap();
+    cell.append_raw(&msg_signature, 64*8).unwrap();
     cell.append_raw(prefix.as_slice(), 32).unwrap();
     cell.append_u32(seqno).unwrap();
     cell.append_u32(since_the_epoch).unwrap();
@@ -428,6 +435,53 @@ fn prepare_message_new_config_param(
     let message = Message::with_ext_in_header_and_body(header, body);
 
     Ok(message)
+}
+
+fn prepare_message_new_config_param_solidity(
+    abi: &str,
+    config_param: Cell,
+    key_number: u32,
+    config_account: SliceData,
+    private_key_of_config_account: &[u8]
+) -> Result<Message, String> {
+    let secret = SecretKey::from_bytes(private_key_of_config_account)
+        .map_err(|e| format!(r#"failed to read private key from config-master file": {}"#, e))?;
+    let public = PublicKey::from(&secret);
+    let keypair = Keypair { secret, public };
+    
+    let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
+    let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros() as u64;
+
+    let header = [("time".to_owned(), TokenValue::Time(since_the_epoch))]
+        .into_iter()
+        .collect();
+
+    let parameters = [
+        Token::new("index", convert_to_uint(&key_number.to_be_bytes(), 32)),
+        Token::new("data", TokenValue::Cell(config_param)),
+    ];
+
+    let abi = std::fs::read(abi)
+        .map_err(|err| format!("cannot read abi file {}: {}", abi, err))?;
+    let contract = Contract::load(&*abi)
+        .map_err(|err| err.to_string())?;
+    let function = contract.function("set_config_param")
+        .map_err(|err| err.to_string())?;
+    let body = function
+        .encode_input(&header, &parameters, false, Some(&keypair), Some(config_contract_address.clone()))
+        .and_then(|builder| SliceData::load_builder(builder))
+        .map_err(|err| format!("cannot prepare message body {}", err))?;
+
+    let hdr = ExternalInboundMessageHeader::new(AddrNone, config_contract_address);
+    Ok(Message::with_ext_in_header_and_body(hdr, body))
+}
+
+fn convert_to_uint(value: &[u8], bits_count: usize) -> TokenValue {
+    assert!(value.len() * 8 >= bits_count);
+    TokenValue::Uint(Uint {
+        number: BigUint::from_bytes_be(value),
+        size: bits_count,
+    })
 }
 
 pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), String> {

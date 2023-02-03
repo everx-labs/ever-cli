@@ -783,6 +783,7 @@ async fn main_internal() -> Result <(), String> {
 
     let update_config_param_cmd = SubCommand::with_name("update_config")
         .about("Generates message with update of config params.")
+        .arg(abi_arg.clone())
         .arg(Arg::with_name("SEQNO")
             .takes_value(true)
             .help("Current seqno from config contract"))
@@ -983,7 +984,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return config_command(m, full_config, is_json);
     }
 
-    full_config.config.is_json = is_json || full_config.config.is_json;
+    full_config.config.is_json |= is_json;
     let config = &mut full_config.config;
 
     if let Some(url) = matches.value_of("NETWORK") {
@@ -1628,13 +1629,14 @@ async fn getconfig_command(matches: &ArgMatches<'_>, config: &Config) -> Result<
 }
 
 async fn update_config_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let abi = matches.value_of("ABI");
     let seqno = matches.value_of("SEQNO");
     let config_master = matches.value_of("CONFIG_MASTER_KEY_FILE");
     let new_param = matches.value_of("NEW_PARAM_FILE");
     if !config.is_json {
         print_args!(seqno, config_master, new_param);
     }
-    gen_update_config_message(seqno.unwrap(), config_master.unwrap(), new_param.unwrap(), config.is_json).await
+    gen_update_config_message(abi, seqno, config_master.unwrap(), new_param.unwrap(), config.is_json).await
 }
 
 async fn dump_bc_config_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
