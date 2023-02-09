@@ -14,6 +14,7 @@ use crate::config::Config;
 use crate::{call, message};
 use crate::helpers::{create_client_local, decode_msg_body};
 use crate::multisig::{encode_transfer_body, MSIG_ABI, TRANSFER_WITH_COMMENT};
+use serde_json::json;
 
 pub async fn create_proposal(
 	config: &Config,

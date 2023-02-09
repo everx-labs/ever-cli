@@ -27,6 +27,7 @@ use crate::helpers::{
 use crate::multisig::{send_with_body, MSIG_ABI};
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 
+use serde_json::json;
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet, ParamsOfDecodeMessageBody};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, ParamsOfWaitForCollection, SortDirection};
 use crate::call::{process_message};

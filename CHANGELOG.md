@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.30.1
+
+### New
+- Added the `sign` command. It makes ED25519 signature for data encoded in base64 or hex using common `--keys` option;
+
 ## Version: 0.29.1
 
 ### New

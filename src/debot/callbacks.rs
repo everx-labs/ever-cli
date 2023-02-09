@@ -56,7 +56,7 @@ impl Callbacks {
             return None;
         }
         if state.active_actions.is_empty() {
-            debug!("no more actions, exit loop");
+            log::debug!("no more actions, exit loop");
             return None;
         }
 
@@ -91,7 +91,7 @@ impl BrowserCallbacks for Callbacks {
 
     /// Debot is switched to another context.
     async fn switch(&self, ctx_id: u8) {
-        debug!("switched to ctx {}", ctx_id);
+        log::debug!("switched to ctx {}", ctx_id);
         let mut state = self.state.write().unwrap();
         state.state_id = ctx_id;
         if ctx_id == STATE_EXIT {
