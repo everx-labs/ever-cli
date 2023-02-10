@@ -3,7 +3,7 @@ use crate::debot::{ChainProcessor, ProcessorError};
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use std::sync::{Arc};
 use tokio::sync::RwLock;
-use serde_json::{Value, json};
+use serde_json::Value;
 use super::dinterface::{decode_answer_id, decode_prompt, decode_string_arg};
 use super::menu::{MenuItem, ID as MENU_ID};
 use super::terminal::ID as TERMINAL_ID;

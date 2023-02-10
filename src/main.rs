@@ -15,6 +15,11 @@
 #![allow(clippy::or_fun_call)]
 #![allow(clippy::too_many_arguments)]
 
+extern crate clap;
+#[macro_use] extern crate log;
+#[macro_use] extern crate serde_json;
+extern crate core;
+
 mod account;
 mod call;
 mod config;
@@ -48,21 +53,17 @@ use decode::{create_decode_command, decode_command};
 use debug::{create_debug_command, debug_command};
 use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
-use ed25519_dalek::Signer;
+use helpers::{load_ton_address, load_abi, create_client_local, query_raw,
+              contract_data_from_matches_or_config_alias};
 use genaddr::generate_address;
 use getconfig::{query_global_config, dump_blockchain_config};
-use helpers::{load_ton_address, load_abi, create_client_local, query_raw,
-              contract_data_from_matches_or_config_alias, decode_data};
 use multisig::{create_multisig_command, multisig_command};
-use replay::{fetch_block_command, fetch_command, replay_command};
-use serde_json::json;
+use std::{env};
 use std::collections::BTreeMap;
-use std::env;
 use std::process::exit;
-use std::sync::Arc;
-use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
-use ton_types::deserialize_tree_of_cells_inmem;
 use voting::{create_proposal, decode_proposal, vote};
+use replay::{fetch_block_command, fetch_command, replay_command};
+use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use crate::account::dump_accounts;
 #[cfg(feature = "sold")]
 use crate::compile::{compile_command, create_compile_command};
@@ -98,7 +99,7 @@ async fn main() -> Result<(), i32> {
 }
 
 async fn main_internal() -> Result <(), String> {
-    let version_string = env!("CARGO_PKG_VERSION");
+    let version_string = env!("CARGO_PKG_VERSION").to_string();
 
     let abi_arg = Arg::with_name("ABI")
         .long("--abi")
@@ -109,11 +110,6 @@ async fn main_internal() -> Result <(), String> {
         .long("--keys")
         .takes_value(true)
         .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config file.");
-
-    let sign_arg = Arg::with_name("SIGN")
-        .long("--sign")
-        .takes_value(true)
-        .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.");
 
     let method_opt_arg = Arg::with_name("METHOD")
         .takes_value(true)
@@ -130,12 +126,10 @@ async fn main_internal() -> Result <(), String> {
         .help("Function arguments. Must be a list of `--name value` pairs or a json string with all arguments.")
         .multiple(true);
 
-    let author = "EverX";
-
     let callx_cmd = SubCommand::with_name("callx")
         .about("Sends an external message with encoded function call to the contract (alternative syntax).")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .setting(AppSettings::AllowLeadingHyphen)
         .setting(AppSettings::TrailingVarArg)
         .setting(AppSettings::DontCollapseArgsInUsage)
@@ -162,8 +156,8 @@ async fn main_internal() -> Result <(), String> {
 
     let deployx_cmd = SubCommand::with_name("deployx")
         .about("Deploys a smart contract to the blockchain (alternative syntax).")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .setting(AppSettings::AllowLeadingHyphen)
         .setting(AppSettings::TrailingVarArg)
         .setting(AppSettings::DontCollapseArgsInUsage)
@@ -201,8 +195,8 @@ async fn main_internal() -> Result <(), String> {
 
     let runx_cmd = SubCommand::with_name("runx")
         .about("Runs contract function locally (alternative syntax).")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .setting(AppSettings::AllowLeadingHyphen)
         .setting(AppSettings::TrailingVarArg)
         .setting(AppSettings::DontCollapseArgsInUsage)
@@ -238,8 +232,7 @@ async fn main_internal() -> Result <(), String> {
 
     let genphrase_cmd = SubCommand::with_name("genphrase")
         .about("Generates a seed phrase for keypair.")
-        .version(version_string)
-        .author(author)
+        .author("TONLabs")
         .arg(Arg::with_name("DUMP_KEYPAIR")
             .long("--dump")
             .takes_value(true)
@@ -247,8 +240,7 @@ async fn main_internal() -> Result <(), String> {
 
     let genpubkey_cmd = SubCommand::with_name("genpubkey")
         .about("Generates a public key from the seed phrase.")
-        .version(version_string)
-        .author(author)
+        .author("TONLabs")
         .arg(Arg::with_name("PHRASE")
             .takes_value(true)
             .required(true)
@@ -256,8 +248,7 @@ async fn main_internal() -> Result <(), String> {
 
     let getkeypair_cmd = SubCommand::with_name("getkeypair")
         .about("Generates a keypair from the seed phrase or private key and saves it to the file.")
-        .version(version_string)
-        .author(author)
+        .author("TONLabs")
         .arg(Arg::with_name("KEY_FILE")
             .takes_value(true)
             .long("--output")
@@ -272,8 +263,8 @@ async fn main_internal() -> Result <(), String> {
     let genaddr_cmd = SubCommand::with_name("genaddr")
         .setting(AppSettings::AllowNegativeNumbers)
         .about("Calculates smart contract address in different formats. By default, input tvc file isn't modified.")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .arg(tvc_arg.clone())
         .arg(abi_arg.clone())
         .arg(wc_arg.clone())
@@ -295,12 +286,17 @@ async fn main_internal() -> Result <(), String> {
             .long("--save")
             .help("If this flag is specified, modifies the tvc file with the keypair and initial data"));
 
+    let sign_arg = Arg::with_name("SIGN")
+        .long("--sign")
+        .takes_value(true)
+        .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.");
+
     let deploy_cmd = SubCommand::with_name("deploy")
         .setting(AppSettings::AllowNegativeNumbers)
         .setting(AppSettings::AllowLeadingHyphen)
         .about("Deploys a smart contract to the blockchain.")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .arg(tvc_arg.clone())
         .arg(Arg::with_name("PARAMS")
             .required(true)
@@ -308,7 +304,6 @@ async fn main_internal() -> Result <(), String> {
             .help("Constructor arguments. Can be specified with a filename, which contains json data."))
         .arg(abi_arg.clone())
         .arg(sign_arg.clone())
-        .arg(keys_arg.clone())
         .arg(wc_arg.clone());
 
     let output_arg = Arg::with_name("OUTPUT")
@@ -341,19 +336,18 @@ async fn main_internal() -> Result <(), String> {
     let call_cmd = SubCommand::with_name("call")
         .setting(AppSettings::AllowLeadingHyphen)
         .about("Sends an external message with encoded function call to the contract.")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .arg(address_arg.clone())
         .arg(method_arg.clone())
         .arg(params_arg.clone())
         .arg(abi_arg.clone())
-        .arg(keys_arg.clone())
         .arg(sign_arg.clone());
 
     let send_cmd = SubCommand::with_name("send")
         .about("Sends a prepared message to the contract.")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .arg(Arg::with_name("MESSAGE")
             .required(true)
             .takes_value(true)
@@ -363,13 +357,11 @@ async fn main_internal() -> Result <(), String> {
     let message_cmd = SubCommand::with_name("message")
         .setting(AppSettings::AllowLeadingHyphen)
         .about("Generates a signed message with encoded function call.")
-        .version(version_string)
-        .author(author)
+        .author("TONLabs")
         .arg(address_arg.clone())
         .arg(method_arg.clone())
         .arg(params_arg.clone())
         .arg(abi_arg.clone())
-        .arg(keys_arg.clone())
         .arg(sign_arg.clone())
         .arg(Arg::with_name("LIFETIME")
             .long("--lifetime")
@@ -385,35 +377,17 @@ async fn main_internal() -> Result <(), String> {
     let body_cmd = SubCommand::with_name("body")
         .setting(AppSettings::AllowLeadingHyphen)
         .about("Generates a payload for internal function call.")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .arg(method_arg.clone())
         .arg(params_arg.clone())
         .arg(abi_arg.clone());
 
-    let sign_cmd = SubCommand::with_name("sign")
-        .about("Generates the ED25519 signature for bytestring.")
-        .version(version_string)
-        .author(author)
-        .arg(Arg::with_name("DATA")
-            .long("--data")
-            .short("-d")
-            .takes_value(true)
-            .help("Bytestring for signing base64 or hex encoded.")
-        )
-        .arg(Arg::with_name("CELL")
-            .long("--cell")
-            .short("-c")
-            .takes_value(true)
-            .help("Serialized TOC for signing base64 or hex encoded.")
-        )
-        .arg(keys_arg.clone());
-
     let run_cmd = SubCommand::with_name("run")
         .setting(AppSettings::AllowLeadingHyphen)
         .about("Runs contract function locally.")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .arg(address_boc_tvc_arg.clone()
             .required(true))
         .arg(method_arg.clone())
@@ -432,7 +406,9 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("ABI")
             .long("--abi")
             .help("Path or link to the contract ABI file or pure json ABI data."))
-        .arg(keys_arg.clone())
+        .arg(Arg::with_name("KEYS")
+            .long("--keys")
+            .help("Path to the file with keypair."))
         .arg(Arg::with_name("ADDR")
             .long("--addr")
             .help("Contract address."))
@@ -507,11 +483,14 @@ async fn main_internal() -> Result <(), String> {
                 .long("--addr")
                 .takes_value(true)
                 .help("Contract address."))
-            .arg(keys_arg.clone())
             .arg(Arg::with_name("ABI")
                 .long("--abi")
                 .takes_value(true)
-                .help("Path or link to the contract ABI file or pure json ABI data.")))
+                .help("Path or link to the contract ABI file or pure json ABI data."))
+            .arg(Arg::with_name("KEYS")
+                .long("--keys")
+                .takes_value(true)
+                .help("Seed phrase or path to the file with keypair used to sign the message.")))
         .subcommand(SubCommand::with_name("remove")
             .about("Remove alias from the aliases map.")
             .arg(alias_arg.clone()))
@@ -544,8 +523,8 @@ async fn main_internal() -> Result <(), String> {
     let config_cmd = SubCommand::with_name("config")
         .setting(AppSettings::AllowLeadingHyphen)
         .about("Allows to tune certain default values for options in the config file.")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .arg(Arg::with_name("GLOBAL")
             .long("--global")
             .short("-g")
@@ -558,7 +537,10 @@ async fn main_internal() -> Result <(), String> {
             .long("--abi")
             .takes_value(true)
             .help("Path or link to the contract ABI file or pure json ABI data."))
-        .arg(keys_arg.clone())
+        .arg(Arg::with_name("KEYS")
+            .long("--keys")
+            .takes_value(true)
+            .help("Path to the file with keypair."))
         .arg(Arg::with_name("ADDR")
             .long("--addr")
             .takes_value(true)
@@ -650,8 +632,8 @@ async fn main_internal() -> Result <(), String> {
     let account_cmd = SubCommand::with_name("account")
         .setting(AppSettings::AllowLeadingHyphen)
         .about("Obtains and prints account information.")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .arg(boc_flag.clone())
         .arg(Arg::with_name("ADDRESS")
             .takes_value(true)
@@ -674,8 +656,8 @@ async fn main_internal() -> Result <(), String> {
     let account_wait_cmd = SubCommand::with_name("account-wait")
         .setting(AppSettings::AllowLeadingHyphen)
         .about("Waits for account change (based on last_trans_lt).")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .arg(address_arg.clone())
         .arg(Arg::with_name("TIMEOUT")
             .long("--timeout")
@@ -684,8 +666,8 @@ async fn main_internal() -> Result <(), String> {
 
     let query_raw = SubCommand::with_name("query-raw")
         .about("Executes a raw GraphQL query.")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .arg(Arg::with_name("COLLECTION")
             .required(true)
             .takes_value(true)
@@ -712,8 +694,8 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(SubCommand::with_name("storage")
             .setting(AppSettings::AllowLeadingHyphen)
             .about("Gets account storage fee for specified period in nanotons.")
-            .version(version_string)
-            .author(author)
+            .version(&*version_string)
+            .author("TONLabs")
             .arg(address_arg.clone())
             .arg(Arg::with_name("PERIOD")
                 .long("--period")
@@ -739,7 +721,10 @@ async fn main_internal() -> Result <(), String> {
                     .required(true)
                     .takes_value(true)
                     .help("Proposal description (max symbols 382)."))
-                .arg(keys_arg.clone())
+                .arg(Arg::with_name("KEYS")
+                    .required(true)
+                    .takes_value(true)
+                    .help("Seed phrase or path to the keypair file."))
                 .arg(Arg::with_name("OFFLINE")
                     .short("-f")
                     .long("--offline")
@@ -757,7 +742,10 @@ async fn main_internal() -> Result <(), String> {
                     .required(true)
                     .takes_value(true)
                     .help("Proposal transaction id."))
-                .arg(keys_arg.clone())
+                .arg(Arg::with_name("KEYS")
+                    .required(true)
+                    .takes_value(true)
+                    .help("Seed phrase or path to the keypair file."))
                 .arg(Arg::with_name("OFFLINE")
                     .short("-f")
                     .long("--offline")
@@ -784,7 +772,6 @@ async fn main_internal() -> Result <(), String> {
 
     let update_config_param_cmd = SubCommand::with_name("update_config")
         .about("Generates message with update of config params.")
-        .arg(abi_arg.clone())
         .arg(Arg::with_name("SEQNO")
             .takes_value(true)
             .help("Current seqno from config contract"))
@@ -809,8 +796,8 @@ async fn main_internal() -> Result <(), String> {
 
     let bcconfig_cmd = SubCommand::with_name("dump")
         .about("Commands to dump network entities.")
-        .version(version_string)
-        .author(author)
+        .version(&*version_string)
+        .author("TONLabs")
         .subcommand(SubCommand::with_name("config")
             .about("Dumps the blockchain config for the last key block.")
             .arg(Arg::with_name("PATH")
@@ -899,7 +886,7 @@ async fn main_internal() -> Result <(), String> {
                           env!("BUILD_GIT_BRANCH"));
     let matches = App::new("tonos_cli")
         .version(&*version)
-        .author(author)
+        .author("TONLabs")
         .about("TONLabs console tool for TON")
         .arg(Arg::with_name("NETWORK")
             .help("Network to connect.")
@@ -927,7 +914,6 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(send_cmd)
         .subcommand(message_cmd)
         .subcommand(body_cmd)
-        .subcommand(sign_cmd)
         .subcommand(run_cmd)
         .subcommand(runget_cmd)
         .subcommand(config_cmd)
@@ -998,7 +984,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return config_command(m, full_config, is_json);
     }
 
-    full_config.config.is_json |= is_json;
+    full_config.config.is_json = is_json || full_config.config.is_json;
     let config = &mut full_config.config;
 
     if let Some(url) = matches.value_of("NETWORK") {
@@ -1028,9 +1014,6 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
     if let Some(m) = matches.subcommand_matches("body") {
         return body_command(m, config).await;
-    }
-    if let Some(m) = matches.subcommand_matches("sign") {
-        return sign_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("message") {
         return call_command(m, config, CallType::Msg).await;
@@ -1229,41 +1212,6 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     Ok(())
 }
 
-fn sign_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let data = if let Some(data) = matches.value_of("DATA") {
-        decode_data(data, "data")?
-    } else if let Some(data) = matches.value_of("CELL") {
-        let data = decode_data(data, "cell")?;
-        let cell = deserialize_tree_of_cells_inmem(Arc::new(data))
-            .map_err(|err| format!("Cannot deserialize tree of cells {}", err))?;
-        cell.repr_hash().into_vec()
-    } else {
-        return Err("nor data neither cell parameter".to_string())
-    };
-    let pair = match matches.value_of("KEYS") {
-        Some(keys) => crypto::load_keypair(&keys)?,
-        None => {
-            match &config.keys_path {
-                Some(keys) => crypto::load_keypair(&keys)?,
-                None => return Err("nor signing keys in the params neither in the config".to_string())
-            }
-        }
-    };
-    let keypair = pair.decode()
-        .map_err(|err| format!("cannot decode keypair {}", err))?;
-    let signature = keypair.sign(&data);
-    let signature = base64::encode(signature.as_ref());
-    if !config.is_json {
-        println!("Signature: {}", signature);
-    } else {
-        println!("{{");
-        println!("  \"Signature\": \"{}\"", signature);
-        println!("}}");
-    }
-
-    Ok(())
-}
-
 async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let method = matches.value_of("METHOD");
@@ -1274,10 +1222,10 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
 
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
 
-    let keys = matches.value_of("KEYS")
-        .or(matches.value_of("SIGN"))
-        .map(|s| s.to_string())
-        .or(config.keys_path.clone());
+    let keys =
+        matches.value_of("SIGN")
+            .map(|s| s.to_string())
+            .or(config.keys_path.clone());
 
     let params = Some(load_params(params.unwrap())?);
     if !config.is_json {
@@ -1390,8 +1338,7 @@ async fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, 
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
     let abi = Some(abi_from_matches_or_config(matches, config)?);
-    let keys = matches.value_of("KEYS")
-            .or(matches.value_of("SIGN"))
+    let keys = matches.value_of("SIGN")
             .map(|s| s.to_string())
             .or(config.keys_path.clone());
     let alias = matches.value_of("ALIAS");
@@ -1646,14 +1593,13 @@ async fn getconfig_command(matches: &ArgMatches<'_>, config: &Config) -> Result<
 }
 
 async fn update_config_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let abi = matches.value_of("ABI");
     let seqno = matches.value_of("SEQNO");
     let config_master = matches.value_of("CONFIG_MASTER_KEY_FILE");
     let new_param = matches.value_of("NEW_PARAM_FILE");
     if !config.is_json {
         print_args!(seqno, config_master, new_param);
     }
-    gen_update_config_message(abi, seqno, config_master.unwrap(), new_param.unwrap(), config.is_json).await
+    gen_update_config_message(seqno.unwrap(), config_master.unwrap(), new_param.unwrap(), config.is_json).await
 }
 
 async fn update_config_key_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {

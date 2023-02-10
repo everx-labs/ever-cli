@@ -3,7 +3,7 @@ use crate::debot::term_encryption_box::{
     EncryptionBoxType, ParamsOfTerminalEncryptionBox, TerminalEncryptionBox,
 };
 use crate::helpers::TonClient;
-use serde_json::{Value, json};
+use serde_json::Value;
 use tokio::sync::RwLock;
 use ton_client::{abi::Abi, crypto::EncryptionBoxHandle};
 use ton_client::debot::{DebotInterface, InterfaceResult};

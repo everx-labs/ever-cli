@@ -1,4 +1,4 @@
-use serde_json::{Value, json};
+use serde_json::Value;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use ton_client::abi::Abi;
 

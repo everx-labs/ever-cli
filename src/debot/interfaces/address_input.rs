@@ -1,6 +1,6 @@
 use crate::debot::term_browser::terminal_input;
 use crate::helpers::load_ton_address;
-use serde_json::{Value, json};
+use serde_json::Value;
 use ton_client::abi::Abi;
 use ton_client::debot::{DebotInterface, InterfaceResult};
 use super::dinterface::{decode_answer_id, decode_prompt};

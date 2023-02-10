@@ -12,7 +12,6 @@
  */
 
 use chrono::{Local, TimeZone};
-use serde_json::json;
 use ton_client::abi::{Abi, CallSet, encode_message, FunctionHeader, ParamsOfEncodeMessage, Signer};
 use crate::config::Config;
 use crate::helpers::{create_client_local, load_abi, load_ton_address, now, TonClient};
@@ -85,7 +84,7 @@ pub fn prepare_message_params (
 
 pub fn print_encoded_message(msg: &EncodedMessage, is_json:bool) {
     let expire = if msg.expire.is_some() {
-        let expire_at = Local.timestamp_opt(msg.expire.unwrap() as i64, 0).single().unwrap();
+        let expire_at = Local.timestamp(msg.expire.unwrap() as i64, 0);
         expire_at.to_rfc2822()
     } else {
         "unknown".to_string()

@@ -32,7 +32,7 @@ use ton_client::tvm::{
 };
 use ton_block::{Account, Serializable, Deserializable, Message};
 use std::str::FromStr;
-use serde_json::{json, Value};
+use serde_json::{Value};
 use ton_abi::ParamType;
 use ton_client::error::ClientError;
 use crate::debug::{execute_debug, DebugLogger};
