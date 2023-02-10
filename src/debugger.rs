@@ -14,7 +14,8 @@
 use std::{collections::HashSet, sync::Arc};
 
 use ton_labs_assembler::DbgInfo;
-use ton_types::UInt256;
+use ton_types::{UInt256, SliceData};
+use ton_utils::disasm::loader::{Loader, print_code_ex};
 use ton_vm::{stack::savelist::SaveList, executor::{Engine, EngineTraceInfo, EngineTraceInfoType}};
 
 fn help() {
@@ -140,7 +141,19 @@ fn parse_line(state: &mut DebugState, line: String) -> Result<Command, String> {
     Err("unknown command".to_string())
 }
 
-fn execute_line(state: &mut DebugState, engine: &Engine, _info: &EngineTraceInfo) {
+fn print_cc(info: &EngineTraceInfo) {
+    let cc = info.cmd_code.cell().clone();
+    let mut loader = Loader::new(false);
+    match loader.load(&mut SliceData::load_cell(cc).unwrap(), false) {
+        Err(_) => println!("failed to disasm"),
+        Ok(code) => {
+            let disasm = print_code_ex(&code, "", false);
+            print!("{}", disasm);
+        }
+    }
+}
+
+fn execute_line(state: &mut DebugState, engine: &Engine, info: &EngineTraceInfo) {
     loop {
         match state.editor.readline("(dbg) ") {
             Ok(line) => {
@@ -190,7 +203,7 @@ fn execute_line(state: &mut DebugState, engine: &Engine, _info: &EngineTraceInfo
                         }
                     }
                     Ok(Command::PrintCC) => {
-                        println!("TODO")
+                        print_cc(info)
                     }
                     Ok(Command::PrintAll) => {
                         let depth = engine.stack().depth();
@@ -203,7 +216,8 @@ fn execute_line(state: &mut DebugState, engine: &Engine, _info: &EngineTraceInfo
                                 Err(e) => println!("c{}: {}", reg, e)
                             }
                         }
-                        println!("cc: TODO")
+                        println!("cc:");
+                        print_cc(info)
                     }
                     Ok(Command::Breakpoint(cell_hash, offset)) => {
                         state.breakpoints.insert(Breakpoint::new(cell_hash, offset));
