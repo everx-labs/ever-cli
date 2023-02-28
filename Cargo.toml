@@ -18,7 +18,7 @@ license = 'Apache-2.0'
 name = 'gosh-cli'
 readme = 'README.md'
 repository = 'https://github.com/gosh-sh/gosh-cli'
-version = '0.2.0'
+version = '0.3.0'
 
 [features]
 sold = ["dep:sold"]

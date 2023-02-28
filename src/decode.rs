@@ -10,13 +10,10 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::config::Config;
+use std::collections::BTreeMap;
+use crate::config::{Config, FullConfig};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
-use crate::helpers::{
-    abi_from_matches_or_config, create_client, create_client_local, create_client_verbose,
-    decode_msg_body, load_ton_abi, load_ton_address, print_account, query_account_field,
-    query_message,
-};
+use crate::helpers::{abi_from_matches_or_config, contract_data_from_matches_or_config_alias, create_client, create_client_local, create_client_verbose, decode_msg_body, load_ton_abi, load_ton_address, print_account, query_account_field, query_message, query_messages_for_account};
 use crate::{load_abi, print_args};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use serde::Serialize;
@@ -69,10 +66,22 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
             .arg(Arg::with_name("ABI")
                 .long("--abi")
                 .takes_value(true)
+                .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file.")))
+        .subcommand(SubCommand::with_name("account")
+            .about("Decodes last N messages to the account.")
+            .arg(Arg::with_name("ADDRESS")
+                .long("--addr")
+                .takes_value(true)
+                .help("Contract address. Can be specified in the config file."))
+            .arg(Arg::with_name("ABI")
+                .long("--abi")
+                .takes_value(true)
                 .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file."))
-            .arg(Arg::with_name("BASE64")
-                .long("--base64")
-                .help("Flag that changes behavior of the command to work with data in base64 (FLAG IS DEPRECATED).")))
+            .arg(Arg::with_name("NUMBER")
+                .long("--number")
+                .short("-n")
+                .takes_value(true)
+                .help("Number of messages to decode.")))
         .subcommand(tvc_cmd)
         .subcommand(SubCommand::with_name("account")
             .about("Top level command of account decode commands.")
@@ -113,6 +122,9 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), S
     }
     if let Some(m) = m.subcommand_matches("msg") {
         return decode_message_command(m, config).await;
+    }
+    if let Some(m) = m.subcommand_matches("account") {
+        return decode_account_command(m, config).await;
     }
     if let Some(m) = m.subcommand_matches("stateinit") {
         return decode_tvc_command(m, config).await;
@@ -245,16 +257,33 @@ pub async fn print_account_data(
     Ok(())
 }
 
+async fn decode_account_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let fconf = FullConfig {config: config.to_owned(), path: String::new(), aliases: BTreeMap::new()};
+    let (addr, abi, _) = contract_data_from_matches_or_config_alias(m, &fconf)?;
+    if !config.is_json {
+        print_args!(addr, abi);
+    }
+    let address = addr.ok_or("Failed to get account address")?;
+    let ton_client = create_client(config)?;
+    let number = u32::from_str_radix(m.value_of("NUMBER").unwrap_or("10"), 10)
+        .map_err(|_| "Failed to convert number to integer".to_string())?;
+    let bocs = query_messages_for_account(ton_client, &address, number).await?;
+    for (num, boc) in bocs.iter().enumerate() {
+        println!("\n{num}  {}\n", boc.1);
+        let message_bytes = base64::decode(&boc.0)
+            .map_err(|e2| format!("Failed to decode queried message: {e2}"))?;
+        println!("{}", decode_message(message_bytes, abi.clone())
+            .await
+            .map_err(|e2| format!("Failed to decode queried message: {e2}"))?);
+    }
+    Ok(())
+}
+
 async fn decode_message_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let msg = m.value_of("MSG");
     let abi = Some(abi_from_matches_or_config(m, config)?);
     if !config.is_json {
         print_args!(msg, abi);
-    }
-    if m.is_present("BASE64") && !config.is_json {
-        println!(
-            "Flag --base64 is deprecated. Command can be used for base64 input without this flag."
-        )
     }
     let input = msg.unwrap();
     let decoded_message = if std::path::Path::new(input).exists() {

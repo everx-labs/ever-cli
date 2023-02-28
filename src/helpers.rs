@@ -32,7 +32,7 @@ use ton_client::abi::{
 };
 use ton_client::crypto::{CryptoConfig, KeyPair};
 use ton_client::error::ClientError;
-use ton_client::net::{query_collection, NetworkConfig, OrderBy, ParamsOfQueryCollection};
+use ton_client::net::{query_collection, NetworkConfig, OrderBy, ParamsOfQueryCollection, SortDirection};
 use ton_client::{ClientConfig, ClientContext};
 use ton_executor::BlockchainConfig;
 use url::Url;
@@ -262,6 +262,37 @@ pub async fn query_with_limit(
     )
     .await
     .map(|r| r.result)
+}
+
+pub async fn query_messages_for_account(ton: TonClient, account: &str, number: u32) -> Result<Vec<(String, String)>, String> {
+    let messages = query_with_limit(
+        ton.clone(),
+        "messages",
+        json!({ "dst": { "eq": account } }),
+        "boc, id created_at",
+        Some(vec![
+            OrderBy {
+                path: "created_at".to_string(),
+                direction: SortDirection::DESC,
+            },
+        ]),
+        Some(number),
+    )
+        .await
+        .map_err(|e| format!("failed to query messages data: {}", e))?;
+    if messages.is_empty() {
+        Err("message for the specified account were not found.".to_string())
+    } else {
+        let mut res = vec![];
+        for msg in messages {
+            res.push((msg["boc"].as_str().ok_or(format!("Failed to get message boc"))?.to_string(),
+                      format!("id {} created_at {}",
+                              msg["id"].as_str().ok_or(format!("Failed to get message id"))?,
+                              msg["created_at"].as_u64().ok_or(format!("Failed to get message created_at"))?,
+                      )));
+        }
+        Ok(res)
+    }
 }
 
 pub async fn query_message(ton: TonClient, message_id: &str) -> Result<String, String> {
