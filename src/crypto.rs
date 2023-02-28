@@ -22,14 +22,13 @@ use ton_client::crypto::{
     ParamsOfHDKeyDeriveFromXPrvPath,
     ParamsOfHDKeyXPrvFromMnemonic,
     ParamsOfNaclSignKeyPairFromSecret,
-    ParamsOfMnemonicFromRandom
+    ParamsOfMnemonicFromRandom, MnemonicDictionary
 };
 use crate::Config;
 
 pub fn load_keypair(keys: &str) -> Result<KeyPair, String> {
     if keys.find(' ').is_none() {
-        let keys = read_keys(keys)?;
-        Ok(keys)
+        read_keys(keys)
     } else {
         generate_keypair_from_mnemonic(keys)
     }
@@ -40,7 +39,7 @@ pub fn gen_seed_phrase() -> Result<String, String> {
     mnemonic_from_random(
         client,
         ParamsOfMnemonicFromRandom {
-            dictionary: Some(1),
+            dictionary: Some(MnemonicDictionary::English),
             word_count: Some(WORD_COUNT),
             ..Default::default()
         },
@@ -54,7 +53,7 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     let hdk_master = hdkey_xprv_from_mnemonic(
         client.clone(),
         ParamsOfHDKeyXPrvFromMnemonic {
-            dictionary: Some(1),
+            dictionary: Some(MnemonicDictionary::English),
             word_count: Some(WORD_COUNT),
             phrase: mnemonic.to_string(),
             ..Default::default()
@@ -164,7 +163,7 @@ pub fn generate_keypair(keys_path: Option<&str>, mnemonic: Option<&str>, config:
         }
     };
 
-    let keys = if mnemonic.contains(" ") {
+    let keys = if mnemonic.contains(' ') {
         generate_keypair_from_mnemonic(&mnemonic)?
     } else {
         generate_keypair_from_secret(mnemonic)?

@@ -14,26 +14,26 @@ use std::env;
 use std::path::PathBuf;
 use crate::config::{Config, LOCALNET};
 
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use ton_abi::Contract;
+use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
 use ton_client::abi::{
     Abi, AbiConfig, AbiContract, DecodedMessageBody, DeploySet, ParamsOfDecodeMessageBody,
-    ParamsOfEncodeMessage, Signer,
+    ParamsOfEncodeMessage, Signer, decode_message_body,
 };
-use ton_client::crypto::{CryptoConfig, KeyPair};
+use ton_client::crypto::{CryptoConfig, KeyPair, MnemonicDictionary};
 use ton_client::error::ClientError;
 use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection, NetworkConfig};
 use ton_client::{ClientConfig, ClientContext};
-use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
+use ton_executor::BlockchainConfig;
+use std::sync::Arc;
 use std::str::FromStr;
+use std::time::{Duration, SystemTime};
 use clap::ArgMatches;
 use serde_json::{Value, json};
-use ton_client::abi::Abi::Contract;
-use ton_executor::BlockchainConfig;
 use url::Url;
 use crate::call::parse_params;
-use crate::{FullConfig, resolve_net_name};
 use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
+use crate::{FullConfig, resolve_net_name};
 
 pub const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
 pub const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
@@ -85,10 +85,9 @@ impl log::Log for SimpleLogger {
 
 pub fn read_keys(filename: &str) -> Result<KeyPair, String> {
     let keys_str = std::fs::read_to_string(filename)
-        .map_err(|e| format!("failed to read the keypair file: {}", e))?;
-    let keys: KeyPair = serde_json::from_str(&keys_str)
-        .map_err(|e| format!("failed to load keypair: {}", e))?;
-    Ok(keys)
+        .map_err(|e| format!("failed to read the keypair file {}: {}", filename, e))?;
+    serde_json::from_str(&keys_str)
+        .map_err(|e| format!("failed to load keypair: {}", e))
 }
 
 pub fn load_ton_address(addr: &str, config: &Config) -> Result<String, String> {
@@ -130,7 +129,7 @@ pub fn get_server_endpoints(config: &Config) -> Vec<String> {
     cur_endpoints.iter_mut().map(|end| {
             let mut end = end.trim_end_matches('/').to_owned();
         if config.project_id.is_some() {
-            end.push_str("/");
+            end.push('/');
             end.push_str(&config.project_id.clone().unwrap());
         }
         end.to_owned()
@@ -155,7 +154,7 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
             message_expiration_timeout_grow_factor: 1.3,
         },
         crypto: CryptoConfig {
-            mnemonic_dictionary: 1,
+            mnemonic_dictionary: MnemonicDictionary::English,
             mnemonic_word_count: WORD_COUNT,
             hdkey_derivation_path: HD_PATH.to_string(),
         },
@@ -207,11 +206,11 @@ pub async fn query_raw(
 {
     let context = create_client_verbose(config)?;
 
-    let filter = filter.map(|s| serde_json::from_str(s)).transpose()
+    let filter = filter.map(serde_json::from_str).transpose()
         .map_err(|e| format!("Failed to parse filter field: {}", e))?;
     let limit = limit.map(|s| s.parse::<u32>()).transpose()
         .map_err(|e| format!("Failed to parse limit field: {}", e))?;
-    let order = order.map(|s| serde_json::from_str(s)).transpose()
+    let order = order.map(serde_json::from_str).transpose()
         .map_err(|e| format!("Failed to parse order field: {}", e))?;
 
     let query = ton_client::net::query_collection(
@@ -304,7 +303,7 @@ pub async fn decode_msg_body(
 ) -> Result<DecodedMessageBody, String> {
 
     let abi = load_abi(abi_path, config).await?;
-    ton_client::abi::decode_message_body(
+    decode_message_body(
         ton,
         ParamsOfDecodeMessageBody {
             abi,
@@ -324,24 +323,24 @@ pub async fn load_abi_str(abi_path: &str, config: &Config) -> Result<String, Str
     }
     if Url::parse(abi_path).is_ok() {
         let abi_bytes = load_file_with_url(abi_path, config.timeout as u64).await?;
-        return Ok(String::from_utf8(abi_bytes)
-            .map_err(|e| format!("Downloaded string contains not valid UTF8 characters: {}", e))?);
+        return String::from_utf8(abi_bytes)
+            .map_err(|e| format!("Downloaded string contains not valid UTF8 characters: {}", e));
     }
-    Ok(std::fs::read_to_string(&abi_path)
-        .map_err(|e| format!("failed to read ABI file: {}", e))?)
+    std::fs::read_to_string(abi_path)
+        .map_err(|e| format!("failed to read ABI file: {}", e))
 }
 
 pub async fn load_abi(abi_path: &str, config: &Config) -> Result<Abi, String> {
     let abi_str = load_abi_str(abi_path, config).await?;
-    Ok(Contract(serde_json::from_str::<AbiContract>(&abi_str)
-            .map_err(|e| format!("ABI is not a valid json: {}", e))?,
-    ))
+    let contract = serde_json::from_str::<AbiContract>(&abi_str)
+        .map_err(|e| format!("ABI is not a valid json: {}", e))?;
+    Ok(Abi::Contract(contract))
 }
 
-pub async fn load_ton_abi(abi_path: &str, config: &Config) -> Result<ton_abi::Contract, String> {
+pub async fn load_ton_abi(abi_path: &str, config: &Config) -> Result<Contract, String> {
     let abi_str = load_abi_str(abi_path, config).await?;
-    Ok(ton_abi::Contract::load(abi_str.as_bytes())
-        .map_err(|e| format!("Failed to load ABI: {}", e))?)
+    Contract::load(abi_str.as_bytes())
+        .map_err(|e| format!("Failed to load ABI: {}", e))
 }
 
 pub async fn load_file_with_url(url: &str, timeout: u64) -> Result<Vec<u8>, String> {
@@ -580,9 +579,9 @@ pub fn check_dir(path: &str) -> Result<(), String> {
 
 #[derive(PartialEq)]
 pub enum AccountSource {
-    NETWORK,
-    BOC,
-    TVC,
+    Network,
+    Boc,
+    Tvc,
 }
 
 pub async fn load_account(
@@ -592,11 +591,11 @@ pub async fn load_account(
     config: &Config
 ) -> Result<(Account, String), String> {
     match source_type {
-        AccountSource::NETWORK => {
+        AccountSource::Network => {
             let ton_client = match ton_client {
                 Some(ton_client) => ton_client,
                 None => {
-                    create_client(&config)?
+                    create_client(config)?
                 }
             };
             let boc = query_account_field(ton_client.clone(),source, "boc").await?;
@@ -605,7 +604,7 @@ pub async fn load_account(
                 boc))
         },
         _ => {
-            let account = if source_type == &AccountSource::BOC {
+            let account = if source_type == &AccountSource::Boc {
                 Account::construct_from_file(source)
                     .map_err(|e| format!(" failed to load account from the file {}: {}", source, e))?
             } else {
@@ -613,7 +612,7 @@ pub async fn load_account(
             };
             let account_bytes = account.write_to_bytes()
                 .map_err(|e| format!(" failed to load data from the account: {}", e))?;
-            Ok((account, base64::encode(&account_bytes)))
+            Ok((account, base64::encode(account_bytes)))
         },
     }
 }
@@ -1006,7 +1005,7 @@ pub fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String>
     ]
   }
 }"#;
-    let map = serde_json::from_str::<serde_json::Map<String, Value>>(&json)
+    let map = serde_json::from_str::<serde_json::Map<String, Value>>(json)
         .map_err(|e| format!("Failed to parse config params as json: {e}"))?;
     let config_params = ton_block_json::parse_config(&map)
         .map_err(|e| format!("Failed to parse config params: {e}"))?;

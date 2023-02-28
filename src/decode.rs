@@ -130,7 +130,7 @@ async fn decode_data_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), 
 
 async fn decode_body_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let body = m.value_of("BODY");
-    let abi = Some(abi_from_matches_or_config(m, &config)?);
+    let abi = Some(abi_from_matches_or_config(m, config)?);
     if !config.is_json {
         print_args!(body, abi);
     }
@@ -203,10 +203,10 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
     };
 
     let data = tree_of_cells_into_base64(account.get_data().as_ref())?;
-    let data = hex::encode(base64::decode(&data)
+    let data = hex::encode(base64::decode(data)
         .map_err(|e| format!("Failed to decode base64: {}", e))?);
     print_account(
-        &config,
+        config,
         Some(state),
         Some(address),
         Some(balance),
@@ -227,7 +227,7 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
 
 async fn decode_message_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let msg = m.value_of("MSG");
-    let abi = Some(abi_from_matches_or_config(m, &config)?);
+    let abi = Some(abi_from_matches_or_config(m, config)?);
     if !config.is_json {
         print_args!(msg, abi);
     }
@@ -275,7 +275,7 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: &Config) -> Result<(
 
 async fn decode_tvc_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let tvc = m.value_of("TVC");
-    let abi = Some(abi_from_matches_or_config(m, &config)?);
+    let abi = Some(abi_from_matches_or_config(m, config)?);
     if !config.is_json {
         print_args!(tvc, abi);
     }
@@ -304,14 +304,14 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
 
 async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let address = m.value_of("ADDRESS");
-    let abi = Some(abi_from_matches_or_config(m, &config)?);
+    let abi = Some(abi_from_matches_or_config(m, config)?);
     if !config.is_json {
         print_args!(address, abi);
     }
     let abi = load_abi(abi.as_ref().unwrap(), config).await?;
 
-    let ton = create_client_verbose(&config)?;
-    let address = load_ton_address(address.unwrap(), &config)?;
+    let ton = create_client_verbose(config)?;
+    let address = load_ton_address(address.unwrap(), config)?;
     let data = query_account_field(ton.clone(), &address, "data").await?;
 
     let res = decode_account_data(
@@ -370,7 +370,7 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool, config: &
         if let Ok(has_sign) = flag {
             if has_sign {
                 let signature_bytes = slice.get_next_bytes(64).unwrap();
-                signature = Some(hex::encode(&signature_bytes));
+                signature = Some(hex::encode(signature_bytes));
             }
         }
     }
@@ -410,8 +410,8 @@ async fn decode_message(msg_boc: Vec<u8>, abi_path: Option<String>) -> Result<St
         .map_err(|e| format!("failed to deserialize message boc: {}", e))?;
     let config = Config::default();
     let result = msg_printer::serialize_msg(&tvm_msg, abi_path, &config).await?;
-    Ok(serde_json::to_string_pretty(&result)
-        .map_err(|e| format!("Failed to serialize the result: {}", e))?)
+    serde_json::to_string_pretty(&result)
+        .map_err(|e| format!("Failed to serialize the result: {}", e))
 }
 
 fn load_state_init(m: &ArgMatches<'_>) -> Result<StateInit, String> {
@@ -436,7 +436,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), S
     let ton = if is_local {
         create_client_local()?
     } else {
-        create_client_verbose(&config)?
+        create_client_verbose(config)?
     };
     let input = input.unwrap().to_owned();
 
@@ -596,17 +596,14 @@ pub mod msg_printer {
         };
         let output = res.value.take().ok_or("failed to obtain the result")?;
         let mut decoded = json!({res.name : output});
-        match res.header {
-            Some(header) => {
-                if header.expire.is_some() || header.pubkey.is_some() || header.time.is_some() {
-                    decoded["BodyHeader"] = json!({
-                        "expire": json!(header.expire.map(|exp| format!("{exp}")).unwrap_or("None".to_string())),
-                        "time": json!(header.time.map(|time| format!("{time}")).unwrap_or("None".to_string())),
-                        "pubkey": json!(header.pubkey.unwrap_or("None".to_string())),
-                    })
-                }
-            },
-            None => {}
+        if let Some(header) = res.header {
+            if header.expire.is_some() || header.pubkey.is_some() || header.time.is_some() {
+                decoded["BodyHeader"] = json!({
+                    "expire": json!(header.expire.map(|exp| format!("{exp}")).unwrap_or("None".to_string())),
+                    "time": json!(header.time.map(|time| format!("{time}")).unwrap_or("None".to_string())),
+                    "pubkey": json!(header.pubkey.unwrap_or("None".to_string())),
+                })
+            }
         }
         Ok(decoded)
     }
@@ -654,6 +651,6 @@ mod tests {
     async fn test_decode_body_json() {
         let body = "te6ccgEBAQEARAAAgwAAALqUCTqWL8OX7JivfJrAAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMQAAAAAAAAAAAAAAAEeGjADA==";
         let config = Config::default();
-        let _out = decode_body(body, "tests/samples/wallet.abi.json", true, &config).await.unwrap();
+        decode_body(body, "tests/samples/wallet.abi.json", true, &config).await.unwrap();
     }
 }

@@ -257,7 +257,7 @@ async fn multisig_send_command(matches: &ArgMatches<'_>, config: &Config) -> Res
         .ok_or("--value parameter is not defined".to_string())?;
     let comment = matches.value_of("PURPOSE");
 
-    let address = load_ton_address(address, &config)?;
+    let address = load_ton_address(address, config)?;
     send(config, address.as_str(), dest, value, keys, comment).await
 }
 
@@ -345,10 +345,7 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
     let keys = load_keypair(&keys)?;
 
     let owners_string = if let Some(owners) = matches.value_of("OWNERS") {
-        owners.replace('[', "")
-            .replace(']', "")
-            .replace('\"', "")
-            .replace('\'', "")
+        owners.replace(['[', ']', '\"', '\''], "")
             .replace("0x", "")
             .split(',')
             .map(|o|
@@ -370,7 +367,7 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
         println!("Wallet address: {}", address);
     }
 
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(config)?;
 
     if let Some(value) = matches.value_of("VALUE") {
         let params = format!(r#"{{"dest":"{}","amount":"{}"}}"#, address, value);

@@ -121,7 +121,7 @@ pub async fn emulate_locally(
             let addr = ton_block::MsgAddressInt::from_str(addr)
                 .map_err(|e| format!("couldn't decode address: {}", e))?;
             state = base64::encode(
-                &ton_types::cells_serialization::serialize_toc(
+                ton_types::cells_serialization::serialize_toc(
                     &Account::with_address(addr)
                         .serialize()
                         .map_err(|e| format!("couldn't create dummy account for deploy emulation: {}", e))?
@@ -219,7 +219,7 @@ pub async fn process_message(
     config: &Config,
 ) -> Result<Value, ClientError> {
     let callback = |event| { async move {
-        if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
+        if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message_dst: _, message: _ } = event {
             println!("MessageId: {}", message_id)
         }
     }};
@@ -257,7 +257,7 @@ pub async fn call_contract_with_result(
     keys: Option<String>,
     is_fee: bool,
 ) -> Result<Value, String> {
-    let ton = if config.debug_fail != "None".to_string() {
+    let ton = if &config.debug_fail != "None" {
         let log_path = format!("call_{}_{}.log", addr, method);
         log::set_max_level(log::LevelFilter::Trace);
         log::set_boxed_logger(
@@ -294,7 +294,7 @@ pub async fn call_contract_with_client(
     let needs_encoded_msg = is_fee ||
         config.async_call ||
         config.local_run ||
-        config.debug_fail != "None".to_string();
+        &config.debug_fail != "None";
 
     let message = if needs_encoded_msg {
         let msg = encode_message(ton.clone(), msg_params.clone()).await
@@ -307,17 +307,15 @@ pub async fn call_contract_with_client(
             }
         }
         if config.async_call {
-            return send_message_and_wait(ton,
-                                         Some(abi),
-                                         msg.message.clone(),
-                                         config).await;
+            let msg = msg.message.clone();
+            return send_message_and_wait(ton, Some(abi), msg, config).await;
         }
         Some(msg.message)
     } else {
         None
     };
 
-    let dump = if config.debug_fail != "None".to_string() {
+    let dump = if &config.debug_fail != "None" {
         let acc_boc = query_account_field(
             ton.clone(),
             addr,
@@ -336,17 +334,17 @@ pub async fn call_contract_with_client(
 
     let res = process_message(ton.clone(), msg_params, config).await;
 
-    if config.debug_fail != "None".to_string() && res.is_err()
+    if &config.debug_fail != "None" && res.is_err()
         && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
         if config.is_json {
-            let e = format!("{:#}", res.clone().err().unwrap());
+            let e = format!("{:#}", res.err().unwrap());
             let err: Value = serde_json::from_str(&e)
                 .unwrap_or(Value::String(e));
             let res = json!({"Error": err});
             println!("{}", serde_json::to_string_pretty(&res)
                 .unwrap_or("{{ \"JSON serialization error\" }}".to_string()));
         } else {
-            println!("Error: {:#}", res.clone().err().unwrap());
+            println!("Error: {:#}", res.err().unwrap());
             println!("Execution failed. Starting debug...");
         }
         let (mut account, message, now, bc_config) = dump.unwrap();
@@ -396,7 +394,7 @@ pub async fn call_contract(
 
 
 pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: &str) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(config)?;
     let abi = load_abi(abi_path, config).await?;
 
     let (msg, _) = unpack_message(&str_msg)?;

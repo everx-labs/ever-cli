@@ -32,18 +32,18 @@ pub async fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_
         (address.unwrap(), abi.unwrap())
     } else {
         (matches.value_of("ADDRESS").unwrap().to_string(),
-        abi_from_matches_or_config(matches, &config)?)
+        abi_from_matches_or_config(matches, config)?)
     };
     let account_source = if matches.is_present("TVC") {
-        AccountSource::TVC
+        AccountSource::Tvc
     } else if matches.is_present("BOC") {
-        AccountSource::BOC
+        AccountSource::Boc
     } else {
-        AccountSource::NETWORK
+        AccountSource::Network
     };
 
-    let ton_client = if account_source == AccountSource::NETWORK {
-        if config.debug_fail != "None".to_string() {
+    let ton_client = if account_source == AccountSource::Network {
+        if &config.debug_fail != "None" {
             let method = if is_alternative {
                 matches.value_of("METHOD").or(config.method.as_deref())
                     .ok_or("Method is not defined. Supply it in the config file or command line.")?
@@ -53,11 +53,11 @@ pub async fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_
             let log_path = format!("run_{}_{}.log", address, method);
             log::set_max_level(log::LevelFilter::Trace);
             log::set_boxed_logger(
-                Box::new(DebugLogger::new(log_path.to_string()))
+                Box::new(DebugLogger::new(log_path))
             ).map_err(|e| format!("Failed to set logger: {}", e))?;
-            create_client(&config)?
+            create_client(config)?
         } else {
-            create_client_verbose(&config)?
+            create_client_verbose(config)?
         }
     } else {
         create_client_local()?
@@ -67,12 +67,12 @@ pub async fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_
         &account_source,
         &address,
         Some(ton_client.clone()),
-        &config
+        config
     ).await?;
     let address = match account_source {
-        AccountSource::NETWORK => address,
-        AccountSource::BOC => account.get_addr().unwrap().to_string(),
-        AccountSource::TVC => std::iter::repeat("0").take(64).collect::<String>()
+        AccountSource::Network => address,
+        AccountSource::Boc => account.get_addr().unwrap().to_string(),
+        AccountSource::Tvc => "0".repeat(64)
     };
     run(matches, config, Some(ton_client), &address, account_boc, abi_path, is_alternative).await
 }
@@ -122,7 +122,7 @@ async fn run(
 
     let msg = prepare_message(
         ton_client.clone(),
-        &address,
+        address,
         abi.clone(),
         method,
         &params.unwrap(),
@@ -144,7 +144,7 @@ async fn run(
         },
     ).await;
 
-    if config.debug_fail != "None".to_string() && result.is_err()
+    if &config.debug_fail != "None" && result.is_err()
         && result.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
         // TODO: add code to use bc_config from file
 
@@ -154,7 +154,7 @@ async fn run(
                 .unwrap_or(Value::String(e));
             let res = json!({"Error": err});
             println!("{}", serde_json::to_string_pretty(&res)
-                .unwrap_or("{{ \"JSON serialization error\" }}".to_string()));
+                .unwrap_or_else(|_| "{{ \"JSON serialization error\" }}".to_string()));
         } else {
             println!("Error: {:#}", result.clone().err().unwrap());
             println!("Execution failed. Starting debug...");
@@ -168,7 +168,7 @@ async fn run(
         let now = now_ms();
         let message = Message::construct_from_base64(&msg.message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        match execute_debug(
+        if let Err(e) = execute_debug(
             get_blockchain_config(config, None).await?,
             &mut account,
             Some(&message),
@@ -178,12 +178,9 @@ async fn run(
             true,
             config
         ).await {
-            Err(e) => {
-                if !e.contains("Contract did not accept message") {
-                    return Err(e);
-                }
-            },
-            Ok(_) => {}
+            if !e.contains("Contract did not accept message") {
+                return Err(e);
+            }
         }
 
         if !config.is_json {
@@ -218,7 +215,7 @@ fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<Execution
     if let Some(config) = bc_config {
         let bytes = std::fs::read(config)
             .map_err(|e| format!("Failed to read data from file {}: {}", config, e))?;
-        let config_boc = base64::encode(&bytes);
+        let config_boc = base64::encode(bytes);
         let ex_opt = ExecutionOptions{
             blockchain_config: Some(config_boc),
             ..Default::default()
@@ -229,8 +226,8 @@ fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<Execution
 }
 
 pub async fn run_get_method(config: &Config, addr: &str, method: &str, params: Option<String>, source_type: AccountSource, bc_config: Option<&str>) -> Result<(), String> {
-    let ton = if source_type == AccountSource::NETWORK {
-        create_client_verbose(&config)?
+    let ton = if source_type == AccountSource::Network {
+        create_client_verbose(config)?
     } else {
         create_client_local()?
     };
@@ -255,7 +252,7 @@ pub async fn run_get_method(config: &Config, addr: &str, method: &str, params: O
             ..Default::default()
         },
     ).await
-        .map_err(|e| format!("run failed: {}", e.to_string()))?
+        .map_err(|e| format!("run failed: {}", e))?
         .output;
 
     if !config.is_json {
@@ -265,10 +262,8 @@ pub async fn run_get_method(config: &Config, addr: &str, method: &str, params: O
         let mut res = Map::new();
         match result {
             Value::Array(array) => {
-                let mut i = 0;
-                for val in array.iter() {
+                for (i, val) in array.iter().enumerate() {
                     res.insert(format!("value{}", i), val.to_owned());
-                    i = 1 + i;
                 }
             },
             _ => {
@@ -276,7 +271,7 @@ pub async fn run_get_method(config: &Config, addr: &str, method: &str, params: O
             }
         }
         let res = Value::Object(res);
-        println!("{}", serde_json::to_string_pretty(&res).unwrap_or("Undefined".to_string()));
+        println!("{}", serde_json::to_string_pretty(&res).unwrap_or_else(|_| "Undefined".to_string()));
     }
     Ok(())
 }

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.30.2
+
+### New
+- Added ABI parameter to `update_config` command for solidity config contract;
+
 ## Version: 0.30.1
 
 ### New
