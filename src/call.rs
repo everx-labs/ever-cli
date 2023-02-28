@@ -32,7 +32,10 @@ use ton_client::abi::{
     decode_message, encode_message, Abi, ParamsOfDecodeMessage, ParamsOfEncodeMessage,
 };
 use ton_client::error::ClientError;
-use ton_client::processing::{send_message, wait_for_transaction, ParamsOfProcessMessage, ParamsOfSendMessage, ParamsOfWaitForTransaction, ProcessingEvent};
+use ton_client::processing::{
+    send_message, wait_for_transaction, ParamsOfProcessMessage, ParamsOfSendMessage,
+    ParamsOfWaitForTransaction, ProcessingEvent,
+};
 use ton_client::tvm::{run_executor, AccountForExecutor, ParamsOfRunExecutor};
 
 async fn decode_call_parameters(
@@ -293,10 +296,11 @@ pub async fn process_message(
     msg: ParamsOfEncodeMessage,
     config: &Config,
 ) -> Result<Value, ClientError> {
-    let callback = |event| {
-        async move {
-            println!("Process message event: {}", processing_event_to_string(event));
-        }
+    let callback = |event| async move {
+        println!(
+            "Process message event: {}",
+            processing_event_to_string(event)
+        );
     };
 
     let mut process_with_timeout: JoinSet<Result<Value, ClientError>> = JoinSet::new();

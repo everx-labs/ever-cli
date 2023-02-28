@@ -10,14 +10,18 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use std::collections::BTreeMap;
 use crate::config::{Config, FullConfig};
 use crate::decode::msg_printer::tree_of_cells_into_base64;
-use crate::helpers::{abi_from_matches_or_config, contract_data_from_matches_or_config_alias, create_client, create_client_local, create_client_verbose, decode_msg_body, load_ton_abi, load_ton_address, print_account, query_account_field, query_message, query_messages_for_account};
+use crate::helpers::{
+    abi_from_matches_or_config, contract_data_from_matches_or_config_alias, create_client,
+    create_client_local, create_client_verbose, decode_msg_body, load_ton_abi, load_ton_address,
+    print_account, query_account_field, query_message, query_messages_for_account,
+};
 use crate::{load_abi, print_args};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use serde::Serialize;
 use serde_json::json;
+use std::collections::BTreeMap;
 use std::io::Cursor;
 use ton_block::{Account, AccountStatus, Deserializable, Serializable, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData};
@@ -258,7 +262,11 @@ pub async fn print_account_data(
 }
 
 async fn decode_account_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let fconf = FullConfig {config: config.to_owned(), path: String::new(), aliases: BTreeMap::new()};
+    let fconf = FullConfig {
+        config: config.to_owned(),
+        path: String::new(),
+        aliases: BTreeMap::new(),
+    };
     let (addr, abi, _) = contract_data_from_matches_or_config_alias(m, &fconf)?;
     if !config.is_json {
         print_args!(addr, abi);
@@ -272,9 +280,12 @@ async fn decode_account_command(m: &ArgMatches<'_>, config: &Config) -> Result<(
         println!("\n{num}  {}\n", boc.1);
         let message_bytes = base64::decode(&boc.0)
             .map_err(|e2| format!("Failed to decode queried message: {e2}"))?;
-        println!("{}", decode_message(message_bytes, abi.clone())
-            .await
-            .map_err(|e2| format!("Failed to decode queried message: {e2}"))?);
+        println!(
+            "{}",
+            decode_message(message_bytes, abi.clone())
+                .await
+                .map_err(|e2| format!("Failed to decode queried message: {e2}"))?
+        );
     }
     Ok(())
 }
