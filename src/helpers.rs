@@ -661,7 +661,7 @@ pub fn parse_lifetime(lifetime: Option<&str>, config: &Config) -> Result<u32, St
 
 #[macro_export]
 macro_rules! print_args {
-    ($( $arg:ident ),* ) => {
+    ($( $arg:expr ),* ) => {
         println!("Input arguments:");
         $(
             println!(

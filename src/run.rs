@@ -25,7 +25,7 @@ use crate::helpers::{create_client, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonCl
                      load_account, load_params, unpack_alternative_params, get_blockchain_config};
 use crate::message::prepare_message;
 
-pub async fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_alternative: bool) -> Result<(), String> {
+pub fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_alternative: bool) -> Result<(), String> {
     let config = &full_config.config;
     let (address, abi_path) = if is_alternative {
         let (address,abi, _) = contract_data_from_matches_or_config_alias(matches, full_config)?;
@@ -63,18 +63,20 @@ pub async fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_
         create_client_local()?
     };
 
-    let (account, account_boc) = load_account(
-        &account_source,
-        &address,
-        Some(ton_client.clone()),
-        config
-    ).await?;
-    let address = match account_source {
-        AccountSource::Network => address,
-        AccountSource::Boc => account.get_addr().unwrap().to_string(),
-        AccountSource::Tvc => "0".repeat(64)
-    };
-    run(matches, config, Some(ton_client), &address, account_boc, abi_path, is_alternative).await
+    crate::RUNTIME.block_on(async move {
+        let (account, account_boc) = load_account(
+            &account_source,
+            &address,
+            Some(ton_client.clone()),
+            config
+        ).await?;
+        let address = match account_source {
+            AccountSource::Network => address,
+            AccountSource::Boc => account.get_addr().unwrap().to_string(),
+            AccountSource::Tvc => "0".repeat(64)
+        };
+        run(matches, config, Some(ton_client), &address, account_boc, abi_path, is_alternative).await
+    })
 }
 
 async fn run(

@@ -236,14 +236,16 @@ pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
                 .help("Number of confirmations required for executing transaction. Default value is 1.")))
 }
 
-pub async fn multisig_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    if let Some(m) = m.subcommand_matches("send") {
-        return multisig_send_command(m, config).await;
-    }
-    if let Some(m) = m.subcommand_matches("deploy") {
-        return multisig_deploy_command(m, config).await;
-    }
-    Err("unknown multisig command".to_owned())
+pub fn multisig_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    crate::RUNTIME.block_on(async move {    
+        if let Some(m) = m.subcommand_matches("send") {
+            return multisig_send_command(m, config).await;
+        }
+        if let Some(m) = m.subcommand_matches("deploy") {
+            return multisig_deploy_command(m, config).await;
+        }
+        Err("unknown multisig command".to_owned())
+    })
 }
 
 async fn multisig_send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {

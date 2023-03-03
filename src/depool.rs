@@ -241,7 +241,8 @@ fn parse_stake_data<'a>(m: &'a ArgMatches, config: &Config) -> Result<(String, &
     Ok((wallet, stake, keys))
 }
 
-pub async fn depool_command(m: &ArgMatches<'_>, config: &mut Config) -> Result<(), String> {
+pub fn depool_command(m: &ArgMatches<'_>, config: &mut Config) -> Result<(), String> {
+    crate::RUNTIME.block_on(async move {    
     let depool = m.value_of("ADDRESS")
         .map(|s| s.to_string())
         .or(config.addr.clone())
@@ -330,6 +331,7 @@ pub async fn depool_command(m: &ArgMatches<'_>, config: &mut Config) -> Result<(
         return ticktock_command(config, &depool, &wallet, &keys).await;
     }
     Err("unknown depool command".to_owned())
+    })
 }
 
 async fn answer_command(m: &ArgMatches<'_>, config: &Config, depool: &str) -> Result<(), String> {

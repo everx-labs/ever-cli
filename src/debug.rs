@@ -348,7 +348,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .subcommand(msg_cmd)
 }
 
-pub async fn debug_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Result<(), String> {
+pub fn debug_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Result<(), String> {
+    crate::RUNTIME.block_on(async move {    
     let config = &full_config.config;
     if let Some(matches) = matches.subcommand_matches("transaction") {
         return debug_transaction_command(matches, config, false).await;
@@ -375,6 +376,7 @@ pub async fn debug_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -
         return sequence_diagram_command(matches, config).await;
     }
     Err("unknown command".to_owned())
+    })
 }
 
 async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is_account: bool) -> Result<(), String> {

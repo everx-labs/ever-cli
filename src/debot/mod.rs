@@ -83,7 +83,7 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
         )
 }
 
-pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
+pub fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let debug = m.is_present("DEBUG");
     let log_conf = ConfigBuilder::new()
         .add_filter_ignore_str("executor")
@@ -110,6 +110,7 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
     }
     CombinedLogger::init(loggers).unwrap();
 
+    crate::RUNTIME.block_on(async move {    
     if let Some(m) = m.subcommand_matches("fetch") {
         return fetch_command(m, config).await;
     }
@@ -120,6 +121,7 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
         return invoke_command(m, config).await;
     }
     Err("unknown debot command".to_owned())
+    })
 }
 
 async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {

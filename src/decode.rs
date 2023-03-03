@@ -97,9 +97,10 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                     .help("Path to the TVC file where to save the dump."))))
 }
 
-pub async fn decode_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+pub fn decode_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    crate::RUNTIME.block_on(async move {    
     if let Some(m) = m.subcommand_matches("body") {
-        return decode_body_command(m, config).await;
+        return decode_body_command(m, config);
     }
     if let Some(m) = m.subcommand_matches("msg") {
         return decode_message_command(m, config).await;
@@ -116,6 +117,7 @@ pub async fn decode_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), S
         }
     }
     Err("unknown command".to_owned())
+    })
 }
 
 async fn decode_data_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
@@ -128,14 +130,16 @@ async fn decode_data_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), 
     Err("unknown command".to_owned())
 }
 
-async fn decode_body_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn decode_body_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let body = m.value_of("BODY");
     let abi = Some(abi_from_matches_or_config(m, config)?);
     if !config.is_json {
         print_args!(body, abi);
     }
-    decode_body(body.unwrap(), &abi.unwrap(), config.is_json, config).await?;
-    Ok(())
+    crate::RUNTIME.block_on(async move {    
+        decode_body(body.unwrap(), &abi.unwrap(), config.is_json, config).await?;
+        Ok(())
+    })
 }
 
 async fn decode_account_from_boc(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {

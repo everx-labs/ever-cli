@@ -33,7 +33,7 @@ use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor,
 use ton_types::{BuilderData, SliceData, UInt256, serialize_tree_of_cells};
 use ton_vm::executor::{Engine, EngineTraceInfo};
 
-use crate::config::Config;
+use crate::{config::Config, RUNTIME};
 use crate::helpers::{create_client, get_blockchain_config};
 
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
@@ -607,21 +607,22 @@ struct BlockAccountDescr {
     transactions: Vec<String>,
 }
 
-pub async fn fetch_block_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+pub fn fetch_block_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    RUNTIME.block_on(async move {    
     fetch_block(config,
         m.value_of("BLOCKID").ok_or("Missing block id")?,
         m.value_of("OUTPUT").ok_or("Missing output filename")?
-    ).await.map_err(|e| e.to_string())?;
-    Ok(())
+    ).await.map_err(|e| e.to_string())
+    })
 }
 
-pub async fn fetch_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    fetch(config,
+pub fn fetch_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    RUNTIME.block_on(async move { fetch(config,
         m.value_of("ADDRESS").ok_or("Missing account address")?,
         m.value_of("OUTPUT").ok_or("Missing output filename")?,
         None,
         true
-    ).await?;
+    ).await })?;
     if config.is_json {
         println!("{{}}");
     } else {
@@ -630,15 +631,17 @@ pub async fn fetch_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
     Ok(())
 }
 
-pub async fn replay_command(m: &ArgMatches<'_>, cli_config: &Config) -> Result<(), String> {
+pub fn replay_command(m: &ArgMatches<'_>, cli_config: &Config) -> Result<(), String> {
+    RUNTIME.block_on(async move {
     let (config_txns, bc_config) = if m.is_present("DEFAULT_CONFIG") {
         ("", Some(get_blockchain_config(cli_config, None).await?))
     } else {
         (m.value_of("CONFIG_TXNS").ok_or("Missing config txns filename")?, None)
     };
-    let _ = replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
+    replay(m.value_of("INPUT_TXNS").ok_or("Missing input txns filename")?,
         config_txns, m.value_of("TXNID").ok_or("Missing final txn id")?,
         None, ||{Ok(())}, DUMP_ALL, cli_config, bc_config
-    ).await?;
+    ).await
+    })?;
     Ok(())
 }
