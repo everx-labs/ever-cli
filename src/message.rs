@@ -84,8 +84,8 @@ pub fn prepare_message_params (
 }
 
 pub fn print_encoded_message(msg: &EncodedMessage, is_json:bool) {
-    let expire = if msg.expire.is_some() {
-        let expire_at = Local.timestamp_opt(msg.expire.unwrap() as i64, 0).single().unwrap();
+    let expire = if let Some(expire) = msg.expire {
+        let expire_at = Local.timestamp(expire as i64, 0);
         expire_at.to_rfc2822()
     } else {
         "unknown".to_string()
@@ -170,7 +170,7 @@ pub async fn generate_message(
 
     let abi = load_abi(abi, config).await?;
 
-    let expire_at = lifetime + timestamp.map(|millis| (millis / 1000) as u32).unwrap_or(now()?);
+    let expire_at = lifetime + timestamp.map_or_else(|| now(), |millis| (millis / 1000) as u32);
     let header = FunctionHeader {
         expire: Some(expire_at),
         time: timestamp,

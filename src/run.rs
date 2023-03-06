@@ -115,7 +115,7 @@ async fn run(
 
     let params = Some(load_params(params.unwrap().as_ref())?);
 
-    let now = now()?;
+    let now = now();
     let expire_at = config.lifetime + now;
     let header = FunctionHeader {
         expire: Some(expire_at),

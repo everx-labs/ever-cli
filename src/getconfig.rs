@@ -14,7 +14,7 @@
 use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer};
 use num_bigint::BigUint;
 use crate::config::Config;
-use crate::helpers::{create_client_verbose, query_with_limit, now};
+use crate::helpers::{create_client_verbose, query_with_limit, now, now_ms};
 use serde_json::json;
 use ton_abi::{Contract, Token, TokenValue, Uint};
 use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, Serializable};
@@ -409,7 +409,7 @@ fn prepare_message_new_config_param(
     private_key_of_config_account: &[u8]
 ) -> Result<Message, String> {
     let prefix = hex::decode(PREFIX_UPDATE_CONFIG_MESSAGE_DATA).unwrap();
-    let since_the_epoch = now()? + 100; // timestamp + 100 secs
+    let since_the_epoch = now() + 100; // timestamp + 100 secs
 
     let mut cell = BuilderData::default();
     cell.append_raw(prefix.as_slice(), 32).unwrap();
@@ -455,7 +455,7 @@ fn prepare_message_new_config_param_solidity(
     let keypair = Keypair { secret, public };
     
     let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
-    let since_the_epoch = now()? as u64 * 1000;
+    let since_the_epoch = now_ms();
 
     let header = [("time".to_owned(), TokenValue::Time(since_the_epoch))]
         .into_iter()

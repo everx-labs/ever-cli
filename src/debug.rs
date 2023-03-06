@@ -940,13 +940,8 @@ async fn decode_messages(msgs: OutMessages, abi: Option<String>, config: &Config
     for msg in msgs {
         let mut ser_msg = serialize_msg(&msg.0, abi.clone(), config).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
-        let msg_str = base64::encode(
-            ton_types::cells_serialization::serialize_toc(
-                &msg.0
-                    .serialize()
-                    .map_err(|e| format!("Failed to serialize out message: {}", e))?
-            ).map_err(|e| format!("failed to encode out message: {}", e))?
-        );
+        let bytes = msg.0.write_to_bytes().map_err(|e| format!("Failed to serialize out message: {}", e))?;
+        let msg_str = base64::encode(bytes);
         ser_msg["Message_base64"] = serde_json::Value::String(msg_str);
         if ser_msg["BodyCall"].is_object() {
             res.push(ser_msg["BodyCall"].clone());
@@ -1137,10 +1132,7 @@ fn trace_callback(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {
 
 
 fn trace_callback_minimal(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {
-    let position = match get_position(info, debug_info) {
-        Some(position) => position,
-        _ => "".to_string()
-    };
+    let position = get_position(info, debug_info).unwrap_or_default();
     log::info!(target: "tvm", "{} {} {} {} {}", info.step, info.gas_used, info.gas_cmd, info.cmd_str, position);
 }
 
@@ -1166,8 +1158,8 @@ fn generate_callback(matches: Option<&ArgMatches<'_>>, config: &Config) -> Optio
             let opt_abi = abi_from_matches_or_config(matches, config);
             let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
                 .or_else(|| 
-                    if opt_abi.is_ok() {
-                        load_debug_info(opt_abi.as_ref().unwrap())
+                    if let Ok(opt_abi) = &opt_abi {
+                        load_debug_info(opt_abi)
                     } else {
                         None
                     }
@@ -1197,7 +1189,7 @@ fn generate_callback(matches: Option<&ArgMatches<'_>>, config: &Config) -> Optio
             })
         },
         _ => {
-            Some(if config.debug_fail == *"Full" {
+            Some(if &config.debug_fail == "Full" {
                 Arc::new(move |_, info| trace_callback(info, &None))
             } else {
                 Arc::new(move |_, info| trace_callback_minimal(info, &None))
@@ -1299,14 +1291,14 @@ async fn fetch_transactions(config: &Config, addresses: &Vec<String>) -> Result<
 
             for txn in &transactions.result {
                 let boc = txn["boc"].as_str().unwrap();
-                let id = txn["id"].as_str().unwrap();
+                let id = txn["id"].as_str().unwrap().to_owned();
                 let workchain_id = txn["workchain_id"].as_i64().unwrap();
-                let txn = Transaction::construct_from_base64(boc)
+                let tr = Transaction::construct_from_base64(boc)
                     .map_err(|e| format!("Failed to deserialize txn: {}", e))?;
                 txns.push(TransactionExt {
-                    id: id.to_owned(),
-                    address: format!("{}:{}", workchain_id, txn.account_id().to_hex_string()),
-                    tr: txn,
+                    id,
+                    address: format!("{}:{:x}", workchain_id, tr.account_id()),
+                    tr,
                 });
             }
 
@@ -1314,7 +1306,7 @@ async fn fetch_transactions(config: &Config, addresses: &Vec<String>) -> Result<
             lt = last["lt"].as_str().ok_or_else(|| "Failed to parse value".to_string())?.to_owned();
         }
     }
-    txns.sort_by(|tr1, tr2| tr1.tr.logical_time().partial_cmp(&tr2.tr.logical_time()).unwrap());
+    txns.sort_by(|tr1, tr2| tr1.tr.logical_time().cmp(&tr2.tr.logical_time()));
     Ok(txns)
 }
 
@@ -1330,16 +1322,12 @@ fn map_inbound_messages_onto_tr(txns: &Vec<TransactionExt>) -> HashMap<UInt256, 
 fn sort_outbound_messages(tr: &Transaction, map: &HashMap<UInt256, Transaction>) -> Result<Vec<Message>, String> {
     let mut messages = vec!();
     tr.iterate_out_msgs(|msg| {
-        let hash = msg.serialize().unwrap().repr_hash();
-        let lt = if let Some(tr) = map.get(&hash) {
-            tr.logical_time()
-        } else {
-            u64::MAX
-        };
+        let hash = msg.serialize()?.repr_hash();
+        let lt = map.get(&hash).map_or(u64::MAX, |tr| tr.logical_time());
         messages.push((lt, msg));
         Ok(true)
     }).unwrap();
-    messages.sort_by(|(lt1, _), (lt2, _)| lt2.partial_cmp(lt1).unwrap());
+    messages.sort_by(|(lt1, _), (lt2, _)| lt2.cmp(lt1));
     Ok(messages.iter().map(|(_, v)| v.clone()).collect())
 }
 

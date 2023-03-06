@@ -460,7 +460,7 @@ async fn wait_for_event(config: &Config, depool: &str) -> Result<(), String> {
         ton.clone(),
         ParamsOfWaitForCollection {
             collection: "messages".to_owned(),
-            filter: Some(events_filter(depool, now()?)),
+            filter: Some(events_filter(depool, now())),
             result: "id body created_at created_at_string".to_owned(),
             timeout: Some(config.timeout),
             ..Default::default()
@@ -825,7 +825,7 @@ async fn call_contract_and_get_answer(
 ) -> Result<(), String> {
     let ton = create_client_verbose(config)?;
     let abi = load_abi(MSIG_ABI, config).await?;
-    let start = now()?;
+    let start = now();
 
     let params = json!({
         "dest": dest_addr,
