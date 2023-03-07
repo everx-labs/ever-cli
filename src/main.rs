@@ -33,6 +33,7 @@ mod sendfile;
 mod voting;
 mod replay;
 mod debug;
+mod debugger;
 mod run;
 mod message;
 #[cfg(feature = "sold")]

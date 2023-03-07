@@ -14,6 +14,7 @@ use crate::{contract_data_from_matches_or_config_alias, FullConfig, print_args,
             unpack_alternative_params};
 use clap::{ArgMatches, SubCommand, Arg, App};
 use crate::config::Config;
+use crate::debugger::debug_callback;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
                      query_account_field, query_with_limit, create_client_verbose,
                      abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config,
@@ -291,6 +292,10 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .conflicts_with_all(&["CONFIG_PATH", "DEFAULT_CONFIG"]);
 
+    let interactive_arg = Arg::with_name("INTERACTIVE")
+        .help("Interactive mode")
+        .long("--interactive");
+
     SubCommand::with_name("debug")
         .about("Debug commands.")
         .subcommand(SubCommand::with_name("transaction")
@@ -305,7 +310,8 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .arg(tx_id_arg.clone())
             .arg(dump_config_arg.clone())
             .arg(dump_contract_arg.clone())
-            .arg(config_boc_arg.clone()))
+            .arg(config_boc_arg.clone())
+            .arg(interactive_arg.clone()))
         .subcommand(SubCommand::with_name("account")
             .about("Loads list of the last transactions for the specified account. User should choose which one to debug.")
             .arg(default_config_arg.clone())
@@ -1190,7 +1196,9 @@ fn generate_callback(matches: Option<&ArgMatches<'_>>, config: &Config) -> Optio
                 },
                 _ => None
             };
-            Some(if matches.is_present("FULL_TRACE") {
+            Some(if matches.is_present("INTERACTIVE") {
+                Arc::new(move |engine, info| debug_callback(engine, info, &debug_info))
+            } else if matches.is_present("FULL_TRACE") {
                 Arc::new(move |_, info| trace_callback(info, &debug_info))
             } else {
                 Arc::new(move |_, info| trace_callback_minimal(info, &debug_info))
