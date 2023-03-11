@@ -111,24 +111,23 @@ pub async fn generate_deploy_message(
 }
 
 pub async fn prepare_deploy_message(
-    tvc: &str,
-    abi: &str,
+    tvc_path: &str,
+    abi_path: &str,
     params: &str,
     keys_file: Option<String>,
     wc: i32,
     config: &Config,
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
-    let abi = load_abi(abi, config).await?;
+    let abi = load_abi(abi_path, config).await?;
 
     let keys = keys_file.map(|k| load_keypair(&k)).transpose()?;
 
-    let tvc_bytes = &std::fs::read(tvc)
+    let tvc_bytes = std::fs::read(tvc_path)
         .map_err(|e| format!("failed to read smart contract file: {}", e))?;
 
-    return prepare_deploy_message_params(tvc_bytes, abi, params, keys, wc).await;
+    return prepare_deploy_message_params(&tvc_bytes, abi, params, keys, wc).await;
 
 }
-
 
 pub async fn prepare_deploy_message_params(
     tvc_bytes: &[u8],
@@ -137,7 +136,7 @@ pub async fn prepare_deploy_message_params(
     keys: Option<KeyPair>,
     wc: i32
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
-    let tvc_base64 = base64::encode(tvc_bytes);
+    let tvc = base64::encode(tvc_bytes);
 
     let addr = calc_acc_address(
         tvc_bytes,
@@ -147,24 +146,25 @@ pub async fn prepare_deploy_message_params(
         abi.clone()
     ).await?;
 
-    let dset = DeploySet {
-        tvc: tvc_base64,
+    let deploy_set = Some(DeploySet {
+        tvc,
         workchain_id: Some(wc),
         ..Default::default()
-    };
+    });
     let params = serde_json::from_str(params)
         .map_err(|e| format!("function arguments is not a json: {}", e))?;
-
+    let call_set = CallSet::some_with_function_and_input("constructor", params);
+    let signer = if let Some(keys) = keys {
+        Signer::Keys{ keys }
+    } else {
+        Signer::None
+    };
     Ok((ParamsOfEncodeMessage {
         abi,
         address: Some(addr.clone()),
-        deploy_set: Some(dset),
-        call_set: CallSet::some_with_function_and_input("constructor", params),
-        signer: if keys.is_some() {
-            Signer::Keys{ keys: keys.unwrap() }
-        } else {
-            Signer::None
-        },
+        deploy_set,
+        call_set,
+        signer,
         ..Default::default()
     }, addr))
 }

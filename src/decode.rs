@@ -64,6 +64,9 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
                 .long("--base64")
                 .help("Flag that changes behavior of the command to work with data in base64 (FLAG IS DEPRECATED).")))
         .subcommand(tvc_cmd)
+        // .subcommand(SubCommand::with_name("config_param")
+        //     .about("Top level command of config param decode commands.")
+        // )
         .subcommand(SubCommand::with_name("account")
             .about("Top level command of account decode commands.")
             .subcommand(SubCommand::with_name("data")
@@ -98,7 +101,7 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
 }
 
 pub fn decode_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    crate::RUNTIME.block_on(async move {    
+    crate::RUNTIME.block_on(async move {
     if let Some(m) = m.subcommand_matches("body") {
         return decode_body_command(m, config);
     }
@@ -231,9 +234,9 @@ pub async fn print_account_data(account: &Account, tvc_path: Option<&str>, confi
 
 async fn decode_message_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let msg = m.value_of("MSG");
-    let abi = Some(abi_from_matches_or_config(m, config)?);
+    let abi_path = Some(abi_from_matches_or_config(m, config)?);
     if !config.is_json {
-        print_args!(msg, abi);
+        print_args!(msg, abi_path);
     }
     if m.is_present("BASE64") && !config.is_json {
         println!("Flag --base64 is deprecated. Command can be used for base64 input without this flag.")
@@ -242,14 +245,14 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: &Config) -> Result<(
     let decoded_message = if std::path::Path::new(input).exists() {
         let msg_bytes = std::fs::read(input)
             .map_err(|e| format!(" failed to read msg from file {input}: {}", e))?;
-        match decode_message(msg_bytes.clone(), abi.clone()).await {
+        match decode_message(msg_bytes.clone(), abi_path.clone()).await {
             Ok(result) => result,
             Err(e) => {
                 let message_str = String::from_utf8(msg_bytes)
                     .map_err(|_| format!("Failed to decode message from file: {e}"))?;
                 let message_bytes = base64::decode(&message_str)
                     .map_err(|e2| format!("Failed to decode message data: {e2}"))?;
-                decode_message(message_bytes, abi).await
+                decode_message(message_bytes, abi_path).await
                     .map_err(|e2| format!("Failed to decode message from file: {e2}"))?
             }
         }
@@ -257,18 +260,18 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: &Config) -> Result<(
         let base64_decode = base64::decode(input)
             .map_err(|e| format!("{e}"));
         let msg_decode = match base64_decode {
-            Ok(base64_decode) => decode_message(base64_decode, abi.clone()).await,
+            Ok(base64_decode) => decode_message(base64_decode, abi_path.clone()).await,
             Err(e) => Err(e)
         };
         match msg_decode {
             Ok(result) => result,
             Err(e) => {
                 let ton_client = create_client(config)?;
-                let query_boc = query_message(ton_client, input).await
+                let query_boc = query_message(ton_client, input)
                     .map_err(|e2| format!("Failed to decode message, specify path to the file, message id or message in base64.\nBase64 error: {e}\nQuery error: {e2}"))?;
                 let message_bytes = base64::decode(&query_boc)
                     .map_err(|e2| format!("Failed to decode queried message: {e2}"))?;
-                decode_message(message_bytes, abi).await
+                decode_message(message_bytes, abi_path).await
                     .map_err(|e2| format!("Failed to decode queried message: {e2}"))?
             }
         }
@@ -279,11 +282,11 @@ async fn decode_message_command(m: &ArgMatches<'_>, config: &Config) -> Result<(
 
 async fn decode_tvc_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let tvc = m.value_of("TVC");
-    let abi = Some(abi_from_matches_or_config(m, config)?);
+    let abi_path = abi_from_matches_or_config(m, config)?;
     if !config.is_json {
-        print_args!(tvc, abi);
+        print_args!(tvc, Some(abi_path.to_string()));
     }
-    let abi = load_abi(abi.as_ref().unwrap(), config).await?;
+    let abi = load_abi(&abi_path, config).await?;
     let state = StateInit::construct_from_file(tvc.unwrap())
         .map_err(|e| format!("failed to load StateInit from the tvc file: {}", e))?;
     let b64 = tree_of_cells_into_base64(state.data.as_ref())?;
@@ -316,7 +319,7 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<()
 
     let ton = create_client_verbose(config)?;
     let address = load_ton_address(address.unwrap(), config)?;
-    let data = query_account_field(ton.clone(), &address, "data").await?;
+    let data = query_account_field(ton.clone(), &address, "data")?;
 
     let res = decode_account_data(
         ton,
@@ -452,7 +455,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), S
         } else {
             format!("{}:{}", config.wc, input)
         };
-        let boc = query_account_field(ton.clone(), &input, "boc").await?;
+        let boc = query_account_field(ton.clone(), &input, "boc")?;
         let account = Account::construct_from_base64(&boc)
             .map_err(|e| format!("Failed to query account BOC: {}", e))?;
         account.state_init().ok_or("Failed to load stateInit from the BOC.")?.to_owned()
@@ -490,15 +493,11 @@ pub mod msg_printer {
     }
 
     async fn get_code_version(ton: TonClient, code: String) -> String {
-        let result = get_compiler_version(
-            ton,
-            ParamsOfGetCompilerVersion {
-                code,
-                ..Default::default()
-            }
-        ).await;
-
-        if let Ok(result) = result {
+        let params = ParamsOfGetCompilerVersion {
+            code,
+            ..Default::default()
+        };
+        if let Ok(result) = get_compiler_version(ton, params).await {
             if let Some(version) = result.version {
                 return version;
             }
@@ -623,10 +622,9 @@ pub mod msg_printer {
         res["Body"] = json!(&tree_of_cells_into_base64(
             msg.body().map(|slice| slice.into_cell()).as_ref()
         )?);
-        if abi_path.is_some() && msg.body().is_some() {
-            let abi_path = abi_path.unwrap();
+        if let (Some(abi_path), Some(msg_body)) = (abi_path, msg.body()) {
             let mut body_vec = Vec::new();
-            serialize_tree_of_cells(&msg.body().unwrap().into_cell(), &mut body_vec)
+            serialize_tree_of_cells(&msg_body.into_cell(), &mut body_vec)
                 .map_err(|e| format!("failed to serialize body: {}", e))?;
             res["BodyCall"] =  match serialize_body(body_vec, &abi_path, ton, config).await {
                 Ok(res) => res,

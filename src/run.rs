@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -16,8 +16,9 @@ use serde_json::{Map, Value, json};
 use ton_block::{Account, Deserializable, Message, Serializable};
 use ton_client::abi::{FunctionHeader};
 use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
+use crate::RUNTIME;
 use crate::config::{Config, FullConfig};
-use crate::call::{print_json_result};
+use crate::call::print_json_result;
 use crate::debug::{execute_debug, DebugLogger};
 use crate::helpers::{create_client, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient,
                      contract_data_from_matches_or_config_alias, abi_from_matches_or_config,
@@ -31,8 +32,10 @@ pub fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_altern
         let (address,abi, _) = contract_data_from_matches_or_config_alias(matches, full_config)?;
         (address.unwrap(), abi.unwrap())
     } else {
-        (matches.value_of("ADDRESS").unwrap().to_string(),
-        abi_from_matches_or_config(matches, config)?)
+        (
+            matches.value_of("ADDRESS").unwrap().to_string(),
+            abi_from_matches_or_config(matches, config)?
+        )
     };
     let account_source = if matches.is_present("TVC") {
         AccountSource::Tvc
@@ -63,29 +66,27 @@ pub fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_altern
         create_client_local()?
     };
 
-    crate::RUNTIME.block_on(async move {
-        let (account, account_boc) = load_account(
-            &account_source,
-            &address,
-            Some(ton_client.clone()),
-            config
-        ).await?;
-        let address = match account_source {
-            AccountSource::Network => address,
-            AccountSource::Boc => account.get_addr().unwrap().to_string(),
-            AccountSource::Tvc => "0".repeat(64)
-        };
-        run(matches, config, Some(ton_client), &address, account_boc, abi_path, is_alternative).await
-    })
+    let (account, account_boc) = load_account(
+        &account_source,
+        &address,
+        Some(ton_client.clone()),
+        config
+    )?;
+    let address = match account_source {
+        AccountSource::Network => address,
+        AccountSource::Boc => account.get_addr().unwrap().to_string(),
+        AccountSource::Tvc => "0".repeat(64)
+    };
+    run(matches, config, Some(ton_client), &address, &account_boc, &abi_path, is_alternative)
 }
 
-async fn run(
+fn run(
     matches: &ArgMatches<'_>,
     config: &Config,
     ton_client: Option<TonClient>,
     address: &str,
-    account_boc: String,
-    abi_path: String,
+    account_boc: &str,
+    abi_path: &str,
     is_alternative: bool,
 ) -> Result<(), String> {
     let method = if is_alternative {
@@ -94,7 +95,10 @@ async fn run(
     } else {
         matches.value_of("METHOD").unwrap()
     };
+println!("55");
     let bc_config = matches.value_of("BCCONFIG");
+    let execution_options = prepare_execution_options(bc_config)?;
+    let bc_config = get_blockchain_config(config, None)?;
 
     if !config.is_json {
         println!("Running get-method...");
@@ -106,13 +110,14 @@ async fn run(
         }
     };
 
-    let abi = load_abi(&abi_path, config).await?;
+    let abi = RUNTIME.block_on(async move {
+        load_abi(abi_path, config).await
+    })?;
     let params = if is_alternative {
-        unpack_alternative_params(matches, &abi_path, method, config).await?
+        unpack_alternative_params(matches, abi_path, method, config)?
     } else {
         matches.value_of("PARAMS").map(|s| s.to_owned())
     };
-
     let params = Some(load_params(params.unwrap().as_ref())?);
 
     let now = now();
@@ -131,20 +136,20 @@ async fn run(
         Some(header),
         None,
         config.is_json,
-    ).await?;
+    )?;
 
-    let execution_options = prepare_execution_options(bc_config)?;
-    let result = run_tvm(
+    let message = msg.message.clone();
+    let result = RUNTIME.block_on(async move { run_tvm(
         ton_client.clone(),
         ParamsOfRunTvm {
-            message: msg.message.clone(),
-            account: account_boc.clone(),
+            message,
+            account: account_boc.to_string(),
             abi: Some(abi.clone()),
             return_updated_account: Some(true),
             execution_options,
             ..Default::default()
-        },
-    ).await;
+        }
+    ).await });
 
     if &config.debug_fail != "None" && result.is_err()
         && result.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
@@ -170,8 +175,8 @@ async fn run(
         let now = now_ms();
         let message = Message::construct_from_base64(&msg.message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        if let Err(e) = execute_debug(
-            get_blockchain_config(config, None).await?,
+        let result = execute_debug(
+            bc_config,
             &mut account,
             Some(&message),
             (now / 1000) as u32,
@@ -179,7 +184,8 @@ async fn run(
             now,
             true,
             config
-        ).await {
+        );
+        if let Err(e) = result {
             if !e.contains("Contract did not accept message") {
                 return Err(e);
             }
@@ -209,7 +215,6 @@ async fn run(
             }
         }
     }
-
     Ok(())
 }
 
@@ -227,14 +232,14 @@ fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<Execution
     Ok(None)
 }
 
-pub async fn run_get_method(config: &Config, addr: &str, method: &str, params: Option<String>, source_type: AccountSource, bc_config: Option<&str>) -> Result<(), String> {
+pub fn run_get_method(config: &Config, addr: &str, method: &str, params: Option<String>, source_type: AccountSource, bc_config: Option<&str>) -> Result<(), String> {
     let ton = if source_type == AccountSource::Network {
         create_client_verbose(config)?
     } else {
         create_client_local()?
     };
 
-    let (_, acc_boc) = load_account(&source_type, addr, Some(ton.clone()), config).await?;
+    let (_, acc_boc) = load_account(&source_type, addr, Some(ton.clone()), config)?;
 
     let params = params.map(|p| serde_json::from_str(&p))
         .transpose()
@@ -244,18 +249,17 @@ pub async fn run_get_method(config: &Config, addr: &str, method: &str, params: O
         println!("Running get-method...");
     }
     let execution_options = prepare_execution_options(bc_config)?;
-    let result = run_get(
+    let function_name = method.to_owned();
+    let result = RUNTIME.block_on(async move { run_get(
         ton,
         ParamsOfRunGet {
             account: acc_boc,
-            function_name: method.to_owned(),
+            function_name,
             input: params,
             execution_options,
             ..Default::default()
         },
-    ).await
-        .map_err(|e| format!("run failed: {}", e))?
-        .output;
+    ).await }).map_err(|e| format!("run failed: {}", e))?.output;
 
     if !config.is_json {
         println!("Succeeded.");

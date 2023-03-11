@@ -201,8 +201,7 @@ pub async fn query_raw(
     limit: Option<&str>,
     order: Option<&str>,
     result: &str
-) -> Result<(), String>
-{
+) -> Result<(), String> {
     let context = create_client_verbose(config)?;
 
     let filter = filter.map(serde_json::from_str).transpose()
@@ -212,23 +211,22 @@ pub async fn query_raw(
     let order = order.map(serde_json::from_str).transpose()
         .map_err(|e| format!("Failed to parse order field: {}", e))?;
 
-    let query = ton_client::net::query_collection(
-        context.clone(),
-        ParamsOfQueryCollection {
-            collection: collection.to_owned(),
-            filter,
-            limit,
-            order,
-            result: result.to_owned(),
-            ..Default::default()
-        }
-    ).await.map_err(|e| format!("Failed to execute query: {}", e))?;
+    let params = ParamsOfQueryCollection {
+        collection: collection.to_string(),
+        filter,
+        limit,
+        order,
+        result: result.to_string(),
+        ..Default::default()
+    };
+    let query = query_collection(context, params).await
+        .map_err(|e| format!("Failed to execute query: {}", e))?;
 
     println!("{:#}", Value::Array(query.result));
     Ok(())
 }
 
-pub async fn query_with_limit(
+pub fn query_with_limit(
     ton: TonClient,
     collection: &str,
     filter: Value,
@@ -236,22 +234,19 @@ pub async fn query_with_limit(
     order: Option<Vec<OrderBy>>,
     limit: Option<u32>,
 ) -> Result<Vec<Value>, ClientError> {
-    query_collection(
-        ton,
-        ParamsOfQueryCollection {
-            collection: collection.to_owned(),
-            filter: Some(filter),
-            result: result.to_owned(),
-            order,
-            limit,
-            ..Default::default()
-        },
-    )
-        .await
+    let params = ParamsOfQueryCollection {
+        collection: collection.to_owned(),
+        filter: Some(filter),
+        result: result.to_owned(),
+        order,
+        limit,
+        ..Default::default()
+    };
+    crate::RUNTIME.block_on(async move { query_collection(ton, params).await })
         .map(|r| r.result)
 }
 
-pub async fn query_message(
+pub fn query_message(
     ton: TonClient,
     message_id: &str,
 ) -> Result<String, String> {
@@ -262,17 +257,15 @@ pub async fn query_message(
         "boc",
         None,
         Some(1),
-    ).await
-        .map_err(|e| format!("failed to query account data: {}", e))?;
+    ).map_err(|e| format!("failed to query account data: {}", e))?;
     if messages.is_empty() {
         Err("message with specified id was not found.".to_string())
-    }
-    else {
+    } else {
         Ok(messages[0]["boc"].as_str().ok_or("Failed to obtain message boc.".to_string())?.to_string())
     }
 }
 
-pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> Result<String, String> {
+pub fn query_account_field(ton: TonClient, address: &str, field: &str) -> Result<String, String> {
     let accounts = query_with_limit(
         ton.clone(),
         "accounts",
@@ -280,8 +273,7 @@ pub async fn query_account_field(ton: TonClient, address: &str, field: &str) -> 
         field,
         None,
         Some(1),
-    ).await
-        .map_err(|e| format!("failed to query account data: {}", e))?;
+    ).map_err(|e| format!("failed to query account data: {}", e))?;
     if accounts.is_empty() {
         return Err(format!("account with address {} not found", address));
     }
@@ -550,17 +542,14 @@ pub fn print_account(
     }
 }
 
-pub fn construct_account_from_tvc(tvc_path: &str, address: Option<&str>, balance: Option<u64>) -> Result<Account, String> {
+pub fn construct_account_from_tvc(tvc_path: &str, address: Option<&str>, balance: u64) -> Result<Account, String> {
     Account::active_by_init_code_hash(
         match address {
             Some(address) => MsgAddressInt::from_str(address)
                 .map_err(|e| format!("Failed to set address: {}", e))?,
             _ => MsgAddressInt::default()
         },
-        match balance {
-            Some(balance) => CurrencyCollection::with_grams(balance),
-            _ => CurrencyCollection::default()
-        },
+        CurrencyCollection::with_grams(balance),
         0,
         StateInit::construct_from_file(tvc_path)
             .map_err(|e| format!(" failed to load TVC from the file {}: {}", tvc_path, e))?,
@@ -583,7 +572,7 @@ pub enum AccountSource {
     Tvc,
 }
 
-pub async fn load_account(
+pub fn load_account(
     source_type: &AccountSource,
     source: &str,
     ton_client: Option<TonClient>,
@@ -597,7 +586,7 @@ pub async fn load_account(
                     create_client(config)?
                 }
             };
-            let boc = query_account_field(ton_client.clone(),source, "boc").await?;
+            let boc = query_account_field(ton_client.clone(),source, "boc")?;
             Ok((Account::construct_from_base64(&boc)
                 .map_err(|e| format!("Failed to construct account: {}", e))?,
                 boc))
@@ -607,7 +596,7 @@ pub async fn load_account(
                 Account::construct_from_file(source)
                     .map_err(|e| format!(" failed to load account from the file {}: {}", source, e))?
             } else {
-                construct_account_from_tvc(source, None, None)?
+                construct_account_from_tvc(source, None, 0)?
             };
             let account_bytes = account.write_to_bytes()
                 .map_err(|e| format!(" failed to load data from the account: {}", e))?;
@@ -617,8 +606,8 @@ pub async fn load_account(
 }
 
 
-pub fn load_debug_info(abi: &str) -> Option<String> {
-    check_file_exists(abi, &[".json", ".abi"], &[".dbg.json", ".debug.json", ".map.json"])
+pub fn load_debug_info(abi_path: &str) -> Option<String> {
+    check_file_exists(abi_path, &[".json", ".abi"], &[".dbg.json", ".debug.json", ".map.json"])
 }
 
 pub fn load_abi_from_tvc(tvc: &str) -> Option<String> {
@@ -682,10 +671,10 @@ pub fn load_params(params: &str) -> Result<String, String> {
     })
 }
 
-pub async fn unpack_alternative_params(matches: &ArgMatches<'_>, abi_path: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
+pub fn unpack_alternative_params(matches: &ArgMatches<'_>, abi_path: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
     if matches.is_present("PARAMS") {
         let params = matches.values_of("PARAMS").unwrap().collect::<Vec<_>>();
-        Ok(Some(parse_params(params, abi_path, method, config).await?))
+        Ok(Some(parse_params(params, abi_path, method, config)?))
     } else {
         Ok(config.parameters.clone().or(Some("{}".to_string())))
     }
@@ -725,7 +714,7 @@ pub fn contract_data_from_matches_or_config_alias(
     Ok((address, Some(abi), keys))
 }
 
-pub fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String> {
+fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String> {
     // Default config params from evernode-se https://github.com/tonlabs/evernode-se/blob/master/docker/ton-node/blockchain.conf.json
     let json = r#"{
   "p0": "5555555555555555555555555555555555555555555555555555555555555555",
@@ -1014,28 +1003,22 @@ pub fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String>
 
 // loads blockchain config from the config contract boc, if it is none tries to load config contract
 // from the network, if it is unavailable returns default.
-pub async fn get_blockchain_config(cli_config: &Config, config_contract_boc_path: Option<&str>) ->
+pub fn get_blockchain_config(cli_config: &Config, config_contract_boc_path: Option<&str>) ->
     Result<BlockchainConfig, String> {
-    match config_contract_boc_path {
-        Some(config_path) => {
-            let acc =Account::construct_from_file(config_path)
-                .map_err(|e| format!("Failed to load config contract account from file {config_path}: {e}"))?;
-            construct_blockchain_config(&acc)
-        },
-        None => {
-            let ton_client = create_client(cli_config)?;
-            let config = query_account_field(
-                ton_client.clone(),
-                CONFIG_ADDR,
-                "boc",
-            ).await;
-            let config_account = config.and_then(|config|
-                Account::construct_from_base64(&config)
-                    .map_err(|e| format!("Failed to construct config account: {e}")));
-            match config_account {
-                Ok(config) => construct_blockchain_config(&config),
-                Err(_) => blockchain_config_from_default_json()
-            }
+    if let Some(config_path) = config_contract_boc_path {
+        let acc = Account::construct_from_file(config_path)
+            .map_err(|e| format!("Failed to load config contract account from file {config_path}: {e}"))?;
+        construct_blockchain_config(&acc)
+    } else {
+        let ton_client = create_client(cli_config)?;
+        let config = query_account_field(
+            ton_client,
+            CONFIG_ADDR,
+            "boc",
+        )?;
+        match Account::construct_from_base64(&config) {
+            Ok(config_account) => construct_blockchain_config(&config_account),
+            Err(_) => blockchain_config_from_default_json()
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -16,7 +16,7 @@ use crate::helpers::{create_client_local, decode_msg_body};
 use crate::multisig::{encode_transfer_body, MSIG_ABI, TRANSFER_WITH_COMMENT};
 use serde_json::json;
 
-pub async fn create_proposal(
+pub fn create_proposal(
 	config: &Config,
 	addr: &str,
 	keys: Option<&str>,
@@ -26,7 +26,7 @@ pub async fn create_proposal(
 	offline: bool,
 ) -> Result<(), String> {
 
-	let payload = encode_transfer_body(text, config).await?;
+	let payload = encode_transfer_body(text, config)?;
 
 	let params = json!({
 		"dest": dest,
@@ -50,9 +50,8 @@ pub async fn create_proposal(
 			false,
 			None,
 			None,
-		).await
+		)
 	} else {
-
 		call::call_contract(
 			config,
 			addr,
@@ -61,11 +60,11 @@ pub async fn create_proposal(
 			&params,
 			keys,
 			false,
-		).await
+		)
 	}
 }
 
-pub async fn vote(
+pub fn vote(
 	config: &Config,
 	addr: &str,
 	keys: Option<&str>,
@@ -92,7 +91,7 @@ pub async fn vote(
 			false,
 			None,
 			None,
-		).await
+		)
 	} else {
 		call::call_contract(
 			config,
@@ -102,11 +101,11 @@ pub async fn vote(
 			&params,
 			keys,
 			false,
-		).await
+		)
 	}
 }
 
-pub async fn decode_proposal(
+pub fn decode_proposal(
 	config: &Config,
 	addr: &str,
 	proposal_id: &str,
@@ -121,11 +120,12 @@ pub async fn decode_proposal(
 		"{}",
 		None,
 		false,
-	).await?;
+	)?;
 
 	let txns = result["transactions"].as_array()
 		.ok_or(r#"failed to decode result: "transactions" array not found"#.to_string())?;
 
+	let ton = create_client_local()?;
 	for txn in txns {
 		let txn_id = txn["id"].as_str()
 			.ok_or(r#"failed to parse transaction in list: "id" not found"#.to_string())?;
@@ -133,16 +133,14 @@ pub async fn decode_proposal(
 		if txn_id == proposal_id {
 			let body = txn["payload"].as_str()
 				.ok_or(r#"failed to parse transaction in list: "payload" not found"#.to_string())?;
-			let ton = create_client_local()?;
-			let result = decode_msg_body(
+			let ton = ton.clone();
+			let result = crate::RUNTIME.block_on(async move { decode_msg_body(
 				ton.clone(),
 				TRANSFER_WITH_COMMENT,
 				body,
 				true,
 				config,
-			)
-            .await
-            .map_err(|e| format!("failed to decode proposal payload: {}", e))?;
+			).await }).map_err(|e| format!("failed to decode proposal payload: {}", e))?;
 
 			let comment = String::from_utf8(
 				hex::decode(

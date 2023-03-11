@@ -29,8 +29,8 @@ use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 
 use serde_json::json;
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet, ParamsOfDecodeMessageBody};
-use ton_client::net::{OrderBy, ParamsOfQueryCollection, ParamsOfWaitForCollection, SortDirection};
-use crate::call::{process_message};
+use ton_client::net::{OrderBy, ParamsOfQueryCollection, ParamsOfWaitForCollection, SortDirection, query_collection};
+use crate::call::process_message;
 
 use std::collections::HashMap;
 use crate::message::prepare_message_params;
@@ -351,7 +351,7 @@ async fn answer_command(m: &ArgMatches<'_>, config: &Config, depool: &str) -> Re
     let wallet = load_ton_address(&wallet, config)
         .map_err(|e| format!("invalid depool address: {}", e))?;
 
-    let messages = ton_client::net::query_collection(
+    let messages = query_collection(
         ton.clone(),
         ParamsOfQueryCollection {
             collection: "messages".to_owned(),
@@ -434,7 +434,7 @@ async fn get_events(config: &Config, depool: &str, since: u32) -> Result<(), Str
     let ton = create_client_verbose(config)?;
     let _addr = load_ton_address(depool, config)?;
 
-    let events = ton_client::net::query_collection(
+    let events = query_collection(
         ton.clone(),
         ParamsOfQueryCollection {
             collection: "messages".to_owned(),
@@ -800,7 +800,7 @@ async fn call_contract(
     answer_is_expected: bool
 ) -> Result<(), String> {
     if config.no_answer {
-        send_with_body(config, wallet, depool, value, keys, body).await
+        send_with_body(config, wallet, depool, value, keys, body)
     } else {
         call_contract_and_get_answer(
             config,

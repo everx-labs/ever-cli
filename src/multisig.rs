@@ -260,30 +260,32 @@ async fn multisig_send_command(matches: &ArgMatches<'_>, config: &Config) -> Res
     let comment = matches.value_of("PURPOSE");
 
     let address = load_ton_address(address, config)?;
-    send(config, address.as_str(), dest, value, keys, comment).await
+    send(config, address.as_str(), dest, value, keys, comment)
 }
 
-pub async fn encode_transfer_body(text: &str, config: &Config) -> Result<String, String> {
+pub fn encode_transfer_body(text: &str, config: &Config) -> Result<String, String> {
     let text = hex::encode(text.as_bytes());
     let client = create_client_local()?;
-    let abi = load_abi(TRANSFER_WITH_COMMENT, config).await?;
-    encode_message_body(
-        client.clone(),
-        ParamsOfEncodeMessageBody {
-            abi,
-            call_set: CallSet::some_with_function_and_input(
-                "transfer",
-                json!({ "comment": text    }),
-            ).ok_or("failed to create CallSet with specified parameters")?,
-            is_internal: true,
-            ..Default::default()
-        },
-    ).await
-    .map_err(|e| format!("failed to encode transfer body: {}", e))
-    .map(|r| r.body)
+    crate::RUNTIME.block_on(async move {
+        let abi = load_abi(TRANSFER_WITH_COMMENT, config).await?;
+        encode_message_body(
+            client.clone(),
+            ParamsOfEncodeMessageBody {
+                abi,
+                call_set: CallSet::some_with_function_and_input(
+                    "transfer",
+                    json!({ "comment": text    }),
+                ).ok_or("failed to create CallSet with specified parameters")?,
+                is_internal: true,
+                ..Default::default()
+            },
+        ).await
+        .map_err(|e| format!("failed to encode transfer body: {}", e))
+        .map(|r| r.body)
+    })
 }
 
-async fn send(
+fn send(
     config: &Config,
     addr: &str,
     dest: &str,
@@ -292,15 +294,15 @@ async fn send(
     comment: Option<&str>
 ) -> Result<(), String> {
     let body = if let Some(text) = comment {
-        encode_transfer_body(text, config).await?
+        encode_transfer_body(text, config)?
     } else {
         "".to_owned()
     };
 
-    send_with_body(config, addr, dest, value, keys, &body).await
+    send_with_body(config, addr, dest, value, keys, &body)
 }
 
-pub async fn send_with_body(
+pub fn send_with_body(
     config: &Config,
     addr: &str,
     dest: &str,
@@ -324,7 +326,7 @@ pub async fn send_with_body(
         &params,
         Some(keys.to_owned()),
         false,
-    ).await
+    )
 }
 
 async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {

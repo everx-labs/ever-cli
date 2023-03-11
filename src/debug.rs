@@ -17,12 +17,13 @@ use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
                      query_account_field, query_with_limit, create_client_verbose,
                      abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config,
-                     TEST_MAX_LEVEL, MAX_LEVEL, get_blockchain_config};
+                     TEST_MAX_LEVEL, MAX_LEVEL, get_blockchain_config, create_client_local};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT
 };
 use std::io::{Write, BufRead};
 use std::collections::{HashSet, HashMap};
+use std::path::Path;
 use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction,
                 MsgAddressInt, CurrencyCollection, GasLimitsPrices, ConfigParamEnum};
 use ton_types::{UInt256, HashmapE, Cell, AccountId};
@@ -167,6 +168,23 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .conflicts_with("TVC")
         .help("Flag that changes behavior of the command to work with the saved account state (account BOC).");
 
+    let tvc_arg = Arg::with_name("TVC")
+        .long("--tvc")
+        .conflicts_with("BOC")
+        .help("Flag that changes behavior of the command to work with the saved contract state (stateInit TVC).");
+
+    let balance = Arg::with_name("BALANCE")
+        .long("--balance")
+        .requires("TVC")
+        .conflicts_with("BOC")
+        .help("balance for account constructed from TVC file");
+
+    let account_address = Arg::with_name("ACCOUNT_ADDRESS")
+        .long("--tvc_address")
+        .takes_value(true)
+        .requires("TVC")
+        .help("Account address for account constructed from TVC.");
+
     let tx_id_arg = Arg::with_name("TX_ID")
         .required(true)
         .takes_value(true)
@@ -209,7 +227,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
     let update_arg = Arg::with_name("UPDATE_BOC")
         .long("--update")
         .short("-u")
-        .requires("BOC")
+        .required_unless_one(&["BOC", "TVC"])
         .help("Update contract BOC after execution");
 
     let now_arg = Arg::with_name("NOW")
@@ -219,12 +237,14 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
 
     let msg_cmd = SubCommand::with_name("message")
         .about("Play message locally with trace")
+        .alias("m")
         .arg(output_arg.clone())
         .arg(dbg_info_arg.clone())
         .arg(address_arg.clone())
         .arg(full_trace_arg.clone())
         .arg(decode_abi_arg.clone())
         .arg(boc_arg.clone())
+        .arg(tvc_arg.clone())
         .arg(config_path_arg.clone())
         .arg(update_arg.clone())
         .arg(now_arg.clone())
@@ -245,15 +265,10 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .arg(full_trace_arg.clone())
         .arg(decode_abi_arg.clone())
         .arg(boc_arg.clone())
-        .arg(Arg::with_name("TVC")
-            .long("--tvc")
-            .conflicts_with("BOC")
-            .help("Flag that changes behavior of the command to work with the saved contract state (stateInit TVC)."))
-        .arg(Arg::with_name("ACCOUNT_ADDRESS")
-            .takes_value(true)
-            .long("--tvc_address")
-            .help("Account address for account constructed from TVC.")
-            .requires("TVC"))
+        .arg(tvc_arg.clone())
+        .arg(update_arg.clone())
+        .arg(balance.clone())
+        .arg(account_address.clone())
         .arg(now_arg.clone())
         .arg(config_path_arg.clone());
 
@@ -293,6 +308,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
 
     SubCommand::with_name("debug")
         .about("Debug commands.")
+        .alias("d")
         .subcommand(SubCommand::with_name("transaction")
             .about("Replay transaction with specified ID.")
             .arg(default_config_arg.clone())
@@ -349,38 +365,36 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
 }
 
 pub fn debug_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Result<(), String> {
-    crate::RUNTIME.block_on(async move {    
     let config = &full_config.config;
     if let Some(matches) = matches.subcommand_matches("transaction") {
-        return debug_transaction_command(matches, config, false).await;
+        return debug_transaction_command(matches, config, false);
     }
     if let Some(matches) = matches.subcommand_matches("account") {
-        return debug_transaction_command(matches, config, true).await;
+        return debug_transaction_command(matches, config, true);
     }
     if let Some(matches) = matches.subcommand_matches("call") {
-        return debug_call_command(matches, full_config, false).await;
+        return debug_call_command(matches, full_config, false);
     }
     if let Some(matches) = matches.subcommand_matches("run") {
-        return debug_call_command(matches, full_config, true).await;
+        return debug_call_command(matches, full_config, true);
     }
     if let Some(matches) = matches.subcommand_matches("message") {
-        return debug_message_command(matches, config).await;
+        return debug_message_command(matches, config);
     }
     if let Some(matches) = matches.subcommand_matches("replay") {
-        return replay_transaction_command(matches, config).await;
+        return replay_transaction_command(matches, config);
     }
     if let Some(matches) = matches.subcommand_matches("deploy") {
-        return debug_deploy_command(matches, config).await;
+        return debug_deploy_command(matches, config);
     }
     if let Some(matches) = matches.subcommand_matches("sequence-diagram") {
-        return sequence_diagram_command(matches, config).await;
+        return sequence_diagram_command(matches, config);
     }
     Err("unknown command".to_owned())
-    })
 }
 
-async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is_account: bool) -> Result<(), String> {
-    let trace_path = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
+fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is_account: bool) -> Result<(), String> {
+    let trace_path = matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH);
     let config_path = matches.value_of("CONFIG_PATH");
     let contract_path = matches.value_of("CONTRACT_PATH");
     let is_default_config = matches.is_present("DEFAULT_CONFIG");
@@ -388,9 +402,9 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
     let (tx_id, address) = if !is_account {
         let tx_id = matches.value_of("TX_ID");
         if !config.is_json {
-            print_args!(tx_id, trace_path, config_path, contract_path);
+            print_args!(tx_id, Some(trace_path), config_path, contract_path);
         }
-        let address = query_address(tx_id.unwrap(), config).await?;
+        let address = query_address(tx_id.unwrap(), config)?;
         (tx_id.unwrap().to_string(), address)
     } else {
         let address =
@@ -400,14 +414,15 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
                .ok_or("ADDRESS is not defined. Supply it in the config file or command line."
                    .to_string())?);
         if !config.is_json {
-            print_args!(address, trace_path, config_path, contract_path);
+            print_args!(address, Some(trace_path), config_path, contract_path);
         }
         let address = address.unwrap();
-        let transactions = query_transactions(&address, config).await?;
+        let transactions = query_transactions(&address, config)?;
         let tr_id = choose_transaction(transactions)?;
         (tr_id, address)
     };
 
+crate::RUNTIME.block_on(async move {
     let config_path = if is_default_config || config_boc.is_some() {
         ""
     } else {
@@ -437,11 +452,10 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         }
     };
 
-    let trace_path = trace_path.unwrap().to_string();
     let init_logger = || {
         log::set_max_level(log::LevelFilter::Trace);
         log::set_boxed_logger(
-            Box::new(DebugLogger::new(trace_path.clone()))
+            Box::new(DebugLogger::new(trace_path.to_string()))
         ).map_err(|e| format!("Failed to set logger: {}", e))?;
         Ok(())
     };
@@ -458,7 +472,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
     }
 
     let blockchain_config = if is_default_config || config_boc.is_some() {
-        let bc_config = get_blockchain_config(config, config_boc).await?;
+        let bc_config = get_blockchain_config(config, config_boc)?;
         Some(bc_config)
     } else {
       None
@@ -475,16 +489,17 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         blockchain_config
     ).await?;
 
-    decode_messages(tr.out_msgs, load_decode_abi(matches, config), config).await?;
+    decode_messages(tr.out_msgs, decode_abi_path(matches, config), config).await?;
     if !config.is_json {
         println!("Log saved to {}.", trace_path);
     } else {
         println!("{{}}");
     }
     Ok(())
+    })
 }
 
-async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let tx_id = matches.value_of("TX_ID");
     let config_path = matches.value_of("CONFIG_PATH");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
@@ -494,8 +509,10 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
     if !config.is_json {
         print_args!(input, tx_id, output, config_path);
     }
-
+    let bc_config = get_blockchain_config(config, config_path)?;
     let ton_client = create_client(config)?;
+
+crate::RUNTIME.block_on(async move {
     let trans = query_collection(
         ton_client.clone(),
         ParamsOfQueryCollection {
@@ -542,7 +559,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
     let result_trans = execute_debug(
-        get_blockchain_config(config, config_path).await?,
+        bc_config,
         &mut account,
         msg.as_ref(),
         trans.now(),
@@ -550,12 +567,12 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
         trans.logical_time(),
         false,
         config
-    ).await;
+    );
 
     if do_update && result_trans.is_ok() {
         Account::construct_from_cell(account.clone())
             .map_err(|e| format!("Failed to construct account: {}", e))?
-            .write_to_file(input.unwrap())
+            .write_to_file(Path::new(input.unwrap()).with_extension("boc"))
             .map_err(|e| format!("Failed to save account state: {}", e))?;
         if !config.is_json {
             println!("Contract state was updated.");
@@ -564,7 +581,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
 
     match result_trans {
         Ok(result_trans) => {
-            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config), config).await?;
+            decode_messages(result_trans.out_msgs, decode_abi_path(matches, config), config).await?;
             if !config.is_json {
                 println!("Execution finished.");
             }
@@ -579,6 +596,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
         println!("Log saved to {}", output.unwrap());
     }
     Ok(())
+})
 }
 
 fn parse_now(matches: &ArgMatches<'_>) -> Result<u64, String> {
@@ -589,56 +607,48 @@ fn parse_now(matches: &ArgMatches<'_>) -> Result<u64, String> {
     })
 }
 
-fn load_decode_abi(matches: &ArgMatches<'_>, config: &Config) -> Option<String> {
-    let abi = matches.value_of("DECODE_ABI")
+fn decode_abi_path(matches: &ArgMatches<'_>, config: &Config) -> Option<String> {
+    matches.value_of("DECODE_ABI")
         .map(|s| s.to_owned())
-        .or_else(|| abi_from_matches_or_config(matches, config).ok());
-    match abi {
-        Some(path) => match std::fs::read_to_string(path) {
-            Ok(res) => Some(res),
-            Err(e) => {
-                if !config.is_json {
-                    println!("Failed to read abi: {}", e);
-                }
-                None
-            }
-        }
-        _ => None
-    }
+        .or_else(|| abi_from_matches_or_config(matches, config).ok())
 }
 
-async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_getter: bool) -> Result<(), String> {
+fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_getter: bool) -> Result<(), String> {
     let (input, opt_abi, sign) = contract_data_from_matches_or_config_alias(matches, full_config)?;
-    let input = input.as_ref();
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let method = Some(matches.value_of("METHOD").or(full_config.config.method.as_deref())
         .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
-    let loaded_abi = load_abi(opt_abi.as_ref().unwrap(), &full_config.config).await?;
     let params = unpack_alternative_params(
         matches,
         opt_abi.as_ref().unwrap(),
         method.unwrap(),
         &full_config.config
-    ).await?;
+    )?;
 
     if !full_config.config.is_json {
         print_args!(input, method, params, sign, opt_abi, output);
     }
 
-    let ton_client = create_client(&full_config.config)?;  // TODO: create local for boc and tvc
+    let ton_client = if is_boc || is_tvc {
+        create_client_local()?
+    } else {
+        create_client(&full_config.config)?
+    };
     let input = input.unwrap();
     let mut account = if is_tvc {
-        construct_account_from_tvc(input,
-                                   matches.value_of("ACCOUNT_ADDRESS"),
-                                   Some(u64::MAX))?
+        construct_account_from_tvc(
+            &input,
+            matches.value_of("ACCOUNT_ADDRESS"),
+            matches.value_of("BALANCE").map_or(u64::MAX, |f| f.parse().unwrap())
+        )?
     } else if is_boc {
-        Account::construct_from_file(input)
+        Account::construct_from_file(&input)
             .map_err(|e| format!(" failed to load account from the file {}: {}", input, e))?
     } else {
-        let address = load_ton_address(input, &full_config.config)?;
-        let account = query_account_field(ton_client.clone(), &address, "boc").await?;
+        let address = load_ton_address(&input, &full_config.config)?;
+        let account = query_account_field(ton_client.clone(), &address, "boc")?;
         Account::construct_from_base64(&account)
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };
@@ -655,20 +665,24 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         time: Some(now),
         ..Default::default()
     };
-    let call_set = CallSet {
+    let call_set = Some(CallSet {
         function_name: method.unwrap().to_string(),
         input: Some(params),
         header: Some(header)
+    });
+    let bc_config = get_blockchain_config(&full_config.config, matches.value_of("CONFIG_PATH"))?;
+crate::RUNTIME.block_on(async move {
+    let abi = load_abi(opt_abi.as_ref().unwrap(), &full_config.config).await?;
+    let signer = if let Some(keys) = keys {
+        Signer::Keys { keys }
+    } else {
+        Signer::None
     };
     let msg_params = ParamsOfEncodeMessage {
-        abi: loaded_abi,
+        abi,
         address: Some(format!("0:{}", "0".repeat(64))),  // TODO: add option or get from input
-        call_set: Some(call_set),
-        signer: if keys.is_some() {
-            Signer::Keys { keys: keys.unwrap() }
-        } else {
-            Signer::None
-        },
+        call_set,
+        signer,
         ..Default::default()
     };
 
@@ -695,7 +709,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
     let trans = execute_debug(
-        get_blockchain_config(&full_config.config, matches.value_of("CONFIG_PATH")).await?,
+        bc_config,
         &mut acc_root,
         Some(&message),
         (now / 1000) as u32,
@@ -703,12 +717,12 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         now,
         is_getter,
         &full_config.config,
-    ).await;
+    );
 
     let mut out_res = vec![];
     let msg_string = match trans {
         Ok(trans) => {
-            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, &full_config.config), &full_config.config).await?;
+            out_res = decode_messages(trans.out_msgs, decode_abi_path(matches, &full_config.config), &full_config.config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -725,7 +739,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
     if matches.is_present("UPDATE_BOC") {
         Account::construct_from_cell(acc_root)
             .map_err(|e| format!("Failed to construct account: {}", e))?
-            .write_to_file(input)
+            .write_to_file(Path::new(&input).with_extension("boc"))
             .map_err(|e| format!("Failed to dump account: {}", e))?;
         if !full_config.config.is_json {
             println!("{} successfully updated", input);
@@ -750,13 +764,15 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         println!("{{}}");
     }
     Ok(())
+})
 }
 
-async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let input = matches.value_of("ADDRESS");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string());
     let is_boc = matches.is_present("BOC");
+    let is_tvc = matches.is_present("TVC");
     let message = matches.value_of("MESSAGE");
     if !config.is_json {
         print_args!(input, message, output, debug_info);
@@ -764,12 +780,18 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
 
     let ton_client = create_client(config)?;
     let input = input.unwrap();
-    let account = if is_boc {
+    let account = if is_tvc {
+        construct_account_from_tvc(
+            &input,
+            matches.value_of("ACCOUNT_ADDRESS"),
+            matches.value_of("BALANCE").map_or(u64::MAX, |f| f.parse().unwrap())
+        )?
+    } else if is_boc {
         Account::construct_from_file(input)
             .map_err(|e| format!(" failed to load account from the file {}: {}", input, e))?
     } else {
         let address = load_ton_address(input, config)?;
-        let account = query_account_field(ton_client.clone(), &address, "boc").await?;
+        let account = query_account_field(ton_client.clone(), &address, "boc")?;
         Account::construct_from_base64(&account)
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };
@@ -790,9 +812,11 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
         Box::new(DebugLogger::new(trace_path.clone()))
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
+    let bc_config = get_blockchain_config(config, matches.value_of("CONFIG_PATH"))?;
+crate::RUNTIME.block_on(async move {
     let now = parse_now(matches)?;
     let trans = execute_debug(
-        get_blockchain_config(config, matches.value_of("CONFIG_PATH")).await?,
+        bc_config,
         &mut acc_root,
         Some(&message),
         (now / 1000) as u32,
@@ -800,11 +824,11 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
         now,
         false,
         config
-    ).await;
+    );
 
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config), config).await?;
+            decode_messages(trans.out_msgs, decode_abi_path(matches, config), config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -815,7 +839,7 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
     if matches.is_present("UPDATE_BOC") {
         Account::construct_from_cell(acc_root)
             .map_err(|e| format!("Failed to construct account: {}", e))?
-            .write_to_file(input)
+            .write_to_file(Path::new(input).with_extension("boc"))
             .map_err(|e| format!("Failed to dump account: {}", e))?;
         if !config.is_json {
             println!("{} successfully updated", input);
@@ -829,31 +853,33 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
         println!("{{}}");
     }
     Ok(())
+})
 }
 
-async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let tvc = matches.value_of("TVC");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let opt_abi = Some(abi_from_matches_or_config(matches, config)?);
+    let abi_path = abi_from_matches_or_config(matches, config)?;
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
-        .or_else(|| load_debug_info(opt_abi.as_ref().unwrap()));
+        .or_else(|| load_debug_info(&abi_path));
     let sign = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or_else(|| config.keys_path.clone());
     let params = unpack_alternative_params(
         matches,
-        opt_abi.as_ref().unwrap(),
+        &abi_path,
         "constructor",
         config
-    ).await?;
+    )?;
     let wc = Some(wc_from_matches_or_config(matches, config)?);
     if !config.is_json {
-        print_args!(tvc, params, sign, opt_abi, output, debug_info);
+        print_args!(tvc, params, sign, Some(&abi_path), output, debug_info);
     }
 
+crate::RUNTIME.block_on(async move {
     let (msg, address) = prepare_deploy_message(
         tvc.unwrap(),
-        opt_abi.as_ref().unwrap(),
+        &abi_path,
         params.as_ref().unwrap(),
         sign,
         wc.unwrap(),
@@ -879,7 +905,7 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
             ton_client.clone(),
             &address,
             "boc"
-        ).await?;
+        )?;
         Account::construct_from_base64(&account)
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };
@@ -899,8 +925,9 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
 
     let now = parse_now(matches)?;
 
+    let bc_config = get_blockchain_config(config, matches.value_of("CONFIG_PATH"))?;
     let trans = execute_debug(
-        get_blockchain_config(config, matches.value_of("CONFIG_PATH")).await?,
+        bc_config,
         &mut acc_root,
         Some(&message),
         (now / 1000) as u32,
@@ -908,11 +935,11 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
         now,
         false,
         config,
-    ).await;
+    );
 
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config), config).await?;
+            decode_messages(trans.out_msgs, decode_abi_path(matches, config), config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -925,11 +952,11 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     } else {
         println!("{{}}");
     }
-
     Ok(())
+})
 }
 
-async fn decode_messages(msgs: OutMessages, abi: Option<String>, config: &Config) -> Result<Vec<Value>, String> {
+async fn decode_messages(msgs: OutMessages, abi_path: Option<String>, config: &Config) -> Result<Vec<Value>, String> {
     if !msgs.is_empty() {
         log::debug!(target: "executor", "Output messages:\n----------------");
     }
@@ -938,7 +965,7 @@ async fn decode_messages(msgs: OutMessages, abi: Option<String>, config: &Config
 
     let mut res = vec![];
     for msg in msgs {
-        let mut ser_msg = serialize_msg(&msg.0, abi.clone(), config).await
+        let mut ser_msg = serialize_msg(&msg.0, abi_path.clone(), config).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
         let bytes = msg.0.write_to_bytes().map_err(|e| format!("Failed to serialize out message: {}", e))?;
         let msg_str = base64::encode(bytes);
@@ -952,7 +979,7 @@ async fn decode_messages(msgs: OutMessages, abi: Option<String>, config: &Config
     Ok(res)
 }
 
-async fn query_address(tr_id: &str, config: &Config) -> Result<String, String> {
+fn query_address(tr_id: &str, config: &Config) -> Result<String, String> {
     let ton_client = create_client(config)?;
     let query_result = query_with_limit(
         ton_client,
@@ -965,8 +992,7 @@ async fn query_address(tr_id: &str, config: &Config) -> Result<String, String> {
         "account_addr",
         None,
         Some(1)
-    ).await
-        .map_err(|e| format!("Failed to query address: {}", e))?;
+    ).map_err(|e| format!("Failed to query address: {}", e))?;
     match query_result.len() {
         0 => Err("Transaction was not found".to_string()),
         _ => Ok(query_result[0]["account_addr"]
@@ -993,7 +1019,7 @@ impl fmt::Display for TrDetails {
     }
 }
 
-async fn query_transactions(address: &str, config: &Config) -> Result<Vec<TrDetails>, String> {
+fn query_transactions(address: &str, config: &Config) -> Result<Vec<TrDetails>, String> {
     let ton_client = create_client(config)?;
     let order = vec![OrderBy{ path: "lt".to_string(), direction: SortDirection::DESC }];
     let query_result = query_with_limit(
@@ -1007,8 +1033,7 @@ async fn query_transactions(address: &str, config: &Config) -> Result<Vec<TrDeta
         "id now_string in_message { src msg_type_name }",
         Some(order),
         Some(TRANSACTION_QUANTITY)
-    ).await
-        .map_err(|e| format!("Failed to query address: {}", e))?;
+    ).map_err(|e| format!("Failed to query address: {}", e))?;
     match query_result.len() {
         0 => Err("Transaction list is empty.".to_string()),
         _ => {
@@ -1040,7 +1065,7 @@ fn choose_transaction(transactions: Vec<TrDetails>) -> Result<String, String> {
     Ok(transactions[chosen-1].transaction_id.trim_start_matches(|c| c == '"').trim_end_matches(|c| c == '"').to_string())
 }
 
-pub async fn execute_debug(
+pub fn execute_debug(
     bc_config: BlockchainConfig,
     account: &mut Cell,
     message: Option<&Message>,
@@ -1093,7 +1118,7 @@ pub async fn execute_debug(
         message,
          account,
         params
-    ).map_err(|e| format!("Debug failed: {}", e))
+    ).map_err(|e| format!("Debug failed: {:?}", e))
 }
 
 fn trace_callback(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {
@@ -1155,27 +1180,27 @@ fn get_position(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) -> Option<
 fn generate_callback(matches: Option<&ArgMatches<'_>>, config: &Config) -> Option<Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync>> {
     match matches {
         Some(matches) => {
-            let opt_abi = abi_from_matches_or_config(matches, config);
-            let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
+            let debug_info = matches.value_of("DBG_INFO")
+                .map(|s| s.to_string())
                 .or_else(|| 
-                    if let Ok(opt_abi) = &opt_abi {
-                        load_debug_info(opt_abi)
+                    if let Ok(abi_path) = abi_from_matches_or_config(matches, config) {
+                        load_debug_info(&abi_path)
                     } else {
                         None
                     }
                 );
-            let debug_info: Option<DbgInfo> = match debug_info {
-                Some(dbg_info) => {
-                    match File::open(dbg_info.clone()) {
+            let debug_info = match debug_info {
+                Some(debug_info) => {
+                    match File::open(&debug_info) {
                         Ok(file ) => match serde_json::from_reader(file) {
                             Ok(info) => Some(info),
                             Err(e) => {
-                                println!("Failed to serde debug info from file {}: {}", dbg_info,e);
+                                println!("Failed to serde debug info from file {}: {}", debug_info, e);
                                 None
                             },
                         },
                         Err(e) =>  {
-                            println!("Failed to open file {}: {}", dbg_info, e);
+                            println!("Failed to open file {}: {}", debug_info, e);
                             None
                         }
                     }
@@ -1202,7 +1227,7 @@ fn generate_callback(matches: Option<&ArgMatches<'_>>, config: &Config) -> Optio
 const RENDER_NONE: u8    = 0x00;
 const RENDER_GAS: u8     = 0x01;
 
-pub async fn sequence_diagram_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+pub fn sequence_diagram_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let filename = matches.value_of("ADDRESSES").unwrap();
     let file = std::fs::File::open(filename)
         .map_err(|e| format!("Failed to open file: {}", e))?;
@@ -1219,9 +1244,11 @@ pub async fn sequence_diagram_command(matches: &ArgMatches<'_>, config: &Config)
     }
     let mut output = std::fs::File::create(format!("{}.plantuml", filename))
         .map_err(|e| format!("Failed to create file: {}", e))?;
-    make_sequence_diagram(config, addresses, RENDER_NONE, &mut output).await.map(|res| {
-        println!("{}", res);
-    })
+    let res = crate::RUNTIME.block_on(async move {
+        make_sequence_diagram(config, addresses, RENDER_NONE, &mut output).await
+    })?;
+    println!("{}", res);
+    Ok(())
 }
 
 fn infer_address_width(input: &[String], min_width: usize) -> Result<usize, String> {

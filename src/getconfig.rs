@@ -265,7 +265,7 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
         &result,
         Some(vec!(OrderBy{ path: "seq_no".to_string(), direction: SortDirection::DESC })),
         Some(1),
-    ).await {
+    ) {
         Ok(result) => Ok(result),
         Err(e) => {
             if e.message.contains("Server responded with code 400") {
@@ -282,7 +282,7 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
                     &result,
                     Some(vec!(OrderBy{ path: "seq_no".to_string(), direction: SortDirection::DESC })),
                     Some(1),
-                ).await.map_err(|e| format!("failed to query master block config: {}", e))
+                ).map_err(|e| format!("failed to query master block config: {}", e))
             } else {
                 Err(format!("failed to query master block config: {}", e))
             }
@@ -489,7 +489,7 @@ fn convert_to_uint(value: &[u8], bits_count: usize) -> TokenValue {
     })
 }
 
-pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), String> {
+pub fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), String> {
     let ton = create_client_verbose(config)?;
 
     let last_key_block_query = query_with_limit(
@@ -499,7 +499,7 @@ pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), S
         "boc",
         Some(vec![OrderBy{ path: "seq_no".to_owned(), direction: SortDirection::DESC }]),
         Some(1),
-    ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
+    ).map_err(|e| format!("failed to query last key block: {}", e))?;
 
     if last_key_block_query.is_empty() {
         return Err("Key block not found".to_string());
@@ -508,14 +508,14 @@ pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), S
     let block = last_key_block_query[0]["boc"].as_str()
         .ok_or("Failed to query last block BOC.")?.to_owned();
 
+crate::RUNTIME.block_on(async move {
     let bc_config = get_blockchain_config(
         ton.clone(),
         ParamsOfGetBlockchainConfig {
             block_boc: block,
             ..Default::default()
         },
-    ).await
-        .map_err(|e| format!("Failed to get blockchain config: {}", e))?;
+    ).await.map_err(|e| format!("Failed to get blockchain config: {}", e))?;
 
     let bc_config = base64::decode(bc_config.config_boc)
         .map_err(|e| format!("Failed to decode BOC: {}", e))?;
@@ -527,4 +527,5 @@ pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), S
         println!("{{}}");
     }
     Ok(())
+})
 }
