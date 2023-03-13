@@ -24,7 +24,7 @@ use crate::helpers::{
     events_filter,
     print_message,
 };
-use crate::multisig::{send_with_body, MSIG_ABI};
+use crate::multisig::{MSIG_ABI};
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 
 use serde_json::json;
@@ -928,4 +928,31 @@ async fn call_contract_and_get_answer(
     }
     println!("Done");
     Ok(())
+}
+
+pub async fn send_with_body(
+    config: &Config,
+    addr: &str,
+    dest: &str,
+    value: &str,
+    keys: &str,
+    body: &str,
+) -> Result<(), String> {
+    let params = json!({
+        "dest": dest,
+        "value": convert::convert_token(value)?,
+        "bounce": true,
+        "allBalance": false,
+        "payload": body,
+    }).to_string();
+
+    crate::call::call_contract(
+        config,
+        addr,
+        MSIG_ABI,
+        "submitTransaction",
+        &params,
+        Some(keys.to_owned()),
+        false,
+    ).await
 }

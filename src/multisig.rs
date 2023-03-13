@@ -15,14 +15,16 @@ use crate::call;
 use crate::config::Config;
 use crate::convert;
 use crate::deploy::prepare_deploy_message_params;
-use crate::helpers::{create_client_local, load_abi, load_ton_address, create_client_verbose, load_file_with_url};
+use crate::helpers::{create_client_local, load_ton_address, create_client_verbose, load_file_with_url};
 use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
 use serde_json::json;
-use ton_client::abi::{encode_message_body, ParamsOfEncodeMessageBody, CallSet};
+use ton_client::abi::{Abi, AbiContract, AbiParam, encode_message_body, ParamsOfEncodeMessageBody, CallSet};
 use crate::crypto::load_keypair;
 
 const SAFEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/safemultisig/SafeMultisigWallet.tvc?raw=true";
 const SETCODEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/setcodemultisig/SetcodeMultisigWallet.tvc?raw=true";
+const SAFEMULTISIG_V2_LINK: &str = "https://github.com/EverSurf/contracts/blob/main/multisig2/build/SafeMultisig.tvc?raw=true";
+const SETCODEMULTISIG_V2_LINK: &str = "https://github.com/EverSurf/contracts/blob/main/multisig2/build/SetcodeMultisig.tvc?raw=true";
 
 pub const MSIG_ABI: &str = r#"{
 	"ABI version": 2,
@@ -180,45 +182,238 @@ const LOCAL_GIVER_TRANSFER: &str = r#"{
 
 const LOCAL_GIVER_ADDR: &str = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
 
+#[derive(Default)]
+pub struct CallArgs {
+    params: serde_json::Value,
+    func_name: String,
+    image: Option<Vec<u8>>,
+}
+
+impl CallArgs {
+    pub async fn submit(matches: &ArgMatches<'_>) -> Result<Self, String> {
+        let dest = matches.value_of("DEST")
+            .map(|s| s.to_owned())
+            .ok_or("--dst parameter is not defined".to_string())?;
+        let value = matches.value_of("VALUE")
+            .ok_or("--value parameter is not defined".to_string())?;
+        let comment = matches.value_of("PURPOSE")
+            .map(|s| s.to_owned());
+        let v2 = matches.is_present("V2");
+
+        if v2 {
+            // TODO parse stateinit arg
+        }
+
+        let body = if let Some(ref txt) = comment {
+            encode_transfer_body(&txt).await?
+        } else {
+            "".to_owned()
+        };
+        let params = json!({
+            "dest": dest,
+            "value": convert::convert_token(value)?,
+            "bounce": true,
+            "allBalance": false,
+            "payload": body,
+        });
+
+        Ok(Self {
+            params,
+            func_name: "submitTransaction".to_owned(),
+            ..Default::default()
+        })
+    }
+    pub async fn submit_payload(matches: &ArgMatches<'_>, body: String) -> Result<Self, String> {
+        let mut args = Self::submit(matches).await?;
+        args.params["payload"] = json!(body);
+        Ok(args)
+    }
+    pub async fn deploy(matches: &ArgMatches<'_>) -> Result<Self, String> {
+        let is_setcode = matches.is_present("SETCODE");
+        let v2 = matches.is_present("V2");
+
+        let target = if v2 {
+            if is_setcode {
+                SETCODEMULTISIG_V2_LINK
+            } else {
+                SAFEMULTISIG_V2_LINK
+            }
+        } else {
+            if is_setcode {
+                SETCODEMULTISIG_LINK
+            } else {
+                SAFEMULTISIG_LINK
+            }
+        };
+
+        let image = load_file_with_url(target, 30000).await?;
+
+        let owners = matches.value_of("OWNERS")
+            .map(|owners| {
+                owners.replace('[', "")
+                    .replace(']', "")
+                    .replace('\"', "")
+                    .replace('\'', "")
+                    .replace("0x", "")
+                    .split(',')
+                    .map(|o|
+                        format!("0x{}", o)
+                    )
+                    .collect::<Vec<String>>()
+            });
+            
+        let mut params = json!({
+            "owners": owners,
+            "reqConfirms": matches.value_of("CONFIRMS").unwrap_or("1"),
+        });
+
+        if v2 {
+            let lifetime = matches.value_of("LIFETIME")
+                .map(|s| s.parse::<u64>())
+                .unwrap_or(Ok(0))
+                .map_err(|e| e.to_string())?;
+            params["lifetime"] = json!(lifetime);
+        }
+
+        Ok(Self {
+            params,
+            func_name: "constructor".to_owned(),
+            image: Some(image)
+        })
+    }
+}
+
+pub struct MultisigArgs {
+    addr: String,
+    abi: Abi,
+    call_args: CallArgs,
+    keys: String,
+}
+
+impl MultisigArgs {
+    pub fn new(matches: &ArgMatches<'_>, config: &Config, call_args: CallArgs) -> Result<Self, String> {
+        let address = matches.value_of("MSIG")
+            .map(|s| s.to_owned())
+            .or_else(|| config.wallet.clone())
+            .ok_or("multisig address is not defined".to_string())?;
+        let keys = matches.value_of("SIGN")
+            .or_else(|| matches.value_of("KEYS"))
+            .map(|s| s.to_owned())
+            .or_else(|| config.keys_path.clone())
+            .ok_or("sign key is not defined".to_string())?;
+        let v2 = matches.is_present("V2");
+
+        let addr = load_ton_address(&address, &config)?;
+        let mut abi = serde_json::from_str::<AbiContract>(MSIG_ABI).unwrap_or_default();
+        if v2 {
+            abi.version = Some("2.3".to_owned());
+            if let Some(f) = abi.functions.iter_mut().find(|e| &e.name == "submitTransaction") {
+                f.inputs.push(AbiParam {
+                    name: "stateInit".to_owned(),
+                    param_type: "optional(cell)".to_owned(),
+                    components: vec![],
+                });
+            }
+            if let Some(f) = abi.functions.iter_mut().find(|e| &e.name == "constructor") {
+                f.inputs.push(AbiParam {
+                    name: "lifetime".to_owned(),
+                    param_type: "uint32".to_owned(),
+                    components: vec![],
+                });
+            }
+        }
+
+        Ok(Self {addr, call_args, abi: Abi::Contract(abi), keys})
+    }
+    pub fn address(&self) -> &str {
+        &self.addr
+    }
+    pub fn params(&self) -> &serde_json::Value {
+        &self.call_args.params
+    }
+    pub fn abi(&self) -> &Abi {
+        &self.abi
+    }
+    pub fn abi_string(&self) -> String {
+        if let Abi::Contract(ref abi) = self.abi {
+            serde_json::to_string(abi).unwrap()
+        } else {
+            unreachable!();
+        }
+    }
+    pub fn func_name(&self) -> &str {
+        &self.call_args.func_name
+    }
+    pub fn keys(&self) -> &str {
+        &self.keys
+    }
+    pub fn image(&self) -> Option<&[u8]> {
+        self.call_args.image.as_ref().map(|v| v.as_slice())
+    } 
+    pub async fn execute(self, config: &Config) -> Result<(), String> {
+        call::call_contract(
+            config,
+            self.address(),
+            &self.abi_string(),
+            self.func_name(),
+            &self.params().to_string(),
+            Some(self.keys.clone()),
+            false,
+        ).await
+    }
+}
+
 pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
+    let v2_arg = Arg::with_name("V2")
+        .long("--v2")
+        .help("Force to interact with account as a multisig v2.");
+    let bounce_arg = Arg::with_name("BOUNCE")
+        .long("--bounce")
+        .short("-b")
+        .help("Send bounce message to destination account.");
+
+    let keys_arg = Arg::with_name("KEYS")
+        .long("--keys")
+        .short("-k")
+        .takes_value(true)
+        .help("Path to the file with a keypair.");
+
     SubCommand::with_name("multisig")
-        .about("Multisignature wallet commands.")        
+        .about("Multisignature wallet commands.")
         .setting(AppSettings::AllowNegativeNumbers)
         .setting(AppSettings::DontCollapseArgsInUsage)
         .subcommand(SubCommand::with_name("send")
             .setting(AppSettings::AllowLeadingHyphen)
             .about("Transfers funds from the multisignature wallet to the recipient.")
-            .arg(Arg::with_name("ADDRESS")
+            .arg(Arg::with_name("MSIG")
                 .long("--addr")
                 .takes_value(true)
-                .help("Wallet address."))
+                .help("Wallet address. If undefined then config.wallet is used."))
             .arg(Arg::with_name("DEST")
                 .long("--dest")
                 .takes_value(true)
-                .help("Recepient address."))
+                .help("Recipient address."))
             .arg(Arg::with_name("VALUE")
                 .long("--value")
                 .takes_value(true)
-                .help("Amount of funds to transfer (in tons)."))
+                .help("Amount of funds to transfer (in evers)."))
             .arg(Arg::with_name("PURPOSE")
                 .long("--purpose")
                 .takes_value(true)
-                .help("Purpose of payment."))
+                .help("Optional, comment attached to transfer."))
             .arg(Arg::with_name("SIGN")
                 .long("--sign")
                 .takes_value(true)
-                .help("Seed phrase or path to the file with keypair.")))
+                .help("Seed phrase or path to file with keypair."))
+            .arg(bounce_arg)
+            .arg(v2_arg.clone()))
         .subcommand(SubCommand::with_name("deploy")
             .setting(AppSettings::AllowLeadingHyphen)
             .about("Deploys a multisignature wallet with a given public key. By default deploys a SafeMultisigWallet with one custodian, which can be tuned with flags.")
-            .arg(Arg::with_name("KEYS")
-                .long("--keys")
-                .short("-k")
-                .takes_value(true)
-                .help("Path to the file with a keypair."))
+            .arg(keys_arg)
             .arg(Arg::with_name("SETCODE")
                 .long("--setcode")
-                .help("Deploy a SetcodeMultisigWallet."))
+                .help("Deploy SetcodeMultisig instead of SafeMultisig."))
             .arg(Arg::with_name("VALUE")
                 .long("--local")
                 .takes_value(true)
@@ -228,12 +423,13 @@ pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
                 .long("--owners")
                 .takes_value(true)
                 .short("-o")
-                .help("Array of Multisignature wallet owners public keys. Note that deployer could be not included in this case. If not specified the only owner is contract deployer."))
+                .help("Array of wallet owners public keys. Note: deployer could be not included in this case. If not specified the only owner is contract deployer."))
             .arg(Arg::with_name("CONFIRMS")
                 .long("--confirms")
                 .takes_value(true)
                 .short("-c")
-                .help("Number of confirmations required for executing transaction. Default value is 1.")))
+                .help("Number of confirmations required for executing transaction. Default value is 1."))
+            .arg(v2_arg))
 }
 
 pub async fn multisig_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
@@ -247,31 +443,21 @@ pub async fn multisig_command(m: &ArgMatches<'_>, config: &Config) -> Result<(),
 }
 
 async fn multisig_send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let address = matches.value_of("ADDRESS")
-        .ok_or("--addr parameter is not defined".to_string())?;
-    let dest = matches.value_of("DEST")
-        .ok_or("--dst parameter is not defined".to_string())?;
-    let keys = matches.value_of("SIGN")
-        .ok_or("--sign parameter is not defined".to_string())?;
-    let value = matches.value_of("VALUE")
-        .ok_or("--value parameter is not defined".to_string())?;
-    let comment = matches.value_of("PURPOSE");
-
-    let address = load_ton_address(address, &config)?;
-    send(config, address.as_str(), dest, value, keys, comment).await
+    let call_args = CallArgs::submit(matches).await?;
+    let common_args = MultisigArgs::new(matches, config, call_args)?;
+    send(config, common_args).await
 }
 
-pub async fn encode_transfer_body(text: &str, config: &Config) -> Result<String, String> {
-    let text = hex::encode(text.as_bytes());
-    let client = create_client_local()?;
-    let abi = load_abi(TRANSFER_WITH_COMMENT, config).await?;
+pub async fn encode_transfer_body(text: &str) -> Result<String, String> {
     encode_message_body(
-        client.clone(),
+        create_client_local()?,
         ParamsOfEncodeMessageBody {
-            abi,
+            abi: Abi::Json(TRANSFER_WITH_COMMENT.to_owned()),
             call_set: CallSet::some_with_function_and_input(
                 "transfer",
-                json!({ "comment": text    }),
+                json!({
+                    "comment": hex::encode(text.as_bytes()) 
+                }),
             ).ok_or("failed to create CallSet with specified parameters")?,
             is_internal: true,
             ..Default::default()
@@ -283,88 +469,27 @@ pub async fn encode_transfer_body(text: &str, config: &Config) -> Result<String,
 
 async fn send(
     config: &Config,
-    addr: &str,
-    dest: &str,
-    value: &str,
-    keys: &str,
-    comment: Option<&str>
+    args: MultisigArgs,
 ) -> Result<(), String> {
-    let body = if let Some(text) = comment {
-        encode_transfer_body(text, config).await?
-    } else {
-        "".to_owned()
-    };
-
-    send_with_body(config, addr, dest, value, keys, &body).await
-}
-
-pub async fn send_with_body(
-    config: &Config,
-    addr: &str,
-    dest: &str,
-    value: &str,
-    keys: &str,
-    body: &str,
-) -> Result<(), String> {
-    let params = json!({
-        "dest": dest,
-        "value": convert::convert_token(value)?,
-        "bounce": true,
-        "allBalance": false,
-        "payload": body,
-    }).to_string();
-
-    call::call_contract(
-        config,
-        addr,
-        MSIG_ABI,
-        "submitTransaction",
-        &params,
-        Some(keys.to_owned()),
-        false,
-    ).await
+    args.execute(config).await
 }
 
 async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let keys = matches.value_of("KEYS")
-        .map(|s| s.to_string())
-        .or(config.keys_path.clone())
-        .ok_or("keypair file is not defined. Supply it in the config file or command line.".to_string())?;
-
-    let is_setcode = matches.is_present("SETCODE");
-
-    let target = if is_setcode {
-        SETCODEMULTISIG_LINK
-    } else {
-        SAFEMULTISIG_LINK
-    };
-
-    let tvc_bytes = load_file_with_url(target, config.timeout as u64).await?;
-    let abi = load_abi(MSIG_ABI, config).await?;
-
-    let keys = load_keypair(&keys)?;
-
-    let owners_string = if let Some(owners) = matches.value_of("OWNERS") {
-        owners.replace('[', "")
-            .replace(']', "")
-            .replace('\"', "")
-            .replace('\'', "")
-            .replace("0x", "")
-            .split(',')
-            .map(|o|
-                format!("\"0x{}\"", o)
-            )
-            .collect::<Vec<String>>()
-            .join(",")
-    } else {
-        format!(r#""0x{}""#, keys.public.clone())
-    };
-    let param_str = format!(r#"{{"owners":[{}],"reqConfirms":{}}}"#,
-                            owners_string,
-                            matches.value_of("CONFIRMS").unwrap_or("1")
-    );
-
-    let (msg, address) = prepare_deploy_message_params(&tvc_bytes, abi, &param_str, Some(keys), config.wc).await?;
+    let call_args = CallArgs::deploy(matches).await?;
+    let args = MultisigArgs::new(matches, config, call_args)?;
+    
+    let keys = load_keypair(args.keys())?;
+    let mut params = args.params().clone();
+    if params["owners"].is_null() {
+        params["owners"] = json!(vec![format!("0x{}", &keys.public)]);
+    }
+    let (msg, address) = prepare_deploy_message_params(
+        args.image().unwrap_or_default(),
+        args.abi().clone(),
+        &params.to_string(),
+        Some(keys),
+        config.wc
+    ).await?;
 
     if !config.is_json {
         println!("Wallet address: {}", address);

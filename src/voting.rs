@@ -26,7 +26,7 @@ pub async fn create_proposal(
 	offline: bool,
 ) -> Result<(), String> {
 
-	let payload = encode_transfer_body(text, config).await?;
+	let payload = encode_transfer_body(text).await?;
 
 	let params = json!({
 		"dest": dest,
