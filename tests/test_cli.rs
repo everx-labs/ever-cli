@@ -655,7 +655,7 @@ fn test_async_deploy() -> Result<(), Box<dyn std::error::Error>> {
     fs::remove_file(config_path)?;
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
-        .arg(addr.clone());
+        .arg(addr);
 
     wait_for_cmd_res(&mut cmd, "acc_type:      Active")?;
 
@@ -2821,7 +2821,7 @@ fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--abi")
         .arg(SAFEMSIG_ABI)
         .arg("--addr")
-        .arg(address.clone())
+        .arg(address)
         .arg("-m")
         .arg("getParameters")
         .arg("{}");
@@ -2840,7 +2840,7 @@ fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
         Some(config_path)
     )?;
 
-    let params = format!("{{\"dest\":\"{}\",\"value\":1000000000,\"bounce\":false}}", address.clone());
+    let params = format!("{{\"dest\":\"{}\",\"value\":1000000000,\"bounce\":false}}", address);
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
         .arg(config_path)
@@ -2884,7 +2884,7 @@ fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
         .arg("run")
         .arg("--abi")
         .arg(SAFEMSIG_ABI)
-        .arg(address.clone())
+        .arg(address)
         .arg("getParameters")
         .arg("{}");
     cmd.assert()
@@ -2962,7 +2962,7 @@ fn test_alternative_parameters() -> Result<(), Box<dyn std::error::Error>> {
 
     set_config(
         &["--abi", "--addr", "--keys", "--method"],
-        &[abi_path, &address.clone(), key_path, "add"],
+        &[abi_path, &address, key_path, "add"],
         Some(config_path)
     )?;
 
@@ -3082,7 +3082,7 @@ fn test_alternative_paths() -> Result<(), Box<dyn std::error::Error>> {
 
     set_config(
         &["--abi"],
-        &[&*SAFEMSIG_ABI_LINK],
+        &[SAFEMSIG_ABI_LINK],
         Some(config_path)
     )?;
 
@@ -3129,7 +3129,7 @@ fn test_alternative_paths() -> Result<(), Box<dyn std::error::Error>> {
         .arg(config_path)
         .arg("runx")
         .arg("--addr")
-        .arg(address.clone())
+        .arg(address)
         .arg("-m")
         .arg("getParameters")
         .arg("--abi")

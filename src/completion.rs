@@ -147,14 +147,13 @@ fn main() {
                 }
             }
         }.or(config.config.abi_path);
-        if abi_path.is_none() {
-            return;
-        }
-        if let Ok(abi) = std::fs::read_to_string(&abi_path.unwrap()) {
-            if let Ok(abi_contract) = serde_json::from_str::<AbiContract>(&abi) {
-                for function in abi_contract.functions {
-                    if function.name.starts_with(word_being_completed) {
-                        println!("{}", function.name);
+        if let Some(abi_path) = abi_path {
+            if let Ok(abi) = std::fs::read_to_string(abi_path) {
+                if let Ok(abi_contract) = serde_json::from_str::<AbiContract>(&abi) {
+                    for function in abi_contract.functions {
+                        if function.name.starts_with(word_being_completed) {
+                            println!("{}", function.name);
+                        }
                     }
                 }
             }

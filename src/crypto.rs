@@ -164,7 +164,7 @@ pub fn generate_keypair(keys_path: Option<&str>, mnemonic: Option<&str>, config:
         }
     };
 
-    let keys = if mnemonic.contains(" ") {
+    let keys = if mnemonic.contains(' ') {
         generate_keypair_from_mnemonic(&mnemonic)?
     } else {
         generate_keypair_from_secret(mnemonic)?

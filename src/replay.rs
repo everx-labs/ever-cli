@@ -140,7 +140,7 @@ pub async fn fetch(config: &Config, account_address: &str, filename: &str, lt_bo
             println!("account {}: zerostate not found, writing out default initial state", account_address);
         }
         let data = format!("{{\"id\":\"{}\",\"boc\":\"{}\"}}\n",
-            account_address, base64::encode(&Account::default().write_to_bytes()
+            account_address, base64::encode(Account::default().write_to_bytes()
                 .map_err(|e| format!("failed to serialize account: {}", e))?));
         writer.write_all(data.as_bytes()).map_err(|e| format!("Failed to write to file: {}", e))?;
     }
@@ -316,12 +316,10 @@ pub async fn replay(
         let state = choose(&mut account_state, &mut config_state);
         let tr = state.tr.as_ref().ok_or("failed to obtain state transaction")?;
 
-        if iterate_config {
-            if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
-                assert!(tr.block_lt > cur_block_lt);
-                cur_block_lt = tr.block_lt;
-                config = construct_blockchain_config(&config_account)?;
-            }
+        if iterate_config && (cur_block_lt == 0 || cur_block_lt != tr.block_lt) {
+            assert!(tr.block_lt > cur_block_lt);
+            cur_block_lt = tr.block_lt;
+            config = construct_blockchain_config(&config_account)?;
         }
 
         let mut account_root = state.account.serialize()
@@ -378,7 +376,7 @@ pub async fn replay(
             }
             if trace_callback.is_some() {
                 init_trace_last_logger()?;
-                let executor = Box::new(OrdinaryTransactionExecutor::new(config.clone()));
+                let executor = Box::new(OrdinaryTransactionExecutor::new(config));
                 let msg = tr.tr.in_msg_cell().map(|c| Message::construct_from_cell(c)
                     .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
                 let params = ExecuteParams {
@@ -545,7 +543,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
     println!("Pre-replaying block accounts");
     let tasks: Vec<_> = accounts.iter().map(|(account, txns)| {
         let account_filename = account.split(':').last().unwrap_or("").to_owned();
-        let _config = config.clone().to_owned();
+        let _config = config.clone();
         let txnid = txns[0].0.clone();
         tokio::spawn(async move {
             if !std::path::Path::new(format!("{}-{}.boc", account_filename, txnid).as_str()).exists() {
