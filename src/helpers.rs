@@ -155,7 +155,7 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
             message_expiration_timeout_grow_factor: 1.3,
         },
         crypto: CryptoConfig {
-            mnemonic_dictionary: 1,
+            mnemonic_dictionary: Default::default(),
             mnemonic_word_count: WORD_COUNT,
             hdkey_derivation_path: HD_PATH.to_string(),
         },

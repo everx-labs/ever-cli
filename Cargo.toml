@@ -16,7 +16,7 @@ license = 'Apache-2.0'
 name = 'tonos-cli'
 readme = 'README.md'
 repository = 'https://github.com/tonlabs/tonos-cli'
-version = '0.32.0'
+version = '0.32.1'
 default-run = 'tonos-cli'
 
 [features]
@@ -77,23 +77,24 @@ path = "src/completion.rs"
 ton_abi = { git = 'https://github.com/tonlabs/ever-abi.git', tag = '2.3.54' }
 
 [patch.'https://github.com/tonlabs/ton-labs-block.git']
-ton_block = { git = 'https://github.com/tonlabs/ever-block.git', tag = '1.9.18' }
+ton_block = { git = 'https://github.com/tonlabs/ever-block.git', tag = '1.9.37' }
 
 [patch.'https://github.com/tonlabs/ton-labs-block-json.git']
 ton_block_json = { git = 'https://github.com/tonlabs/ever-block-json.git', tag = '0.7.83' }
 
 [patch.'https://github.com/tonlabs/TON-SDK.git']
-ton_client = { git = 'https://github.com/tonlabs/ever-sdk.git', tag = '1.40.0' }
-ton_sdk = { git = 'https://github.com/tonlabs/ever-sdk.git', tag = '1.40.0' }
+ton_client = { git = 'https://github.com/tonlabs/ever-sdk.git', branch = '1.42.0-rc' }
+ton_client_processing = { git = 'https://github.com/tonlabs/ever-sdk.git', branch = '1.42.0-rc' }
+ton_sdk = { git = 'https://github.com/tonlabs/ever-sdk.git', branch = '1.42.0-rc' }
 
 [patch.'https://github.com/tonlabs/ton-labs-executor.git']
-ton_executor = { git = 'https://github.com/tonlabs/ever-executor.git', tag = '1.15.154' }
+ton_executor = { git = 'https://github.com/tonlabs/ever-executor.git', tag = '1.15.185' }
 
 [patch.'https://github.com/tonlabs/ton-labs-assembler.git']
 ton_labs_assembler = { git = 'https://github.com/tonlabs/ever-assembler.git', tag = '1.2.77' }
 
 [patch.'https://github.com/tonlabs/ton-labs-types.git']
-ton_types = { git = 'https://github.com/tonlabs/ever-types.git', tag = '1.12.6' }
+ton_types = { git = 'https://github.com/tonlabs/ever-types.git', tag = '1.12.7' }
 
 [patch.'https://github.com/tonlabs/ton-labs-vm.git']
-ton_vm = { git = 'https://github.com/tonlabs/ever-vm.git', tag = '1.8.96' }
+ton_vm = { git = 'https://github.com/tonlabs/ever-vm.git', tag = '1.8.125' }

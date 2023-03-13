@@ -40,7 +40,7 @@ pub fn gen_seed_phrase() -> Result<String, String> {
     mnemonic_from_random(
         client,
         ParamsOfMnemonicFromRandom {
-            dictionary: Some(1),
+            dictionary: Some(Default::default()),
             word_count: Some(WORD_COUNT),
             ..Default::default()
         },
@@ -54,7 +54,7 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     let hdk_master = hdkey_xprv_from_mnemonic(
         client.clone(),
         ParamsOfHDKeyXPrvFromMnemonic {
-            dictionary: Some(1),
+            dictionary: Some(Default::default()),
             word_count: Some(WORD_COUNT),
             phrase: mnemonic.to_string(),
             ..Default::default()

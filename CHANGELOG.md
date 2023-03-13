@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## Version: 0.32.1
+
+### New
+- Fixed code for support SDK version 1.42
+
 ## Version: 0.30.1
 
 ### New
