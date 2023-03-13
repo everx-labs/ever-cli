@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright (C) 2019-2023 EverX. All Rights Reserved.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -113,7 +113,7 @@ async fn run(
 
     let params = Some(load_params(params.unwrap().as_ref())?);
 
-    let now = now()?;
+    let now = now();
     let expire_at = config.lifetime + now;
     let header = FunctionHeader {
         expire: Some(expire_at),

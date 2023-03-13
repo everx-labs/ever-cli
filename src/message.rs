@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright (C) 2019-2023 EverX. All Rights Reserved.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -85,7 +85,7 @@ pub fn prepare_message_params (
 
 pub fn print_encoded_message(msg: &EncodedMessage, is_json:bool) {
     let expire = if let Some(expire) = msg.expire {
-        let expire_at = Local.timestamp(expire as i64, 0);
+        let expire_at = Local.timestamp_opt(expire as i64, 0).single().unwrap();
         expire_at.to_rfc2822()
     } else {
         "unknown".to_string()

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright (C) 2019-2023 EverX. All Rights Reserved.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -102,16 +102,15 @@ pub fn load_ton_address(addr: &str, config: &Config) -> Result<String, String> {
     Ok(addr)
 }
 
-pub fn now() -> Result<u32, String> {
-    Ok(SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .map_err(|e| format!("failed to obtain system time: {}", e))?
-        .as_secs() as u32
-    )
+pub fn now() -> u32 {
+    (now_ms() / 1000) as u32
 }
 
 pub fn now_ms() -> u64 {
-    chrono::prelude::Utc::now().timestamp_millis() as u64
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_else(|e| panic!("failed to obtain system time: {}", e))
+        .as_millis() as u64
 }
 
 pub type TonClient = Arc<ClientContext>;

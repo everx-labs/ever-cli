@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2023 TON DEV SOLUTIONS LTD.
+ * Copyright (C) 2019-2023 EverX. All Rights Reserved.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -13,13 +13,11 @@
 
 use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer};
 use num_bigint::BigUint;
-use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config::Config;
-use crate::helpers::{create_client_verbose, query_with_limit};
+use crate::helpers::{create_client_verbose, query_with_limit, now, now_ms};
 use serde_json::json;
 use ton_abi::{Contract, Token, TokenValue, Uint};
-use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, Serializable};
-use ton_block::MsgAddressExt::AddrNone;
+use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressExt, MsgAddressInt, Serializable};
 use ton_client::net::{OrderBy, SortDirection};
 use ton_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
 use ton_types::{BuilderData, Cell, IBitstring, SliceData};
@@ -404,7 +402,7 @@ fn prepare_message_new_config_param(
     private_key_of_config_account: &[u8]
 ) -> Result<Message, String> {
     let prefix = hex::decode(PREFIX_UPDATE_CONFIG_MESSAGE_DATA).unwrap();
-    let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32 + 100; // timestamp + 100 secs
+    let since_the_epoch = now() + 100; // timestamp + 100 secs
 
     let mut cell = BuilderData::default();
     cell.append_raw(prefix.as_slice(), 32).unwrap();
@@ -429,7 +427,7 @@ fn prepare_message_new_config_param(
     cell.checked_append_reference(config_param).unwrap();
 
     let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
-    let mut header = ExternalInboundMessageHeader::new(AddrNone, config_contract_address);
+    let mut header = ExternalInboundMessageHeader::new(MsgAddressExt::AddrNone, config_contract_address);
     header.import_fee = Grams::zero();
     let body = SliceData::load_builder(cell).unwrap();
     let message = Message::with_ext_in_header_and_body(header, body);
@@ -450,7 +448,7 @@ fn prepare_message_new_config_param_solidity(
     let keypair = Keypair { secret, public };
     
     let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
-    let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros() as u64;
+    let since_the_epoch = now_ms();
 
     let header = [("time".to_owned(), TokenValue::Time(since_the_epoch))]
         .into_iter()
@@ -472,7 +470,7 @@ fn prepare_message_new_config_param_solidity(
         .and_then(SliceData::load_builder)
         .map_err(|err| format!("cannot prepare message body {}", err))?;
 
-    let hdr = ExternalInboundMessageHeader::new(AddrNone, config_contract_address);
+    let hdr = ExternalInboundMessageHeader::new(MsgAddressExt::AddrNone, config_contract_address);
     Ok(Message::with_ext_in_header_and_body(hdr, body))
 }
 
