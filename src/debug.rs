@@ -182,6 +182,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
     let account_address = Arg::with_name("ACCOUNT_ADDRESS")
         .long("--tvc_address")
         .takes_value(true)
+        .allow_hyphen_values(true)
         .requires("TVC")
         .help("Account address for account constructed from TVC.");
 
@@ -297,8 +298,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
 
     let call_cmd = run_cmd.clone().name("call")
         .about("Play call locally with trace")
-        .arg(sign_arg.clone())
-        .arg(update_arg.clone());
+        .arg(sign_arg.clone());
 
     let config_boc_arg = Arg::with_name("CONFIG_BOC")
         .help("Path to the config contract boc.")
@@ -696,7 +696,7 @@ crate::RUNTIME.block_on(async move {
         .map_err(|e| format!("Failed to construct message: {}", e))?;
 
     if is_getter {
-        account.set_balance(CurrencyCollection::with_grams(u64::MAX));
+        account.set_balance(CurrencyCollection::with_grams((1 << 56) - 1));
     }
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;

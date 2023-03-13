@@ -96,7 +96,7 @@ pub fn load_ton_address(addr: &str, config: &Config) -> Result<String, String> {
     } else {
         addr.to_owned()
     };
-    let _ = MsgAddressInt::from_str(&addr)
+    MsgAddressInt::from_str(&addr)
         .map_err(|e| format!("Address is specified in the wrong format. Error description: {}", e))?;
     Ok(addr)
 }
@@ -545,8 +545,8 @@ pub fn print_account(
 pub fn construct_account_from_tvc(tvc_path: &str, address: Option<&str>, balance: u64) -> Result<Account, String> {
     Account::active_by_init_code_hash(
         match address {
-            Some(address) => MsgAddressInt::from_str(address)
-                .map_err(|e| format!("Failed to set address: {}", e))?,
+            Some(address) => MsgAddressInt::from_str(address.trim())
+                .map_err(|e| format!("Failed to set address {}: {}", address, e))?,
             _ => MsgAddressInt::default()
         },
         CurrencyCollection::with_grams(balance),
@@ -1006,9 +1006,18 @@ fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String> {
 pub fn get_blockchain_config(cli_config: &Config, config_contract_boc_path: Option<&str>) ->
     Result<BlockchainConfig, String> {
     if let Some(config_path) = config_contract_boc_path {
-        let acc = Account::construct_from_file(config_path)
-            .map_err(|e| format!("Failed to load config contract account from file {config_path}: {e}"))?;
-        construct_blockchain_config(&acc)
+        let bytes = std::fs::read(config_path)
+            .map_err(|e| format!("Failed to load config from file {config_path}: {e}"))?;
+        let cell = ton_types::deserialize_tree_of_cells(&mut std::io::Cursor::new(bytes))
+            .map_err(|e| format!("Failed to deserialize cell from file {config_path}: {e}"))?;
+        if let Ok(config_params) = ton_block::ConfigParams::construct_from_cell(cell.clone()) {
+            BlockchainConfig::with_config(config_params)
+                .map_err(|e| format!("Failed to construct config: {}", e))
+        } else {
+            let acc = Account::construct_from_cell(cell)
+                .map_err(|e| format!("Failed to load config contract account from file {config_path}: {e}"))?;
+            construct_blockchain_config(&acc)
+        }
     } else {
         let ton_client = create_client(cli_config)?;
         let config = query_account_field(

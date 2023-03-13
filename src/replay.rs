@@ -44,16 +44,18 @@ pub const DUMP_EXECUTOR_CONFIG: u8 = 0x04;
 pub const DUMP_ALL:   u8 = 0xFF;
 
 pub fn construct_blockchain_config(config_account: &Account) -> Result<BlockchainConfig, String> {
-    construct_blockchain_config_err(config_account).map_err(|e| format!("Failed to construct config: {}", e))
+    extract_config_params_from_account(config_account)
+        .and_then(|config_params| BlockchainConfig::with_config(config_params))
+        .map_err(|e| format!("Failed to construct config: {}", e))
 }
 
-fn construct_blockchain_config_err(config_account: &Account) -> Result<BlockchainConfig, ton_types::Error> {
+pub fn extract_config_params_from_account(config_account: &Account) -> Result<ConfigParams, ton_types::Error> {
     let config_cell = config_account
-        .get_data().ok_or(error!("Failed to get account's data"))?
-        .reference(0).ok();
-    let config_params = ConfigParams::with_address_and_params(
-        UInt256::with_array([0x55; 32]), config_cell);
-    BlockchainConfig::with_config(config_params)
+        .get_data()
+        .ok_or_else(|| error!("Failed to get account's data"))?
+        .reference(0)?;
+    Ok(ConfigParams::with_address_and_params(
+        UInt256::with_array([0x55; 32]), Some(config_cell)))
 }
 
 pub async fn fetch(config: &Config, account_address: &str, filename: &str, lt_bound: Option<u64>, rewrite_file: bool) -> Result<(), String> {

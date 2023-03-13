@@ -16,7 +16,8 @@ use serde_json::{Map, Value, json};
 use ton_block::{Account, Deserializable, Message, Serializable};
 use ton_client::abi::{FunctionHeader};
 use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
-use crate::RUNTIME;
+use ton_executor::BlockchainConfig;
+use crate::{RUNTIME, print_args};
 use crate::config::{Config, FullConfig};
 use crate::call::print_json_result;
 use crate::debug::{execute_debug, DebugLogger};
@@ -91,18 +92,20 @@ fn run(
 ) -> Result<(), String> {
     let method = if is_alternative {
         matches.value_of("METHOD").or(config.method.as_deref())
-        .ok_or("Method is not defined. Supply it in the config file or command line.")?
+            .ok_or("Method is not defined. Supply it in the config file or command line.")?
     } else {
         matches.value_of("METHOD").unwrap()
     };
-println!("55");
     let bc_config = matches.value_of("BCCONFIG");
-    let execution_options = prepare_execution_options(bc_config)?;
-    let bc_config = get_blockchain_config(config, None)?;
 
     if !config.is_json {
         println!("Running get-method...");
+        print_args!(bc_config, Some(method));
     }
+
+    let bc_config = get_blockchain_config(config, bc_config)?;
+    let execution_options = prepare_execution_options(&bc_config)?;
+
     let ton_client = match ton_client {
         Some(ton_client) => { ton_client },
         None => {
@@ -151,55 +154,58 @@ println!("55");
         }
     ).await });
 
-    if &config.debug_fail != "None" && result.is_err()
-        && result.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
-        // TODO: add code to use bc_config from file
+    let result = match result {
+        Err(err) => {
+            if &config.debug_fail != "None" && err.code == SDK_EXECUTION_ERROR_CODE {
+                if config.is_json {
+                    let e = format!("{:#}", err);
+                    let e: Value = serde_json::from_str(&e)
+                        .unwrap_or(Value::String(e));
+                    let res = json!({"Error": e});
+                    println!("{}", serde_json::to_string_pretty(&res)
+                        .unwrap_or_else(|_| "{{ \"JSON serialization error\" }}".to_string()));
+                } else {
+                    println!("Error: {:#}", err);
+                    println!("Execution failed. Starting debug...");
+                }
 
-        if config.is_json {
-            let e = format!("{:#}", result.clone().err().unwrap());
-            let err: Value = serde_json::from_str(&e)
-                .unwrap_or(Value::String(e));
-            let res = json!({"Error": err});
-            println!("{}", serde_json::to_string_pretty(&res)
-                .unwrap_or_else(|_| "{{ \"JSON serialization error\" }}".to_string()));
-        } else {
-            println!("Error: {:#}", result.clone().err().unwrap());
-            println!("Execution failed. Starting debug...");
-        }
+                let mut account = Account::construct_from_base64(&account_boc)
+                    .map_err(|e| format!("Failed to construct account: {}", e))?
+                    .serialize()
+                    .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
-        let mut account = Account::construct_from_base64(&account_boc)
-            .map_err(|e| format!("Failed to construct account: {}", e))?
-            .serialize()
-            .map_err(|e| format!("Failed to serialize account: {}", e))?;
+                let now = now_ms();
+                let message = Message::construct_from_base64(&msg.message)
+                    .map_err(|e| format!("failed to construct message: {}", e))?;
+                let result = execute_debug(
+                    bc_config,
+                    &mut account,
+                    Some(&message),
+                    (now / 1000) as u32,
+                    now,
+                    now,
+                    true,
+                    config
+                );
+                if let Err(e) = result {
+                    if !e.contains("Contract did not accept message") {
+                        return Err(e);
+                    }
+                }
 
-        let now = now_ms();
-        let message = Message::construct_from_base64(&msg.message)
-            .map_err(|e| format!("failed to construct message: {}", e))?;
-        let result = execute_debug(
-            bc_config,
-            &mut account,
-            Some(&message),
-            (now / 1000) as u32,
-            now,
-            now,
-            true,
-            config
-        );
-        if let Err(e) = result {
-            if !e.contains("Contract did not accept message") {
-                return Err(e);
+                if !config.is_json {
+                    let log_path = format!("run_{}_{}.log", address, method);
+                    println!("Debug finished.");
+                    println!("Log saved to {}", log_path);
+                }
+                return Err(String::new());
+            } else {
+                return Err(format!("{:#}", err))
             }
         }
+        Ok(result) => result
+    };
 
-        if !config.is_json {
-            let log_path = format!("run_{}_{}.log", address, method);
-            println!("Debug finished.");
-            println!("Log saved to {}", log_path);
-        }
-        return Err("".to_string());
-    }
-
-    let result = result.map_err(|e| format!("{:#}", e))?;
     if !config.is_json {
         println!("Succeeded.");
     }
@@ -218,18 +224,13 @@ println!("55");
     Ok(())
 }
 
-fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<ExecutionOptions>, String> {
-    if let Some(config) = bc_config {
-        let bytes = std::fs::read(config)
-            .map_err(|e| format!("Failed to read data from file {}: {}", config, e))?;
-        let config_boc = base64::encode(bytes);
-        let ex_opt = ExecutionOptions{
-            blockchain_config: Some(config_boc),
-            ..Default::default()
-        };
-        return Ok(Some(ex_opt));
-    }
-    Ok(None)
+fn prepare_execution_options(bc_config: &BlockchainConfig) -> Result<Option<ExecutionOptions>, String> {
+    let bytes = bc_config.raw_config().write_to_bytes()
+        .map_err(|e| format!("Failed to serialize config params {}", e))?;
+    Ok(Some(ExecutionOptions {
+        blockchain_config: Some(base64::encode(bytes)),
+        ..Default::default()
+    }))
 }
 
 pub fn run_get_method(config: &Config, addr: &str, method: &str, params: Option<String>, source_type: AccountSource, bc_config: Option<&str>) -> Result<(), String> {
@@ -248,7 +249,8 @@ pub fn run_get_method(config: &Config, addr: &str, method: &str, params: Option<
     if !config.is_json {
         println!("Running get-method...");
     }
-    let execution_options = prepare_execution_options(bc_config)?;
+    let bc_config = get_blockchain_config(config, bc_config)?;
+    let execution_options = prepare_execution_options(&bc_config)?;
     let function_name = method.to_owned();
     let result = RUNTIME.block_on(async move { run_get(
         ton,
