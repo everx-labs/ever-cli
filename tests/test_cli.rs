@@ -14,9 +14,9 @@
 use predicates::prelude::*;
 use assert_cmd::Command;
 use std::env;
-use std::time::Duration;
-use std::thread::sleep;
 use std::fs;
+use std::thread::sleep;
+use std::time::{SystemTime, Duration};
 use serde_json::{json, Value};
 
 mod common;
@@ -34,6 +34,13 @@ const SAFEMSIG_SEED: &str = "blanket time net universe ketchup maid way poem sca
 const SAFEMSIG_ADDR: &str = "0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fcd";
 const SAFEMSIG_CONSTR_ARG: &str = r#"{"owners":["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"],"reqConfirms":1}"#;
 const SAVED_CONFIG: &str = "tests/config_contract.saved";
+
+pub fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_else(|e| panic!("failed to obtain system time: {}", e))
+        .as_millis() as u64
+}
 
 fn generate_public_key(seed: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
