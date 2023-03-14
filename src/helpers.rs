@@ -403,10 +403,10 @@ pub async fn calc_acc_address(
     Ok(result.address)
 }
 
-pub fn answer_filter(depool: &str, wallet: &str, since: u32) -> serde_json::Value {
+pub fn answer_filter(src: &str, dst: &str, since: u32) -> serde_json::Value {
     json!({
-        "src": { "eq": depool },
-        "dst": { "eq": wallet },
+        "src": { "eq": src },
+        "dst": { "eq": dst },
         "created_at": {"ge": since }
     })
 }

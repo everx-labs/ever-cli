@@ -196,25 +196,34 @@ impl CallArgs {
             .ok_or("--dst parameter is not defined".to_string())?;
         let value = matches.value_of("VALUE")
             .ok_or("--value parameter is not defined".to_string())?;
+        let value = convert::convert_token(value)?;
         let comment = matches.value_of("PURPOSE")
             .map(|s| s.to_owned());
-        let v2 = matches.is_present("V2");
-
-        if v2 {
-            // TODO parse stateinit arg
-        }
-
         let body = if let Some(ref txt) = comment {
             encode_transfer_body(&txt).await?
         } else {
             "".to_owned()
         };
+        Self::submit_with_args(matches, &dest, &value, true, body).await
+    }
+
+    pub async fn submit_with_args(
+        matches: &ArgMatches<'_>,
+        dest: &str,
+        value: &str,
+        bounce: bool,
+        payload: String,
+    ) -> Result<Self, String> {
+        let v2 = matches.is_present("V2");
+        if v2 {
+            // TODO parse stateinit arg
+        }
         let params = json!({
             "dest": dest,
-            "value": convert::convert_token(value)?,
-            "bounce": true,
+            "value": value,
+            "bounce": bounce,
             "allBalance": false,
-            "payload": body,
+            "payload": payload,
         });
 
         Ok(Self {
@@ -223,11 +232,7 @@ impl CallArgs {
             ..Default::default()
         })
     }
-    pub async fn submit_payload(matches: &ArgMatches<'_>, body: String) -> Result<Self, String> {
-        let mut args = Self::submit(matches).await?;
-        args.params["payload"] = json!(body);
-        Ok(args)
-    }
+
     pub async fn deploy(matches: &ArgMatches<'_>) -> Result<Self, String> {
         let is_setcode = matches.is_present("SETCODE");
         let v2 = matches.is_present("V2");
@@ -350,8 +355,8 @@ impl MultisigArgs {
     pub fn image(&self) -> Option<&[u8]> {
         self.call_args.image.as_ref().map(|v| v.as_slice())
     } 
-    pub async fn execute(self, config: &Config) -> Result<(), String> {
-        call::call_contract(
+    pub async fn execute(self, config: &Config) -> Result<serde_json::Value, String> {
+        call::call_contract_with_result(
             config,
             self.address(),
             &self.abi_string(),
@@ -366,7 +371,7 @@ impl MultisigArgs {
 pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
     let v2_arg = Arg::with_name("V2")
         .long("--v2")
-        .help("Force to interact with account as a multisig v2.");
+        .help("Force to interact with wallet account as multisig v2.");
     let bounce_arg = Arg::with_name("BOUNCE")
         .long("--bounce")
         .short("-b")
@@ -384,7 +389,7 @@ pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
         .setting(AppSettings::DontCollapseArgsInUsage)
         .subcommand(SubCommand::with_name("send")
             .setting(AppSettings::AllowLeadingHyphen)
-            .about("Transfers funds from the multisignature wallet to the recipient.")
+            .about("Transfer funds from the wallet to the recipient.")
             .arg(Arg::with_name("MSIG")
                 .long("--addr")
                 .takes_value(true)
@@ -409,7 +414,7 @@ pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
             .arg(v2_arg.clone()))
         .subcommand(SubCommand::with_name("deploy")
             .setting(AppSettings::AllowLeadingHyphen)
-            .about("Deploys a multisignature wallet with a given public key. By default deploys a SafeMultisigWallet with one custodian, which can be tuned with flags.")
+            .about("Deploys a wallet with a given public key. By default, deploys a SafeMultisig with one custodian, which can be tuned with flags.")
             .arg(keys_arg)
             .arg(Arg::with_name("SETCODE")
                 .long("--setcode")
@@ -471,7 +476,11 @@ async fn send(
     config: &Config,
     args: MultisigArgs,
 ) -> Result<(), String> {
-    args.execute(config).await
+    let result = args.execute(config).await?;
+    if !config.is_json {
+        println!("Succeeded.");
+    }
+    call::print_json_result(result, config)
 }
 
 async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
