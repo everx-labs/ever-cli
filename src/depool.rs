@@ -375,7 +375,7 @@ impl<'a> DepoolCmd<'a> {
         let call_args = CallArgs::submit_with_args(self.m, &self.depool, &format!("{}", self.value), true, body).await?;
         let msig_args = MultisigArgs::new(self.m, self.config, call_args)?;
         
-        let since = now()?;
+        let since = now();
         let depool = self.depool.to_owned();
         let wallet = msig_args.address().to_owned();
 
@@ -683,7 +683,7 @@ async fn wait_for_event(config: &Config, depool: &str) -> Result<(), String> {
         ton.clone(),
         ParamsOfWaitForCollection {
             collection: "messages".to_owned(),
-            filter: Some(events_filter(depool, now()?)),
+            filter: Some(events_filter(depool, now())),
             result: "id body created_at created_at_string".to_owned(),
             timeout: Some(config.timeout),
             ..Default::default()
