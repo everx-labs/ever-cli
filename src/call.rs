@@ -219,7 +219,12 @@ pub async fn process_message(
     config: &Config,
 ) -> Result<Value, ClientError> {
     let callback = |event| { async move {
-        if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
+        if let ProcessingEvent::DidSend { 
+            shard_block_id: _,
+            message_id,
+            message_dst: _,
+            message: _,
+        } = event {
             println!("MessageId: {}", message_id)
         }
     }};
