@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.33.1
+## 0.34.0
+
+### New 
+- Flag `--v2` in `multisig` and `depool` subcommands to support multisig v2.
+
+## 0.33.0
 
 ### New
 - Migrated to ever-sdk 0.41.1
