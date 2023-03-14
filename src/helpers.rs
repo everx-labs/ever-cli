@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX. All Rights Reserved.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -25,6 +25,7 @@ use ton_client::error::ClientError;
 use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection, NetworkConfig};
 use ton_client::{ClientConfig, ClientContext};
 use ton_executor::BlockchainConfig;
+use ton_types::SliceData;
 use std::sync::Arc;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
@@ -1010,14 +1011,17 @@ pub fn get_blockchain_config(cli_config: &Config, config_contract_boc_path: Opti
             .map_err(|e| format!("Failed to load config from file {config_path}: {e}"))?;
         let cell = ton_types::deserialize_tree_of_cells(&mut std::io::Cursor::new(bytes))
             .map_err(|e| format!("Failed to deserialize cell from file {config_path}: {e}"))?;
-        if let Ok(config_params) = ton_block::ConfigParams::construct_from_cell(cell.clone()) {
-            BlockchainConfig::with_config(config_params)
-                .map_err(|e| format!("Failed to construct config: {}", e))
-        } else {
-            let acc = Account::construct_from_cell(cell)
-                .map_err(|e| format!("Failed to load config contract account from file {config_path}: {e}"))?;
-            construct_blockchain_config(&acc)
+        let mut slice = SliceData::load_cell(cell.clone())
+            .map_err(|e| format!("Failed to load cell: {e}"))?;
+        if let Ok(config_params) = ton_block::ConfigParams::construct_from(&mut slice) {
+            if slice.remaining_bits() == 0 && slice.remaining_references() == 0 {
+                return BlockchainConfig::with_config(config_params)
+                    .map_err(|e| format!("Failed to construct config from file: {}", e));
+            }
         }
+        let acc = Account::construct_from_cell(cell)
+            .map_err(|e| format!("Failed to load config contract account from file {config_path}: {e}"))?;
+        construct_blockchain_config(&acc)
     } else {
         let ton_client = create_client(cli_config)?;
         let config = query_account_field(

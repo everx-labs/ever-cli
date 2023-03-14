@@ -46,7 +46,7 @@ pub const DUMP_ALL:   u8 = 0xFF;
 pub fn construct_blockchain_config(config_account: &Account) -> Result<BlockchainConfig, String> {
     extract_config_params_from_account(config_account)
         .and_then(|config_params| BlockchainConfig::with_config(config_params))
-        .map_err(|e| format!("Failed to construct config: {}", e))
+        .map_err(|e| format!("Failed to construct config from account: {}", e))
 }
 
 pub fn extract_config_params_from_account(config_account: &Account) -> Result<ConfigParams, ton_types::Error> {

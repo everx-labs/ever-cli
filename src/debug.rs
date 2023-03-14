@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX. All Rights Reserved.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -289,6 +289,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .help("Path to the TVC file with contract stateinit."))
         .arg(Arg::with_name("WC")
             .takes_value(true)
+            .allow_hyphen_values(true)
             .long("--wc")
             .help("Workchain ID"))
         .arg(params_arg.clone())
@@ -550,8 +551,8 @@ crate::RUNTIME.block_on(async move {
         .serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
-    let msg = trans.in_msg_cell().map(|c| Message::construct_from_cell(c)
-        .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
+    let msg = trans.read_in_msg()
+        .map_err(|e| format!("failed to construct message: {}", e))?;
 
     log::set_max_level(log::LevelFilter::Trace);
     log::set_boxed_logger(
@@ -616,8 +617,8 @@ fn decode_abi_path(matches: &ArgMatches<'_>, config: &Config) -> Option<String> 
 fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_getter: bool) -> Result<(), String> {
     let (input, opt_abi, sign) = contract_data_from_matches_or_config_alias(matches, full_config)?;
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let method = Some(matches.value_of("METHOD").or(full_config.config.method.as_deref())
-        .ok_or("Method is not defined. Supply it in the config file or command line.")?);
+    let method = matches.value_of("METHOD").or(full_config.config.method.as_deref());
+    let bc_config = matches.value_of("CONFIG_PATH");
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
     let params = unpack_alternative_params(
@@ -628,7 +629,7 @@ fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_get
     )?;
 
     if !full_config.config.is_json {
-        print_args!(input, method, params, sign, opt_abi, output);
+        print_args!(input, method, params, sign, opt_abi, output, bc_config);
     }
 
     let ton_client = if is_boc || is_tvc {
@@ -636,6 +637,7 @@ fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_get
     } else {
         create_client(&full_config.config)?
     };
+    let bc_config = get_blockchain_config(&full_config.config, bc_config)?;
     let input = input.unwrap();
     let mut account = if is_tvc {
         construct_account_from_tvc(
@@ -670,14 +672,14 @@ fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_get
         input: Some(params),
         header: Some(header)
     });
-    let bc_config = get_blockchain_config(&full_config.config, matches.value_of("CONFIG_PATH"))?;
-crate::RUNTIME.block_on(async move {
-    let abi = load_abi(opt_abi.as_ref().unwrap(), &full_config.config).await?;
     let signer = if let Some(keys) = keys {
         Signer::Keys { keys }
     } else {
         Signer::None
     };
+    let abi = crate::RUNTIME.block_on(async move {
+        load_abi(opt_abi.as_ref().unwrap(), &full_config.config).await
+    })?;
     let msg_params = ParamsOfEncodeMessage {
         abi,
         address: Some(format!("0:{}", "0".repeat(64))),  // TODO: add option or get from input
@@ -686,27 +688,27 @@ crate::RUNTIME.block_on(async move {
         ..Default::default()
     };
 
-    let message = encode_message(
-        ton_client.clone(),
-        msg_params
-    ).await
-        .map_err(|e| format!("Failed to encode message: {}", e))?;
+    let message = crate::RUNTIME.block_on(async move {
+        encode_message(
+            ton_client.clone(),
+            msg_params
+        ).await
+    }).map_err(|e| format!("Failed to encode message: {}", e))?;
 
     let message = Message::construct_from_base64(&message.message)
         .map_err(|e| format!("Failed to construct message: {}", e))?;
 
     if is_getter {
-        account.set_balance(CurrencyCollection::with_grams((1 << 56) - 1));
+        account.set_balance(CurrencyCollection::with_grams(u64::MAX));
     }
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
     let trace_path = output.unwrap().to_string();
 
+    let logger = Box::new(DebugLogger::new(trace_path.clone()));
     log::set_max_level(log::LevelFilter::Trace);
-    log::set_boxed_logger(
-        Box::new(DebugLogger::new(trace_path.clone()))
-    ).map_err(|e| format!("Failed to set logger: {}", e))?;
+    log::set_boxed_logger(logger).map_err(|e| format!("Failed to set logger: {}", e))?;
 
     let trans = execute_debug(
         bc_config,
@@ -722,7 +724,11 @@ crate::RUNTIME.block_on(async move {
     let mut out_res = vec![];
     let msg_string = match trans {
         Ok(trans) => {
-            out_res = decode_messages(trans.out_msgs, decode_abi_path(matches, &full_config.config), &full_config.config).await?;
+            out_res = crate::RUNTIME.block_on(async move { decode_messages(
+                trans.out_msgs,
+                decode_abi_path(matches, &full_config.config),
+                &full_config.config
+            ).await })?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -764,7 +770,6 @@ crate::RUNTIME.block_on(async move {
         println!("{{}}");
     }
     Ok(())
-})
 }
 
 fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
@@ -774,8 +779,9 @@ fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
     let message = matches.value_of("MESSAGE");
+    let bc_config = matches.value_of("CONFIG_PATH");
     if !config.is_json {
-        print_args!(input, message, output, debug_info);
+        print_args!(input, message, output, debug_info, bc_config);
     }
 
     let ton_client = create_client(config)?;
@@ -812,7 +818,7 @@ fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
         Box::new(DebugLogger::new(trace_path.clone()))
     ).map_err(|e| format!("Failed to set logger: {}", e))?;
 
-    let bc_config = get_blockchain_config(config, matches.value_of("CONFIG_PATH"))?;
+    let bc_config = get_blockchain_config(config, bc_config)?;
 crate::RUNTIME.block_on(async move {
     let now = parse_now(matches)?;
     let trans = execute_debug(
@@ -857,7 +863,7 @@ crate::RUNTIME.block_on(async move {
 }
 
 fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let tvc = matches.value_of("TVC");
+    let tvc_path = matches.value_of("TVC");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
     let abi_path = abi_from_matches_or_config(matches, config)?;
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
@@ -872,25 +878,23 @@ fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(),
         config
     )?;
     let wc = Some(wc_from_matches_or_config(matches, config)?);
+    let bc_config = matches.value_of("CONFIG_PATH");
     if !config.is_json {
-        print_args!(tvc, params, sign, Some(&abi_path), output, debug_info);
+        print_args!(tvc_path, params, sign, Some(&abi_path), output, debug_info, bc_config);
     }
 
-crate::RUNTIME.block_on(async move {
-    let (msg, address) = prepare_deploy_message(
-        tvc.unwrap(),
+    let (msg, address) = crate::RUNTIME.block_on(async move { prepare_deploy_message(
+        tvc_path.unwrap(),
         &abi_path,
         params.as_ref().unwrap(),
         sign,
         wc.unwrap(),
         config
-    ).await?;
+    ).await })?;
     let init_balance = matches.is_present("INIT_BALANCE");
-    let ton_client = create_client(config)?;
-    let enc_msg = encode_message(ton_client.clone(), msg.clone()).await
-        .map_err(|e| format!("failed to create inbound message: {}", e))?;
-
+    let ton_client;
     let account = if init_balance {
+        ton_client = create_client_local()?;
         Account::with_address_and_ballance(
             &MsgAddressInt::with_standart(
                 None,
@@ -901,6 +905,7 @@ crate::RUNTIME.block_on(async move {
             &CurrencyCollection::with_grams(u64::MAX)
         )
     } else {
+        ton_client = create_client(config)?;
         let account = query_account_field(
             ton_client.clone(),
             &address,
@@ -909,6 +914,9 @@ crate::RUNTIME.block_on(async move {
         Account::construct_from_base64(&account)
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };
+    let enc_msg = crate::RUNTIME.block_on(async move {
+        encode_message(ton_client, msg).await
+    }).map_err(|e| format!("failed to create inbound message: {}", e))?;
 
     let message = Message::construct_from_base64(&enc_msg.message)
         .map_err(|e| format!("Failed to construct message: {}", e))?;
@@ -925,7 +933,7 @@ crate::RUNTIME.block_on(async move {
 
     let now = parse_now(matches)?;
 
-    let bc_config = get_blockchain_config(config, matches.value_of("CONFIG_PATH"))?;
+    let bc_config = get_blockchain_config(config, bc_config)?;
     let trans = execute_debug(
         bc_config,
         &mut acc_root,
@@ -939,7 +947,9 @@ crate::RUNTIME.block_on(async move {
 
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs, decode_abi_path(matches, config), config).await?;
+            crate::RUNTIME.block_on(async move {
+                decode_messages(trans.out_msgs, decode_abi_path(matches, config), config).await
+            })?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -953,7 +963,6 @@ crate::RUNTIME.block_on(async move {
         println!("{{}}");
     }
     Ok(())
-})
 }
 
 async fn decode_messages(msgs: OutMessages, abi_path: Option<String>, config: &Config) -> Result<Vec<Value>, String> {
@@ -1081,19 +1090,19 @@ pub fn execute_debug(
             gas_price: 65536000,
             flat_gas_limit: 100,
             flat_gas_price: 1000000,
-            gas_limit: u64::MAX,
+            gas_limit: 0x00FF_FFFF_FFFF_FFFF,
             special_gas_limit: u64::MAX,
-            gas_credit: u64::MAX,
+            gas_credit: 0x00FF_FFFF,
             block_gas_limit: u64::MAX,
             freeze_due_limit: 100000000,
-            delete_due_limit:1000000000,
-            max_gas_threshold:u128::MAX,
+            delete_due_limit: 1000000000,
+            max_gas_threshold: u128::MAX,
         };
         let c20 = ConfigParamEnum::ConfigParam20(gas.clone());
         let c21 = ConfigParamEnum::ConfigParam21(gas);
         config.set_config(c20).unwrap();
         config.set_config(c21).unwrap();
-        BlockchainConfig::with_config(config).map_err(|e| format!("Failed to construct config: {}", e))?
+        BlockchainConfig::with_config(config).map_err(|e| format!("Failed to construct config from config: {}", e))?
     } else {
         bc_config
     };
@@ -1118,7 +1127,7 @@ pub fn execute_debug(
         message,
          account,
         params
-    ).map_err(|e| format!("Debug failed: {:?}", e))
+    ).map_err(|e| format!("Debug failed: {}", e))
 }
 
 fn trace_callback(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {

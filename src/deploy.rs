@@ -123,7 +123,7 @@ pub async fn prepare_deploy_message(
     let keys = keys_file.map(|k| load_keypair(&k)).transpose()?;
 
     let tvc_bytes = std::fs::read(tvc_path)
-        .map_err(|e| format!("failed to read smart contract file: {}", e))?;
+        .map_err(|e| format!("failed to read smart contract file {}: {}", tvc_path, e))?;
 
     return prepare_deploy_message_params(&tvc_bytes, abi, params, keys, wc).await;
 
