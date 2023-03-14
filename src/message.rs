@@ -25,7 +25,7 @@ pub struct EncodedMessage {
     pub address: String,
 }
 
-pub async fn prepare_message(
+pub fn prepare_message(
     ton: TonClient,
     addr: &str,
     abi: Abi,
@@ -41,8 +41,9 @@ pub async fn prepare_message(
 
     let msg_params = prepare_message_params(addr, abi, method, params, header.clone(), keys)?;
 
-    let msg = encode_message(ton, msg_params).await
-        .map_err(|e| format!("failed to create inbound message: {}", e))?;
+    let msg = crate::RUNTIME.block_on(async move {
+        encode_message(ton, msg_params).await
+    }).map_err(|e| format!("failed to create inbound message: {}", e))?;
 
     Ok(EncodedMessage {
         message: msg.message,
@@ -61,21 +62,21 @@ pub fn prepare_message_params (
     keys: Option<String>,
 ) -> Result<ParamsOfEncodeMessage, String> {
     let keys = keys.map(|k| load_keypair(&k)).transpose()?;
-    let params = serde_json::from_str(&params)
+    let params = serde_json::from_str(params)
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
 
     let call_set = Some(CallSet {
         function_name: method.into(),
         input: Some(params),
-        header: header.clone(),
+        header,
     });
 
     Ok(ParamsOfEncodeMessage {
         abi,
         address: Some(addr.to_owned()),
         call_set,
-        signer: if keys.is_some() {
-            Signer::Keys { keys: keys.unwrap() }
+        signer: if let Some(keys) = keys {
+            Signer::Keys { keys }
         } else {
             Signer::None
         },
@@ -84,8 +85,8 @@ pub fn prepare_message_params (
 }
 
 pub fn print_encoded_message(msg: &EncodedMessage, is_json:bool) {
-    let expire = if msg.expire.is_some() {
-        let expire_at = Local.timestamp_opt(msg.expire.unwrap() as i64, 0).single().unwrap();
+    let expire = if let Some(expire) = msg.expire {
+        let expire_at = Local.timestamp(expire as i64, 0);
         expire_at.to_rfc2822()
     } else {
         "unknown".to_string()
@@ -151,10 +152,10 @@ pub fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String>
     Ok((msg, method))
 }
 
-pub async fn generate_message(
+pub fn generate_message(
     config: &Config,
     addr: &str,
-    abi: &str,
+    abi_path: &str,
     method: &str,
     params: &str,
     keys: Option<String>,
@@ -165,12 +166,14 @@ pub async fn generate_message(
 ) -> Result<(), String> {
     let ton = create_client_local()?;
 
-    let ton_addr = load_ton_address(addr, &config)
-        .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
+    let ton_addr = load_ton_address(addr, config)
+        .map_err(|e| format!("failed to parse address: {}", e))?;
 
-    let abi = load_abi(abi, config).await?;
+    let abi = crate::RUNTIME.block_on(async move {
+        load_abi(abi_path, config).await
+    })?;
 
-    let expire_at = lifetime + timestamp.clone().map(|millis| (millis / 1000) as u32).unwrap_or(now()?);
+    let expire_at = lifetime + timestamp.map_or_else(|| now(), |millis| (millis / 1000) as u32);
     let header = FunctionHeader {
         expire: Some(expire_at),
         time: timestamp,
@@ -186,7 +189,7 @@ pub async fn generate_message(
         Some(header),
         keys,
         config.is_json,
-    ).await?;
+    )?;
 
     display_generated_message(&msg, method, is_raw, output, config.is_json)?;
 
@@ -206,8 +209,7 @@ pub fn display_generated_message(
     print_encoded_message(msg, is_json);
 
     let msg_bytes = pack_message(msg, method, is_raw)?;
-    if output.is_some() {
-        let out_file = output.unwrap();
+    if let Some(out_file) = output {
         std::fs::write(out_file, msg_bytes)
             .map_err(|e| format!("cannot write message to file: {}", e))?;
         if !is_json {

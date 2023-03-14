@@ -1381,7 +1381,7 @@ Result: {
 
 ```
 
-## 4.5. Generate encrypted message offline
+## 4.5.1. Generate encrypted message offline
 
 An internet connection is not required to create an encrypted message. Use the following command to do it:
 
@@ -1434,6 +1434,45 @@ MessageId: 59d698efe871cf9ffa8f6eb4c784b294538cd2223b4c876bb4e999a8edf8d410
 Expire at: Sat, 08 May 2021 16:42:03 +0300
 Message saved to file message.boc
 ```
+
+## 4.5.2. Generate payload for internal message
+
+An internet connection is not required to create an payload for message. Use the following command to do it:
+
+```bash
+tonos-cli body [--output <path_to_file>] [--abi <contract.abi.json>] <method> <params>
+```
+
+`--output <path_to_file>` - specify path to file where the raw message should be written to, instead of printing it to terminal.
+
+`<contract.abi.json>` - contract interface file.
+
+`<method>` - the method being called.
+
+`<params>` - parameters of the called method.
+
+The TONOS-CLI utility displays encrypted message text and a QR code that also contains the message. Copy the message text or scan the QR code and broadcast the message online.
+
+Example (raw boc of create new multisig transaction message with a lifetime of 1 hour saved to file):
+
+```bash
+$ tonos-cli message --raw --output message.boc --sign k1.keys.json --abi SafeMultisigWallet.abi.json 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc submitTransaction '{"dest":"-1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6","value":234000000,"bounce":false,"allBalance":false,"payload":""}' --lifetime 3600
+Config: /home/user/tonos-cli.conf.json
+Input arguments:
+ address: 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc
+  method: submitTransaction
+  params: {"dest":"-1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6","value":234000000,"bounce":false,"allBalance":false,"payload":""}
+     abi: SafeMultisigWallet.abi.json
+    keys: k1.keys.json
+lifetime: 3600
+  output: message.boc
+Generating external inbound message...
+
+MessageId: 59d698efe871cf9ffa8f6eb4c784b294538cd2223b4c876bb4e999a8edf8d410
+Expire at: Sat, 08 May 2021 16:42:03 +0300
+Message saved to file message.boc
+```
+
 
 ## 4.6. Broadcast previously generated message
 
@@ -2620,8 +2659,10 @@ Succeeded.
 Use the following command to update one parameter of the blockchain global config, that is stored in a .json file:
 
 ```bash
-tonos-cli update_config <seqno> <config_master_key_file> <new_param_file>
+tonos-cli update_config [--abi <config.abi.json>] <seqno> <config_master_key_file> <new_param_file>
 ```
+
+`<config.abi.json>` – ABI json file for solidity config contract, in this case `seqno` is not used and must be `0`
 
 `<seqno>` – current seqno of config contract. It can get from command `seqno` on config account.
 

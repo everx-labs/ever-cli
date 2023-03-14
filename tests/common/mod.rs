@@ -13,7 +13,7 @@ pub const GIVER_V2_KEY: &str = "tests/samples/giver_v2.key";
 
 lazy_static! {
     pub static ref NETWORK: String = env::var("TON_NETWORK_ADDRESS")
-        .unwrap_or("http://127.0.0.1/".to_string());
+        .unwrap_or_else(|_| "http://127.0.0.1/".to_string());
 }
 
 #[allow(dead_code)]
@@ -35,9 +35,8 @@ pub fn get_config() -> Result<Map<String, Value>, Box<dyn std::error::Error>> {
 #[allow(dead_code)]
 pub fn set_config(config: &[&str], argument: &[&str], config_path: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    if config_path.is_some() {
-        cmd.arg("--config")
-            .arg(config_path.unwrap());
+    if let Some(config_path) = config_path {
+        cmd.arg("--config").arg(config_path);
     }
     cmd.arg("config");
     for i in 0..config.len() {

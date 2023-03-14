@@ -236,14 +236,16 @@ pub fn create_multisig_command<'a, 'b>() -> App<'a, 'b> {
                 .help("Number of confirmations required for executing transaction. Default value is 1.")))
 }
 
-pub async fn multisig_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    if let Some(m) = m.subcommand_matches("send") {
-        return multisig_send_command(m, config).await;
-    }
-    if let Some(m) = m.subcommand_matches("deploy") {
-        return multisig_deploy_command(m, config).await;
-    }
-    Err("unknown multisig command".to_owned())
+pub fn multisig_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    crate::RUNTIME.block_on(async move {    
+        if let Some(m) = m.subcommand_matches("send") {
+            return multisig_send_command(m, config).await;
+        }
+        if let Some(m) = m.subcommand_matches("deploy") {
+            return multisig_deploy_command(m, config).await;
+        }
+        Err("unknown multisig command".to_owned())
+    })
 }
 
 async fn multisig_send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
@@ -257,31 +259,33 @@ async fn multisig_send_command(matches: &ArgMatches<'_>, config: &Config) -> Res
         .ok_or("--value parameter is not defined".to_string())?;
     let comment = matches.value_of("PURPOSE");
 
-    let address = load_ton_address(address, &config)?;
-    send(config, address.as_str(), dest, value, keys, comment).await
+    let address = load_ton_address(address, config)?;
+    send(config, address.as_str(), dest, value, keys, comment)
 }
 
-pub async fn encode_transfer_body(text: &str, config: &Config) -> Result<String, String> {
+pub fn encode_transfer_body(text: &str, config: &Config) -> Result<String, String> {
     let text = hex::encode(text.as_bytes());
     let client = create_client_local()?;
-    let abi = load_abi(TRANSFER_WITH_COMMENT, config).await?;
-    encode_message_body(
-        client.clone(),
-        ParamsOfEncodeMessageBody {
-            abi,
-            call_set: CallSet::some_with_function_and_input(
-                "transfer",
-                json!({ "comment": text    }),
-            ).ok_or("failed to create CallSet with specified parameters")?,
-            is_internal: true,
-            ..Default::default()
-        },
-    ).await
-    .map_err(|e| format!("failed to encode transfer body: {}", e))
-    .map(|r| r.body)
+    crate::RUNTIME.block_on(async move {
+        let abi = load_abi(TRANSFER_WITH_COMMENT, config).await?;
+        encode_message_body(
+            client.clone(),
+            ParamsOfEncodeMessageBody {
+                abi,
+                call_set: CallSet::some_with_function_and_input(
+                    "transfer",
+                    json!({ "comment": text    }),
+                ).ok_or("failed to create CallSet with specified parameters")?,
+                is_internal: true,
+                ..Default::default()
+            },
+        ).await
+        .map_err(|e| format!("failed to encode transfer body: {}", e))
+        .map(|r| r.body)
+    })
 }
 
-async fn send(
+fn send(
     config: &Config,
     addr: &str,
     dest: &str,
@@ -290,15 +294,15 @@ async fn send(
     comment: Option<&str>
 ) -> Result<(), String> {
     let body = if let Some(text) = comment {
-        encode_transfer_body(text, config).await?
+        encode_transfer_body(text, config)?
     } else {
         "".to_owned()
     };
 
-    send_with_body(config, addr, dest, value, keys, &body).await
+    send_with_body(config, addr, dest, value, keys, &body)
 }
 
-pub async fn send_with_body(
+pub fn send_with_body(
     config: &Config,
     addr: &str,
     dest: &str,
@@ -322,7 +326,7 @@ pub async fn send_with_body(
         &params,
         Some(keys.to_owned()),
         false,
-    ).await
+    )
 }
 
 async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
@@ -345,10 +349,7 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
     let keys = load_keypair(&keys)?;
 
     let owners_string = if let Some(owners) = matches.value_of("OWNERS") {
-        owners.replace('[', "")
-            .replace(']', "")
-            .replace('\"', "")
-            .replace('\'', "")
+        owners.replace(['[', ']', '\"', '\''], "")
             .replace("0x", "")
             .split(',')
             .map(|o|
@@ -370,7 +371,7 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
         println!("Wallet address: {}", address);
     }
 
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(config)?;
 
     if let Some(value) = matches.value_of("VALUE") {
         let params = format!(r#"{{"dest":"{}","amount":"{}"}}"#, address, value);

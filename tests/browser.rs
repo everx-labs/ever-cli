@@ -158,7 +158,7 @@ fn test_pipechain_inputs() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success();
 
-    let _ = std::fs::remove_file(path_to_pipechain_tmp)?;
+    std::fs::remove_file(path_to_pipechain_tmp)?;
 
     let out_value: serde_json::Value = serde_json::from_slice(&assert.get_output().stdout).unwrap();
     let eq = predicate::eq(return_value);

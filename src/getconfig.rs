@@ -13,9 +13,8 @@
 
 use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer};
 use num_bigint::BigUint;
-use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config::Config;
-use crate::helpers::{create_client_verbose, query_with_limit};
+use crate::helpers::{create_client_verbose, query_with_limit, now, now_ms};
 use serde_json::json;
 use ton_abi::{Contract, Token, TokenValue, Uint};
 use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, Serializable};
@@ -234,7 +233,7 @@ master {
 "#;
 
 pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(config)?;
     let mut result = QUERY_FIELDS.to_owned();
     result.push_str(r#"
       p40 {
@@ -266,7 +265,7 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
         &result,
         Some(vec!(OrderBy{ path: "seq_no".to_string(), direction: SortDirection::DESC })),
         Some(1),
-    ).await {
+    ) {
         Ok(result) => Ok(result),
         Err(e) => {
             if e.message.contains("Server responded with code 400") {
@@ -283,7 +282,7 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
                     &result,
                     Some(vec!(OrderBy{ path: "seq_no".to_string(), direction: SortDirection::DESC })),
                     Some(1),
-                ).await.map_err(|e| format!("failed to query master block config: {}", e))
+                ).map_err(|e| format!("failed to query master block config: {}", e))
             } else {
                 Err(format!("failed to query master block config: {}", e))
             }
@@ -320,11 +319,12 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
     Ok(())
 }
 
-pub async fn gen_update_config_message(
+pub fn gen_update_config_message(
     abi: Option<&str>,
     seqno: Option<&str>,
     config_master_file: &str,
     new_param_file: &str,
+    output: Option<&str>,
     is_json: bool
 ) -> Result<(), String> {
     let config_master_address = std::fs::read(&*(config_master_file.to_string() + ".addr"))
@@ -347,8 +347,12 @@ pub async fn gen_update_config_message(
 
     let msg_bytes = message.write_to_bytes()
         .map_err(|e| format!(r#"failed to serialize message": {}"#, e))?;
-    let msg_hex = hex::encode(&msg_bytes);
+    if let Some(output) = output {
+        std::fs::write(output, &msg_bytes)
+            .map_err(|err| format!("cannot store message to file {} {}", output, err))?;
+    }
 
+    let msg_hex = hex::encode(msg_bytes);
     if is_json {
         println!("{{\"Message\": \"{}\"}}", msg_hex);
     } else {
@@ -359,27 +363,28 @@ pub async fn gen_update_config_message(
 }
 
 pub fn serialize_config_param(config_str: String) -> Result<(Cell, u32), String> {
-    let config_json: serde_json::Value = serde_json::from_str(&*config_str)
+    let config_json: serde_json::Value = serde_json::from_str(&config_str)
         .map_err(|e| format!(r#"failed to parse "new_param_file": {}"#, e))?;
     let config_json = config_json.as_object()
-        .ok_or(format!(r#""new_param_file" is not json object"#))?;
+        .ok_or(r#""new_param_file" is not json object"#.to_string())?;
     if config_json.len() != 1 {
         Err(r#""new_param_file" is not a valid json"#.to_string())?;
     }
 
     let mut key_number = None;
-    for key in config_json.keys() {
-        if !key.starts_with("p") {
-            Err(r#""new_param_file" is not a valid json"#.to_string())?;
+    if let Some(p) = config_json.keys().next() {
+        if let Some(p) = p.strip_prefix('p') {
+            key_number = Some(p.parse::<u32>())
         }
-        key_number = Some(key.trim_start_matches("p").to_string());
-        break;
     }
-
-    let key_number = key_number
-        .ok_or(format!(r#""new_param_file" is not a valid json"#))?
-        .parse::<u32>()
-        .map_err(|e| format!(r#""new_param_file" is not a valid json: {}"#, e))?;
+    let Some(Ok(key_number)) = key_number else {
+        let err = if let Some(Err(err)) = key_number {
+            err.to_string()
+        } else {
+            String::new()
+        };
+        return Err(format!(r#""new_param_file" is not a valid json {}"#, err))
+    };
 
     let config_params = ton_block_json::parse_config(config_json)
         .map_err(|e| format!(r#"failed to parse config params from "new_param_file": {}"#, e))?;
@@ -404,7 +409,7 @@ fn prepare_message_new_config_param(
     private_key_of_config_account: &[u8]
 ) -> Result<Message, String> {
     let prefix = hex::decode(PREFIX_UPDATE_CONFIG_MESSAGE_DATA).unwrap();
-    let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32 + 100; // timestamp + 100 secs
+    let since_the_epoch = now() + 100; // timestamp + 100 secs
 
     let mut cell = BuilderData::default();
     cell.append_raw(prefix.as_slice(), 32).unwrap();
@@ -450,7 +455,7 @@ fn prepare_message_new_config_param_solidity(
     let keypair = Keypair { secret, public };
     
     let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
-    let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros() as u64;
+    let since_the_epoch = now_ms();
 
     let header = [("time".to_owned(), TokenValue::Time(since_the_epoch))]
         .into_iter()
@@ -469,7 +474,7 @@ fn prepare_message_new_config_param_solidity(
         .map_err(|err| err.to_string())?;
     let body = function
         .encode_input(&header, &parameters, false, Some(&keypair), Some(config_contract_address.clone()))
-        .and_then(|builder| SliceData::load_builder(builder))
+        .and_then(SliceData::load_builder)
         .map_err(|err| format!("cannot prepare message body {}", err))?;
 
     let hdr = ExternalInboundMessageHeader::new(AddrNone, config_contract_address);
@@ -484,8 +489,8 @@ fn convert_to_uint(value: &[u8], bits_count: usize) -> TokenValue {
     })
 }
 
-pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
+pub fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), String> {
+    let ton = create_client_verbose(config)?;
 
     let last_key_block_query = query_with_limit(
         ton.clone(),
@@ -494,7 +499,7 @@ pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), S
         "boc",
         Some(vec![OrderBy{ path: "seq_no".to_owned(), direction: SortDirection::DESC }]),
         Some(1),
-    ).await.map_err(|e| format!("failed to query last key block: {}", e))?;
+    ).map_err(|e| format!("failed to query last key block: {}", e))?;
 
     if last_key_block_query.is_empty() {
         return Err("Key block not found".to_string());
@@ -503,16 +508,16 @@ pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), S
     let block = last_key_block_query[0]["boc"].as_str()
         .ok_or("Failed to query last block BOC.")?.to_owned();
 
+crate::RUNTIME.block_on(async move {
     let bc_config = get_blockchain_config(
         ton.clone(),
         ParamsOfGetBlockchainConfig {
             block_boc: block,
             ..Default::default()
         },
-    ).await
-        .map_err(|e| format!("Failed to get blockchain config: {}", e))?;
+    ).await.map_err(|e| format!("Failed to get blockchain config: {}", e))?;
 
-    let bc_config = base64::decode(&bc_config.config_boc)
+    let bc_config = base64::decode(bc_config.config_boc)
         .map_err(|e| format!("Failed to decode BOC: {}", e))?;
     std::fs::write(path, bc_config)
         .map_err(|e| format!("Failed to write data to the file {}: {}", path, e))?;
@@ -522,4 +527,5 @@ pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), S
         println!("{{}}");
     }
     Ok(())
+})
 }

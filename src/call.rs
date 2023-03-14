@@ -31,7 +31,6 @@ use ton_client::tvm::{
     AccountForExecutor
 };
 use ton_block::{Account, Serializable, Deserializable, Message};
-use std::str::FromStr;
 use serde_json::{json, Value};
 use ton_abi::ParamType;
 use ton_client::error::ClientError;
@@ -68,8 +67,10 @@ fn parse_integer_param(value: &str) -> Result<String, String> {
     }
 }
 
-async fn build_json_from_params(params_vec: Vec<&str>, abi_path: &str, method: &str, config: &Config) -> Result<String, String> {
-    let abi_obj = load_ton_abi(abi_path, config).await?;
+fn build_json_from_params(params_vec: Vec<&str>, abi_path: &str, method: &str, config: &Config) -> Result<String, String> {
+    let abi_obj = crate::RUNTIME.block_on(async move {
+        load_ton_abi(abi_path, config).await
+    })?;
     let functions = abi_obj.functions();
 
     let func_obj = functions.get(method).ok_or("failed to load function from abi")?;
@@ -115,13 +116,12 @@ pub async fn emulate_locally(
     is_fee: bool,
 ) -> Result<(), String> {
     let state: String;
-    let state_boc = query_account_field(ton.clone(), addr, "boc").await;
+    let state_boc = query_account_field(ton.clone(), addr, "boc");
     if state_boc.is_err() {
         if is_fee {
-            let addr = ton_block::MsgAddressInt::from_str(addr)
-                .map_err(|e| format!("couldn't decode address: {}", e))?;
+            let addr = addr.parse().map_err(|e| format!("couldn't decode address: {}", e))?;
             state = base64::encode(
-                &ton_types::cells_serialization::serialize_toc(
+                ton_types::cells_serialization::serialize_toc(
                     &Account::with_address(addr)
                         .serialize()
                         .map_err(|e| format!("couldn't create dummy account for deploy emulation: {}", e))?
@@ -219,7 +219,7 @@ pub async fn process_message(
     config: &Config,
 ) -> Result<Value, ClientError> {
     let callback = |event| { async move {
-        if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message: _ } = event {
+        if let ProcessingEvent::DidSend { shard_block_id: _, message_id, message_dst: _, message: _ } = event {
             println!("MessageId: {}", message_id)
         }
     }};
@@ -248,7 +248,7 @@ pub async fn process_message(
     Ok(res.decoded.and_then(|d| d.output).unwrap_or(json!({})))
 }
 
-pub async fn call_contract_with_result(
+pub fn call_contract_with_result(
     config: &Config,
     addr: &str,
     abi_path: &str,
@@ -257,7 +257,7 @@ pub async fn call_contract_with_result(
     keys: Option<String>,
     is_fee: bool,
 ) -> Result<Value, String> {
-    let ton = if config.debug_fail != "None".to_string() {
+    let ton = if &config.debug_fail != "None" {
         let log_path = format!("call_{}_{}.log", addr, method);
         log::set_max_level(log::LevelFilter::Trace);
         log::set_boxed_logger(
@@ -267,7 +267,9 @@ pub async fn call_contract_with_result(
     } else {
         create_client_verbose(config)?
     };
-    call_contract_with_client(ton, config, addr, abi_path, method, params, keys, is_fee).await
+    crate::RUNTIME.block_on(async move {
+        call_contract_with_client(ton, config, addr, abi_path, method, params, keys, is_fee).await
+    })
 }
 
 pub async fn call_contract_with_client(
@@ -294,7 +296,7 @@ pub async fn call_contract_with_client(
     let needs_encoded_msg = is_fee ||
         config.async_call ||
         config.local_run ||
-        config.debug_fail != "None".to_string();
+        &config.debug_fail != "None";
 
     let message = if needs_encoded_msg {
         let msg = encode_message(ton.clone(), msg_params.clone()).await
@@ -307,59 +309,57 @@ pub async fn call_contract_with_client(
             }
         }
         if config.async_call {
-            return send_message_and_wait(ton,
-                                         Some(abi),
-                                         msg.message.clone(),
-                                         config).await;
+            let msg = msg.message.clone();
+            return send_message_and_wait(ton, Some(abi), msg, config).await;
         }
         Some(msg.message)
     } else {
         None
     };
 
-    let dump = if config.debug_fail != "None".to_string() {
+    let dump = if &config.debug_fail != "None" {
         let acc_boc = query_account_field(
             ton.clone(),
             addr,
             "boc",
-        ).await?;
+        )?;
         let account = Account::construct_from_base64(&acc_boc)
             .map_err(|e| format!("Failed to construct account: {}", e))?
             .serialize()
             .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
         let now = now_ms();
-        Some((account, message.unwrap(), now, get_blockchain_config(config, None).await?))
+        Some((account, message.unwrap(), now, get_blockchain_config(config, None)?))
     } else {
         None
     };
 
     let res = process_message(ton.clone(), msg_params, config).await;
 
-    if config.debug_fail != "None".to_string() && res.is_err()
+    if &config.debug_fail != "None" && res.is_err()
         && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
         if config.is_json {
-            let e = format!("{:#}", res.clone().err().unwrap());
+            let e = format!("{:#}", res.err().unwrap());
             let err: Value = serde_json::from_str(&e)
                 .unwrap_or(Value::String(e));
             let res = json!({"Error": err});
             println!("{}", serde_json::to_string_pretty(&res)
                 .unwrap_or("{{ \"JSON serialization error\" }}".to_string()));
         } else {
-            println!("Error: {:#}", res.clone().err().unwrap());
+            println!("Error: {:#}", res.err().unwrap());
             println!("Execution failed. Starting debug...");
         }
         let (mut account, message, now, bc_config) = dump.unwrap();
         let message = Message::construct_from_base64(&message)
             .map_err(|e| format!("failed to construct message: {}", e))?;
-        let _ = execute_debug(bc_config, &mut account, Some(&message), (now / 1000) as u32, now,now, false, config).await?;
+        let _ = execute_debug(bc_config, &mut account, Some(&message), (now / 1000) as u32, now,now, false, config)?;
 
         if !config.is_json {
             let log_path = format!("call_{}_{}.log", addr, method);
             println!("Debug finished.");
             println!("Log saved to {}", log_path);
         }
-        return Err("".to_string());
+        return Err(String::new());
     }
     res.map_err(|e| format!("{:#}", e))
 }
@@ -377,7 +377,7 @@ pub fn print_json_result(result: Value, config: &Config) -> Result<(), String> {
     Ok(())
 }
 
-pub async fn call_contract(
+pub fn call_contract(
     config: &Config,
     addr: &str,
     abi_path: &str,
@@ -386,7 +386,7 @@ pub async fn call_contract(
     keys: Option<String>,
     is_fee: bool,
 ) -> Result<(), String> {
-    let result = call_contract_with_result(config, addr, abi_path, method, params, keys, is_fee).await?;
+    let result = call_contract_with_result(config, addr, abi_path, method, params, keys, is_fee)?;
     if !config.is_json {
         println!("Succeeded.");
     }
@@ -396,7 +396,7 @@ pub async fn call_contract(
 
 
 pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: &str) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
+    let ton = create_client_verbose(config)?;
     let abi = load_abi(abi_path, config).await?;
 
     let (msg, _) = unpack_message(&str_msg)?;
@@ -428,11 +428,11 @@ pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: 
     Ok(())
 }
 
-pub async fn parse_params(params_vec: Vec<&str>, abi_path: &str, method: &str, config: &Config) -> Result<String, String> {
+pub fn parse_params(params_vec: Vec<&str>, abi_path: &str, method: &str, config: &Config) -> Result<String, String> {
     if params_vec.len() == 1 {
         // if there is only 1 parameter it must be a json string with arguments
         Ok(params_vec[0].to_owned())
     } else {
-        build_json_from_params(params_vec, abi_path, method, config).await
+        build_json_from_params(params_vec, abi_path, method, config)
     }
 }

@@ -22,10 +22,6 @@ const SAFEMSIG_ADDR: &str = "0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e
 const SAFEMSIG_CONSTR_ARG: &str = r#"{"owners":["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"],"reqConfirms":1}"#;
 const SAVED_CONFIG: &str = "tests/config_contract.saved";
 
-fn now_ms() -> u64 {
-    chrono::prelude::Utc::now().timestamp_millis() as u64
-}
-
 fn generate_public_key(seed: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     let out = cmd.arg("genpubkey")
@@ -655,7 +651,7 @@ fn test_async_deploy() -> Result<(), Box<dyn std::error::Error>> {
     fs::remove_file(config_path)?;
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("account")
-        .arg(addr.clone());
+        .arg(addr);
 
     wait_for_cmd_res(&mut cmd, "acc_type:      Active")?;
 
@@ -2821,7 +2817,7 @@ fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--abi")
         .arg(SAFEMSIG_ABI)
         .arg("--addr")
-        .arg(address.clone())
+        .arg(address)
         .arg("-m")
         .arg("getParameters")
         .arg("{}");
@@ -2840,7 +2836,7 @@ fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
         Some(config_path)
     )?;
 
-    let params = format!("{{\"dest\":\"{}\",\"value\":1000000000,\"bounce\":false}}", address.clone());
+    let params = format!("{{\"dest\":\"{}\",\"value\":1000000000,\"bounce\":false}}", address);
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
         .arg(config_path)
@@ -2884,7 +2880,7 @@ fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
         .arg("run")
         .arg("--abi")
         .arg(SAFEMSIG_ABI)
-        .arg(address.clone())
+        .arg(address)
         .arg("getParameters")
         .arg("{}");
     cmd.assert()
@@ -2962,7 +2958,7 @@ fn test_alternative_parameters() -> Result<(), Box<dyn std::error::Error>> {
 
     set_config(
         &["--abi", "--addr", "--keys", "--method"],
-        &[abi_path, &address.clone(), key_path, "add"],
+        &[abi_path, &address, key_path, "add"],
         Some(config_path)
     )?;
 
@@ -3082,7 +3078,7 @@ fn test_alternative_paths() -> Result<(), Box<dyn std::error::Error>> {
 
     set_config(
         &["--abi"],
-        &[&*SAFEMSIG_ABI_LINK],
+        &[SAFEMSIG_ABI_LINK],
         Some(config_path)
     )?;
 
@@ -3129,7 +3125,7 @@ fn test_alternative_paths() -> Result<(), Box<dyn std::error::Error>> {
         .arg(config_path)
         .arg("runx")
         .arg("--addr")
-        .arg(address.clone())
+        .arg(address)
         .arg("-m")
         .arg("getParameters")
         .arg("--abi")

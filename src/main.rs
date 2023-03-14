@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 TON DEV SOLUTIONS LTD.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -17,6 +17,8 @@
 
 mod account;
 mod call;
+#[cfg(feature = "sold")]
+mod compile;
 mod config;
 mod convert;
 mod crypto;
@@ -35,43 +37,46 @@ mod replay;
 mod debug;
 mod run;
 mod message;
-#[cfg(feature = "sold")]
-mod compile;
 
-use account::{get_account, calc_storage, wait_for_change};
+use account::{calc_storage, dump_accounts, get_account, wait_for_change};
 use call::{call_contract, call_contract_with_msg};
 use clap::{ArgMatches, SubCommand, Arg, AppSettings, App};
+#[cfg(feature = "sold")]
+use compile::{compile_command, create_compile_command};
 use config::{Config, set_config, clear_config};
+use config::{FullConfig, resolve_net_name};
 use crypto::{generate_mnemonic, extract_pubkey, generate_keypair};
 use debot::{create_debot_command, debot_command};
-use decode::{create_decode_command, decode_command};
 use debug::{create_debug_command, debug_command};
+use decode::{create_decode_command, decode_command};
 use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
 use ed25519_dalek::Signer;
 use genaddr::generate_address;
-use getconfig::{query_global_config, dump_blockchain_config};
-use helpers::{load_ton_address, load_abi, create_client_local, query_raw,
-              contract_data_from_matches_or_config_alias, decode_data};
+use getconfig::{gen_update_config_message, query_global_config, dump_blockchain_config};
+use helpers::{
+    abi_from_matches_or_config, contract_data_from_matches_or_config_alias, create_client_local,
+    decode_data, default_config_name, global_config_path, load_abi, load_abi_from_tvc, load_params,
+    load_ton_address, parse_lifetime, query_raw, unpack_alternative_params,
+    wc_from_matches_or_config, AccountSource,
+};
+use message::generate_message;
 use multisig::{create_multisig_command, multisig_command};
 use replay::{fetch_block_command, fetch_command, replay_command};
+use run::{run_command, run_get_method};
 use serde_json::json;
-use std::collections::BTreeMap;
-use std::env;
-use std::process::exit;
-use std::sync::Arc;
+use std::{env, process::exit, sync::Arc};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use ton_types::deserialize_tree_of_cells_inmem;
 use voting::{create_proposal, decode_proposal, vote};
-use crate::account::dump_accounts;
-#[cfg(feature = "sold")]
-use crate::compile::{compile_command, create_compile_command};
 
-use crate::config::{FullConfig, resolve_net_name};
-use crate::getconfig::gen_update_config_message;
-use crate::helpers::{abi_from_matches_or_config, AccountSource, default_config_name, global_config_path, load_abi_from_tvc, load_params, parse_lifetime, unpack_alternative_params, wc_from_matches_or_config};
-use crate::message::generate_message;
-use crate::run::{run_command, run_get_method};
+lazy_static::lazy_static! {
+    static ref RUNTIME: tokio::runtime::Runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .thread_stack_size(8 * 1024 * 1024)
+        .build()
+        .expect("Can't create Engine tokio runtime");
+}
 
 const DEF_MSG_LIFETIME: u32 = 30;
 const DEF_STORAGE_PERIOD: u32 = 60 * 60 * 24 * 365;
@@ -88,15 +93,15 @@ enum DeployType {
     Fee,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), i32> {
-    main_internal().await.map_err(|err_str| {
-        if !err_str.is_empty() { println!("{}", err_str); }
-        1
-    })
+fn main() -> Result<(), i32> {
+    if let Err(err_str) = main_internal() {
+        println!("{}", err_str);
+        return Err(1)
+    }
+    Ok(())
 }
 
-async fn main_internal() -> Result <(), String> {
+fn main_internal() -> Result <(), String> {
     let version_string = env!("CARGO_PKG_VERSION");
 
     let abi_arg = Arg::with_name("ABI")
@@ -105,7 +110,7 @@ async fn main_internal() -> Result <(), String> {
         .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file.");
 
     let keys_arg = Arg::with_name("KEYS")
-        .long("--keys")
+        .long("--keys_file")
         .takes_value(true)
         .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config file.");
 
@@ -388,6 +393,7 @@ async fn main_internal() -> Result <(), String> {
         .author(author)
         .arg(method_arg.clone())
         .arg(params_arg.clone())
+        .arg(output_arg.clone())
         .arg(abi_arg.clone());
 
     let sign_cmd = SubCommand::with_name("sign")
@@ -784,6 +790,7 @@ async fn main_internal() -> Result <(), String> {
     let update_config_param_cmd = SubCommand::with_name("update_config")
         .about("Generates message with update of config params.")
         .arg(abi_arg.clone())
+        .arg(output_arg.clone())
         .arg(Arg::with_name("SEQNO")
             .takes_value(true)
             .help("Current seqno from config contract"))
@@ -884,7 +891,7 @@ async fn main_internal() -> Result <(), String> {
                           env!("BUILD_TIME"),
                           env!("BUILD_GIT_DATE"),
                           env!("BUILD_GIT_BRANCH"));
-    let matches = App::new("tonos_cli")
+    let matches = App::new("tonos-cli")
         .version(&*version)
         .author(author)
         .about("TONLabs console tool for TON")
@@ -940,7 +947,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(runx_cmd)
         .subcommand(update_config_param_cmd)
         .setting(AppSettings::SubcommandRequired);
-#[cfg(feature = "sold")]
+    #[cfg(feature = "sold")]
     let matches = matches.subcommand(create_compile_command());
 
     let matches = matches.get_matches_safe()
@@ -949,34 +956,30 @@ async fn main_internal() -> Result <(), String> {
             clap::ErrorKind::HelpDisplayed => { println!("{}", e); exit(0); },
             _ => {
                 eprintln!("{}", e);
-                format!("{{\n  \"Error\": \"{}\"\n}}", e.message.replace("\n", "\\n"))
+                format!("{{\n  \"Error\": \"{}\"\n}}", e.message.replace('\n', "\\n"))
             }
         })?;
 
     let is_json = matches.is_present("JSON");
 
-    command_parser(&matches, is_json).await
+    command_parser(&matches, is_json)
         .map_err(|e| {
             if e.is_empty() {
                 e
             } else {
-                if !is_json {
-                    format!("Error: {}", e)
-                } else {
-                    let err: serde_json::Value = serde_json::from_str(&e)
-                        .unwrap_or(serde_json::Value::String(e));
-                    let res = json!({"Error": err});
-                    serde_json::to_string_pretty(&res)
-                        .unwrap_or("{{ \"JSON serialization error\" }}".to_string())
-                }
+                let err: serde_json::Value = serde_json::from_str(&e)
+                    .unwrap_or(serde_json::Value::String(e));
+                let res = json!({"Error": err});
+                serde_json::to_string_pretty(&res)
+                    .unwrap_or_else(|_| "{{ \"JSON serialization error\" }}".to_string())
             }
         })
 }
 
-async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), String> {
+fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), String> {
     let config_file = matches.value_of("CONFIG").map(|v| v.to_string())
-        .or(env::var("TONOSCLI_CONFIG").ok())
-        .unwrap_or(default_config_name());
+        .or_else(|| env::var("TONOSCLI_CONFIG").ok())
+        .unwrap_or_else(default_config_name);
 
     let mut full_config = FullConfig::from_file(&config_file);
 
@@ -988,66 +991,66 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     let config = &mut full_config.config;
 
     if let Some(url) = matches.value_of("NETWORK") {
-        let resolved_url = resolve_net_name(url).unwrap_or(url.to_owned());
+        let resolved_url = resolve_net_name(url).unwrap_or_else(|| url.to_string());
         let empty : Vec<String> = Vec::new();
         config.endpoints = full_config.endpoints_map.get(&resolved_url).unwrap_or(&empty).clone();
         config.url = resolved_url;
     }
 
     if let Some(m) = matches.subcommand_matches("callx") {
-        return callx_command(m, &full_config).await;
+        return callx_command(m, &full_config);
     }
     if let Some(m) = matches.subcommand_matches("runx") {
-        return run_command(m, &full_config, true).await;
+        return run_command(m, &full_config, true);
     }
     if let Some(m) = matches.subcommand_matches("deployx") {
-        return deployx_command(m, &mut full_config).await;
+        return deployx_command(m, &mut full_config);
     }
     if let Some(m) = matches.subcommand_matches("call") {
-        return call_command(m, config, CallType::Call).await;
+        return call_command(m, config, CallType::Call);
     }
     if let Some(m) = matches.subcommand_matches("run") {
-        return run_command(m, &full_config, false).await;
+        return run_command(m, &full_config, false);
     }
     if let Some(m) = matches.subcommand_matches("runget") {
-        return runget_command(m, config).await;
+        return runget_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("body") {
-        return body_command(m, config).await;
+        return body_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("sign") {
         return sign_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("message") {
-        return call_command(m, config, CallType::Msg).await;
+        return call_command(m, config, CallType::Msg);
     }
     if let Some(m) = matches.subcommand_matches("send") {
-        return send_command(m, config).await;
+        return send_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("deploy") {
-        return deploy_command(m, &mut full_config, DeployType::Full).await;
+        return deploy_command(m, &mut full_config, DeployType::Full);
     }
     if let Some(m) = matches.subcommand_matches("deploy_message") {
-        return deploy_command(m, &mut full_config, DeployType::MsgOnly).await;
+        return deploy_command(m, &mut full_config, DeployType::MsgOnly);
     }
     if let Some(m) = matches.subcommand_matches("genaddr") {
-        return genaddr_command(m, config).await;
+        return genaddr_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("getkeypair") {
         return getkeypair_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("account") {
-        return account_command(m, config).await;
+        return account_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("fee") {
         if let Some(m) = m.subcommand_matches("storage") {
-            return storage_command(m, config).await;
+            return storage_command(m, config);
         }
         if let Some(m) = m.subcommand_matches("deploy") {
-            return deploy_command(m, &mut full_config, DeployType::Fee).await;
+            return deploy_command(m, &mut full_config, DeployType::Fee);
         }
         if let Some(m) = m.subcommand_matches("call") {
-            return call_command(m, config, CallType::Fee).await;
+            return call_command(m, config, CallType::Fee);
         }
     }
     if let Some(m) = matches.subcommand_matches("genphrase") {
@@ -1058,68 +1061,68 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
     if let Some(m) = matches.subcommand_matches("proposal") {
         if let Some(m) = m.subcommand_matches("create") {
-            return proposal_create_command(m, config).await;
+            return proposal_create_command(m, config);
         }
         if let Some(m) = m.subcommand_matches("vote") {
-            return proposal_vote_command(m, config).await;
+            return proposal_vote_command(m, config);
         }
         if let Some(m) = m.subcommand_matches("decode") {
-            return proposal_decode_command(m, config).await;
+            return proposal_decode_command(m, config);
         }
     }
     if let Some(m) = matches.subcommand_matches("multisig") {
-        return multisig_command(m, config).await;
+        return multisig_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("depool") {
-        return depool_command(m, config).await;
+        return depool_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("getconfig") {
-        return getconfig_command(m, config).await;
+        return getconfig_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("update_config") {
-        return update_config_command(m, config).await;
+        return update_config_command(m, config);
     }
     if let Some(matches) = matches.subcommand_matches("dump") {
         if let Some(m) = matches.subcommand_matches("config") {
-            return dump_bc_config_command(m, config).await;
+            return dump_bc_config_command(m, config);
         }
         if let Some(m) = matches.subcommand_matches("account") {
-            return dump_accounts_command(m, config).await;
+            return dump_accounts_command(m, config);
         }
     }
     if let Some(m) = matches.subcommand_matches("account-wait") {
-        return account_wait_command(m, config).await;
+        return account_wait_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("query-raw") {
-        return query_raw_command(m, config).await;
+        return query_raw_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("nodeid") {
         return nodeid_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("sendfile") {
-        return sendfile_command(m, config).await;
+        return sendfile_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("decode") {
-        return decode_command(m, config).await;
+        return decode_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("debug") {
-        return debug_command(m, &full_config).await;
+        return debug_command(m, &full_config);
     }
     if let Some(m) = matches.subcommand_matches("debot") {
-        return debot_command(m, config.to_owned()).await;
+        return debot_command(m, config.to_owned());
     }
     if let Some(m) = matches.subcommand_matches("fetch-block") {
-        return fetch_block_command(m, config).await;
+        return fetch_block_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("fetch") {
-        return fetch_command(m, config).await;
+        return fetch_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("replay") {
-        return replay_command(m, config).await;
+        return replay_command(m, config);
     }
-#[cfg(feature = "sold")]
+    #[cfg(feature = "sold")]
     if let Some(m) = matches.subcommand_matches("compile") {
-        return compile_command(m, &config).await;
+        return compile_command(m, &config);
     }
     if matches.subcommand_matches("version").is_some() {
         if config.is_json {
@@ -1163,35 +1166,37 @@ fn getkeypair_command(matches: &ArgMatches, config: &Config) -> Result<(), Strin
     generate_keypair(key_file, phrase, config)
 }
 
-async fn send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let message = matches.value_of("MESSAGE");
-    let abi = Some(abi_from_matches_or_config(matches, &config)?);
+fn send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let message = matches.value_of("MESSAGE").unwrap();
+    let abi_path = abi_from_matches_or_config(matches, config)?;
 
     if !config.is_json {
-        print_args!(message, abi);
+        print_args!(Some(&message), Some(&abi_path));
     }
 
-    call_contract_with_msg(config, message.unwrap().to_owned(), &abi.unwrap()).await
+    RUNTIME.block_on(async move {
+        call_contract_with_msg(config, message.to_owned(), &abi_path).await
+    })
 }
 
-async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
     let output = matches.value_of("OUTPUT");
-    let abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let abi_path = abi_from_matches_or_config(matches, config)?;
     let params = Some(load_params(params.unwrap())?);
     if !config.is_json {
-        print_args!(method, params, abi, output);
+        print_args!(method, params, Some(&abi_path), output);
     }
 
     let params = serde_json::from_str(&params.unwrap())
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
 
     let client = create_client_local()?;
-    let body = ton_client::abi::encode_message_body(
+    let body = RUNTIME.block_on(async move {ton_client::abi::encode_message_body(
         client.clone(),
         ParamsOfEncodeMessageBody {
-            abi: load_abi(abi.as_ref().unwrap(), config).await?,
+            abi: load_abi(&abi_path, config).await?,
             call_set: CallSet::some_with_function_and_input(method.unwrap(), params)
                 .ok_or("failed to create CallSet with specified parameters.")?,
             is_internal: true,
@@ -1199,7 +1204,8 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
         },
     ).await
     .map_err(|e| format!("failed to encode body: {}", e))
-    .map(|r| r.body)?;
+    .map(|r| r.body)
+    })?;
 
     if !config.is_json {
         println!("Message body: {}", body);
@@ -1224,11 +1230,11 @@ fn sign_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String>
         return Err("nor data neither cell parameter".to_string())
     };
     let pair = match matches.value_of("KEYS") {
-        Some(keys) => crypto::load_keypair(&keys)?,
+        Some(keys_file) => crypto::load_keypair(keys_file)?,
         None => {
             match &config.keys_path {
-                Some(keys) => crypto::load_keypair(&keys)?,
-                None => return Err("nor signing keys in the params neither in the config".to_string())
+                Some(keys_file) => crypto::load_keypair(keys_file)?,
+                None => return Err("nor signing keys_file in the params neither in the config".to_string())
             }
         }
     };
@@ -1247,7 +1253,7 @@ fn sign_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String>
     Ok(())
 }
 
-async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType) -> Result<(), String> {
+fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let method = matches.value_of("METHOD");
     let params = matches.value_of("PARAMS");
@@ -1255,31 +1261,31 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
 
-    let abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let abi_path = abi_from_matches_or_config(matches, config)?;
 
-    let keys = matches.value_of("KEYS")
-        .or(matches.value_of("SIGN"))
+    let keys_file = matches.value_of("KEYS")
+        .or_else(|| matches.value_of("SIGN"))
         .map(|s| s.to_string())
-        .or(config.keys_path.clone());
+        .or_else(|| config.keys_path.clone());
 
     let params = Some(load_params(params.unwrap())?);
     if !config.is_json {
-        print_args!(address, method, params, abi, keys, lifetime, output);
+        print_args!(address, method, params, Some(&abi_path), keys_file, lifetime, output);
     }
-    let address = load_ton_address(address.unwrap(), &config)?;
+    let address = load_ton_address(address.unwrap(), config)?;
 
     match call {
         CallType::Call | CallType::Fee => {
-            let is_fee = if let CallType::Fee = call { true } else { false };
+            let is_fee = matches!(call, CallType::Fee);
             call_contract(
                 config,
                 address.as_str(),
-                &abi.unwrap(),
+                &abi_path,
                 method.unwrap(),
                 &params.unwrap(),
-                keys,
+                keys_file,
                 is_fee,
-            ).await
+            )
         },
         CallType::Msg => {
             let lifetime = lifetime.map(|val| {
@@ -1295,50 +1301,51 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
             generate_message(
                 config,
                 address.as_str(),
-                &abi.unwrap(),
+                &abi_path,
                 method.unwrap(),
                 &params.unwrap(),
-                keys,
+                keys_file,
                 lifetime,
                 raw,
                 output,
                 timestamp,
-            ).await
+            )
         },
     }
 }
 
-async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Result<(), String> {
+fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Result<(), String> {
     let config = &full_config.config;
-    let method = Some(matches.value_of("METHOD").or(config.method.as_deref())
-        .ok_or("Method is not defined. Supply it in the config file or command line.")?);
-    let (address, abi, keys) = contract_data_from_matches_or_config_alias(matches, full_config)?;
+    let method = matches.value_of("METHOD").or(config.method.as_deref())
+        .ok_or("Method is not defined. Supply it in the config file or command line.")?;
+    let (address, abi_path, keys_file) = contract_data_from_matches_or_config_alias(matches, full_config)?;
+    let abi_path = abi_path.unwrap();
     let params = unpack_alternative_params(
         matches,
-        abi.as_ref().unwrap(),
-        method.unwrap(),
+        &abi_path,
+        method,
         config
-    ).await?;
-    let params = Some(load_params(params.unwrap().as_ref())?);
+    )?;
+    let params = load_params(params.unwrap().as_ref())?;
 
     if !config.is_json {
-        print_args!(address, method, params, abi, keys);
+        print_args!(address, Some(&method), Some(&params), Some(&abi_path), keys_file);
     }
 
-    let address = load_ton_address(address.unwrap().as_str(), &config)?;
+    let address = load_ton_address(address.unwrap().as_str(), config)?;
 
     call_contract(
         config,
         address.as_str(),
-        &abi.unwrap(),
-        &method.unwrap(),
-        &params.unwrap(),
-        keys,
+        &abi_path,
+        method,
+        &params,
+        keys_file,
         false,
-    ).await
+    )
 }
 
-async fn runget_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn runget_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let method = matches.value_of("METHOD");
     let params = matches.values_of("PARAMS");
@@ -1349,68 +1356,70 @@ async fn runget_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(),
         print_args!(address, method, params);
     }
     let source_type = if matches.is_present("TVC") {
-        AccountSource::TVC
+        AccountSource::Tvc
     } else if matches.is_present("BOC") {
-        AccountSource::BOC
+        AccountSource::Boc
     } else {
-        AccountSource::NETWORK
+        AccountSource::Network
     };
-    let address =  if source_type != AccountSource::NETWORK {
+    let address =  if source_type != AccountSource::Network {
         address.unwrap().to_string()
     } else {
-        load_ton_address(address.unwrap(), &config)?
+        load_ton_address(address.unwrap(), config)?
     };
     let bc_config = matches.value_of("BCCONFIG");
-    run_get_method(config, &address, method.unwrap(), params, source_type, bc_config).await
+    run_get_method(config, &address, method.unwrap(), params, source_type, bc_config)
 }
 
 
-async fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, deploy_type: DeployType) -> Result<(), String> {
+fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, deploy_type: DeployType) -> Result<(), String> {
     let config = &full_config.config;
-    let tvc = matches.value_of("TVC");
-    let params = matches.value_of("PARAMS");
+    let tvc = matches.value_of("TVC").unwrap();
+    let params = matches.value_of("PARAMS").unwrap();
     let wc = wc_from_matches_or_config(matches, config)?;
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
-    let abi = Some(abi_from_matches_or_config(matches, config)?);
-    let keys = matches.value_of("KEYS")
+    let abi_path = abi_from_matches_or_config(matches, config)?;
+    let keys_file = matches.value_of("KEYS")
             .or(matches.value_of("SIGN"))
             .map(|s| s.to_string())
             .or(config.keys_path.clone());
     let alias = matches.value_of("ALIAS");
-    let params = Some(load_params(params.unwrap())?);
+    let params = load_params(params)?;
     if !config.is_json {
         let opt_wc = Some(format!("{}", wc));
-        print_args!(tvc, params, abi, keys, opt_wc, alias);
+        print_args!(Some(tvc), Some(&params), Some(&abi_path), keys_file, opt_wc, alias);
     }
-    match deploy_type {
-        DeployType::Full => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false, alias).await,
-        DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, raw, output, config).await,
-        DeployType::Fee => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, true, None).await,
-    }
+    RUNTIME.block_on(async move { match deploy_type {
+        DeployType::Full => deploy_contract(full_config, tvc, &abi_path, &params, keys_file, wc, false, alias).await,
+        DeployType::MsgOnly => generate_deploy_message(tvc, &abi_path, &params, keys_file, wc, raw, output, &full_config.config).await,
+        DeployType::Fee => deploy_contract(full_config, tvc, &abi_path, &params, keys_file, wc, true, None).await,
+    } })
 }
 
-async fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig) -> Result<(), String> {
+fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig) -> Result<(), String> {
     let config = &full_config.config;
-    let tvc = matches.value_of("TVC");
+    let tvc = matches.value_of("TVC").unwrap();
     let wc = wc_from_matches_or_config(matches, config)?;
-    let abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let abi_path = abi_from_matches_or_config(matches, config)?;
     let params = unpack_alternative_params(
         matches,
-        abi.as_ref().unwrap(),
+        &abi_path,
         "constructor",
         config
-    ).await?;
-    let keys = matches.value_of("KEYS")
+    )?.unwrap();
+    let keys_file = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
 
     let alias = matches.value_of("ALIAS");
     if !config.is_json {
         let opt_wc = Some(format!("{}", wc));
-        print_args!(tvc, params, abi, keys, opt_wc, alias);
+        print_args!(Some(tvc), Some(&params), Some(&abi_path), keys_file, opt_wc, alias);
     }
-    deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false, alias).await
+    RUNTIME.block_on(async move {
+        deploy_contract(full_config, tvc, &abi_path, &params, keys_file, wc, false, alias).await
+    })
 }
 
 fn config_command(matches: &ArgMatches, mut full_config: FullConfig, is_json: bool) -> Result<(), String> {
@@ -1444,8 +1453,8 @@ fn config_command(matches: &ArgMatches, mut full_config: FullConfig, is_json: bo
                 )?
             } else if let Some(alias_matches) = alias_matches.subcommand_matches("remove") {
                 full_config.remove_alias(alias_matches.value_of("ALIAS").unwrap())?
-            } else if let Some(_) = alias_matches.subcommand_matches("reset") {
-                full_config.aliases = BTreeMap::new();
+            } else if alias_matches.subcommand_matches("reset").is_some() {
+                full_config.aliases = Default::default();
                 full_config.to_file(&full_config.path)?;
             }
             full_config.print_aliases();
@@ -1466,30 +1475,29 @@ fn config_command(matches: &ArgMatches, mut full_config: FullConfig, is_json: bo
     result
 }
 
-async fn genaddr_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let tvc = matches.value_of("TVC");
+fn genaddr_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    RUNTIME.block_on(async move {
+    let tvc = matches.value_of("TVC").unwrap();
     let wc = matches.value_of("WC");
-    let keys = matches.value_of("GENKEY").or(matches.value_of("SETKEY"));
+    let keys_file = matches.value_of("GENKEY").or(matches.value_of("SETKEY"));
     let new_keys = matches.is_present("GENKEY");
     let init_data = matches.value_of("DATA");
     let update_tvc = matches.is_present("SAVE");
-    let abi = match abi_from_matches_or_config(matches, config) {
-        Ok(abi) => Some(abi),
+    let abi_path = match abi_from_matches_or_config(matches, config) {
+        Ok(abi) => abi.to_string(),
         Err(err) => {
-            match load_abi_from_tvc(tvc.clone().unwrap()) {
-                Some(abi) => Some(abi),
-                None => return Err(err)
-            }
+            load_abi_from_tvc(tvc).ok_or_else(|| err)?
         }
     };
     let is_update_tvc = if update_tvc { Some("true") } else { None };
     if !config.is_json {
-        print_args!(tvc, abi, wc, keys, init_data, is_update_tvc);
+        print_args!(Some(tvc), Some(&abi_path), wc, keys_file, init_data, is_update_tvc);
     }
-    generate_address(config, tvc.unwrap(), &abi.unwrap(), wc, keys, new_keys, init_data, update_tvc).await
+    generate_address(config, tvc, &abi_path, wc, keys_file, new_keys, init_data, update_tvc).await
+    })
 }
 
-async fn account_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn account_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let addresses_list = matches.values_of("ADDRESS")
         .map(|val| val.collect::<Vec<_>>())
         .or(config.addr.as_ref().map(|addr| vec![addr.as_str()]))
@@ -1503,7 +1511,7 @@ async fn account_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
     let mut formatted_list = vec![];
     for address in addresses_list.iter() {
         if !is_boc {
-            let formatted = load_ton_address(address, &config)?;
+            let formatted = load_ton_address(address, config)?;
             formatted_list.push(formatted);
         } else {
             if !std::path::Path::new(address).exists() {
@@ -1518,14 +1526,16 @@ async fn account_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
     if !config.is_json {
         print_args!(addresses);
     }
-    get_account(&config, formatted_list, tvcname, bocname, is_boc).await
+    RUNTIME.block_on(async move {    
+        get_account(config, formatted_list, tvcname, bocname, is_boc).await
+    })
 }
 
-async fn dump_accounts_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn dump_accounts_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let addresses_list = matches.values_of("ADDRESS").unwrap().collect::<Vec<_>>();
     let mut formatted_list = vec![];
     for address in addresses_list.iter() {
-        let formatted = load_ton_address(address, &config)?;
+        let formatted = load_ton_address(address, config)?;
         formatted_list.push(formatted);
     }
     let path = matches.value_of("PATH");
@@ -1533,118 +1543,129 @@ async fn dump_accounts_command(matches: &ArgMatches<'_>, config: &Config) -> Res
     if !config.is_json {
         print_args!(addresses, path);
     }
-    dump_accounts(config, formatted_list, path).await
+    RUNTIME.block_on(async move {    
+        dump_accounts(config, formatted_list, path).await
+    })
 }
 
-async fn account_wait_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn account_wait_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS").unwrap();
-    let address = load_ton_address(address, &config)?;
+    let address = load_ton_address(address, config)?;
     let timeout = matches.value_of("TIMEOUT").unwrap_or("30").parse::<u64>()
         .map_err(|e| format!("failed to parse timeout: {}", e))?;
-    wait_for_change(config, &address, timeout).await
+    RUNTIME.block_on(async move {    
+        wait_for_change(config, &address, timeout).await
+    })
 }
 
-async fn query_raw_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn query_raw_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let collection = matches.value_of("COLLECTION").unwrap();
     let filter = matches.value_of("FILTER");
     let limit = matches.value_of("LIMIT");
     let order = matches.value_of("ORDER");
     let result = matches.value_of("RESULT").unwrap();
-    query_raw(config, collection, filter, limit, order, result).await
+    RUNTIME.block_on(async move {    
+        query_raw(config, collection, filter, limit, order, result).await
+    })
 }
 
-async fn storage_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn storage_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let period = matches.value_of("PERIOD");
     if !config.is_json {
         print_args!(address, period);
     }
-    let address = load_ton_address(address.unwrap(), &config)?;
+    let address = load_ton_address(address.unwrap(), config)?;
     let period = period.map(|val| {
         u32::from_str_radix(val, 10)
             .map_err(|e| format!("failed to parse period: {}", e))
     })
     .transpose()?
     .unwrap_or(DEF_STORAGE_PERIOD);
-    calc_storage(&config, address.as_str(), period).await
+    RUNTIME.block_on(async move {    
+        calc_storage(config, address.as_str(), period).await
+    })
 }
 
-async fn proposal_create_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn proposal_create_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let dest = matches.value_of("DEST");
-    let keys = matches.value_of("KEYS");
+    let keys_file = matches.value_of("KEYS");
     let comment = matches.value_of("COMMENT");
     let lifetime = matches.value_of("LIFETIME");
     let offline = matches.is_present("OFFLINE");
     if !config.is_json {
-        print_args!(address, comment, keys, lifetime);
+        print_args!(address, comment, keys_file, lifetime);
     }
-    let address = load_ton_address(address.unwrap(), &config)?;
+    let address = load_ton_address(address.unwrap(), config)?;
     let lifetime = parse_lifetime(lifetime, config)?;
 
     create_proposal(
         config,
         address.as_str(),
-        keys,
+        keys_file,
         dest.unwrap(),
         comment.unwrap(),
         lifetime,
         offline
-    ).await
+    )
 }
 
-async fn proposal_vote_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn proposal_vote_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
-    let keys = matches.value_of("KEYS");
+    let keys_file = matches.value_of("KEYS");
     let id = matches.value_of("ID");
     let lifetime = matches.value_of("LIFETIME");
     let offline = matches.is_present("OFFLINE");
     if !config.is_json {
-        print_args!(address, id, keys, lifetime);
+        print_args!(address, id, keys_file, lifetime);
     }
-    let address = load_ton_address(address.unwrap(), &config)?;
+    let address = load_ton_address(address.unwrap(), config)?;
     let lifetime = parse_lifetime(lifetime, config)?;
 
-    vote(config, address.as_str(), keys, id.unwrap(), lifetime, offline).await?;
+    vote(config, address.as_str(), keys_file, id.unwrap(), lifetime, offline)?;
     println!("{{}}");
     Ok(())
 }
 
-async fn proposal_decode_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn proposal_decode_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let id = matches.value_of("ID");
     if !config.is_json {
         print_args!(address, id);
     }
-    let address = load_ton_address(address.unwrap(), &config)?;
-    decode_proposal(config, address.as_str(), id.unwrap()).await
+    let address = load_ton_address(address.unwrap(), config)?;
+    decode_proposal(config, address.as_str(), id.unwrap())
 }
 
-async fn getconfig_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn getconfig_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let index = matches.value_of("INDEX");
     if !config.is_json {
         print_args!(index);
     }
-    query_global_config(config, index).await
+    RUNTIME.block_on(async move {    
+        query_global_config(config, index).await
+    })
 }
 
-async fn update_config_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn update_config_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let abi = matches.value_of("ABI");
     let seqno = matches.value_of("SEQNO");
     let config_master = matches.value_of("CONFIG_MASTER_KEY_FILE");
     let new_param = matches.value_of("NEW_PARAM_FILE");
+    let ouput = matches.value_of("OUTPUT");
     if !config.is_json {
         print_args!(seqno, config_master, new_param);
     }
-    gen_update_config_message(abi, seqno, config_master.unwrap(), new_param.unwrap(), config.is_json).await
+    gen_update_config_message(abi, seqno, config_master.unwrap(), new_param.unwrap(), ouput, config.is_json)
 }
 
-async fn dump_bc_config_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn dump_bc_config_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let path = matches.value_of("PATH");
     if !config.is_json {
         print_args!(path);
     }
-    dump_blockchain_config(config, path.unwrap()).await
+    dump_blockchain_config(config, path.unwrap())
 }
 
 fn nodeid_command(matches: &ArgMatches, config: &Config) -> Result<(), String> {
@@ -1659,7 +1680,7 @@ fn nodeid_command(matches: &ArgMatches, config: &Config) -> Result<(), String> {
         convert::nodeid_from_pubkey(&vec)?
     } else if let Some(pair) = keypair {
         let pair = crypto::load_keypair(pair)?;
-        convert::nodeid_from_pubkey(&hex::decode(&pair.public)
+        convert::nodeid_from_pubkey(&hex::decode(pair.public)
             .map_err(|e| format!("failed to decode public key: {}", e))?)?
     } else {
         return Err("Either public key or key pair parameter should be provided".to_owned());
@@ -1674,10 +1695,12 @@ fn nodeid_command(matches: &ArgMatches, config: &Config) -> Result<(), String> {
     Ok(())
 }
 
-async fn sendfile_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+fn sendfile_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let boc = m.value_of("BOC");
     if !config.is_json {
         print_args!(boc);
     }
-    sendfile::sendfile(config, boc.unwrap()).await
+    RUNTIME.block_on(async move {    
+        sendfile::sendfile(config, boc.unwrap()).await
+    })
 }
