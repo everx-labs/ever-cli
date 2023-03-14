@@ -18,6 +18,7 @@ use ton_client::crypto::{
     hdkey_secret_from_xprv,
     nacl_sign_keypair_from_secret_key,
     hdkey_derive_from_xprv_path,
+    MnemonicDictionary,
     ParamsOfHDKeySecretFromXPrv,
     ParamsOfHDKeyDeriveFromXPrvPath,
     ParamsOfHDKeyXPrvFromMnemonic,
@@ -40,7 +41,7 @@ pub fn gen_seed_phrase() -> Result<String, String> {
     mnemonic_from_random(
         client,
         ParamsOfMnemonicFromRandom {
-            dictionary: Some(1),
+            dictionary: Some(MnemonicDictionary::English),
             word_count: Some(WORD_COUNT),
             ..Default::default()
         },
@@ -54,7 +55,7 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     let hdk_master = hdkey_xprv_from_mnemonic(
         client.clone(),
         ParamsOfHDKeyXPrvFromMnemonic {
-            dictionary: Some(1),
+            dictionary: Some(MnemonicDictionary::English),
             word_count: Some(WORD_COUNT),
             phrase: mnemonic.to_string(),
             ..Default::default()

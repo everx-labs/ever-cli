@@ -20,7 +20,7 @@ use ton_client::abi::{
     Abi, AbiConfig, AbiContract, DecodedMessageBody, DeploySet, ParamsOfDecodeMessageBody,
     ParamsOfEncodeMessage, Signer,
 };
-use ton_client::crypto::{CryptoConfig, KeyPair};
+use ton_client::crypto::{CryptoConfig, KeyPair, MnemonicDictionary};
 use ton_client::error::ClientError;
 use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection, NetworkConfig};
 use ton_client::{ClientConfig, ClientContext};
@@ -155,7 +155,7 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
             message_expiration_timeout_grow_factor: 1.3,
         },
         crypto: CryptoConfig {
-            mnemonic_dictionary: 1,
+            mnemonic_dictionary: MnemonicDictionary::English,
             mnemonic_word_count: WORD_COUNT,
             hdkey_derivation_path: HD_PATH.to_string(),
         },
