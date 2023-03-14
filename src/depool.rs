@@ -158,7 +158,8 @@ pub fn create_depool_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(value_arg.clone())
                 .arg(keys_arg.clone())
                 .arg(wait_answer.clone())
-                .arg(dest_arg.clone()))
+                .arg(dest_arg.clone())
+                .arg(v2_arg.clone()))
             .subcommand(SubCommand::with_name("remove")
                 .about("Withdraws an ordinary stake from the current pooling round of the depool to the multisignature wallet.")
                 .setting(AppSettings::AllowLeadingHyphen)
@@ -400,7 +401,7 @@ impl<'a> DepoolCmd<'a> {
         ).await.map_err(|e| println!("failed to query message: {}", e));
 
         if message.is_err() {
-            println!("\nRequest failed. Check the contract balance to be great enough to cover transfer value with possible fees.");
+            println!("Request failed. Check the contract balance to be great enough to cover transfer value with possible fees.");
             return Ok(());
         }
         println!("\nRequest was successfully sent to depool.");
