@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.33.1
+
+### New
+- Migrated to ever-sdk 0.41.1
+
 ## Version: 0.30.1
 
 ### New
