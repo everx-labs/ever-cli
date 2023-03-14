@@ -14,17 +14,23 @@ extern crate reqwest;
 use crate::call;
 use crate::config::Config;
 use crate::convert;
-use crate::deploy::prepare_deploy_message_params;
-use crate::helpers::{create_client_local, load_ton_address, create_client_verbose, load_file_with_url};
-use clap::{App, ArgMatches, SubCommand, Arg, AppSettings};
-use serde_json::json;
-use ton_client::abi::{Abi, AbiContract, AbiParam, encode_message_body, ParamsOfEncodeMessageBody, CallSet};
 use crate::crypto::load_keypair;
+use crate::deploy::prepare_deploy_message_params;
+use crate::helpers::{
+    create_client_local, create_client_verbose, load_file_with_url, load_ton_address,
+};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use serde_json::json;
+use ton_client::abi::{
+    encode_message_body, Abi, AbiContract, AbiParam, CallSet, ParamsOfEncodeMessageBody,
+};
 
 const SAFEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/safemultisig/SafeMultisigWallet.tvc?raw=true";
 const SETCODEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/setcodemultisig/SetcodeMultisigWallet.tvc?raw=true";
-const SAFEMULTISIG_V2_LINK: &str = "https://github.com/EverSurf/contracts/blob/main/multisig2/build/SafeMultisig.tvc?raw=true";
-const SETCODEMULTISIG_V2_LINK: &str = "https://github.com/EverSurf/contracts/blob/main/multisig2/build/SetcodeMultisig.tvc?raw=true";
+const SAFEMULTISIG_V2_LINK: &str =
+    "https://github.com/EverSurf/contracts/blob/main/multisig2/build/SafeMultisig.tvc?raw=true";
+const SETCODEMULTISIG_V2_LINK: &str =
+    "https://github.com/EverSurf/contracts/blob/main/multisig2/build/SetcodeMultisig.tvc?raw=true";
 
 pub const MSIG_ABI: &str = r#"{
 	"ABI version": 2,
@@ -191,14 +197,15 @@ pub struct CallArgs {
 
 impl CallArgs {
     pub async fn submit(matches: &ArgMatches<'_>) -> Result<Self, String> {
-        let dest = matches.value_of("DEST")
+        let dest = matches
+            .value_of("DEST")
             .map(|s| s.to_owned())
             .ok_or("--dst parameter is not defined".to_string())?;
-        let value = matches.value_of("VALUE")
+        let value = matches
+            .value_of("VALUE")
             .ok_or("--value parameter is not defined".to_string())?;
         let value = convert::convert_token(value)?;
-        let comment = matches.value_of("PURPOSE")
-            .map(|s| s.to_owned());
+        let comment = matches.value_of("PURPOSE").map(|s| s.to_owned());
         let body = if let Some(ref txt) = comment {
             encode_transfer_body(&txt).await?
         } else {
@@ -253,27 +260,26 @@ impl CallArgs {
 
         let image = load_file_with_url(target, 30000).await?;
 
-        let owners = matches.value_of("OWNERS")
-            .map(|owners| {
-                owners.replace('[', "")
-                    .replace(']', "")
-                    .replace('\"', "")
-                    .replace('\'', "")
-                    .replace("0x", "")
-                    .split(',')
-                    .map(|o|
-                        format!("0x{}", o)
-                    )
-                    .collect::<Vec<String>>()
-            });
-            
+        let owners = matches.value_of("OWNERS").map(|owners| {
+            owners
+                .replace('[', "")
+                .replace(']', "")
+                .replace('\"', "")
+                .replace('\'', "")
+                .replace("0x", "")
+                .split(',')
+                .map(|o| format!("0x{}", o))
+                .collect::<Vec<String>>()
+        });
+
         let mut params = json!({
             "owners": owners,
             "reqConfirms": matches.value_of("CONFIRMS").unwrap_or("1"),
         });
 
         if v2 {
-            let lifetime = matches.value_of("LIFETIME")
+            let lifetime = matches
+                .value_of("LIFETIME")
                 .map(|s| s.parse::<u64>())
                 .unwrap_or(Ok(0))
                 .map_err(|e| e.to_string())?;
@@ -283,7 +289,7 @@ impl CallArgs {
         Ok(Self {
             params,
             func_name: "constructor".to_owned(),
-            image: Some(image)
+            image: Some(image),
         })
     }
 }
@@ -296,12 +302,18 @@ pub struct MultisigArgs {
 }
 
 impl MultisigArgs {
-    pub fn new(matches: &ArgMatches<'_>, config: &Config, call_args: CallArgs) -> Result<Self, String> {
-        let address = matches.value_of("MSIG")
+    pub fn new(
+        matches: &ArgMatches<'_>,
+        config: &Config,
+        call_args: CallArgs,
+    ) -> Result<Self, String> {
+        let address = matches
+            .value_of("MSIG")
             .map(|s| s.to_owned())
             .or_else(|| config.wallet.clone())
             .ok_or("multisig address is not defined".to_string())?;
-        let keys = matches.value_of("SIGN")
+        let keys = matches
+            .value_of("SIGN")
             .or_else(|| matches.value_of("KEYS"))
             .map(|s| s.to_owned())
             .or_else(|| config.keys_path.clone())
@@ -312,7 +324,11 @@ impl MultisigArgs {
         let mut abi = serde_json::from_str::<AbiContract>(MSIG_ABI).unwrap_or_default();
         if v2 {
             abi.version = Some("2.3".to_owned());
-            if let Some(f) = abi.functions.iter_mut().find(|e| &e.name == "submitTransaction") {
+            if let Some(f) = abi
+                .functions
+                .iter_mut()
+                .find(|e| &e.name == "submitTransaction")
+            {
                 f.inputs.push(AbiParam {
                     name: "stateInit".to_owned(),
                     param_type: "optional(cell)".to_owned(),
@@ -328,7 +344,12 @@ impl MultisigArgs {
             }
         }
 
-        Ok(Self {addr, call_args, abi: Abi::Contract(abi), keys})
+        Ok(Self {
+            addr,
+            call_args,
+            abi: Abi::Contract(abi),
+            keys,
+        })
     }
     pub fn address(&self) -> &str {
         &self.addr
@@ -354,7 +375,7 @@ impl MultisigArgs {
     }
     pub fn image(&self) -> Option<&[u8]> {
         self.call_args.image.as_ref().map(|v| v.as_slice())
-    } 
+    }
     pub async fn execute(self, config: &Config) -> Result<serde_json::Value, String> {
         call::call_contract_with_result(
             config,
@@ -364,7 +385,8 @@ impl MultisigArgs {
             &self.params().to_string(),
             Some(self.keys.clone()),
             false,
-        ).await
+        )
+        .await
     }
 }
 
@@ -461,21 +483,20 @@ pub async fn encode_transfer_body(text: &str) -> Result<String, String> {
             call_set: CallSet::some_with_function_and_input(
                 "transfer",
                 json!({
-                    "comment": hex::encode(text.as_bytes()) 
+                    "comment": hex::encode(text.as_bytes())
                 }),
-            ).ok_or("failed to create CallSet with specified parameters")?,
+            )
+            .ok_or("failed to create CallSet with specified parameters")?,
             is_internal: true,
             ..Default::default()
         },
-    ).await
+    )
+    .await
     .map_err(|e| format!("failed to encode transfer body: {}", e))
     .map(|r| r.body)
 }
 
-async fn send(
-    config: &Config,
-    args: MultisigArgs,
-) -> Result<(), String> {
+async fn send(config: &Config, args: MultisigArgs) -> Result<(), String> {
     let result = args.execute(config).await?;
     if !config.is_json {
         println!("Succeeded.");
@@ -486,7 +507,7 @@ async fn send(
 async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let call_args = CallArgs::deploy(matches).await?;
     let args = MultisigArgs::new(matches, config, call_args)?;
-    
+
     let keys = load_keypair(args.keys())?;
     let mut params = args.params().clone();
     if params["owners"].is_null() {
@@ -497,8 +518,9 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
         args.abi().clone(),
         &params.to_string(),
         Some(keys),
-        config.wc
-    ).await?;
+        config.wc,
+    )
+    .await?;
 
     if !config.is_json {
         println!("Wallet address: {}", address);
@@ -517,14 +539,21 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
             &params,
             None,
             false,
-        ).await?;
+        )
+        .await?;
     }
 
-    let res = call::process_message(ton.clone(), msg, config).await
+    let res = call::process_message(ton.clone(), msg, config)
+        .await
         .map_err(|e| format!("{:#}", e));
 
     if res.is_err() {
-        if res.clone().err().unwrap().contains("Account does not exist.") {
+        if res
+            .clone()
+            .err()
+            .unwrap()
+            .contains("Account does not exist.")
+        {
             if !config.is_json {
                 println!("Your account should have initial balance for deployment. Please transfer some value to your wallet address before deploy.");
             } else {
