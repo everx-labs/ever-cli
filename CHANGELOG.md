@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.34.1
+
+### New 
+- Fixed update_config command bug for solidity contracts
+
 ## 0.34.0
 
 ### New 
