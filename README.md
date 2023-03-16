@@ -1815,7 +1815,7 @@ no need of ABI files.
 Use the following command to send tokens to any recipient:
 
 ```bash
-tonos-cli multisig send --addr <sender_address> --dest <recipient_address> --purpose <"text_in_quotes"> --sign <path_to_keys_or_seed_phrase> --value *number*
+tonos-cli multisig send --addr <sender_address> --dest <recipient_address> --purpose <"text_in_quotes"> --sign <path_to_keys_or_seed_phrase> --value *number* [--v2]
 ```
 
 `<sender_address>` - address of the multisig wallet that tokens are sent from.
@@ -1827,6 +1827,8 @@ tonos-cli multisig send --addr <sender_address> --dest <recipient_address> --pur
 `<path_to_keys_or_seed_phrase>` - path to sender wallet key file or the corresponding seed phrase in quotes.
 
 `--value *number*` - value to be transferred (in tokens).
+
+`--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
@@ -1850,7 +1852,7 @@ Result: {
 Use the following command to deploy a multisignature wallet:
 
 ```bash
-tonos-cli multisig deploy [--setcode] [--owners <owners_list>] [--confirms <confirms_cnt>] [--local <local_giver_value>] --keys <path_to_keys_or_seed_phrase>
+tonos-cli multisig deploy [--setcode] [--v2] [--owners <owners_list>] [--confirms <confirms_cnt>] [--local <local_giver_value>] --keys <path_to_keys_or_seed_phrase> 
 ```
 
 `--setcode` - flag that changes type of the wallet to the SetcodeMultisigWallet. If not specified, a SafeMultisigWallet is deployed.
@@ -1863,6 +1865,8 @@ List of owners must be specified by their public keys in hex format, split by th
 `--local <local_giver_value>` - value that should be transferred from the local giver if wallet is deployed onto the Node SE (in nanotons).
 
 `--keys <path_to_keys_or_seed_phrase>` - path to the wallet key file or the corresponding seed phrase in quotes.
+
+`--v2` - optional flag, force to deploy multisig v2.
 
 
 Example:
@@ -1988,7 +1992,7 @@ Ordinary stake must exceed DePool minimum stake. Check DePool's page on [ton.liv
 the minimum stake.
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake ordinary [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer]
+tonos-cli depool [--addr <depool_address>] stake ordinary [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 `<depool_address>` - address of the DePool contract.
@@ -2000,6 +2004,8 @@ all --value parameters must be defined in tons, like this: `--value 10.5`, which
 `<key_file or seed_phrase>` - either the keyfile for the wallet making the stake, or the seed phrase in quotes.
 
 `--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+
+`--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
@@ -2019,7 +2025,7 @@ unauthorized vestings from blocking the beneficiary from receiving an expected v
 - set the donor address with the following command:
 
 ```bash
-tonos-cli depool [--addr <depool_address>] donor vesting [--wallet <beneficiary_address>] --donor <donor_address> [--sign <key_file or seed_phrase>] [--wait-answer]
+tonos-cli depool [--addr <depool_address>] donor vesting [--wallet <beneficiary_address>] --donor <donor_address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 `<depool_address>` - address of the DePool contract.
@@ -2031,6 +2037,8 @@ tonos-cli depool [--addr <depool_address>] donor vesting [--wallet <beneficiary_
 `<key_file or seed_phrase>` - either the keyfile for the beneficiary wallet, or the seed phrase in quotes.
 
 `--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+
+`--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
@@ -2051,7 +2059,7 @@ stake should exceed `validatorAssurance` *2. Similarly, to ensure any vesting st
 **Donor uses the following command to make a vesting stake:**
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake vesting [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>] [--wait-answer]
+tonos-cli depool [--addr <depool_address>] stake vesting [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2074,6 +2082,8 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, whi
 
 `--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
+`--v2` - optional flag, force to interpret wallet as multisig v2.
+
 Example:
 
 ```bash
@@ -2095,7 +2105,7 @@ beneficiary from receiving an expected lock stake from a known address.
 - set the donor address with the following command:
 
 ```bash
-tonos-cli depool [--addr <depool_address>] donor lock [--wallet <beneficiary_address>] --donor <donor_address> [--sign <key_file or seed_phrase>] [--wait-answer]
+tonos-cli depool [--addr <depool_address>] donor lock [--wallet <beneficiary_address>] --donor <donor_address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2109,6 +2119,8 @@ Where
 `<key_file or seed_phrase>` - either the keyfile for the beneficiary wallet, or the seed phrase in quotes.
 
 `--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+
+`--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
@@ -2129,7 +2141,7 @@ should equal `validatorAssurance` *2. Similarly, to ensure any vesting stake is 
 **Donor uses the following command to make a lock stake:**
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake lock [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>] [--wait-answer]
+tonos-cli depool [--addr <depool_address>] stake lock [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2152,6 +2164,8 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, whi
 
 `--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
+`--v2` - optional flag, force to interpret wallet as multisig v2.
+
 Example:
 
 ```bash
@@ -2165,7 +2179,7 @@ tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2
 This command removes an ordinary stake from a pooling round (while it has not been staked in the Elector yet):
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake remove [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer]
+tonos-cli depool [--addr <depool_address>] stake remove [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2180,6 +2194,8 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, whi
 
 `--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
+`--v2` - optional flag, force to interpret wallet as multisig v2.
+
 Example:
 
 ```bash
@@ -2193,7 +2209,7 @@ the stake is transferred, the transferring wallet is removed from the list of pa
 receiving wallet isn't listed among the participants, it will become a participant as the result of the command.
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake transfer [--wallet <msig_address>] --value <number> --dest <address> [--sign <key_file or seed_phrase>] [--wait-answer]
+tonos-cli depool [--addr <depool_address>] stake transfer [--wallet <msig_address>] --value <number> --dest <address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2209,6 +2225,8 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, whi
 `<key_file or seed_phrase>` - either the keyfile for the wallet making the stake, or the seed phrase in quotes.
 
 `--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+
+`--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
@@ -2227,7 +2245,7 @@ available. Use `withdraw on` to receive the stake, once it's unlocked. If you th
 reinvesting it every round, run the command with `withdraw off`.
 
 ```bash
-tonos-cli depool [--addr <depool_address>] withdraw on | off [--wallet <msig_address>] [--sign <key_file or seed_phrase>] [--wait-answer]
+tonos-cli depool [--addr <depool_address>] withdraw on | off [--wallet <msig_address>] [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2239,6 +2257,8 @@ Where
 `<key_file or seed_phrase>` - either the keyfile for the wallet that made the stake, or the seed phrase in quotes.
 
 `--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+
+`--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
@@ -2253,7 +2273,7 @@ becomes available. If, as result of this withdrawal, participant's ordinary stak
 participant's whole stake is sent to participant.
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake withdrawPart [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer]
+tonos-cli depool [--addr <depool_address>] stake withdrawPart [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2267,6 +2287,8 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, whi
 `<key_file or seed_phrase>` - either the keyfile for the wallet that made the stake, or the seed phrase in quotes.
 
 `--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+
+`--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
@@ -2283,7 +2305,7 @@ remains set to `no`. To re-enable ordinary stake reinvesting after withdrawing a
 option `off`:
 
 ```bash
-tonos-cli depool [--addr <depool_address>] withdraw off [--wallet <msig_address>] [--sign <key_file or seed_phrase>] [--wait-answer]
+tonos-cli depool [--addr <depool_address>] withdraw off [--wallet <msig_address>] [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 `<depool_address>` - address of the DePool contract.
@@ -2293,6 +2315,8 @@ tonos-cli depool [--addr <depool_address>] withdraw off [--wallet <msig_address>
 `<key_file or seed_phrase>` - either the keyfile for the wallet that made the stake, or the seed phrase in quotes.
 
 `--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+
+`--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
@@ -2391,7 +2415,7 @@ some cases, when normal operation is interrupted, DePool balance may drop lower.
 DePool balance (this is not counted towards any stake):
 
 ```bash
-tonos-cli depool [--addr <depool_address>] replenish --value *number* [--wallet <msig_address>] [--sign <key_file_or_seed_phrase>]
+tonos-cli depool [--addr <depool_address>] replenish --value *number* [--wallet <msig_address>] [--sign <key_file_or_seed_phrase>] [--v2]
 ```
 
 `<depool_address>` - address of the DePool contract.
@@ -2401,6 +2425,8 @@ all `--value` parameters must be defined in tons, like this: `--value 150.5`, wh
 `<msig_address>` - address of the wallet that made the stake.
 
 `<key_file_or_seed_phrase>` - either the keyfile for the wallet, or the seed phrase in quotes.
+
+`--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
@@ -2431,12 +2457,13 @@ a TONOS-CLI with the use of a multisig wallet. Use the following command to send
 script to run this command regularly):
 
 ```bash
-tonos-cli depool [--addr <depool_address>] ticktock [--wallet <msig_address>] [--sign <path_to_keys_or_seed_phrase>]
+tonos-cli depool [--addr <depool_address>] ticktock [--wallet <msig_address>] [--sign <path_to_keys_or_seed_phrase>] [--v2]
 ```
 
 - `--addr <depool_address>` - the address of the DePool
 - `--wallet <msig_address>` - the address of the multisig wallet used to call DePool
 - `--sign <path_to_keys_or_seed_phrase>` - either the keyfile for the wallet, or the seed phrase in quotes
+- `--v2` - optional flag, force to interpret wallet as multisig v2.
 
 1 token is always attached to this call. Change will be returned.
 
