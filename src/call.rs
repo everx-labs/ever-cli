@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -13,7 +13,7 @@
 use crate::config::Config;
 use crate::convert;
 use crate::helpers::{TonClient, now_ms, create_client_verbose, load_abi, query_account_field,
-                     SDK_EXECUTION_ERROR_CODE, create_client, load_ton_abi, get_blockchain_config};
+    create_client, load_ton_abi, get_blockchain_config};
 
 use ton_client::abi::{encode_message, decode_message, ParamsOfDecodeMessage, ParamsOfEncodeMessage,
                       Abi};
@@ -30,12 +30,12 @@ use ton_client::tvm::{
     ParamsOfRunExecutor,
     AccountForExecutor
 };
-use ton_block::{Account, Serializable, Deserializable, Message};
+use ton_block::{Account, Serializable};
 use std::str::FromStr;
 use serde_json::{json, Value};
 use ton_abi::ParamType;
 use ton_client::error::ClientError;
-use crate::debug::{execute_debug, DebugLogger};
+use crate::debug::{init_debug_logger, debug_error, DebugParams};
 use crate::message::{EncodedMessage, prepare_message_params, print_encoded_message, unpack_message};
 
 async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) -> Result<(String, String), String> {
@@ -52,9 +52,7 @@ async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) 
 
     Ok((
         result.name,
-        serde_json::to_string_pretty(
-            &result.value.unwrap_or(json!({}))
-        ).map_err(|e| format!("failed to serialize result: {}", e))?
+        format!("{:#}", result.value.unwrap_or(json!({})))
     ))
 }
 
@@ -262,17 +260,15 @@ pub async fn call_contract_with_result(
     keys: Option<String>,
     is_fee: bool,
 ) -> Result<Value, String> {
+    let mut trace_path = String::new();
     let ton = if config.debug_fail != "None".to_string() {
-        let log_path = format!("call_{}_{}.log", addr, method);
-        log::set_max_level(log::LevelFilter::Trace);
-        log::set_boxed_logger(
-            Box::new(DebugLogger::new(log_path))
-        ).map_err(|e| format!("Failed to set logger: {}", e))?;
+        trace_path = format!("call_{}_{}.log", addr, method);
+        init_debug_logger(&trace_path)?;
         create_client(config)?
     } else {
         create_client_verbose(config)?
     };
-    call_contract_with_client(ton, config, addr, abi_path, method, params, keys, is_fee).await
+    call_contract_with_client(ton, config, addr, abi_path, method, params, keys, is_fee, trace_path).await
 }
 
 pub async fn call_contract_with_client(
@@ -284,6 +280,7 @@ pub async fn call_contract_with_client(
     params: &str,
     keys: Option<String>,
     is_fee: bool,
+    trace_path: String,
 ) -> Result<Value, String> {
     let abi = load_abi(abi_path, config).await?;
 
@@ -322,61 +319,36 @@ pub async fn call_contract_with_client(
         None
     };
 
-    let dump = if config.debug_fail != "None".to_string() {
-        let acc_boc = query_account_field(
-            ton.clone(),
-            addr,
-            "boc",
-        ).await?;
-        let account = Account::construct_from_base64(&acc_boc)
-            .map_err(|e| format!("Failed to construct account: {}", e))?
-            .serialize()
-            .map_err(|e| format!("Failed to serialize account: {}", e))?;
-
-        let now = now_ms();
-        Some((account, message.unwrap(), now, get_blockchain_config(config, None).await?))
-    } else {
-        None
-    };
-
-    let res = process_message(ton.clone(), msg_params, config).await;
-
-    if config.debug_fail != "None".to_string() && res.is_err()
-        && res.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
-        if config.is_json {
-            let e = format!("{:#}", res.clone().err().unwrap());
-            let err: Value = serde_json::from_str(&e)
-                .unwrap_or(Value::String(e));
-            let res = json!({"Error": err});
-            println!("{}", serde_json::to_string_pretty(&res)
-                .unwrap_or("{{ \"JSON serialization error\" }}".to_string()));
-        } else {
-            println!("Error: {:#}", res.clone().err().unwrap());
-            println!("Execution failed. Starting debug...");
+    match process_message(ton.clone(), msg_params, config).await {
+        Ok(result) => Ok(result),
+        Err(e) => {
+            let acc_boc = query_account_field(
+                ton.clone(),
+                addr,
+                "boc",
+            ).await?;
+            let now = now_ms();
+            let bc_config = get_blockchain_config(config, None).await?;
+            let debug_params = DebugParams {
+                account: &acc_boc,
+                message: message.as_deref(),
+                time_in_ms: now,
+                block_lt: now,
+                last_tr_lt: now,
+                ..DebugParams::new(config, bc_config)
+            };
+            debug_error(&e, debug_params, &trace_path).await?;
+            return Err(format!("{:#}", e));
         }
-        let (mut account, message, now, bc_config) = dump.unwrap();
-        let message = Message::construct_from_base64(&message)
-            .map_err(|e| format!("failed to construct message: {}", e))?;
-        let _ = execute_debug(bc_config, &mut account, Some(&message), (now / 1000) as u32, now,now, false, config).await?;
-
-        if !config.is_json {
-            let log_path = format!("call_{}_{}.log", addr, method);
-            println!("Debug finished.");
-            println!("Log saved to {}", log_path);
-        }
-        return Err("".to_string());
     }
-    res.map_err(|e| format!("{:#}", e))
 }
 
 pub fn print_json_result(result: Value, config: &Config) -> Result<(), String> {
     if !result.is_null() {
-        let result = serde_json::to_string_pretty(&result)
-            .map_err(|e| format!("Failed to serialize the result: {}", e))?;
         if !config.is_json {
-            println!("Result: {}", result);
+            println!("Result: {:#}", result);
         } else {
-            println!("{}", result);
+            println!("{:#}", result);
         }
     }
     Ok(())
@@ -426,8 +398,7 @@ pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: 
     if !config.is_json {
         println!("Succeeded.");
         if !result.is_null() {
-            println!("Result: {}", serde_json::to_string_pretty(&result)
-                .map_err(|e| format!("failed to serialize result: {}", e))?);
+            println!("Result: {:#}", result);
         }
     }
     Ok(())

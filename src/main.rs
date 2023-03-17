@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -34,6 +34,7 @@ mod voting;
 mod replay;
 mod debug;
 mod run;
+mod test;
 mod message;
 #[cfg(feature = "sold")]
 mod compile;
@@ -48,20 +49,18 @@ use decode::{create_decode_command, decode_command};
 use debug::{create_debug_command, debug_command};
 use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
-use ed25519_dalek::Signer;
 use genaddr::generate_address;
 use getconfig::{query_global_config, dump_blockchain_config};
 use helpers::{load_ton_address, load_abi, create_client_local, query_raw,
-              contract_data_from_matches_or_config_alias, decode_data};
+              contract_data_from_matches_or_config_alias};
 use multisig::{create_multisig_command, multisig_command};
 use replay::{fetch_block_command, fetch_command, replay_command};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::env;
 use std::process::exit;
-use std::sync::Arc;
+use test::{create_test_command, test_command, test_sign_command, create_test_sign_command};
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
-use ton_types::deserialize_tree_of_cells_inmem;
 use voting::{create_proposal, decode_proposal, vote};
 use crate::account::dump_accounts;
 #[cfg(feature = "sold")]
@@ -69,7 +68,10 @@ use crate::compile::{compile_command, create_compile_command};
 
 use crate::config::{FullConfig, resolve_net_name};
 use crate::getconfig::gen_update_config_message;
-use crate::helpers::{abi_from_matches_or_config, AccountSource, default_config_name, global_config_path, load_abi_from_tvc, load_params, parse_lifetime, unpack_alternative_params, wc_from_matches_or_config};
+use crate::helpers::{abi_from_matches_or_config, AccountSource, default_config_name,
+    global_config_path, load_abi_from_tvc, load_params, parse_lifetime,
+    unpack_alternative_params, wc_from_matches_or_config
+};
 use crate::message::generate_message;
 use crate::run::{run_command, run_get_method};
 
@@ -88,12 +90,20 @@ enum DeployType {
     Fee,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), i32> {
-    main_internal().await.map_err(|err_str| {
+lazy_static::lazy_static! {
+    static ref RUNTIME: tokio::runtime::Runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .thread_stack_size(8 * 1024 * 1024)
+        .build()
+        .expect("Can't create Engine tokio runtime");
+}
+
+fn main() {
+    let result = RUNTIME.block_on(async move { main_internal().await });
+    if let Err(err_str) = result {
         if !err_str.is_empty() { println!("{}", err_str); }
-        1
-    })
+        exit(1)
+    }
 }
 
 async fn main_internal() -> Result <(), String> {
@@ -152,6 +162,7 @@ async fn main_internal() -> Result <(), String> {
     let wc_arg = Arg::with_name("WC")
         .takes_value(true)
         .long("--wc")
+        .allow_hyphen_values(true)
         .help("Workchain id of the smart contract (default value is taken from the config).");
 
     let alias_arg_long = Arg::with_name("ALIAS")
@@ -390,22 +401,9 @@ async fn main_internal() -> Result <(), String> {
         .arg(params_arg.clone())
         .arg(abi_arg.clone());
 
-    let sign_cmd = SubCommand::with_name("sign")
-        .about("Generates the ED25519 signature for bytestring.")
-        .version(version_string)
+    let sign_cmd = create_test_sign_command()
         .author(author)
-        .arg(Arg::with_name("DATA")
-            .long("--data")
-            .short("-d")
-            .takes_value(true)
-            .help("Bytestring for signing base64 or hex encoded.")
-        )
-        .arg(Arg::with_name("CELL")
-            .long("--cell")
-            .short("-c")
-            .takes_value(true)
-            .help("Serialized TOC for signing base64 or hex encoded.")
-        )
+        .version(version_string)
         .arg(keys_arg.clone());
 
     let run_cmd = SubCommand::with_name("run")
@@ -928,6 +926,7 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(create_decode_command())
         .subcommand(create_debot_command())
         .subcommand(create_debug_command())
+        .subcommand(create_test_command())
         .subcommand(getconfig_cmd)
         .subcommand(bcconfig_cmd)
         .subcommand(nodeid_cmd)
@@ -949,7 +948,7 @@ async fn main_internal() -> Result <(), String> {
             clap::ErrorKind::HelpDisplayed => { println!("{}", e); exit(0); },
             _ => {
                 eprintln!("{}", e);
-                format!("{{\n  \"Error\": \"{}\"\n}}", e.message.replace("\n", "\\n"))
+                format!("{:#}", json!({"Error": e.message}))
             }
         })?;
 
@@ -959,16 +958,11 @@ async fn main_internal() -> Result <(), String> {
         .map_err(|e| {
             if e.is_empty() {
                 e
+            } else if is_json {
+                let e = serde_json::from_str(&e).unwrap_or(Value::String(e));
+                format!("{:#}", json!({"Error": e}))
             } else {
-                if !is_json {
-                    format!("Error: {}", e)
-                } else {
-                    let err: serde_json::Value = serde_json::from_str(&e)
-                        .unwrap_or(serde_json::Value::String(e));
-                    let res = json!({"Error": err});
-                    serde_json::to_string_pretty(&res)
-                        .unwrap_or("{{ \"JSON serialization error\" }}".to_string())
-                }
+                format!("Error: {e}")
             }
         })
 }
@@ -1016,7 +1010,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
         return body_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("sign") {
-        return sign_command(m, config);
+        return test_sign_command(m, config);
     }
     if let Some(m) = matches.subcommand_matches("message") {
         return call_command(m, config, CallType::Msg).await;
@@ -1117,6 +1111,9 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     if let Some(m) = matches.subcommand_matches("replay") {
         return replay_command(m, config).await;
     }
+    if let Some(m) = matches.subcommand_matches("test") {
+        return test_command(m, &full_config).await;
+    }
 #[cfg(feature = "sold")]
     if let Some(m) = matches.subcommand_matches("compile") {
         return compile_command(m, &config).await;
@@ -1212,41 +1209,6 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     Ok(())
 }
 
-fn sign_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
-    let data = if let Some(data) = matches.value_of("DATA") {
-        decode_data(data, "data")?
-    } else if let Some(data) = matches.value_of("CELL") {
-        let data = decode_data(data, "cell")?;
-        let cell = deserialize_tree_of_cells_inmem(Arc::new(data))
-            .map_err(|err| format!("Cannot deserialize tree of cells {}", err))?;
-        cell.repr_hash().into_vec()
-    } else {
-        return Err("nor data neither cell parameter".to_string())
-    };
-    let pair = match matches.value_of("KEYS") {
-        Some(keys) => crypto::load_keypair(&keys)?,
-        None => {
-            match &config.keys_path {
-                Some(keys) => crypto::load_keypair(&keys)?,
-                None => return Err("nor signing keys in the params neither in the config".to_string())
-            }
-        }
-    };
-    let keypair = pair.decode()
-        .map_err(|err| format!("cannot decode keypair {}", err))?;
-    let signature = keypair.sign(&data);
-    let signature = base64::encode(signature.as_ref());
-    if !config.is_json {
-        println!("Signature: {}", signature);
-    } else {
-        println!("{{");
-        println!("  \"Signature\": \"{}\"", signature);
-        println!("}}");
-    }
-
-    Ok(())
-}
-
 async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType) -> Result<(), String> {
     let address = matches.value_of("ADDRESS");
     let method = matches.value_of("METHOD");
@@ -1319,7 +1281,7 @@ async fn callx_command(matches: &ArgMatches<'_>, full_config: &FullConfig) -> Re
         method.unwrap(),
         config
     ).await?;
-    let params = Some(load_params(params.unwrap().as_ref())?);
+    let params = Some(load_params(&params)?);
 
     if !config.is_json {
         print_args!(address, method, params, abi, keys);
@@ -1368,7 +1330,6 @@ async fn runget_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(),
 async fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, deploy_type: DeployType) -> Result<(), String> {
     let config = &full_config.config;
     let tvc = matches.value_of("TVC");
-    let params = matches.value_of("PARAMS");
     let wc = wc_from_matches_or_config(matches, config)?;
     let raw = matches.is_present("RAW");
     let output = matches.value_of("OUTPUT");
@@ -1378,7 +1339,12 @@ async fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, 
             .map(|s| s.to_string())
             .or(config.keys_path.clone());
     let alias = matches.value_of("ALIAS");
-    let params = Some(load_params(params.unwrap())?);
+    let params = Some(unpack_alternative_params(
+        matches,
+        abi.as_ref().unwrap(),
+        "constructor",
+        config
+    ).await?);
     if !config.is_json {
         let opt_wc = Some(format!("{}", wc));
         print_args!(tvc, params, abi, keys, opt_wc, alias);
@@ -1395,12 +1361,12 @@ async fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig)
     let tvc = matches.value_of("TVC");
     let wc = wc_from_matches_or_config(matches, config)?;
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
-    let params = unpack_alternative_params(
+    let params = Some(unpack_alternative_params(
         matches,
         abi.as_ref().unwrap(),
         "constructor",
         config
-    ).await?;
+    ).await?);
     let keys = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());

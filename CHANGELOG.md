@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.35.4
+
+### New 
+- Added `test` command and subcommands: `config`, `deploy`, `sign`, `ticktock`
+- Added ability not to receive debug output for `debug` command using `nul` for output file name
+- Added ability to set `initial_balance` for account deployment
+
 ## 0.34.1
 
 ### New 

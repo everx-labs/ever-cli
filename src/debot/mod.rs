@@ -1,5 +1,5 @@
 /*
-* Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+* Copyright 2018-2023 EverX.
 *
 * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
 * this file except in compliance with the License.
@@ -140,13 +140,13 @@ async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String>
     let addr = load_ton_address(addr.unwrap(), &config)?;
     let result = run_debot_browser(addr.as_str(), config, pipechain, signkey_path).await;
     match result {
-        Err(ref err) if err.contains("NoMoreChainlinks") => Ok(()),
-        Ok(arg) if arg.is_some() => {
+        Ok(Some(arg)) => {
             if !is_json { println!("Returned value:"); }
-            println!("{}", serde_json::to_string_pretty(&arg.unwrap()).unwrap_or_default());
+            println!("{:#}", arg);
             Ok(())
-        },
-        _ => result.map(|_| ()),
+        }
+        Err(err) if err.contains("NoMoreChainlinks") => Ok(()),
+        result => result.map(|_| ())
     }
 }
 

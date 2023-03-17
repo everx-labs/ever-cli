@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address};
+use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address, now_ms};
 use crate::config::{FullConfig};
 use crate::crypto::load_keypair;
 use crate::call::{
@@ -19,7 +19,7 @@ use crate::call::{
     send_message_and_wait,
 };
 use ton_client::abi::{
-    encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage, Abi,
+    encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage, Abi, FunctionHeader,
 };
 use ton_client::crypto::KeyPair;
 use crate::Config;
@@ -122,24 +122,32 @@ pub async fn prepare_deploy_message(
 
     let keys = keys_file.map(|k| load_keypair(&k)).transpose()?;
 
-    let tvc_bytes = &std::fs::read(tvc)
-        .map_err(|e| format!("failed to read smart contract file: {}", e))?;
+    let tvc_bytes = std::fs::read(tvc)
+        .map_err(|e| format!("failed to read smart contract file {tvc}: {e}"))?;
 
-    return prepare_deploy_message_params(tvc_bytes, abi, params, keys, wc).await;
-
+    prepare_deploy_message_params(
+        &tvc_bytes,
+        abi,
+        "constructor".to_string(),
+        now_ms(),
+        params,
+        keys,
+        wc
+    ).await
 }
-
 
 pub async fn prepare_deploy_message_params(
     tvc_bytes: &[u8],
     abi: Abi,
+    function_name: String,
+    time: u64,
     params: &str,
     keys: Option<KeyPair>,
     wc: i32
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
     let tvc_base64 = base64::encode(&tvc_bytes);
 
-    let addr = calc_acc_address(
+    let address = calc_acc_address(
         tvc_bytes,
         wc,
         keys.as_ref().map(|k| k.public.clone()),
@@ -147,24 +155,34 @@ pub async fn prepare_deploy_message_params(
         abi.clone()
     ).await?;
 
-    let dset = DeploySet {
+    let header = Some(FunctionHeader {
+        time: Some(time),
+        ..Default::default()
+    });
+    let deploy_set = Some(DeploySet {
         tvc: tvc_base64,
         workchain_id: Some(wc),
         ..Default::default()
-    };
+    });
     let params = serde_json::from_str(params)
         .map_err(|e| format!("function arguments is not a json: {}", e))?;
-
+    let call_set = Some(CallSet {
+        function_name,
+        input: Some(params),
+        header,
+        ..Default::default()
+    });
+    let signer = if let Some(keys) = keys {
+        Signer::Keys{ keys }
+    } else {
+        Signer::None
+    };
     Ok((ParamsOfEncodeMessage {
         abi,
-        address: Some(addr.clone()),
-        deploy_set: Some(dset),
-        call_set: CallSet::some_with_function_and_input("constructor", params),
-        signer: if keys.is_some() {
-            Signer::Keys{ keys: keys.unwrap() }
-        } else {
-            Signer::None
-        },
+        address: Some(address.clone()),
+        deploy_set,
+        call_set,
+        signer,
         ..Default::default()
-    }, addr))
+    }, address))
 }

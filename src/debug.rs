@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -12,23 +12,26 @@
  */
 use crate::{contract_data_from_matches_or_config_alias, FullConfig, print_args,
             unpack_alternative_params};
+use crate::message::prepare_message;
 use clap::{ArgMatches, SubCommand, Arg, App};
+use ton_client::boc::internal::deserialize_cell_from_base64;
+use ton_client::error::ClientError;
 use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
                      query_account_field, query_with_limit, create_client_verbose,
                      abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config,
-                     TEST_MAX_LEVEL, MAX_LEVEL, get_blockchain_config};
+                     get_blockchain_config, load_params, create_client_local};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT
 };
 use std::io::{Write, BufRead};
 use std::collections::{HashSet, HashMap};
-use ton_block::{Message, Account, Serializable, Deserializable, OutMessages, Transaction,
-                MsgAddressInt, CurrencyCollection, GasLimitsPrices, ConfigParamEnum};
-use ton_types::{UInt256, HashmapE, Cell, AccountId};
+use ton_block::{Message, Account, Serializable, Deserializable, Transaction,
+                MsgAddressInt, CurrencyCollection, GasLimitsPrices, ConfigParamEnum, TransactionTickTock, InRefValue, TrComputePhase};
+use ton_types::{UInt256, Cell, AccountId};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
 use ton_executor::{
-    BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TransactionExecutor
+    BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TransactionExecutor, TickTockTransactionExecutor
 };
 use std::sync::{Arc, atomic::AtomicU64};
 use ton_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDirection};
@@ -41,19 +44,34 @@ use ton_vm::executor::{Engine, EngineTraceInfo, EngineTraceInfoType};
 use crate::decode::msg_printer::serialize_msg;
 use crate::deploy::prepare_deploy_message;
 
-const DEFAULT_TRACE_PATH: &str = "./trace.log";
+const SDK_EXECUTION_ERROR_CODE: u32 = 414;
+pub const DEFAULT_TRACE_PATH: &str = "./trace.log";
 const DEFAULT_CONFIG_PATH: &str = "config.txns";
 const DEFAULT_CONTRACT_PATH: &str = "contract.txns";
 const TRANSACTION_QUANTITY: u32 = 10;
 
+const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
+const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
 
-pub struct DebugLogger {
+pub fn debug_level_from_env() -> log::LevelFilter {
+    if let Ok(debug_level) = std::env::var("RUST_LOG") {
+        if debug_level.eq_ignore_ascii_case("debug") {
+            return log::LevelFilter::Debug;
+        } else if debug_level.eq_ignore_ascii_case("trace") {
+            return log::LevelFilter::Trace;
+        }
+        return TEST_MAX_LEVEL;
+    }
+    return MAX_LEVEL;
+}
+
+struct DebugLogger {
     tvm_trace: String,
     ordinary_log_level: log::LevelFilter,
 }
 
 impl DebugLogger {
-    pub fn new(path: String) -> Self {
+    fn new(path: String) -> Self {
         if std::path::Path::new(&path).exists() {
             std::fs::remove_file(&path)
                 .expect("Failed to remove old trace log.");
@@ -61,14 +79,7 @@ impl DebugLogger {
 
         DebugLogger {
             tvm_trace: path,
-            ordinary_log_level: if std::env::var("RUST_LOG")
-                .unwrap_or_default()
-                .eq_ignore_ascii_case("debug")
-            {
-                TEST_MAX_LEVEL
-            } else {
-                MAX_LEVEL
-            },
+            ordinary_log_level: debug_level_from_env(),
         }
     }
 }
@@ -113,6 +124,16 @@ impl log::Log for DebugLogger {
     }
 
     fn flush(&self) {}
+}
+
+pub fn init_debug_logger(trace_path: &str) -> Result<(), String> {
+    if trace_path == "nul" {
+        return Ok(())
+    }
+    let logger = Box::new(DebugLogger::new(trace_path.to_string()));
+    log::set_max_level(log::LevelFilter::Trace);
+    log::set_boxed_logger(logger)
+        .map_err(|e| format!("Failed to set logger {trace_path}: {e}"))
 }
 
 pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
@@ -209,8 +230,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
     let update_arg = Arg::with_name("UPDATE_BOC")
         .long("--update")
         .short("-u")
-        .requires("BOC")
-        .help("Update contract BOC after execution");
+        .help("Update contract BOC after execution.");
 
     let now_arg = Arg::with_name("NOW")
         .takes_value(true)
@@ -226,7 +246,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
         .arg(decode_abi_arg.clone())
         .arg(boc_arg.clone())
         .arg(config_path_arg.clone())
-        .arg(update_arg.clone())
+        .arg(update_arg.clone().requires("BOC"))
         .arg(now_arg.clone())
         .arg(Arg::with_name("MESSAGE")
             .takes_value(true)
@@ -273,9 +293,17 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .help("Path to the TVC file with contract stateinit."))
         .arg(Arg::with_name("WC")
             .takes_value(true)
+            .allow_hyphen_values(true)
             .long("--wc")
             .help("Workchain ID"))
         .arg(params_arg.clone())
+        .arg(
+            update_arg.clone()
+            .help("Store account in same file, but with BOC extension."))
+        .arg(Arg::with_name("INITIAL_BALANCE")
+            .long("--initial_balance")
+            .takes_value(true)
+            .help("Initial balance in nanotokens."))
         .arg(Arg::with_name("INIT_BALANCE")
             .long("--init_balance")
             .help("Do not fetch account from the network, but create dummy account with big balance."));
@@ -435,15 +463,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         }
     };
 
-    let trace_path = trace_path.unwrap().to_string();
-    let init_logger = || {
-        log::set_max_level(log::LevelFilter::Trace);
-        log::set_boxed_logger(
-            Box::new(DebugLogger::new(trace_path.clone()))
-        ).map_err(|e| format!("Failed to set logger: {}", e))?;
-        Ok(())
-    };
-
+    let trace_path = trace_path.unwrap();
     let mut dump_mask = DUMP_NONE;
     if matches.is_present("DUMP_CONFIG") {
         dump_mask |= DUMP_CONFIG;
@@ -459,25 +479,23 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         let bc_config = get_blockchain_config(config, config_boc).await?;
         Some(bc_config)
     } else {
-      None
+        None
     };
 
     let tr = replay(
         contract_path,
         config_path,
         &tx_id,
-        generate_callback(Some(matches), config),
-        init_logger,
+        Some(generate_callback(Some(matches), config)),
+        || init_debug_logger(trace_path),
         dump_mask,
         config,
         blockchain_config
     ).await?;
 
-    decode_messages(tr.out_msgs, load_decode_abi(matches, config), config).await?;
+    decode_messages(&tr, load_decode_abi(matches, config), config).await?;
     if !config.is_json {
         println!("Log saved to {}.", trace_path);
-    } else {
-        println!("{{}}");
     }
     Ok(())
 }
@@ -534,18 +552,17 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
     let msg = trans.in_msg_cell().map(|c| Message::construct_from_cell(c)
         .map_err(|e| format!("failed to construct message: {}", e))).transpose()?;
 
-    log::set_max_level(log::LevelFilter::Trace);
-    log::set_boxed_logger(
-        Box::new(DebugLogger::new(output.unwrap().to_string()))
-    ).map_err(|e| format!("Failed to set logger: {}", e))?;
+    init_debug_logger(output.unwrap())?;
 
     let result_trans = execute_debug(
         get_blockchain_config(config, config_path).await?,
         &mut account,
         msg.as_ref(),
-        trans.now(),
+        Some(matches),
+        trans.now() as u64 * 1000,
         block_lt,
         trans.logical_time(),
+        false,
         false,
         config
     ).await;
@@ -562,7 +579,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
 
     match result_trans {
         Ok(result_trans) => {
-            decode_messages(result_trans.out_msgs,load_decode_abi(matches, config), config).await?;
+            decode_messages(&result_trans,load_decode_abi(matches, config), config).await?;
             if !config.is_json {
                 println!("Execution finished.");
             }
@@ -581,7 +598,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
 
 fn parse_now(matches: &ArgMatches<'_>) -> Result<u64, String> {
     Ok(match matches.value_of("NOW") {
-        Some(now) => u64::from_str_radix(now, 10)
+        Some(now) => now.parse()
             .map_err(|e| format!("Failed to convert now to u64: {}", e))?,
         _ => now_ms()
     })
@@ -613,70 +630,87 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         .ok_or("Method is not defined. Supply it in the config file or command line.")?);
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
-    let loaded_abi = load_abi(opt_abi.as_ref().unwrap(), &full_config.config).await?;
-    let params = unpack_alternative_params(
+    let abi = load_abi(opt_abi.as_ref().unwrap(), &full_config.config).await?;
+    let params = Some(unpack_alternative_params(
         matches,
         opt_abi.as_ref().unwrap(),
         method.unwrap(),
         &full_config.config
-    ).await?;
+    ).await?);
 
     if !full_config.config.is_json {
         print_args!(input, method, params, sign, opt_abi, output);
     }
 
-    let ton_client = create_client(&full_config.config)?;  // TODO: create local for boc and tvc
     let input = input.unwrap();
+    let ton_client;
     let mut account = if is_tvc {
+        ton_client = create_client_local()?;
         construct_account_from_tvc(input,
                                    matches.value_of("ACCOUNT_ADDRESS"),
                                    Some(u64::MAX))?
     } else if is_boc {
+        ton_client = create_client_local()?;
         Account::construct_from_file(input)
             .map_err(|e| format!(" failed to load account from the file {}: {}", input, e))?
     } else {
+        ton_client = create_client(&full_config.config)?;
         let address = load_ton_address(input, &full_config.config)?;
         let account = query_account_field(ton_client.clone(), &address, "boc").await?;
         Account::construct_from_base64(&account)
             .map_err(|e| format!("Failed to construct account: {}", e))?
     };
-
-    let params = serde_json::from_str(&params.unwrap())
-        .map_err(|e| format!("params are not in json format: {}", e))?;
-
-    let keys = sign.map(|k| load_keypair(&k)).transpose()?;
-
     let now = parse_now(matches)?;
 
-    let header = FunctionHeader {
-        expire: Some((now / 1000) as u32 + full_config.config.lifetime),
-        time: Some(now),
-        ..Default::default()
-    };
-    let call_set = CallSet {
-        function_name: method.unwrap().to_string(),
-        input: Some(params),
-        header: Some(header)
-    };
-    let msg_params = ParamsOfEncodeMessage {
-        abi: loaded_abi,
-        address: Some(format!("0:{}", "0".repeat(64))),  // TODO: add option or get from input
-        call_set: Some(call_set),
-        signer: if keys.is_some() {
-            Signer::Keys { keys: keys.unwrap() }
-        } else {
-            Signer::None
-        },
-        ..Default::default()
+    let addr = account.get_addr().unwrap().to_string();
+    let params = load_params(&params.unwrap())?;
+    let message = if false {
+        prepare_message(
+            ton_client.clone(),
+            &addr,
+            abi.clone(),
+            method.unwrap(),
+            &params,
+            None,
+            None,
+            full_config.config.is_json,
+        ).await?
+        .message
+    } else {
+        let keys = sign.map(|k| load_keypair(&k)).transpose()?;
+
+        let header = FunctionHeader {
+            expire: Some((now / 1000) as u32 + full_config.config.lifetime),
+            time: Some(now),
+            ..Default::default()
+        };
+        let params = serde_json::from_str(&params)
+            .map_err(|e| format!("params are not in json format: {e}"))?;
+        let call_set = CallSet {
+            function_name: method.unwrap().to_string(),
+            input: Some(params),
+            header: Some(header)
+        };
+        let msg_params = ParamsOfEncodeMessage {
+            abi,
+            address: account.get_addr().map(|addr| addr.to_string()),
+            call_set: Some(call_set),
+            signer: if keys.is_some() {
+                Signer::Keys { keys: keys.unwrap() }
+            } else {
+                Signer::None
+            },
+            ..Default::default()
+        };
+        encode_message(
+            ton_client,
+            msg_params
+        ).await
+            .map_err(|e| format!("Failed to encode message: {}", e))?
+            .message
     };
 
-    let message = encode_message(
-        ton_client.clone(),
-        msg_params
-    ).await
-        .map_err(|e| format!("Failed to encode message: {}", e))?;
-
-    let message = Message::construct_from_base64(&message.message)
+    let message = Message::construct_from_base64(&message)
         .map_err(|e| format!("Failed to construct message: {}", e))?;
 
     if is_getter {
@@ -685,39 +719,36 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
-    let trace_path = output.unwrap().to_string();
+    let trace_path = output.unwrap();
+    init_debug_logger(trace_path)?;
 
-    log::set_max_level(log::LevelFilter::Trace);
-    log::set_boxed_logger(
-        Box::new(DebugLogger::new(trace_path.clone()))
-    ).map_err(|e| format!("Failed to set logger: {}", e))?;
-
+    let bc_config = get_blockchain_config(&full_config.config, matches.value_of("CONFIG_PATH")).await?;
     let trans = execute_debug(
-        get_blockchain_config(&full_config.config, matches.value_of("CONFIG_PATH")).await?,
+        bc_config,
         &mut acc_root,
         Some(&message),
-        (now / 1000) as u32,
+        Some(matches),
+        now,
         now,
         now,
         is_getter,
+        false,
         &full_config.config,
     ).await;
 
     let mut out_res = vec![];
     let msg_string = match trans {
         Ok(trans) => {
-            out_res = decode_messages(trans.out_msgs,load_decode_abi(matches, &full_config.config), &full_config.config).await?;
+            out_res = decode_messages(&trans, load_decode_abi(matches, &full_config.config), &full_config.config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
-            if !is_getter {
+            if is_getter && e.contains("Contract did not accept message") {
+                "Execution finished.".to_string()
+            } else if !full_config.config.is_json {
                 format!("Execution failed: {}", e)
             } else {
-                if e.to_string().contains("Contract did not accept message") {
-                    "Execution finished.".to_string()
-                } else {
-                    format!("Execution failed: {}", e)
-                }
+                return Err(e);
             }
         }
     };
@@ -732,22 +763,16 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         }
     }
 
-    let print_res = is_getter && !out_res.is_empty();
-    if print_res {
-        if !full_config.config.is_json {
-            print!("Output: ");
-        }
+    if is_getter && !out_res.is_empty() && !full_config.config.is_json {
+        print!("Output: ");
         for msg in out_res {
-            println!("{}", serde_json::to_string_pretty(&msg)
-                .map_err(|e| format!("Failed to serialize result: {}", e))?);
+            println!("{:#}", msg)
         }
     }
 
     if !full_config.config.is_json {
         println!("{}", msg_string);
         println!("Log saved to {}", trace_path);
-    } else if !print_res {
-        println!("{{}}");
     }
     Ok(())
 }
@@ -783,32 +808,30 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
-    let trace_path = output.unwrap().to_string();
-
-    log::set_max_level(log::LevelFilter::Trace);
-    log::set_boxed_logger(
-        Box::new(DebugLogger::new(trace_path.clone()))
-    ).map_err(|e| format!("Failed to set logger: {}", e))?;
+    let trace_path = output.unwrap();
+    init_debug_logger(trace_path)?;
 
     let now = parse_now(matches)?;
-    let trans = execute_debug(
+    let result = execute_debug(
         get_blockchain_config(config, matches.value_of("CONFIG_PATH")).await?,
         &mut acc_root,
         Some(&message),
-        (now / 1000) as u32,
+        Some(matches),
         now,
         now,
+        now,
+        false,
         false,
         config
     ).await;
 
-    let msg_string = match trans {
+    let (msg_string, error) = match result {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config), config).await?;
-            "Execution finished.".to_string()
+            decode_messages(&trans,load_decode_abi(matches, config), config).await?;
+            ("Execution finished.".to_string(), None)
         }
         Err(e) => {
-            format!("Execution failed: {}", e)
+            (format!("Execution failed: {}", e), Some(e))
         }
     };
 
@@ -825,10 +848,11 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
     if !config.is_json {
         println!("{}", msg_string);
         println!("Log saved to {}", trace_path);
-    } else {
-        println!("{{}}");
     }
-    Ok(())
+    match error {
+        Some(e) => Err(e),
+        None => Ok(())
+    }
 }
 
 async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
@@ -840,13 +864,13 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     let sign = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
-    let params = unpack_alternative_params(
+    let params = Some(unpack_alternative_params(
         matches,
         opt_abi.as_ref().unwrap(),
         "constructor",
         config
-    ).await?;
-    let wc = Some(wc_from_matches_or_config(matches, config)?);
+    ).await?);
+    let wc = wc_from_matches_or_config(matches, config)?;
     if !config.is_json {
         print_args!(tvc, params, sign, opt_abi, output, debug_info);
     }
@@ -854,26 +878,32 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     let (msg, address) = prepare_deploy_message(
         tvc.unwrap(),
         opt_abi.as_ref().unwrap(),
-        params.as_ref().unwrap(),
+        &load_params(&params.unwrap())?,
         sign,
-        wc.unwrap(),
+        wc,
         config
     ).await?;
-    let init_balance = matches.is_present("INIT_BALANCE");
+    let initial_balance_opt = if let Some(initial_balance) = matches.value_of("INITIAL_BALANCE") {
+        initial_balance.parse().ok()
+    } else if matches.is_present("INIT_BALANCE") {
+        Some(u64::MAX)
+    } else {
+        None
+    };
     let ton_client = create_client(config)?;
     let enc_msg = encode_message(ton_client.clone(), msg.clone()).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
-    let account = if init_balance {
-        Account::with_address_and_ballance(
-            &MsgAddressInt::with_standart(
-                None,
-                wc.unwrap() as i8,
-                AccountId::from_string(address.split(':').collect::<Vec<&str>>()[1])
-                    .map_err(|e| format!("{}", e))?)
-                .map_err(|e| format!("{}", e))?,
-            &CurrencyCollection::with_grams(u64::MAX)
-        )
+    let account = if let Some(initial_balance) = initial_balance_opt {
+        let address = AccountId::from_string(address.split(':').collect::<Vec<&str>>()[1])
+            .map_err(|e| format!("{}", e))?;
+        let addr = MsgAddressInt::with_standart(
+            None,
+            wc as i8,
+            address
+        ).map_err(|e| format!("{}", e))?;
+        let balance = CurrencyCollection::with_grams(initial_balance);
+        Account::with_address_and_ballance(&addr, &balance)
     } else {
         let account = query_account_field(
             ton_client.clone(),
@@ -890,12 +920,8 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
-    let trace_path = output.unwrap().to_string();
-
-    log::set_max_level(log::LevelFilter::Trace);
-    log::set_boxed_logger(
-        Box::new(DebugLogger::new(trace_path.clone()))
-    ).map_err(|e| format!("Failed to set logger: {}", e))?;
+    let trace_path = output.unwrap();
+    init_debug_logger(trace_path)?;
 
     let now = parse_now(matches)?;
 
@@ -903,16 +929,25 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
         get_blockchain_config(config, matches.value_of("CONFIG_PATH")).await?,
         &mut acc_root,
         Some(&message),
-        (now / 1000) as u32,
+        Some(matches),
         now,
         now,
+        now,
+        false,
         false,
         config,
     ).await;
 
     let msg_string = match trans {
         Ok(trans) => {
-            decode_messages(trans.out_msgs,load_decode_abi(matches, config), config).await?;
+            if matches.is_present("UPDATE_BOC") {
+                let account = Account::construct_from_cell(acc_root)
+                   .map_err(|e| format!("Failed to construct account after debug deploy: {e}"))?;
+                let output = std::path::PathBuf::from(tvc.unwrap()).with_extension("boc");
+                account.write_to_file(&output)
+                   .map_err(|e| format!("Failed to serialize account after debug deploy {:?}: {e}", output))?;
+            }
+            decode_messages(&trans,load_decode_abi(matches, config), config).await?;
             "Execution finished.".to_string()
         }
         Err(e) => {
@@ -922,14 +957,12 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     if !config.is_json {
         println!("{}", msg_string);
         println!("Log saved to {}", trace_path);
-    } else {
-        println!("{{}}");
     }
-
     Ok(())
 }
 
-async fn decode_messages(msgs: OutMessages, abi: Option<String>, config: &Config) -> Result<Vec<Value>, String> {
+pub async fn decode_messages(tr: &Transaction, abi: Option<String>, config: &Config) -> Result<Vec<Value>, String> {
+    let msgs = &tr.out_msgs;
     if !msgs.is_empty() {
         log::debug!(target: "executor", "Output messages:\n----------------");
     }
@@ -937,22 +970,52 @@ async fn decode_messages(msgs: OutMessages, abi: Option<String>, config: &Config
         .map_err(|e| format!("Failed to parse out messages: {}", e))?;
 
     let mut res = vec![];
-    for msg in msgs {
-        let mut ser_msg = serialize_msg(&msg.0, abi.clone(), config).await
+    let mut output = vec![];
+    for InRefValue(msg) in msgs {
+        let mut ser_msg = serialize_msg(&msg, abi.clone(), config).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
-        let msg_str = base64::encode(
-            &ton_types::cells_serialization::serialize_toc(
-                &msg.0
-                    .serialize()
-                    .map_err(|e| format!("Failed to serialize out message: {}", e))?
-            ).map_err(|e| format!("failed to encode out message: {}", e))?
-        );
-        ser_msg["Message_base64"] = serde_json::Value::String(msg_str);
-        if ser_msg["BodyCall"].is_object() {
-            res.push(ser_msg["BodyCall"].clone());
+        let msg_cell = msg.serialize()
+            .map_err(|e| format!("Failed to serialize out message: {}", e))?;
+        ser_msg["id"] = msg_cell.repr_hash().as_hex_string().into();
+        let msg_bytes = ton_types::cells_serialization::serialize_toc(&msg_cell)
+            .map_err(|e| format!("failed to encode out message: {e}"))?;
+        ser_msg["Message_base64"] = base64::encode(msg_bytes).into();
+        let body = &ser_msg["BodyCall"];
+        if body.is_object() {
+            res.push(body.clone());
         }
-        log::debug!(target: "executor", "\n{}\n", serde_json::to_string_pretty(&ser_msg)
-            .map_err(|e| format!("Failed to serialize json: {}", e))?);
+        log::debug!(target: "executor", "\n{:#}\n", ser_msg);
+        output.push(ser_msg);
+    }
+    if config.is_json {
+        let description = tr.read_description()
+            .map_err(|e| format!("Failed to read transaction description: {e}"))?;
+        let (exit_code, gas_usage) = match description.compute_phase_ref() {
+            Some(TrComputePhase::Vm(compute)) => (
+                compute.exit_code,
+                compute.gas_used.as_u64()
+            ),
+            _ => (0, 0)
+        };
+        // let _tr = match ton_block_json::debug_transaction(tr.clone()) {
+        //     Ok(tr) => serde_json::from_str::<Value>(&tr).unwrap(),
+        //     Err(err) => err.to_string().into()
+        // };
+        // let _in_msg = match tr.read_in_msg() {
+        //     Ok(Some(in_msg)) => base64::encode(in_msg.write_to_bytes().unwrap()),
+        //     _ => String::new()
+        // };
+        let result = json!({
+            "description": {
+                "exit_code": exit_code,
+                "gas_usage": gas_usage,
+                "total_fees": tr.total_fees().grams.as_u128(),
+                // "in_msg": _in_msg,
+            },
+            "messages": output,
+            // "transaction": _tr
+        });
+        println!("{:#}", result);
     }
     Ok(res)
 }
@@ -1045,14 +1108,41 @@ fn choose_transaction(transactions: Vec<TrDetails>) -> Result<String, String> {
     Ok(transactions[chosen-1].transaction_id.trim_start_matches(|c| c == '"').trim_end_matches(|c| c == '"').to_string())
 }
 
+pub async fn execute_debug_params(debug_params: &DebugParams<'_>) -> Result<Transaction, String> {
+    let (_, mut account_root) = deserialize_cell_from_base64(debug_params.account, "")
+        .map_err(|e| format!("Failed to deserialize account from boc: {e}"))?;
+    let message = match debug_params.message {
+        Some(message) => {
+            let message = Message::construct_from_base64(message)
+                .map_err(|e| format!("Failed to deserialize message from boc: {e}"))?;
+            Some(message)
+        }
+        None => None
+    };
+    execute_debug(
+        debug_params.bc_config.clone(),
+        &mut account_root,
+        message.as_ref(),
+        debug_params.matches,
+        debug_params.time_in_ms,
+        debug_params.block_lt,
+        debug_params.last_tr_lt,
+        debug_params.is_getter,
+        debug_params.is_tock,
+        debug_params.config,
+    ).await
+}
+
 pub async fn execute_debug(
     bc_config: BlockchainConfig,
-    account: &mut Cell,
+    account_root: &mut Cell,
     message: Option<&Message>,
-    block_unixtime: u32,
+    matches: Option<&ArgMatches<'_>>,
+    time_in_ms: u64,
     block_lt: u64,
     last_tr_lt: u64,
     is_getter: bool,
+    is_tock: bool,
     tonos_config: &Config,
 ) -> Result<Transaction, String> {
     let bc_config = if is_getter {
@@ -1061,47 +1151,58 @@ pub async fn execute_debug(
             gas_price: 65536000,
             flat_gas_limit: 100,
             flat_gas_price: 1000000,
-            gas_limit: u64::MAX,
-            special_gas_limit: u64::MAX,
-            gas_credit: u64::MAX,
+            gas_limit: 0xFFFFFFFFFFFFFF,
+            special_gas_limit: 0xFFFFFFFFFFFFFF,
+            gas_credit: 0xFFFFFF,
             block_gas_limit: u64::MAX,
             freeze_due_limit: 100000000,
-            delete_due_limit:1000000000,
+            delete_due_limit: 1000000000,
             max_gas_threshold:u128::MAX,
         };
         let c20 = ConfigParamEnum::ConfigParam20(gas.clone());
         let c21 = ConfigParamEnum::ConfigParam21(gas);
         config.set_config(c20).unwrap();
         config.set_config(c21).unwrap();
-        BlockchainConfig::with_config(config).map_err(|e| format!("Failed to construct config: {}", e))?
+        BlockchainConfig::with_config(config).map_err(|e| format!("Failed to construct config for getter: {}", e))?
     } else {
         bc_config
     };
     
-    let executor = Box::new(
-        OrdinaryTransactionExecutor::new(
-            bc_config.clone(),
-        )
-    );
+    let executor: Box<dyn TransactionExecutor> = if message.is_some() {
+        Box::new(OrdinaryTransactionExecutor::new(bc_config))
+    } else {
+        let tt = if is_tock { TransactionTickTock::Tock } else { TransactionTickTock::Tick };
+        Box::new(TickTockTransactionExecutor::new(bc_config, tt))
+    };
     let params = ExecuteParams {
-        state_libs: HashmapE::default(),
-        block_unixtime,
+        block_unixtime: (time_in_ms / 1000) as u32,
         block_lt,
         last_tr_lt: Arc::new(AtomicU64::new(last_tr_lt)),
-        seed_block: UInt256::default(),
         debug: true,
-        trace_callback: generate_callback(None, tonos_config),
+        trace_callback: Some(generate_callback(matches, tonos_config)),
         ..ExecuteParams::default()
     };
 
     executor.execute_with_libs_and_params(
         message,
-         account,
+        account_root,
         params
-    ).map_err(|e| format!("Debug failed: {}", e))
+    ).map_err(|e| {
+        let exit_code = match e.downcast_ref() {
+            Some(ton_executor::ExecutorError::NoAcceptError(exit_code, _)) => *exit_code,
+            Some(ton_executor::ExecutorError::TvmExceptionCode(exit_code)) => *exit_code as i32,
+            None => ton_vm::error::tvm_exception_or_custom_code(&e),
+            _ => return format!("Debug failed: {}", e)
+        };
+        let result = json!({
+            "exit_code": exit_code,
+            "message": e.to_string(),
+        });
+        format!("{:#}", result)
+    })
 }
 
-fn trace_callback(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {
+fn trace_callback(info: &EngineTraceInfo, debug_info: Option<&DbgInfo>) {
     if info.info_type == EngineTraceInfoType::Dump {
         log::info!(target: "tvm", "{}", info.cmd_str);
         return;
@@ -1121,9 +1222,8 @@ fn trace_callback(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {
              info.gas_cmd
     );
 
-    let position = get_position(info, debug_info);
-    if position.is_some() {
-        log::info!(target: "tvm", "Position: {}", position.unwrap());
+    if let Ok(position) = get_position(info, debug_info){
+        log::info!(target: "tvm", "Position: {}", position);
     } else {
         log::info!(target: "tvm", "Position: Undefined");
     }
@@ -1135,76 +1235,62 @@ fn trace_callback(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {
     log::info!(target: "tvm", "----------------------------------------\n");
 }
 
-
-fn trace_callback_minimal(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) {
-    let position = match get_position(info, &debug_info) {
-        Some(position) => position,
-        _ => "".to_string()
-    };
+fn trace_callback_minimal(info: &EngineTraceInfo, debug_info: Option<&DbgInfo>) {
+    let position = get_position(info, debug_info).unwrap_or_else(|_| String::new());
     log::info!(target: "tvm", "{} {} {} {} {}", info.step, info.gas_used, info.gas_cmd, info.cmd_str, position);
 }
 
-fn get_position(info: &EngineTraceInfo, debug_info: &Option<DbgInfo>) -> Option<String> {
-    if let Some(debug_info) = debug_info {
-        let cell_hash = info.cmd_code.cell().repr_hash();
-        let offset = info.cmd_code.pos();
-        let position = match debug_info.get(&cell_hash) {
-            Some(offset_map) => match offset_map.get(&offset) {
-                Some(pos) => format!("{}:{}", pos.filename, pos.line),
-                None => String::from("-:0 (offset not found)")
-            },
-            None => String::from("-:0 (cell hash not found)")
-        };
-        return Some(position)
+fn get_position(info: &EngineTraceInfo, debug_info: Option<&DbgInfo>) -> Result<String, String> {
+    let debug_info = debug_info.ok_or_else(|| String::new())?;
+    let cell_hash = info.cmd_code.cell().repr_hash();
+    let offset = info.cmd_code.pos();
+    match debug_info.get(&cell_hash) {
+        Some(offset_map) => match offset_map.get(&offset) {
+            Some(pos) => Ok(format!("{}:{}", pos.filename, pos.line)),
+            None => Err("-:0 (offset not found))".to_string())
+        },
+        None => Err("-:0 (cell hash not found)".to_string())
     }
-    None
 }
 
-fn generate_callback(matches: Option<&ArgMatches<'_>>, config: &Config) -> Option<Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync>> {
-    match matches {
-        Some(matches) => {
-            let opt_abi = abi_from_matches_or_config(matches, config);
-            let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
-                .or(
-                    if opt_abi.is_ok() {
-                        load_debug_info(opt_abi.as_ref().unwrap())
-                    } else {
+fn generate_callback(matches: Option<&ArgMatches<'_>>, config: &Config) -> Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync> {
+    if let Some(matches) = matches {
+        let opt_abi = abi_from_matches_or_config(matches, config);
+        let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
+            .or(
+                if opt_abi.is_ok() {
+                    load_debug_info(opt_abi.as_ref().unwrap())
+                } else {
+                    None
+                }
+            );
+        let debug_info = if let Some(dbg_path) = debug_info {
+            match File::open(&dbg_path) {
+                Ok(file ) => match serde_json::from_reader(file) {
+                    Ok(info) => Some(info),
+                    Err(e) => {
+                        eprintln!("Failed to serde debug info from file {dbg_path}: {e}");
                         None
-                    }
-                );
-            let debug_info: Option<DbgInfo> = match debug_info {
-                Some(dbg_info) => {
-                    match File::open(dbg_info.clone()) {
-                        Ok(file ) => match serde_json::from_reader(file) {
-                            Ok(info) => Some(info),
-                            Err(e) => {
-                                println!("Failed to serde debug info from file {}: {}", dbg_info,e);
-                                None
-                            },
-                        },
-                        Err(e) =>  {
-                            println!("Failed to open file {}: {}", dbg_info, e);
-                            None
-                        }
-                    }
+                    },
                 },
-                _ => None
-            };
-            Some(if matches.is_present("FULL_TRACE") {
-                Arc::new(move |_, info| trace_callback(info, &debug_info))
-            } else {
-                Arc::new(move |_, info| trace_callback_minimal(info, &debug_info))
-            })
-        },
-        _ => {
-            Some(if config.debug_fail == "Full".to_string() {
-                Arc::new(move |_, info| trace_callback(info, &None))
-            } else {
-                Arc::new(move |_, info| trace_callback_minimal(info, &None))
-            })
+                Err(e) =>  {
+                    eprintln!("Failed to open file {dbg_path}: {e}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        if matches.is_present("FULL_TRACE") {
+            Arc::new(move |_, info| trace_callback(info, debug_info.as_ref()))
+        } else {
+            Arc::new(move |_, info| trace_callback_minimal(info, debug_info.as_ref()))
         }
+    } else if config.debug_fail == "Full".to_string() {
+        Arc::new(move |_, info| trace_callback(info, None))
+    } else {
+        Arc::new(move |_, info| trace_callback_minimal(info, None))
     }
-
 }
 
 const RENDER_NONE: u8    = 0x00;
@@ -1275,7 +1361,7 @@ async fn fetch_transactions(config: &Config, addresses: &Vec<String>) -> Result<
                     context.clone(),
                     ParamsOfQueryCollection {
                         collection: "transactions".to_owned(),
-                        filter: Some(serde_json::json!({
+                        filter: Some(json!({
                             "account_addr": {
                                 "eq": address.clone()
                             },
@@ -1473,4 +1559,58 @@ async fn make_sequence_diagram(
 
     writeln!(output, "@enduml").unwrap();
     Ok("{{}}".to_owned())
+}
+
+pub struct DebugParams<'a> {
+    pub config: &'a Config,
+    pub matches: Option<&'a ArgMatches<'a>>,
+    pub bc_config: BlockchainConfig,
+    pub account: &'a str,
+    pub message: Option<&'a str>,
+    pub time_in_ms: u64,
+    pub block_lt: u64,
+    pub last_tr_lt: u64,
+    pub is_getter: bool,
+    pub is_tock: bool,
+}
+
+impl<'a> DebugParams<'a> {
+    pub fn new(config: &'a Config, bc_config: BlockchainConfig) -> Self {
+        DebugParams {
+            config,
+            bc_config,
+            matches: None,
+            account: "",
+            message: None,
+            time_in_ms: 0,
+            block_lt: 0,
+            last_tr_lt: 0,
+            is_getter: false,
+            is_tock: false,
+        }
+    }
+    pub fn check_debug(&self) -> bool {
+        &self.config.debug_fail != "None"
+    }
+}
+
+pub async fn debug_error(e: &ClientError, debug_params: DebugParams<'_>, log_path: &str) -> Result<(), String> {
+    let result = format!("{:#}", e);
+    if e.code != SDK_EXECUTION_ERROR_CODE || !debug_params.check_debug() {
+        return Err(result)
+    }
+    if debug_params.config.is_json {
+        println!("{:#}", json!({"Error": e}));
+    } else {
+        println!("Error: {}", result);
+        println!("Execution failed. Starting debug...");
+    }
+    init_debug_logger(log_path)?;
+    let _ = execute_debug_params(&debug_params).await;
+
+    if !debug_params.config.is_json {
+        println!("Debug finished.");
+        println!("Log saved to {}", log_path);
+    }
+    Err(result)
 }

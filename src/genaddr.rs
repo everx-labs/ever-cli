@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -122,8 +122,7 @@ pub async fn generate_address(
             "non-bounceable": calc_userfriendly_address(&addr, false, false)?,
             "bounceable": calc_userfriendly_address(&addr, true, false)?
         });
-        println!("{}", serde_json::to_string_pretty(&res)
-            .map_err(|e| format!("Failed to serialize result: {}", e))?);
+        println!("{:#}", res);
     }
     Ok(())
 }
