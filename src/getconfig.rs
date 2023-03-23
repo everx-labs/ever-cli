@@ -14,8 +14,8 @@
 use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer};
 use num_bigint::BigUint;
 use crate::config::Config;
-use crate::helpers::{create_client_verbose, query_with_limit, now, now_ms};
-use serde_json::json;
+use crate::helpers::{create_client_verbose, query_with_limit, now, now_ms, TonClient};
+use serde_json::{json, Value};
 use ton_abi::{Contract, Token, TokenValue, Uint};
 use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, MsgAddressExt, Serializable};
 use ton_client::net::{OrderBy, SortDirection};
@@ -25,238 +25,245 @@ use ton_types::{BuilderData, Cell, IBitstring, SliceData};
 const PREFIX_UPDATE_CONFIG_MESSAGE_DATA: &str = "43665021";
 
 const QUERY_FIELDS: &str = r#"
-master { 
-    config {
-      p0
-      p1
-      p2
-      p3
-      p4
-      p6 {
-        mint_new_price
-        mint_add_price
-      }
-      p7 {
-        currency
-        value
-      }
-      p8 {
-        version
-        capabilities
-      }
-      p9 
-      p10
-      p12 {
-        workchain_id
-        enabled_since
-        actual_min_split
-        min_split
-        max_split
-        active
-        accept_msgs flags
-        zerostate_root_hash
-        zerostate_file_hash
-        version
-        basic
-        vm_version
-        vm_mode
-        min_addr_len
-        max_addr_len
-        addr_len_step
-        workchain_type_id
-      }
-      p14 {
-        masterchain_block_fee
-        basechain_block_fee
-      }
-      p15 {
-        validators_elected_for
-        elections_start_before
-        elections_end_before
-        stake_held_for
-      }
-       p16 {
-        max_validators
-        max_main_validators
-        min_validators
-      }
-      p17 {
-        min_stake(format:DEC)
-        max_stake(format:DEC)
-        min_total_stake(format:DEC)
-        max_stake_factor
-      }
-      p20 {
-        gas_price
-        gas_limit
-        special_gas_limit
-        gas_credit
-        block_gas_limit
-        freeze_due_limit
-        delete_due_limit
-        flat_gas_limit
-        flat_gas_price
-      }
-      p21 {
-        gas_price
-        gas_limit
-        special_gas_limit
-        gas_credit
-        block_gas_limit
-        freeze_due_limit
-        delete_due_limit
-        flat_gas_limit
-        flat_gas_price
-      }
-      p22 {
-        bytes {
-          underload soft_limit hard_limit
-        }
-        gas {
-          underload soft_limit hard_limit
-        }
-        lt_delta {
-          underload soft_limit hard_limit
-        }
-      }
-      p23 {
-        bytes {
-          underload soft_limit hard_limit
-        }
-        gas {
-          underload soft_limit hard_limit
-        }
-        lt_delta {
-          underload soft_limit hard_limit
-        }
-      }
-      p24 {
-        lump_price bit_price cell_price ihr_price_factor first_frac next_frac
-      }
-      p25 {
-        lump_price bit_price cell_price ihr_price_factor first_frac next_frac
-      }
-      p28 {
-        shuffle_mc_validators
-        mc_catchain_lifetime
-        shard_catchain_lifetime
-        shard_validators_lifetime
-        shard_validators_num
-      }
-      p29 {
-        new_catchain_ids
-        round_candidates
-        next_candidate_delay_ms
-        consensus_timeout_ms
-        fast_attempts
-        attempt_duration
-        catchain_max_deps
-        max_block_bytes
-        max_collated_bytes
-      }
-      p31
-      p32 {
-        utime_since
-        utime_until
-        total
-        total_weight(format:DEC)
-        list {
-          public_key
-          adnl_addr
-          weight(format:DEC)
-        }
-      }
-      p33 {
-        utime_since
-        utime_until
-        total
-        total_weight(format:DEC)
-        list {
-          public_key
-          adnl_addr
-          weight(format:DEC)
-        }
-      }
-      p34 {
-        utime_since
-        utime_until
-        total
-        total_weight(format:DEC)
-        list {
-          public_key
-          adnl_addr
-          weight(format:DEC)
-        }
-      }
-      p35 {
-        utime_since
-        utime_until
-        total
-        total_weight(format:DEC)
-        list {
-          public_key
-          adnl_addr
-          weight(format:DEC)
-        }
-      }
-      p36 {
-        utime_since
-        utime_until
-        total
-        total_weight(format:DEC)
-        list {
-          public_key
-          adnl_addr
-          weight(format:DEC)
-        }
-      }
-      p37 {
-        utime_since
-        utime_until
-        total
-        total_weight(format:DEC)
-        list {
-          public_key
-          adnl_addr
-          weight(format:DEC)
-        }
-      }
-      p39 {
-        adnl_addr
-        temp_public_key
-        seqno
-        valid_until
-        signature_r
-        signature_s
-      }
-"#;
-
-pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result<(), String> {
-    let ton = create_client_verbose(&config)?;
-    let mut result = QUERY_FIELDS.to_owned();
-    result.push_str(r#"
-      p40 {
-        collations_score_weight
-        min_samples_count
-        min_slashing_protection_score
-        resend_mc_blocks_count
-        signing_score_weight
-        slashing_period_mc_blocks_count
-        z_param_numerator
-        z_param_denominator
-      }
-      p42 {
-        threshold
-        payouts {
-            license_type
-            payout_percent
-        }
-      }
+  p0
+  p1
+  p2
+  p3
+  p4
+  p6 {
+    mint_new_price
+    mint_add_price
+  }
+  p7 {
+    currency
+    value
+  }
+  p8 {
+    version
+    capabilities
+  }
+  p9
+  p10
+  p12 {
+    workchain_id
+    enabled_since
+    actual_min_split
+    min_split
+    max_split
+    active
+    accept_msgs flags
+    zerostate_root_hash
+    zerostate_file_hash
+    version
+    basic
+    vm_version
+    vm_mode
+    min_addr_len
+    max_addr_len
+    addr_len_step
+    workchain_type_id
+  }
+  p14 {
+    masterchain_block_fee
+    basechain_block_fee
+  }
+  p15 {
+    validators_elected_for
+    elections_start_before
+    elections_end_before
+    stake_held_for
+  }
+   p16 {
+    max_validators
+    max_main_validators
+    min_validators
+  }
+  p17 {
+    min_stake(format:DEC)
+    max_stake(format:DEC)
+    min_total_stake(format:DEC)
+    max_stake_factor
+  }
+  p18 {
+    utime_since
+    bit_price_ps
+    cell_price_ps
+    mc_bit_price_ps
+    mc_cell_price_ps
+  }
+  p20 {
+    gas_price
+    gas_limit
+    special_gas_limit
+    gas_credit
+    block_gas_limit
+    freeze_due_limit
+    delete_due_limit
+    flat_gas_limit
+    flat_gas_price
+  }
+  p21 {
+    gas_price
+    gas_limit
+    special_gas_limit
+    gas_credit
+    block_gas_limit
+    freeze_due_limit
+    delete_due_limit
+    flat_gas_limit
+    flat_gas_price
+  }
+  p22 {
+    bytes {
+      underload soft_limit hard_limit
+    }
+    gas {
+      underload soft_limit hard_limit
+    }
+    lt_delta {
+      underload soft_limit hard_limit
     }
   }
-"#);
+  p23 {
+    bytes {
+      underload soft_limit hard_limit
+    }
+    gas {
+      underload soft_limit hard_limit
+    }
+    lt_delta {
+      underload soft_limit hard_limit
+    }
+  }
+  p24 {
+    lump_price bit_price cell_price ihr_price_factor first_frac next_frac
+  }
+  p25 {
+    lump_price bit_price cell_price ihr_price_factor first_frac next_frac
+  }
+  p28 {
+    shuffle_mc_validators
+    mc_catchain_lifetime
+    shard_catchain_lifetime
+    shard_validators_lifetime
+    shard_validators_num
+  }
+  p29 {
+    new_catchain_ids
+    round_candidates
+    next_candidate_delay_ms
+    consensus_timeout_ms
+    fast_attempts
+    attempt_duration
+    catchain_max_deps
+    max_block_bytes
+    max_collated_bytes
+  }
+  p30 {
+    delections_step
+    staker_init_code_hash
+    validator_init_code_hash
+  }
+  p31
+  p32 {
+    utime_since
+    utime_until
+    total
+    total_weight(format:DEC)
+    list {
+      public_key
+      adnl_addr
+      weight(format:DEC)
+    }
+  }
+  p33 {
+    utime_since
+    utime_until
+    total
+    total_weight(format:DEC)
+    list {
+      public_key
+      adnl_addr
+      weight(format:DEC)
+    }
+  }
+  p34 {
+    utime_since
+    utime_until
+    total
+    total_weight(format:DEC)
+    list {
+      public_key
+      adnl_addr
+      weight(format:DEC)
+    }
+  }
+  p35 {
+    utime_since
+    utime_until
+    total
+    total_weight(format:DEC)
+    list {
+      public_key
+      adnl_addr
+      weight(format:DEC)
+    }
+  }
+  p36 {
+    utime_since
+    utime_until
+    total
+    total_weight(format:DEC)
+    list {
+      public_key
+      adnl_addr
+      weight(format:DEC)
+    }
+  }
+  p37 {
+    utime_since
+    utime_until
+    total
+    total_weight(format:DEC)
+    list {
+      public_key
+      adnl_addr
+      weight(format:DEC)
+    }
+  }
+  p39 {
+    adnl_addr
+    temp_public_key
+    seqno
+    valid_until
+    signature_r
+    signature_s
+  }
+"#;
+const OPTIONAL_CONFIGS: [&str; 3] = [
+"p5",
+r#"p40 {
+    collations_score_weight
+    min_samples_count
+    min_slashing_protection_score
+    resend_mc_blocks_count
+    signing_score_weight
+    slashing_period_mc_blocks_count
+    z_param_numerator
+    z_param_denominator
+}"#,
+r#"p42 {
+    threshold
+    payouts {
+        license_type
+        payout_percent
+    }
+}"#
+];
 
-    let config_query = match query_with_limit(
+async fn query_config(ton: &TonClient, result: &str) -> Result<Option<Value>, String> {
+    let result = format!(r#"master {{ config {{ {} }} }}"#, result);
+    match query_with_limit(
         ton.clone(),
         "blocks",
         json!({ "key_block": { "eq": true },
@@ -265,36 +272,45 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
         Some(vec!(OrderBy{ path: "seq_no".to_string(), direction: SortDirection::DESC })),
         Some(1),
     ).await {
-        Ok(result) => Ok(result),
+        Ok(result) => {
+            if result.is_empty() {
+                return Ok(None);
+            }
+            return Ok(Some(result[0]["master"]["config"].clone()))
+        },
         Err(e) => {
             if e.message.contains("Server responded with code 400") {
-                let mut result = QUERY_FIELDS.to_owned();
-                result.push_str(r#"
-    }
-  }
-"#);
-                query_with_limit(
-                    ton.clone(),
-                    "blocks",
-                    json!({ "key_block": { "eq": true },
-                        "workchain_id": { "eq": -1 } }),
-                    &result,
-                    Some(vec!(OrderBy{ path: "seq_no".to_string(), direction: SortDirection::DESC })),
-                    Some(1),
-                ).await.map_err(|e| format!("failed to query master block config: {}", e))
+                return Ok(None);
             } else {
-                Err(format!("failed to query master block config: {}", e))
+                return Err(format!("failed to query master block config: {}", e))
             }
         }
-    }?;
+    }
+}
 
-    if config_query.is_empty() {
+pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result<(), String> {
+    let ton = create_client_verbose(&config)?;
+    let request = QUERY_FIELDS.to_owned();
+
+    let config_value = query_config(&ton, &request).await?;
+    let mut config_value = if let Some(config_value) = config_value {
+        config_value.as_object().unwrap().clone()
+    } else {
         return Err("Config was not set".to_string());
+    };
+
+    for request in OPTIONAL_CONFIGS {
+        let mut config_value_opt = query_config(&ton, request).await;
+        if let Ok(config_value_opt) = config_value_opt {
+            if let Some(config_value_opt) = config_value_opt {
+                let mut config_value_opt = config_value_opt.as_object().unwrap().clone();
+                config_value.append(&mut config_value_opt);
+            }
+        }
     }
 
     match index {
         None => {
-            let config_value = &config_query[0]["master"]["config"];
             println!("{}{}", if !config.is_json {
                 "Config: "
             } else {
@@ -306,7 +322,11 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
             let _i = i32::from_str_radix(index, 10)
                 .map_err(|e| format!(r#"failed to parse "index": {}"#, e))?;
             let config_name = format!("p{}", index);
-            let config_value = &config_query[0]["master"]["config"][&config_name];
+            let config_value = if let Some(v) = config_value.get(&config_name) {
+                v
+            } else {
+                return Err("Config was not set".to_string());
+            };
             println!("{}{}", if !config.is_json {
                 format!("Config {}: ", config_name)
             } else {
