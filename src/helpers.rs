@@ -484,7 +484,7 @@ pub fn json_account(
         res["last_trans_lt"] = json!(last_trans_lt.unwrap());
     }
     if data.is_some() {
-        res["data(boc)"] = json!(data.unwrap());
+        res["data_boc"] = json!(data.unwrap());
     }
     if code_hash.is_some() {
         res["code_hash"] = json!(code_hash.unwrap());
@@ -540,13 +540,13 @@ pub fn print_account(
             println!("last_trans_lt: {}", last_trans_lt.unwrap());
         }
         if data.is_some() {
-            println!("data(boc):     {}", data.unwrap());
+            println!("data_boc:      {}", data.unwrap());
         }
         if code_hash.is_some() {
             println!("code_hash:     {}", code_hash.unwrap());
         }
         if state_init.is_some() {
-            println!("state_init: {}", state_init.unwrap());
+            println!("state_init:    {}", state_init.unwrap());
         }
     }
 }

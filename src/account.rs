@@ -144,7 +144,7 @@ pub async fn get_account(config: &Config, addresses: Vec<String>, dumptvc: Optio
                 };
                 let code_hash = acc["code_hash"].as_str().unwrap_or("null").to_owned();
                 if config.is_json {
-                    json_res[address.clone()] = json_account(
+                    json_res = json_account(
                         Some(acc_type),
                         Some(address.clone()),
                         Some(balance),
@@ -168,7 +168,7 @@ pub async fn get_account(config: &Config, addresses: Vec<String>, dumptvc: Optio
                     );
                 }
             } else if config.is_json {
-                json_res[address.clone()] = json_account(Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
+                json_res = json_account(Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
             } else {
                 print_account(&config, Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
             }
@@ -179,7 +179,8 @@ pub async fn get_account(config: &Config, addresses: Vec<String>, dumptvc: Optio
         for address in addresses.iter() {
             if !found_addresses.contains(address) {
                 if config.is_json {
-                    json_res[address.clone()] = json!({
+                    json_res = json!({
+                       "address": address.clone(),
                        "acc_type": "NonExist"
                     });
                 } else {
