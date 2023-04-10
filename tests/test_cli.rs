@@ -22,7 +22,7 @@ const SAFEMSIG_ADDR: &str = "0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e
 const SAFEMSIG_CONSTR_ARG: &str = r#"{"owners":["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"],"reqConfirms":1}"#;
 const SAVED_CONFIG: &str = "tests/config_contract.saved";
 
-pub fn now_ms() -> u64 {
+fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap_or_else(|e| panic!("failed to obtain system time: {}", e))
@@ -1076,7 +1076,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("balance:"))
         .stdout(predicate::str::contains("last_paid:"))
         .stdout(predicate::str::contains("last_trans_lt:"))
-        .stdout(predicate::str::contains("data(boc):"));
+        .stdout(predicate::str::contains("data_boc:"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -1097,7 +1097,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("balance:"))
         .stdout(predicate::str::contains("last_paid:"))
         .stdout(predicate::str::contains("last_trans_lt:"))
-        .stdout(predicate::str::contains("data(boc):"));
+        .stdout(predicate::str::contains("data_boc:"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -1125,7 +1125,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("balance:"))
         .stdout(predicate::str::contains("last_paid:"))
         .stdout(predicate::str::contains("last_trans_lt:"))
-        .stdout(predicate::str::contains("data(boc):"));
+        .stdout(predicate::str::contains("data_boc:"));
 
     set_config(
         &["--url", "--addr"],
@@ -1144,7 +1144,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("balance:"))
         .stdout(predicate::str::contains("last_paid:"))
         .stdout(predicate::str::contains("last_trans_lt:"))
-        .stdout(predicate::str::contains("data(boc):"));
+        .stdout(predicate::str::contains("data_boc:"));
 
 
     fs::remove_file(config_path)?;

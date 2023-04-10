@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -13,6 +13,7 @@
 use std::env;
 use std::path::PathBuf;
 use crate::config::{Config, LOCALNET};
+use crate::debug::debug_level_from_env;
 
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -35,13 +36,9 @@ use crate::call::parse_params;
 use crate::{FullConfig, resolve_net_name};
 use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 
-pub const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
-pub const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
-
 pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
 
-pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
 const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
 const GLOBAL_CONFIG_PATH: &str = ".tonos-cli.global.conf.json";
 
@@ -65,8 +62,8 @@ pub fn global_config_path() -> String {
 struct SimpleLogger;
 
 impl log::Log for SimpleLogger {
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() < MAX_LEVEL
+    fn enabled(&self, _metadata: &log::Metadata) -> bool {
+        true
     }
 
     fn log(&self, record: &log::Record) {
@@ -181,14 +178,7 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
 }
 
 pub fn create_client_verbose(config: &Config) -> Result<TonClient, String> {
-    let level = if std::env::var("RUST_LOG")
-        .unwrap_or_default()
-        .eq_ignore_ascii_case("debug")
-    {
-        TEST_MAX_LEVEL
-    } else {
-        MAX_LEVEL
-    };
+    let level = debug_level_from_env();
     log::set_max_level(level);
     log::set_boxed_logger(Box::new(SimpleLogger))
         .map_err(|e| format!("failed to init logger: {}", e))?;
@@ -518,7 +508,7 @@ pub fn print_account(
             code_hash,
             state_init,
         );
-        println!("{}", serde_json::to_string_pretty(&acc).unwrap_or("Undefined".to_string()));
+        println!("{:#}", acc);
     } else {
         if acc_type.is_some() && acc_type.clone().unwrap() == "NonExist" {
             println!("Account does not exist.");
@@ -675,20 +665,20 @@ macro_rules! print_args {
 }
 
 pub fn load_params(params: &str) -> Result<String, String> {
-    Ok(if params.find('{').is_none() {
+    if params.find('{').is_none() {
         std::fs::read_to_string(params)
-            .map_err(|e| format!("failed to load params from file: {}", e))?
+            .map_err(|e| format!("failed to load params from file: {}", e))
     } else {
-        params.to_string()
-    })
+        Ok(params.to_string())
+    }
 }
 
-pub async fn unpack_alternative_params(matches: &ArgMatches<'_>, abi_path: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
-    if matches.is_present("PARAMS") {
-        let params = matches.values_of("PARAMS").unwrap().collect::<Vec<_>>();
-        Ok(Some(parse_params(params, abi_path, method, config).await?))
+pub async fn unpack_alternative_params(matches: &ArgMatches<'_>, abi_path: &str, method: &str, config: &Config) -> Result<String, String> {
+    if let Some(params) = matches.values_of("PARAMS") {
+        let params = params.collect();
+        parse_params(params, abi_path, method, config).await
     } else {
-        Ok(config.parameters.clone().or(Some("{}".to_string())))
+        Ok(config.parameters.clone().unwrap_or("{}".to_string()))
     }
 }
 
@@ -732,16 +722,7 @@ pub fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String>
   "p0": "5555555555555555555555555555555555555555555555555555555555555555",
   "p1": "3333333333333333333333333333333333333333333333333333333333333333",
   "p2": "0000000000000000000000000000000000000000000000000000000000000000",
-  "p7": [
-    {
-      "currency": 239,
-      "value": "666666666666"
-    },
-    {
-      "currency": 4294967279,
-      "value": "1000000000000"
-    }
-  ],
+  "p7": [],
   "p8": {
     "version": 5,
     "capabilities": "1180974"
@@ -977,30 +958,6 @@ pub fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String>
       {
         "public_key": "5457fef5bf496f65ea64d1d8bb4a90694f61fe2787cdb67d16f9ffe548d0b8d9",
         "weight": "17"
-      },
-      {
-        "public_key": "d3ccd99924c61509fc6f1c940a3b027cc2c68f351be9eecb2ce259b4721d9aee",
-        "weight": "17"
-      },
-      {
-        "public_key": "51c45bdff0adbf75b61c186129f93361aad0bacff4b729d6061519dee5bc360c",
-        "weight": "17"
-      },
-      {
-        "public_key": "f752195a66941a6526c5bd3aef65f07d20aa4b7d9ae57a0dbb01e9d4849ca30d",
-        "weight": "17"
-      },
-      {
-        "public_key": "3d0537cd35cc24d1a2098e359b49594665f72cd9c8744c1e1b2e456c7060829a",
-        "weight": "17"
-      },
-      {
-        "public_key": "b8639405595ec2a40d65673020e7638c4588d1a72dd2c6a80ecf47499913f509",
-        "weight": "17"
-      },
-      {
-        "public_key": "bfa0d77ec39ac4fc386cfd0fb2a940b746502adbbdc361271042cea05f14e7fb",
-        "weight": "17"
       }
     ]
   }
@@ -1019,7 +976,7 @@ pub async fn get_blockchain_config(cli_config: &Config, config_contract_boc_path
     Result<BlockchainConfig, String> {
     match config_contract_boc_path {
         Some(config_path) => {
-            let acc =Account::construct_from_file(config_path)
+            let acc = Account::construct_from_file(config_path)
                 .map_err(|e| format!("Failed to load config contract account from file {config_path}: {e}"))?;
             construct_blockchain_config(&acc)
         },

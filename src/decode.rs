@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -297,8 +297,7 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
     if !config.is_json {
         println!("TVC fields:");
     }
-    println!("{}", serde_json::to_string_pretty(&res.data)
-        .map_err(|e| format!("failed to serialize the result: {}", e))?);
+    println!("{:#}", res.data);
     Ok(())
 }
 
@@ -327,8 +326,7 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<()
     if !config.is_json {
         println!("Account fields:");
     }
-    println!("{}", serde_json::to_string_pretty(&res.data)
-        .map_err(|e| format!("failed to serialize the result: {}", e))?);
+    println!("{:#}", res.data);
     Ok(())
 }
 
@@ -392,14 +390,11 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool, config: &
         result["Signature"] = json!(signature.unwrap_or("None".to_string()));
         result["Header"] = json!(header);
         result["FunctionId"] = json!(format!("{:08X}", func_id));
-        println!("{}", serde_json::to_string_pretty(&result)
-            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+        println!("{:#}", result);
     } else {
-        println!("\n\n{}: {}", res.name, serde_json::to_string_pretty(&output)
-            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+        println!("\n\n{}: {:#}", res.name, output);
         println!("Signature: {}", signature.unwrap_or("None".to_string()));
-        println!("Header: {}", serde_json::to_string_pretty(&json!(header))
-            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+        println!("Header: {:#}", json!(header));
         println!("FunctionId: {:08X}", func_id);
     }
     Ok(())

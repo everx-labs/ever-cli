@@ -1,5 +1,5 @@
 /*
-* Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+* Copyright 2018-2023 EverX.
 *
 * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
 * this file except in compliance with the License.
@@ -190,8 +190,7 @@ pub async fn get_account(config: &Config, addresses: Vec<String>, dumptvc: Optio
             }
         }
         if config.is_json {
-            println!("{}", serde_json::to_string_pretty(&json_res)
-                .map_err(|e| format!("Failed to serialize result: {}", e))?);
+            println!("{:#}", json_res);
         }
     } else if config.is_json {
         println!("{{\n}}");

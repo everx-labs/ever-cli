@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -12,18 +12,20 @@
  */
 
 use clap::ArgMatches;
-use serde_json::{Map, Value, json};
-use ton_block::{Account, Deserializable, Message, Serializable};
-use ton_client::abi::{FunctionHeader};
+use serde_json::{Map, Value};
+use std::io::Cursor;
+use ton_block::{Account, Deserializable, Serializable};
+use ton_client::abi::FunctionHeader;
 use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
 use crate::config::{Config, FullConfig};
-use crate::call::{print_json_result};
-use crate::debug::{execute_debug, DebugLogger};
-use crate::helpers::{create_client, now, now_ms, SDK_EXECUTION_ERROR_CODE, TonClient,
+use crate::call::print_json_result;
+use crate::debug::{debug_error, DebugParams};
+use crate::helpers::{create_client, now, now_ms, TonClient,
                      contract_data_from_matches_or_config_alias, abi_from_matches_or_config,
                      AccountSource, create_client_local, create_client_verbose, load_abi,
                      load_account, load_params, unpack_alternative_params, get_blockchain_config};
 use crate::message::prepare_message;
+use crate::replay::construct_blockchain_config;
 
 pub async fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_alternative: bool) -> Result<(), String> {
     let config = &full_config.config;
@@ -42,24 +44,23 @@ pub async fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_
         AccountSource::NETWORK
     };
 
+    let method = if is_alternative {
+        matches.value_of("METHOD").or(config.method.as_deref())
+            .ok_or("Method is not defined. Supply it in the config file or command line.")?
+    } else {
+        matches.value_of("METHOD").unwrap()
+    };
+    let trace_path;
     let ton_client = if account_source == AccountSource::NETWORK {
-        if config.debug_fail != "None".to_string() {
-            let method = if is_alternative {
-                matches.value_of("METHOD").or(config.method.as_deref())
-                    .ok_or("Method is not defined. Supply it in the config file or command line.")?
-            } else {
-                matches.value_of("METHOD").unwrap()
-            };
-            let log_path = format!("run_{}_{}.log", address, method);
-            log::set_max_level(log::LevelFilter::Trace);
-            log::set_boxed_logger(
-                Box::new(DebugLogger::new(log_path.to_string()))
-            ).map_err(|e| format!("Failed to set logger: {}", e))?;
+        if &config.debug_fail != "None" {
+            trace_path = format!("run_{}_{}.log", address, method);
             create_client(&config)?
         } else {
+            trace_path = "trace.log".to_string();
             create_client_verbose(&config)?
         }
     } else {
+        trace_path = "trace.log".to_string();
         create_client_local()?
     };
 
@@ -72,9 +73,9 @@ pub async fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_
     let address = match account_source {
         AccountSource::NETWORK => address,
         AccountSource::BOC => account.get_addr().unwrap().to_string(),
-        AccountSource::TVC => std::iter::repeat("0").take(64).collect::<String>()
+        AccountSource::TVC => std::iter::repeat("0").take(64).collect()
     };
-    run(matches, config, Some(ton_client), &address, account_boc, abi_path, is_alternative).await
+    run(matches, config, Some(ton_client), &address, account_boc, abi_path, is_alternative, trace_path).await
 }
 
 async fn run(
@@ -85,6 +86,7 @@ async fn run(
     account_boc: String,
     abi_path: String,
     is_alternative: bool,
+    trace_path: String,
 ) -> Result<(), String> {
     let method = if is_alternative {
         matches.value_of("METHOD").or(config.method.as_deref())
@@ -108,10 +110,10 @@ async fn run(
     let params = if is_alternative {
         unpack_alternative_params(matches, &abi_path, method, config).await?
     } else {
-        matches.value_of("PARAMS").map(|s| s.to_owned())
+        matches.value_of("PARAMS").unwrap().to_string()
     };
 
-    let params = Some(load_params(params.unwrap().as_ref())?);
+    let params = load_params(&params)?;
 
     let expire_at = config.lifetime + now();
     let header = FunctionHeader {
@@ -124,13 +126,13 @@ async fn run(
         &address,
         abi.clone(),
         method,
-        &params.unwrap(),
+        &params,
         Some(header),
         None,
         config.is_json,
     ).await?;
 
-    let execution_options = prepare_execution_options(bc_config)?;
+    let execution_options = prepare_execution_options(bc_config.clone())?;
     let result = run_tvm(
         ton_client.clone(),
         ParamsOfRunTvm {
@@ -143,57 +145,24 @@ async fn run(
         },
     ).await;
 
-    if config.debug_fail != "None".to_string() && result.is_err()
-        && result.clone().err().unwrap().code == SDK_EXECUTION_ERROR_CODE {
-        // TODO: add code to use bc_config from file
-
-        if config.is_json {
-            let e = format!("{:#}", result.clone().err().unwrap());
-            let err: Value = serde_json::from_str(&e)
-                .unwrap_or(Value::String(e));
-            let res = json!({"Error": err});
-            println!("{}", serde_json::to_string_pretty(&res)
-                .unwrap_or("{{ \"JSON serialization error\" }}".to_string()));
-        } else {
-            println!("Error: {:#}", result.clone().err().unwrap());
-            println!("Execution failed. Starting debug...");
+    let result = match result {
+        Ok(result) => result,
+        Err(e) => {
+            let bc_config = get_blockchain_config(config, bc_config).await?;
+            let now = now_ms();
+            let debug_params = DebugParams {
+                account: &account_boc,
+                message: Some(&msg.message),
+                time_in_ms: now,
+                block_lt: now,
+                last_tr_lt: now,
+                is_getter: true,
+                ..DebugParams::new(config, bc_config)
+            };
+            debug_error(&e, debug_params, &trace_path).await?;
+            return Err(format!("{:#}", e));
         }
-
-        let mut account = Account::construct_from_base64(&account_boc)
-            .map_err(|e| format!("Failed to construct account: {}", e))?
-            .serialize()
-            .map_err(|e| format!("Failed to serialize account: {}", e))?;
-
-        let now = now_ms();
-        let message = Message::construct_from_base64(&msg.message)
-            .map_err(|e| format!("failed to construct message: {}", e))?;
-        match execute_debug(
-            get_blockchain_config(config, None).await?,
-            &mut account,
-            Some(&message),
-            (now / 1000) as u32,
-            now,
-            now,
-            true,
-            config
-        ).await {
-            Err(e) => {
-                if !e.contains("Contract did not accept message") {
-                    return Err(e);
-                }
-            },
-            Ok(_) => {}
-        }
-
-        if !config.is_json {
-            let log_path = format!("run_{}_{}.log", address, method);
-            println!("Debug finished.");
-            println!("Log saved to {}", log_path);
-        }
-        return Err("".to_string());
-    }
-
-    let result = result.map_err(|e| format!("{:#}", e))?;
+    };
     if !config.is_json {
         println!("Succeeded.");
     }
@@ -209,17 +178,23 @@ async fn run(
             }
         }
     }
-
     Ok(())
 }
 
 fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<ExecutionOptions>, String> {
     if let Some(config) = bc_config {
-        let bytes = std::fs::read(config)
-            .map_err(|e| format!("Failed to read data from file {}: {}", config, e))?;
-        let config_boc = base64::encode(&bytes);
-        let ex_opt = ExecutionOptions{
-            blockchain_config: Some(config_boc),
+        let mut bytes = std::fs::read(config)
+            .map_err(|e| format!("Failed to read data from file {config}: {e}"))?;
+        let cell = ton_types::deserialize_tree_of_cells(&mut Cursor::new(&bytes))
+            .map_err(|e| format!("Failed to deserialize {config}: {e}"))?;
+        if let Ok(acc) = Account::construct_from_cell(cell.clone()) {
+            let config = construct_blockchain_config(&acc)?;
+            bytes = config.raw_config().write_to_bytes()
+               .map_err(|e| format!("Failed to serialize config params: {e}"))?;
+        }
+        let blockchain_config = Some(base64::encode(bytes));
+        let ex_opt = ExecutionOptions {
+            blockchain_config,
             ..Default::default()
         };
         return Ok(Some(ex_opt));
@@ -275,7 +250,7 @@ pub async fn run_get_method(config: &Config, addr: &str, method: &str, params: O
             }
         }
         let res = Value::Object(res);
-        println!("{}", serde_json::to_string_pretty(&res).unwrap_or("Undefined".to_string()));
+        println!("{:#}", res);
     }
     Ok(())
 }

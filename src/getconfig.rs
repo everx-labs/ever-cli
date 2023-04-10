@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2023 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -292,34 +292,27 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
     let ton = create_client_verbose(&config)?;
     let request = QUERY_FIELDS.to_owned();
 
-    let config_value = query_config(&ton, &request).await?;
-    let mut config_value = if let Some(config_value) = config_value {
+    let mut config_value = if let Some(config_value) = query_config(&ton, &request).await? {
         config_value.as_object().unwrap().clone()
     } else {
         return Err("Config was not set".to_string());
     };
 
     for request in OPTIONAL_CONFIGS {
-        let mut config_value_opt = query_config(&ton, request).await;
-        if let Ok(config_value_opt) = config_value_opt {
-            if let Some(config_value_opt) = config_value_opt {
-                let mut config_value_opt = config_value_opt.as_object().unwrap().clone();
-                config_value.append(&mut config_value_opt);
-            }
+        if let Ok(Some(opt_config_value)) = query_config(&ton, request).await {
+            config_value.append(&mut opt_config_value.as_object().unwrap().clone());
         }
     }
 
     match index {
         None => {
-            println!("{}{}", if !config.is_json {
-                "Config: "
-            } else {
-                ""
-            }, serde_json::to_string_pretty(&config_value)
-                .map_err(|e| format!("failed to parse config body from sdk: {}", e))?);
+            if !config.is_json {
+                print!("Config: ");
+            }
+            println!("{:#}", Value::from(config_value));
         },
         Some(index) => {
-            let _i = i32::from_str_radix(index, 10)
+            index.parse::<i32>()
                 .map_err(|e| format!(r#"failed to parse "index": {}"#, e))?;
             let config_name = format!("p{}", index);
             let config_value = if let Some(v) = config_value.get(&config_name) {
@@ -327,12 +320,10 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
             } else {
                 return Err("Config was not set".to_string());
             };
-            println!("{}{}", if !config.is_json {
-                format!("Config {}: ", config_name)
-            } else {
-                "".to_string()
-            }, serde_json::to_string_pretty(&config_value)
-                         .map_err(|e| format!("failed to parse config body from sdk: {}", e))?);
+            if !config.is_json {
+                print!("Config {}: ", config_name);
+            }
+            println!("{:#}", config_value);
         }
     }
     Ok(())
@@ -355,7 +346,7 @@ pub async fn gen_update_config_message(
     let config_str = std::fs::read_to_string(new_param_file)
         .map_err(|e| format!(r#"failed to read "new_param_file": {}"#, e))?;
 
-    let (config_cell, key_number) = serialize_config_param(config_str)?;
+    let (config_cell, key_number) = serialize_config_param(&config_str)?;
     let message = if let Some(abi) = abi {
         prepare_message_new_config_param_solidity(abi, config_cell, key_number, config_account, &private_key_of_config_account)?
     } else {
@@ -376,8 +367,8 @@ pub async fn gen_update_config_message(
     Ok(())
 }
 
-pub fn serialize_config_param(config_str: String) -> Result<(Cell, u32), String> {
-    let config_json: serde_json::Value = serde_json::from_str(&*config_str)
+pub fn serialize_config_param(config_str: &str) -> Result<(Cell, u32), String> {
+    let config_json: serde_json::Value = serde_json::from_str(config_str)
         .map_err(|e| format!(r#"failed to parse "new_param_file": {}"#, e))?;
     let config_json = config_json.as_object()
         .ok_or(format!(r#""new_param_file" is not json object"#))?;

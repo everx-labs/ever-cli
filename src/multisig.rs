@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -17,7 +17,7 @@ use crate::convert;
 use crate::crypto::load_keypair;
 use crate::deploy::prepare_deploy_message_params;
 use crate::helpers::{
-    create_client_local, create_client_verbose, load_file_with_url, load_ton_address,
+    create_client_local, create_client_verbose, load_file_with_url, load_ton_address, now_ms,
 };
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use serde_json::json;
@@ -516,6 +516,8 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
     let (msg, address) = prepare_deploy_message_params(
         args.image().unwrap_or_default(),
         args.abi().clone(),
+        "constructor".to_string(),
+        now_ms(),
         &params.to_string(),
         Some(keys),
         config.wc,
@@ -539,6 +541,7 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
             &params,
             None,
             false,
+            String::new(),
         )
         .await?;
     }
