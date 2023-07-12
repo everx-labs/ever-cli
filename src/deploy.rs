@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address, now_ms};
-use crate::config::{FullConfig};
+use crate::config::FullConfig;
 use crate::crypto::load_keypair;
 use crate::call::{
     emulate_locally,
@@ -160,7 +160,7 @@ pub async fn prepare_deploy_message_params(
         ..Default::default()
     });
     let deploy_set = Some(DeploySet {
-        tvc: tvc_base64,
+        tvc: Some(tvc_base64),
         workchain_id: Some(wc),
         ..Default::default()
     });
