@@ -166,7 +166,7 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
             message_retries_count: config.retries as i8,
             message_processing_timeout: 30000,
             wait_for_timeout: config.timeout,
-            out_of_sync_threshold: config.out_of_sync_threshold * 1000,
+            out_of_sync_threshold: Some(config.out_of_sync_threshold * 1000),
             access_key: config.access_key.clone(),
             ..Default::default()
         },
@@ -366,7 +366,7 @@ pub async fn calc_acc_address(
         .map_err(|e| format!("initial data is not in json: {}", e))?;
 
     let dset = DeploySet {
-        tvc: base64::encode(tvc),
+        tvc: Some(base64::encode(tvc)),
         workchain_id: Some(wc),
         initial_data: init_data_json,
         initial_pubkey: pubkey.clone(),
