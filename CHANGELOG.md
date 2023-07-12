@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.35.6
+
+### New
+- Fixed double log initialization bug
+
 ## 0.35.5
 
 ### New

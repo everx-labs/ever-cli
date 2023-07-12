@@ -1594,7 +1594,7 @@ impl<'a> DebugParams<'a> {
     }
 }
 
-pub async fn debug_error(e: &ClientError, debug_params: DebugParams<'_>, log_path: &str) -> Result<(), String> {
+pub async fn debug_error(e: &ClientError, debug_params: DebugParams<'_>) -> Result<(), String> {
     let result = format!("{:#}", e);
     if e.code != SDK_EXECUTION_ERROR_CODE || !debug_params.check_debug() {
         return Err(result)
@@ -1605,12 +1605,10 @@ pub async fn debug_error(e: &ClientError, debug_params: DebugParams<'_>, log_pat
         println!("Error: {}", result);
         println!("Execution failed. Starting debug...");
     }
-    init_debug_logger(log_path)?;
     let _ = execute_debug_params(&debug_params).await;
 
     if !debug_params.config.is_json {
         println!("Debug finished.");
-        println!("Log saved to {}", log_path);
     }
     Err(result)
 }

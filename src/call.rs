@@ -260,15 +260,13 @@ pub async fn call_contract_with_result(
     keys: Option<String>,
     is_fee: bool,
 ) -> Result<Value, String> {
-    let mut trace_path = String::new();
     let ton = if config.debug_fail != "None".to_string() {
-        trace_path = format!("call_{}_{}.log", addr, method);
-        init_debug_logger(&trace_path)?;
+        init_debug_logger(&format!("call_{}_{}.log", addr, method))?;
         create_client(config)?
     } else {
         create_client_verbose(config)?
     };
-    call_contract_with_client(ton, config, addr, abi_path, method, params, keys, is_fee, trace_path).await
+    call_contract_with_client(ton, config, addr, abi_path, method, params, keys, is_fee).await
 }
 
 pub async fn call_contract_with_client(
@@ -280,7 +278,6 @@ pub async fn call_contract_with_client(
     params: &str,
     keys: Option<String>,
     is_fee: bool,
-    trace_path: String,
 ) -> Result<Value, String> {
     let abi = load_abi(abi_path, config).await?;
 
@@ -337,7 +334,7 @@ pub async fn call_contract_with_client(
                 last_tr_lt: now,
                 ..DebugParams::new(config, bc_config)
             };
-            debug_error(&e, debug_params, &trace_path).await?;
+            debug_error(&e, debug_params).await?;
             return Err(format!("{:#}", e));
         }
     }
