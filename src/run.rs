@@ -18,7 +18,7 @@ use ton_client::abi::FunctionHeader;
 use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
 use crate::config::{Config, FullConfig};
 use crate::call::print_json_result;
-use crate::debug::{debug_error, DebugParams};
+use crate::debug::{debug_error, DebugParams, init_debug_logger};
 use crate::helpers::{create_client, now, now_ms, TonClient,
                      contract_data_from_matches_or_config_alias, abi_from_matches_or_config,
                      AccountSource, create_client_local, create_client_verbose, load_abi,
@@ -158,7 +158,8 @@ async fn run(
                 is_getter: true,
                 ..DebugParams::new(config, bc_config)
             };
-            debug_error(&e, debug_params, &trace_path).await?;
+            init_debug_logger(&trace_path)?;
+            debug_error(&e, debug_params).await?;
             return Err(format!("{:#}", e));
         }
     };
