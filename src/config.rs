@@ -377,7 +377,7 @@ pub fn clear_config(
     matches: &ArgMatches,
     is_json: bool,
 ) -> Result<(), String> {
-    let mut config = &mut full_config.config;
+    let config = &mut full_config.config;
     let is_json = config.is_json || is_json;
     if matches.is_present("URL") {
         let url = default_url();
@@ -470,7 +470,7 @@ pub fn set_config(
     matches: &ArgMatches,
     is_json: bool,
 ) -> Result<(), String> {
-    let mut config= &mut full_config.config;
+    let config= &mut full_config.config;
     if let Some(s) = matches.value_of("URL") {
         let resolved_url = resolve_net_name(s).unwrap_or(s.to_owned());
         let empty : Vec<String> = Vec::new();

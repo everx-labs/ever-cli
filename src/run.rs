@@ -51,13 +51,8 @@ pub async fn run_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_
     };
     let trace_path;
     let ton_client = if account_source == AccountSource::NETWORK {
-        if &config.debug_fail != "None" {
-            trace_path = format!("run_{}_{}.log", address, method);
-            create_client(&config)?
-        } else {
-            trace_path = "trace.log".to_string();
-            create_client_verbose(&config)?
-        }
+        trace_path = format!("run_{}_{}.log", address, method);
+        create_client(&config)?
     } else {
         trace_path = "trace.log".to_string();
         create_client_local()?
