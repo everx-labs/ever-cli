@@ -32,7 +32,7 @@ use ever_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor
 use ever_block::{BuilderData, SliceData, UInt256, write_boc};
 use ever_vm::executor::{Engine, EngineTraceInfo};
 
-use crate::config::Config;
+use crate::{config::Config, helpers::CallbackType};
 use crate::helpers::{create_client, get_blockchain_config};
 
 pub static CONFIG_ADDR: &str  = "-1:5555555555555555555555555555555555555555555555555555555555555555";
@@ -92,7 +92,6 @@ pub async fn fetch(config: &Config, account_address: &str, filename: &str, lt_bo
                     aggregation_fn: AggregationFn::COUNT
                 },
             ]),
-            ..Default::default()
         },
     )
     .await
@@ -115,7 +114,6 @@ pub async fn fetch(config: &Config, account_address: &str, filename: &str, lt_bo
             result: "accounts { id boc }".to_owned(),
             limit: Some(1),
             order: None,
-            ..Default::default()
         },
     )
     .await;
@@ -177,7 +175,6 @@ pub async fn fetch(config: &Config, account_address: &str, filename: &str, lt_bo
                     order: Some(vec![
                         OrderBy { path: "lt".to_owned(), direction: SortDirection::ASC }
                     ]),
-                    ..Default::default()
                 },
             );
             query.await
@@ -281,7 +278,7 @@ pub async fn replay(
     input_filename: &str,
     config_filename: &str,
     txnid: &str,
-    trace_callback: Option<Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync>>,
+    trace_callback: Option<CallbackType>,
     init_trace_last_logger: impl FnOnce() -> Result<(), String>,
     dump_mask: u8,
     cli_config: &Config,
@@ -315,12 +312,10 @@ pub async fn replay(
         let state = choose(&mut account_state, &mut config_state);
         let tr = state.tr.as_ref().ok_or("failed to obtain state transaction")?;
 
-        if iterate_config {
-            if cur_block_lt == 0 || cur_block_lt != tr.block_lt {
-                assert!(tr.block_lt > cur_block_lt);
-                cur_block_lt = tr.block_lt;
-                config = construct_blockchain_config(&config_account)?;
-            }
+        if iterate_config && (cur_block_lt == 0 || cur_block_lt != tr.block_lt) {
+            assert!(tr.block_lt > cur_block_lt);
+            cur_block_lt = tr.block_lt;
+            config = construct_blockchain_config(&config_account)?;
         }
 
         let mut account_root = state.account.serialize()
@@ -478,7 +473,6 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> eve
             result: "workchain_id end_lt boc".to_owned(),
             limit: None,
             order: None,
-            ..Default::default()
         },
     ).await?;
 
@@ -503,7 +497,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> eve
         account_block.transaction_iterate(|tr| {
             let cell = tr.serialize()?;
             let bytes = write_boc(&cell)?;
-            txns.push((cell.repr_hash().to_hex_string(), base64::encode(&bytes)));
+            txns.push((cell.repr_hash().to_hex_string(), base64::encode(bytes)));
             Ok(true)
         })?;
         accounts.push((account_name, txns));
