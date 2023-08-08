@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.35.7
+
+### Bug fixes
+- Fixed double log initialization bug for runx subcommand
+
 ## 0.35.6
 
 ### New
