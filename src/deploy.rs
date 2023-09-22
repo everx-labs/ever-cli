@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address, now_ms};
+use crate::helpers::{create_client_verbose, load_abi, calc_acc_address, now_ms};
 use crate::config::FullConfig;
 use crate::crypto::load_keypair;
 use crate::call::{
@@ -90,7 +90,7 @@ pub async fn generate_deploy_message(
     config: &Config,
 ) -> Result<(), String> {
 
-    let ton = create_client_local()?;
+    let ton = create_client_verbose(config)?;
 
     let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file, wc, config).await?;
     let msg = encode_message(ton, msg).await
