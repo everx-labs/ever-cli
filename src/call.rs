@@ -47,7 +47,6 @@ async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) 
             ..Default::default()
         },
     )
-    .await
     .map_err(|e| format!("couldn't decode message: {}", e))?;
 
     Ok((

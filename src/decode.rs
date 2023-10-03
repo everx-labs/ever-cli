@@ -290,9 +290,7 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
                 data: b64,
                 ..Default::default()
             }
-        )
-        .await
-        .map_err(|e| format!("failed to decode data: {}", e))?;
+        ).map_err(|e| format!("failed to decode data: {}", e))?;
     if !config.is_json {
         println!("TVC fields:");
     }
@@ -319,9 +317,7 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<()
                 data,
                 ..Default::default()
             }
-        )
-        .await
-        .map_err(|e| format!("failed to decode data: {}", e))?;
+        ).map_err(|e| format!("failed to decode data: {}", e))?;
     if !config.is_json {
         println!("Account fields:");
     }
@@ -484,7 +480,7 @@ pub mod msg_printer {
                 code,
                 ..Default::default()
             }
-        ).await;
+        );
 
         if let Ok(result) = result {
             if let Some(version) = result.version {

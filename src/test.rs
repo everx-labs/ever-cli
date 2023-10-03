@@ -291,7 +291,6 @@ async fn test_deploy(matches: &ArgMatches<'_>, config: &Config) -> Result<(), St
             ..Default::default()
         };
         let enc_msg = encode_internal_message(context.clone(), msg_params)
-            .await
             .map_err(|e| format!("Failed to create deploy internal message: {e}"))?;
         message = Message::construct_from_base64(&enc_msg.message).unwrap();
         if let Some(header) = message.int_header_mut() {

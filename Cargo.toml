@@ -16,7 +16,7 @@ license = 'Apache-2.0'
 name = 'tonos-cli'
 readme = 'README.md'
 repository = 'https://github.com/tonlabs/tonos-cli'
-version = '0.35.7'
+version = '0.35.8'
 default-run = 'tonos-cli'
 
 [features]
@@ -48,15 +48,15 @@ log = { features = [ 'std' ], version = '0.4' }
 serde = { features = [ 'derive' ], version = '1.0' }
 tokio = { default-features = false, features = [ 'full' ], version = '1.21' }
 url = '2.3.1'
-ton_abi = { git = 'https://github.com/tonlabs/ever-abi.git', tag = '2.3.126' }
-ton_block = { git = 'https://github.com/tonlabs/ever-block.git', tag = '1.9.84' }
-ton_block_json = { git = 'https://github.com/tonlabs/ever-block-json.git', tag = '0.7.163' }
-ton_client = { git = 'https://github.com/tonlabs/ever-sdk.git', tag = '1.43.3' }
-ton_executor = { git = 'https://github.com/tonlabs/ever-executor.git', tag = '1.16.53' }
-ton_labs_assembler = { git = 'https://github.com/tonlabs/ever-assembler.git', tag = '1.2.126' }
-ton_sdk = { git = 'https://github.com/tonlabs/ever-sdk.git', tag = '1.43.3' }
-ton_types = { git = 'https://github.com/tonlabs/ever-types.git', tag = '2.0.15' }
-ton_vm = { git = 'https://github.com/tonlabs/ever-vm.git', tag = '1.8.184' }
+ton_abi = { git = 'https://github.com/tonlabs/ever-abi.git', tag = '2.3.143' }
+ton_block = { git = 'https://github.com/tonlabs/ever-block.git', tag = '1.9.101' }
+ton_block_json = { git = 'https://github.com/tonlabs/ever-block-json.git', tag = '0.7.184' }
+ton_client = { git = 'https://github.com/tonlabs/ever-sdk.git', tag = '1.44.3' }
+ton_executor = { git = 'https://github.com/tonlabs/ever-executor.git', tag = '1.16.75' }
+ton_labs_assembler = { git = 'https://github.com/tonlabs/ever-assembler.git', tag = '1.4.5' }
+ton_sdk = { git = 'https://github.com/tonlabs/ever-sdk.git', tag = '1.44.3' }
+ton_types = { git = 'https://github.com/tonlabs/ever-types.git', tag = '2.0.26' }
+ton_vm = { git = 'https://github.com/tonlabs/ever-vm.git', tag = '1.8.205' }
 sold = { git = 'https://github.com/tonlabs/TON-Solidity-Compiler.git', tag = '0.66.0', optional = true }
 
 [dev-dependencies]
