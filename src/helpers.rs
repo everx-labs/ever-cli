@@ -302,7 +302,6 @@ pub async fn decode_msg_body(
             ..Default::default()
         },
     )
-    .await
     .map_err(|e| format!("failed to decode body: {}", e))
 }
 
@@ -432,7 +431,7 @@ pub async fn print_message(ton: TonClient, message: &Value, abi: &str, is_intern
                 is_internal,
                 ..Default::default()
             },
-        ).await;
+        );
         let (name, args) = if result.is_err() {
             ("unknown".to_owned(), "{}".to_owned())
         } else {
