@@ -20,7 +20,7 @@ use ton_abi::{Contract, Token, TokenValue, Uint};
 use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, MsgAddressExt, Serializable};
 use ton_client::net::{OrderBy, SortDirection};
 use ton_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
-use ton_types::{BuilderData, Cell, IBitstring, SliceData};
+use ton_types::{BuilderData, Cell, IBitstring, SliceData, MAX_SAFE_DEPTH};
 
 const PREFIX_UPDATE_CONFIG_MESSAGE_DATA: &str = "43665021";
 
@@ -427,7 +427,7 @@ fn prepare_message_new_config_param(
     let public = PublicKey::from(&secret);
     let keypair = Keypair { secret, public };
         
-    let msg_signature = keypair.sign(cell.finalize(0).unwrap().repr_hash().as_slice()).to_bytes();
+    let msg_signature = keypair.sign(cell.finalize(MAX_SAFE_DEPTH).unwrap().repr_hash().as_slice()).to_bytes();
 
     let mut cell = BuilderData::default();
     cell.append_raw(&msg_signature, 64*8).unwrap();
