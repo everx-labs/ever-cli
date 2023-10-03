@@ -161,8 +161,8 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "api_derive"
-version = "1.44.3"
-source = "git+https://github.com/tonlabs/ever-sdk.git?tag=1.44.3#31dfe8b591e2d79c2dade06bb1dfa958561e9dca"
+version = "1.45.0"
+source = "git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.0-rc#bd36778dc1c2abfb3374812fdfdbd21cc7a44a34"
 dependencies = [
  "api_info",
  "proc-macro2",
@@ -173,8 +173,8 @@ dependencies = [
 
 [[package]]
 name = "api_info"
-version = "1.44.3"
-source = "git+https://github.com/tonlabs/ever-sdk.git?tag=1.44.3#31dfe8b591e2d79c2dade06bb1dfa958561e9dca"
+version = "1.45.0"
+source = "git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.0-rc#bd36778dc1c2abfb3374812fdfdbd21cc7a44a34"
 dependencies = [
  "serde",
  "serde_derive",
@@ -283,12 +283,6 @@ name = "base64"
 version = "0.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ba43ea6f343b788c8764558649e08df62f86c6ef251fdaeb1ffd010a9ae50a2"
-
-[[package]]
-name = "base64ct"
-version = "1.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
 name = "bincode"
@@ -573,12 +567,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "const-oid"
-version = "0.9.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28c122c3980598d243d63d9a704629a2d748d101f278052ff068be5a4423ab6f"
-
-[[package]]
 name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -742,52 +730,14 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek"
-version = "3.2.0"
+version = "3.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b9fdf9972b2bd6af2d913799d9ebc165ea4d2e65878e329d9c6b372c4491b61"
+checksum = "90f9d052967f590a76e62eb387bd0bbb1b000182c3cefe5364db6b7211651bc0"
 dependencies = [
  "byteorder",
  "digest 0.9.0",
  "rand_core 0.5.1",
  "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "curve25519-dalek"
-version = "4.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e89b8c6a2e4b1f45971ad09761aafb85514a84744b67a95e32c3cc1352d1f65c"
-dependencies = [
- "cfg-if",
- "cpufeatures",
- "curve25519-dalek-derive",
- "digest 0.10.7",
- "fiat-crypto",
- "platforms",
- "rustc_version",
- "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "curve25519-dalek-derive"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83fdaf97f4804dcebfa5862639bc9ce4121e82140bec2a987ac5140294865b5b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.37",
-]
-
-[[package]]
-name = "der"
-version = "0.7.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fffa369a668c8af7dbf8b5e56c9f744fbd399949ed171606040001947de40b1c"
-dependencies = [
- "const-oid",
  "zeroize",
 ]
 
@@ -869,17 +819,7 @@ version = "1.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91cff35c70bba8a626e3185d8cd48cc11b5437e1a5bcd15b9b5fa3c64b6dfee7"
 dependencies = [
- "signature 1.6.4",
-]
-
-[[package]]
-name = "ed25519"
-version = "2.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60f6d271ca33075c88028be6f04d502853d63a5ece419d269c15315d4fc1cf1d"
-dependencies = [
- "pkcs8",
- "signature 2.1.0",
+ "signature",
 ]
 
 [[package]]
@@ -888,25 +828,11 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c762bae6dcaf24c4c84667b8579785430908723d5c889f469d76a41d59cc7a9d"
 dependencies = [
- "curve25519-dalek 3.2.0",
- "ed25519 1.5.3",
+ "curve25519-dalek",
+ "ed25519",
  "rand 0.7.3",
  "serde",
  "sha2 0.9.9",
- "zeroize",
-]
-
-[[package]]
-name = "ed25519-dalek"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7277392b266383ef8396db7fdeb1e77b6c52fed775f5df15bb24f35b72156980"
-dependencies = [
- "curve25519-dalek 4.1.1",
- "ed25519 2.2.2",
- "rand_core 0.6.4",
- "serde",
- "sha2 0.10.8",
  "zeroize",
 ]
 
@@ -960,14 +886,14 @@ dependencies = [
 
 [[package]]
 name = "ever-struct"
-version = "1.0.7"
-source = "git+https://github.com/tonlabs/ever-struct.git?tag=1.0.7#7d5370dbfdcfd72bf7c66dc2ca72e4a82de8d213"
+version = "1.0.1"
+source = "git+https://github.com/tonlabs/ever-struct.git?tag=1.0.1#f4547597ab474d48ef7402749e86f30c41399c2e"
 dependencies = [
  "anyhow",
  "failure",
  "hex-literal",
- "ton_block 1.9.101",
- "ton_types 2.0.26",
+ "ton_block 1.9.88",
+ "ton_types 2.0.18",
 ]
 
 [[package]]
@@ -1009,12 +935,6 @@ name = "fastrand"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25cbce373ec4653f1a01a31e8a5e5ec0c622dc27ff9c4e6606eefef5cbbed4a5"
-
-[[package]]
-name = "fiat-crypto"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0870c84016d4b481be5c9f323c24f65e31e901ae618f0e80f4308fb00de1d2d"
 
 [[package]]
 name = "float-cmp"
@@ -1948,26 +1868,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
-name = "pkcs8"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f950b2377845cebe5cf8b5165cb3cc1a5e0fa5cfa3e1f7f55707d8fd82e0a7b7"
-dependencies = [
- "der",
- "spki",
-]
-
-[[package]]
 name = "pkg-config"
 version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
-
-[[package]]
-name = "platforms"
-version = "3.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4503fa043bf02cee09a9582e9554b4c6403b2ef55e4612e96561d294419429f8"
 
 [[package]]
 name = "pom"
@@ -2267,15 +2171,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
-name = "rustc_version"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
-dependencies = [
- "semver",
-]
-
-[[package]]
 name = "rustix"
 version = "0.38.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2361,12 +2256,6 @@ dependencies = [
  "core-foundation-sys",
  "libc",
 ]
-
-[[package]]
-name = "semver"
-version = "1.0.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad977052201c6de01a8ef2aa3378c4bd23217a056337d1d6da40468d267a4fb0"
 
 [[package]]
 name = "serde"
@@ -2507,12 +2396,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74233d3b3b2f6d4b006dc19dee745e73e2a6bfb6f93607cd3b02bd5b00797d7c"
 
 [[package]]
-name = "signature"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e1788eed21689f9cf370582dfc467ef36ed9c707f073528ddafa8d83e3b8500"
-
-[[package]]
 name = "similar"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2605,16 +2488,6 @@ dependencies = [
  "ton_block 1.8.3",
  "ton_types 1.11.4",
  "tvm_linker",
-]
-
-[[package]]
-name = "spki"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d1e996ef02c474957d681f1b05213dfb0abab947b446a62d37770b23500184a"
-dependencies = [
- "base64ct",
- "der",
 ]
 
 [[package]]
@@ -2933,8 +2806,8 @@ dependencies = [
  "base64 0.10.1",
  "byteorder",
  "chrono",
- "ed25519 1.5.3",
- "ed25519-dalek 1.0.1",
+ "ed25519",
+ "ed25519-dalek",
  "failure",
  "hex 0.3.2",
  "num-bigint",
@@ -2949,14 +2822,14 @@ dependencies = [
 
 [[package]]
 name = "ton_abi"
-version = "2.3.143"
-source = "git+https://github.com/tonlabs/ever-abi.git?tag=2.3.143#5ac05d08129018ac76deb08d7593c8cf4d3a1848"
+version = "2.4.0"
+source = "git+https://github.com/tonlabs/ever-abi.git?branch=abi-2.4#9e08d089948f88fe7384787411074dae6f233884"
 dependencies = [
  "base64 0.10.1",
  "byteorder",
  "chrono",
- "ed25519 1.5.3",
- "ed25519-dalek 1.0.1",
+ "ed25519",
+ "ed25519-dalek",
  "failure",
  "hex 0.3.2",
  "num-bigint",
@@ -2965,14 +2838,14 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sha2 0.10.8",
- "ton_block 1.9.101",
- "ton_types 2.0.26",
+ "ton_block 1.9.88",
+ "ton_types 2.0.18",
 ]
 
 [[package]]
 name = "ton_api"
-version = "0.3.38"
-source = "git+https://github.com/tonlabs/ever-tl.git?tag=0.3.38#a836d3c5c92a2c42bbdeb45507cab92cd2b37da9"
+version = "0.3.24"
+source = "git+https://github.com/tonlabs/ever-tl.git?tag=0.3.24#e3889f2491a3e1798b653ddc0ac3af3f05328f7f"
 dependencies = [
  "byteorder",
  "extfmt",
@@ -2984,9 +2857,9 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "ton_block 1.9.101",
+ "ton_block 1.9.88",
  "ton_tl_codegen",
- "ton_types 2.0.26",
+ "ton_types 2.0.18",
 ]
 
 [[package]]
@@ -2996,8 +2869,8 @@ source = "git+https://github.com/tonlabs/ton-labs-block.git?tag=1.8.3#715236f812
 dependencies = [
  "base64 0.13.1",
  "crc 3.0.1",
- "ed25519 1.5.3",
- "ed25519-dalek 1.0.1",
+ "ed25519",
+ "ed25519-dalek",
  "failure",
  "hex 0.4.3",
  "log",
@@ -3009,26 +2882,26 @@ dependencies = [
 
 [[package]]
 name = "ton_block"
-version = "1.9.101"
-source = "git+https://github.com/tonlabs/ever-block.git?tag=1.9.101#0b9b35a2f5d30e47e26db03dc4db11a2084f9ffc"
+version = "1.9.88"
+source = "git+https://github.com/tonlabs/ever-block.git?tag=1.9.88#d38a615860e38e4a6ff3c56c6bf1c2a459e7c80a"
 dependencies = [
  "base64 0.13.1",
  "crc 3.0.1",
- "ed25519 1.5.3",
- "ed25519-dalek 1.0.1",
+ "ed25519",
+ "ed25519-dalek",
  "failure",
  "hex 0.4.3",
  "log",
  "num",
  "num-traits",
  "sha2 0.10.8",
- "ton_types 2.0.26",
+ "ton_types 2.0.18",
 ]
 
 [[package]]
 name = "ton_block_json"
-version = "0.7.184"
-source = "git+https://github.com/tonlabs/ever-block-json.git?tag=0.7.184#0712036866af50c54b8543e93caaa35be819070c"
+version = "0.7.168"
+source = "git+https://github.com/tonlabs/ever-block-json.git?tag=0.7.168#45fd80119c72057b15a8814b1841a1cf17b66645"
 dependencies = [
  "base64 0.13.1",
  "failure",
@@ -3039,14 +2912,14 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "ton_api",
- "ton_block 1.9.101",
- "ton_types 2.0.26",
+ "ton_block 1.9.88",
+ "ton_types 2.0.18",
 ]
 
 [[package]]
 name = "ton_client"
-version = "1.44.3"
-source = "git+https://github.com/tonlabs/ever-sdk.git?tag=1.44.3#31dfe8b591e2d79c2dade06bb1dfa958561e9dca"
+version = "1.45.0"
+source = "git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.0-rc#bd36778dc1c2abfb3374812fdfdbd21cc7a44a34"
 dependencies = [
  "aes",
  "api_derive",
@@ -3060,7 +2933,7 @@ dependencies = [
  "chacha20",
  "chrono",
  "crc 3.0.1",
- "ed25519-dalek 1.0.1",
+ "ed25519-dalek",
  "ever-struct",
  "failure",
  "futures",
@@ -3090,22 +2963,22 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
- "ton_abi 2.3.143",
- "ton_block 1.9.101",
+ "ton_abi 2.4.0",
+ "ton_block 1.9.88",
  "ton_block_json",
  "ton_client_processing",
  "ton_executor",
  "ton_sdk",
- "ton_types 2.0.26",
- "ton_vm 1.8.205",
+ "ton_types 2.0.18",
+ "ton_vm 1.8.189",
  "zeroize",
  "zstd",
 ]
 
 [[package]]
 name = "ton_client_processing"
-version = "1.44.3"
-source = "git+https://github.com/tonlabs/ever-sdk.git?tag=1.44.3#31dfe8b591e2d79c2dade06bb1dfa958561e9dca"
+version = "1.45.0"
+source = "git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.0-rc#bd36778dc1c2abfb3374812fdfdbd21cc7a44a34"
 dependencies = [
  "api_derive",
  "api_info",
@@ -3118,21 +2991,21 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "tokio",
- "ton_block 1.9.101",
- "ton_types 2.0.26",
+ "ton_block 1.9.88",
+ "ton_types 2.0.18",
 ]
 
 [[package]]
 name = "ton_executor"
-version = "1.16.75"
-source = "git+https://github.com/tonlabs/ever-executor.git?tag=1.16.75#aed35e336ed5fc803c0d4869e852cf129a1edb3d"
+version = "1.16.58"
+source = "git+https://github.com/tonlabs/ever-executor.git?tag=1.16.58#4ae696c9a98614c8e3ce91096147febdfd4f5d4b"
 dependencies = [
  "failure",
  "lazy_static",
  "log",
- "ton_block 1.9.101",
- "ton_types 2.0.26",
- "ton_vm 1.8.205",
+ "ton_block 1.9.88",
+ "ton_types 2.0.18",
+ "ton_vm 1.8.189",
 ]
 
 [[package]]
@@ -3152,10 +3025,9 @@ dependencies = [
 
 [[package]]
 name = "ton_labs_assembler"
-version = "1.4.5"
-source = "git+https://github.com/tonlabs/ever-assembler.git?tag=1.4.5#52e30320ed583977942a642874740cd1c850a91b"
+version = "1.2.130"
+source = "git+https://github.com/tonlabs/ever-assembler.git?tag=1.2.130#625bd9075e27b4d3bee21481ccc504dc8d891a1e"
 dependencies = [
- "clap 4.4.6",
  "failure",
  "hex 0.4.3",
  "log",
@@ -3163,20 +3035,19 @@ dependencies = [
  "num-traits",
  "serde",
  "serde_json",
- "ton_types 2.0.26",
- "ton_vm 1.8.205",
+ "ton_types 2.0.18",
 ]
 
 [[package]]
 name = "ton_sdk"
-version = "1.44.3"
-source = "git+https://github.com/tonlabs/ever-sdk.git?tag=1.44.3#31dfe8b591e2d79c2dade06bb1dfa958561e9dca"
+version = "1.45.0"
+source = "git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.0-rc#bd36778dc1c2abfb3374812fdfdbd21cc7a44a34"
 dependencies = [
  "api_derive",
  "api_info",
  "base64 0.10.1",
  "chrono",
- "ed25519-dalek 1.0.1",
+ "ed25519-dalek",
  "failure",
  "hex 0.3.2",
  "lazy_static",
@@ -3187,15 +3058,15 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sha2 0.9.9",
- "ton_abi 2.3.143",
- "ton_block 1.9.101",
- "ton_types 2.0.26",
+ "ton_abi 2.4.0",
+ "ton_block 1.9.88",
+ "ton_types 2.0.18",
 ]
 
 [[package]]
 name = "ton_tl_codegen"
 version = "0.1.0"
-source = "git+https://github.com/tonlabs/ever-tl.git?tag=0.3.38#a836d3c5c92a2c42bbdeb45507cab92cd2b37da9"
+source = "git+https://github.com/tonlabs/ever-tl.git?tag=0.3.24#e3889f2491a3e1798b653ddc0ac3af3f05328f7f"
 dependencies = [
  "crc 1.8.1",
  "failure",
@@ -3229,15 +3100,15 @@ dependencies = [
 
 [[package]]
 name = "ton_types"
-version = "2.0.26"
-source = "git+https://github.com/tonlabs/ever-types.git?tag=2.0.26#2942de3c92fada379789ca05042947c42c8143bf"
+version = "2.0.18"
+source = "git+https://github.com/tonlabs/ever-types.git?tag=2.0.18#cc9e204f9122967b0f1d5af3208f8ccc36e706ef"
 dependencies = [
  "aes-ctr",
  "base64 0.13.1",
  "crc 3.0.1",
- "curve25519-dalek 4.1.1",
- "ed25519 2.2.2",
- "ed25519-dalek 2.0.0",
+ "curve25519-dalek",
+ "ed25519",
+ "ed25519-dalek",
  "failure",
  "hex 0.4.3",
  "lazy_static",
@@ -3246,7 +3117,7 @@ dependencies = [
  "num",
  "num-derive",
  "num-traits",
- "rand 0.8.5",
+ "rand 0.7.3",
  "serde",
  "serde_json",
  "sha2 0.10.8",
@@ -3260,8 +3131,8 @@ version = "1.8.44"
 source = "git+https://github.com/tonlabs/ton-labs-vm.git?tag=1.8.44#5a83076b448cb35d2da7611552f76dea5cffc9db"
 dependencies = [
  "diffy",
- "ed25519 1.5.3",
- "ed25519-dalek 1.0.1",
+ "ed25519",
+ "ed25519-dalek",
  "failure",
  "hex 0.4.3",
  "lazy_static",
@@ -3278,12 +3149,12 @@ dependencies = [
 
 [[package]]
 name = "ton_vm"
-version = "1.8.205"
-source = "git+https://github.com/tonlabs/ever-vm.git?tag=1.8.205#047b70c39dd34c45f3e058a34fc2e8405a5efaf5"
+version = "1.8.189"
+source = "git+https://github.com/tonlabs/ever-vm.git?tag=1.8.189#5bc2dece1944b22a9cfafee3d7ad7f577f5fb10f"
 dependencies = [
  "diffy",
- "ed25519 1.5.3",
- "ed25519-dalek 1.0.1",
+ "ed25519",
+ "ed25519-dalek",
  "failure",
  "hex 0.4.3",
  "lazy_static",
@@ -3292,8 +3163,8 @@ dependencies = [
  "num-traits",
  "rand 0.7.3",
  "similar",
- "ton_block 1.9.101",
- "ton_types 2.0.26",
+ "ton_block 1.9.88",
+ "ton_types 2.0.18",
  "zstd",
 ]
 
@@ -3307,7 +3178,7 @@ dependencies = [
  "chrono",
  "clap 2.34.0",
  "crc 3.0.1",
- "ed25519-dalek 1.0.1",
+ "ed25519-dalek",
  "failure",
  "futures",
  "hex 0.4.3",
@@ -3329,15 +3200,15 @@ dependencies = [
  "string-error",
  "tokio",
  "tokio-retry",
- "ton_abi 2.3.143",
- "ton_block 1.9.101",
+ "ton_abi 2.4.0",
+ "ton_block 1.9.88",
  "ton_block_json",
  "ton_client",
  "ton_executor",
- "ton_labs_assembler 1.4.5",
+ "ton_labs_assembler 1.2.130",
  "ton_sdk",
- "ton_types 2.0.26",
- "ton_vm 1.8.205",
+ "ton_types 2.0.18",
+ "ton_vm 1.8.189",
  "url",
 ]
 
@@ -3401,8 +3272,8 @@ dependencies = [
  "base64 0.13.1",
  "clap 2.34.0",
  "crc 3.0.1",
- "ed25519 1.5.3",
- "ed25519-dalek 1.0.1",
+ "ed25519",
+ "ed25519-dalek",
  "failure",
  "hex 0.4.3",
  "lazy_static",
@@ -3813,21 +3684,20 @@ dependencies = [
 
 [[package]]
 name = "x25519-dalek"
-version = "2.0.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb66477291e7e8d2b0ff1bcb900bf29489a9692816d79874bea351e7a8b6de96"
+checksum = "2392b6b94a576b4e2bf3c5b2757d63f10ada8020a2e4d08ac849ebcf6ea8e077"
 dependencies = [
- "curve25519-dalek 4.1.1",
- "rand_core 0.6.4",
- "serde",
+ "curve25519-dalek",
+ "rand_core 0.5.1",
  "zeroize",
 ]
 
 [[package]]
 name = "zeroize"
-version = "1.6.0"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a0956f1ba7c7909bfb66c2e9e4124ab6f6482560f6628b5aaeba39207c9aad9"
+checksum = "4756f7db3f7b5574938c3eb1c117038b8e07f95ee6718c0efad4ac21508f1efd"
 dependencies = [
  "zeroize_derive",
 ]

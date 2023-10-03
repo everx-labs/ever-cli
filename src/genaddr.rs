@@ -142,17 +142,36 @@ fn calc_userfriendly_address(address: &str, bounce: bool, test: bool) -> Result<
 
 fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, abi: &str) -> Result<(), String> {
     use std::io::{Seek, Write};
+    use ton_abi::Contract;
+    use ton_sdk::ContractImage;
+
+    let c = Contract::load(abi.as_bytes())
+        .map_err(|e| format!("unable to load abi: {}", e))?;
+
     let mut state_init = OpenOptions::new().read(true).write(true).open(tvc_file)
         .map_err(|e| format!("unable to open contract file: {}", e))?;
 
     let pubkey_object = PublicKey::from_bytes(pubkey)
         .map_err(|e| format!("unable to load public key: {}", e))?;
 
-    let mut contract_image = ton_sdk::ContractImage::from_state_init_and_key(&mut state_init, &pubkey_object)
-        .map_err(|e| format!("unable to load contract image: {}", e))?;
+    let mut contract_image = if c.data_map_supported() {
+        ContractImage::from_state_init_and_key(&mut state_init, &pubkey_object)
+            .map_err(|e| format!("unable to load contract image with key: {}", e))?
+    } else {
+        ContractImage::from_state_init(&mut state_init)
+            .map_err(|e| format!("unable to load contract image: {}", e))?
+    };
 
-    if data.is_some() {
-        contract_image.update_data(&data.unwrap(), abi)
+    if c.data_map_supported() {
+        if data.is_some() {
+            contract_image.update_data(true, &data.unwrap(), abi)
+                .map_err(|e| format!("unable to update contract image data: {}", e))?;
+        }
+    } else {
+        let pubkey_str = format!("0x{}", hex::encode(pubkey));
+        let data_added = json!({"_pubkey": pubkey_str}).to_string();
+        // TODO add data to data_added
+        contract_image.update_data(false, &data_added, abi)
             .map_err(|e| format!("unable to update contract image data: {}", e))?;
     }
 
