@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::{create_client_verbose, create_client_local, load_abi, calc_acc_address, now_ms};
+use crate::helpers::{create_client_verbose, create_client_local, load_abi, now_ms};
 use crate::config::FullConfig;
 use crate::crypto::load_keypair;
 use crate::call::{
@@ -145,22 +145,18 @@ pub async fn prepare_deploy_message_params(
     keys: Option<KeyPair>,
     wc: i32
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
-    let tvc_base64 = base64::encode(&tvc_bytes);
+    let tvc = base64::encode(&tvc_bytes);
 
-    let address = calc_acc_address(
-        tvc_bytes,
-        wc,
-        keys.as_ref().map(|k| k.public.clone()),
-        None,
-        abi.clone()
-    ).await?;
+    let tvc_cell = ton_types::boc::read_single_root_boc(&tvc_bytes).unwrap();
+    let tvc_hash = tvc_cell.repr_hash();
+    let address = format!("{}:{}", wc, tvc_hash.as_hex_string());
 
     let header = Some(FunctionHeader {
         time: Some(time),
         ..Default::default()
     });
     let deploy_set = Some(DeploySet {
-        tvc: Some(tvc_base64),
+        tvc: Some(tvc),
         workchain_id: Some(wc),
         ..Default::default()
     });

@@ -145,8 +145,8 @@ fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, ab
     use ton_abi::Contract;
     use ton_sdk::ContractImage;
 
-    let c = Contract::load(abi.as_bytes())
-        .map_err(|e| format!("unable to load abi: {}", e))?;
+    let data_map_supported : bool = (Contract::load(abi.as_bytes())
+        .map_err(|e| format!("unable to load abi: {}", e))?).data_map_supported();
 
     let mut state_init = OpenOptions::new().read(true).write(true).open(tvc_file)
         .map_err(|e| format!("unable to open contract file: {}", e))?;
@@ -154,7 +154,7 @@ fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, ab
     let pubkey_object = PublicKey::from_bytes(pubkey)
         .map_err(|e| format!("unable to load public key: {}", e))?;
 
-    let mut contract_image = if c.data_map_supported() {
+    let mut contract_image = if data_map_supported {
         ContractImage::from_state_init_and_key(&mut state_init, &pubkey_object)
             .map_err(|e| format!("unable to load contract image with key: {}", e))?
     } else {
@@ -162,16 +162,17 @@ fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, ab
             .map_err(|e| format!("unable to load contract image: {}", e))?
     };
 
-    if c.data_map_supported() {
+    if data_map_supported {
         if data.is_some() {
             contract_image.update_data(true, &data.unwrap(), abi)
                 .map_err(|e| format!("unable to update contract image data: {}", e))?;
         }
     } else {
-        let pubkey_str = format!("0x{}", hex::encode(pubkey));
-        let data_added = json!({"_pubkey": pubkey_str}).to_string();
-        // TODO add data to data_added
-        contract_image.update_data(false, &data_added, abi)
+        let js_init_data = crate::helpers::insert_pubkey_to_init_data(
+            Some(hex::encode(pubkey)),
+            data.as_deref()
+        )?;
+        contract_image.update_data(false, js_init_data.as_str(), abi)
             .map_err(|e| format!("unable to update contract image data: {}", e))?;
     }
 
