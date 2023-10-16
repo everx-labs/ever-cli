@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-use sha2::{Sha256, Digest};
+use ton_types::Sha256;
 
 pub fn convert_token(amount: &str) -> Result<String, String> {
     convert_amount(amount, 9)
