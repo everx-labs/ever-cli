@@ -354,16 +354,35 @@ pub async fn calc_acc_address(
     init_data: Option<&str>,
     abi: Abi,
 ) -> Result<String, String> {
+
+    let data_map_supported = abi.abi().unwrap().data_map_supported();
+
     let ton = create_client_local()?;
-    let init_data_json = insert_pubkey_to_init_data(pubkey.clone(), init_data)?;
-    let js = serde_json::from_str(init_data_json.as_str()).map_err(|e| format!("initial data is not in json: {}", e))?;
-    let dset = DeploySet {
-        tvc: Some(base64::encode(tvc)),
-        workchain_id: Some(wc),
-        initial_data: js,
-        initial_pubkey: None, // initial_pubkey: pubkey.clone(),
-        ..Default::default()
-    };
+    let dset=
+        if data_map_supported {
+            let init_data_json = init_data
+                .map(serde_json::from_str)
+                .transpose()
+                .map_err(|e| format!("initial data is not in json: {}", e))?;
+
+            DeploySet {
+                tvc: Some(base64::encode(tvc)),
+                workchain_id: Some(wc),
+                initial_data: init_data_json,
+                initial_pubkey: pubkey.clone(),
+                ..Default::default()
+            }
+        } else {
+            let init_data_json = insert_pubkey_to_init_data(pubkey.clone(), init_data)?;
+            let js = serde_json::from_str(init_data_json.as_str()).map_err(|e| format!("initial data is not in json: {}", e))?;
+            DeploySet {
+                tvc: Some(base64::encode(tvc)),
+                workchain_id: Some(wc),
+                initial_data: js,
+                initial_pubkey: None, // initial_pubkey: pubkey.clone(),
+                ..Default::default()
+            }
+        };
     let result = ton_client::abi::encode_message(
         ton.clone(),
         ParamsOfEncodeMessage {
@@ -1010,12 +1029,15 @@ pub fn insert_pubkey_to_init_data(pubkey: Option<String>, opt_init_data: Option<
         .map_err(|e| format!("Failed to decode initial data as json: {}", e))?;
     match &mut js_init_data {
         Value::Object(obj) => {
+            if obj.contains_key(&"_pubkey".to_string()) {
+                return Err("Public key was set via init data. Please, use command line options --genkey/--setkey to set public key.".to_owned())
+            }
             if let Some(pk) = pubkey {
                 let pubkey_str = format!("0x{}", pk);
                 obj.insert("_pubkey".to_string(), Value::String(pubkey_str));
             }
         }
-        _ => panic!()
+        _ => panic!("js_init_data is not Value::Object")
     }
 
     Ok(js_init_data.to_string())
