@@ -90,16 +90,13 @@ enum DeployType {
     Fee,
 }
 
-lazy_static::lazy_static! {
-    static ref RUNTIME: tokio::runtime::Runtime = tokio::runtime::Builder::new_current_thread()
+fn main() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .thread_stack_size(8 * 1024 * 1024)
         .build()
         .expect("Can't create Engine tokio runtime");
-}
-
-fn main() {
-    let result = RUNTIME.block_on(async move { main_internal().await });
+    let result = runtime.block_on(async move { main_internal().await });
     if let Err(err_str) = result {
         if !err_str.is_empty() { println!("{}", err_str); }
         exit(1)

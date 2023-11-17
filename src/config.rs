@@ -13,7 +13,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use clap::ArgMatches;
-use lazy_static::lazy_static;
 use regex::Regex;
 use crate::global_config_path;
 use crate::helpers::default_config_name;
@@ -214,21 +213,17 @@ impl Config {
 }
 
 
-lazy_static! {
-    static ref MAIN_ENDPOINTS: Vec<String> = vec![
-        "https://mainnet.evercloud.dev".to_string()
-    ];
-
-    static ref NET_ENDPOINTS: Vec<String> = vec![
-        "https://devnet.evercloud.dev".to_string()
-    ];
-
-    static ref SE_ENDPOINTS: Vec<String> = vec![
-        "http://0.0.0.0".to_string(),
-        "http://127.0.0.1".to_string(),
-        "http://localhost".to_string(),
-    ];
-}
+const MAIN_ENDPOINTS: &[&str] = &[
+    "https://mainnet.evercloud.dev",
+];
+const NET_ENDPOINTS: &[&str] = &[
+    "https://devnet.evercloud.dev",
+];
+const SE_ENDPOINTS: &[&str] = &[
+    "http://0.0.0.0",
+    "http://127.0.0.1",
+    "http://localhost",
+];
 
 pub fn resolve_net_name(url: &str) -> Option<String> {
     let url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.evercloud\.dev)\s*")
@@ -277,10 +272,17 @@ impl FullConfig {
     }
 
     pub fn default_map() -> BTreeMap<String, Vec<String>> {
-        [(MAINNET.to_owned(), MAIN_ENDPOINTS.to_owned()),
-            (TESTNET.to_owned(), NET_ENDPOINTS.to_owned()),
-            (LOCALNET.to_owned(), SE_ENDPOINTS.to_owned()),
-        ].iter().cloned().collect()
+        [
+            (MAINNET, MAIN_ENDPOINTS),
+            (TESTNET, NET_ENDPOINTS),
+            (LOCALNET, SE_ENDPOINTS),
+        ]
+        .iter()
+        .map(|(k, v)| (
+            k.to_string(),
+            v.iter().map(|s| s.to_string()).collect())
+        )
+        .collect()
     }
 
     pub fn from_file(path: &str) -> FullConfig {

@@ -20,7 +20,6 @@ use crate::helpers::{
 };
 use crate::FullConfig;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use ed25519_dalek::Signer;
 use serde_json::json;
 use std::path::PathBuf;
 use ton_block::{
@@ -30,7 +29,7 @@ use ton_client::abi::{
     encode_internal_message, encode_message, CallSet, DeploySet, FunctionHeader,
     ParamsOfEncodeInternalMessage, ParamsOfEncodeMessage, Signer as AbiSigner,
 };
-use ton_types::{read_single_root_boc, write_boc, SliceData, BuilderData};
+use ton_types::{read_single_root_boc, write_boc, SliceData, BuilderData, ed25519_sign_with_secret};
 
 pub fn create_test_sign_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("sign")
@@ -233,7 +232,7 @@ async fn test_deploy(matches: &ArgMatches<'_>, config: &Config) -> Result<(), St
     let context = create_client_local()?;
     let abi = load_abi(abi_path, config).await?;
     let (signer, initial_pubkey) = match keys {
-        Some(keys) if keys.secret == "0".repeat(64) => (AbiSigner::None, Some(keys.public)),
+        Some(keys) if keys.secret == "0".repeat(64) => (AbiSigner::None, Some(keys.public.clone())),
         Some(keys) => (AbiSigner::Keys { keys }, None),
         None => (AbiSigner::None, None),
     };
@@ -410,10 +409,11 @@ pub fn test_sign_command(matches: &ArgMatches<'_>, config: &Config) -> Result<()
             None => return Err("nor signing keys in the params neither in the config".to_string()),
         },
     };
-    let keypair = pair
+    let key = pair
         .decode()
         .map_err(|err| format!("cannot decode keypair {}", err))?;
-    let signature = keypair.sign(&data);
+    let signature = ed25519_sign_with_secret(&key.to_bytes(), &data)
+        .map_err(|e| format!("Failed to sign: {e}"))?;
     let signature = base64::encode(signature.as_ref());
     if config.is_json {
         let result = json!({
