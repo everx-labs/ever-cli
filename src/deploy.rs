@@ -147,18 +147,20 @@ pub async fn prepare_deploy_message_params(
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
     let tvc = base64::encode(&tvc_bytes);
 
-
-    // let tvc_cell = ton_types::boc::read_single_root_boc(&tvc_bytes).unwrap();
-    // let tvc_hash = tvc_cell.repr_hash();
-    // let address = format!("{}:{}", wc, tvc_hash.as_hex_string());
-    // TODO DELETE this ?
-    let address = crate::helpers::calc_acc_address(
-        tvc_bytes,
-        wc,
-        keys.as_ref().map(|k| k.public.clone()),
-        None,
-        abi.clone()
-    ).await?;
+    let data_map_supported = abi.abi().unwrap().data_map_supported();
+    let address = if data_map_supported {
+        crate::helpers::calc_acc_address(
+            tvc_bytes,
+            wc,
+            keys.as_ref().map(|k| k.public.clone()),
+            None,
+            abi.clone()
+        ).await?
+    } else {
+        let tvc_cell = ton_types::boc::read_single_root_boc(&tvc_bytes).unwrap();
+        let tvc_hash = tvc_cell.repr_hash();
+        format!("{}:{}", wc, tvc_hash.as_hex_string())
+    };
 
     let header = Some(FunctionHeader {
         time: Some(time),
