@@ -1149,6 +1149,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
 
 
     fs::remove_file(config_path)?;
+    env::remove_var("RUST_LOG");
     Ok(())
 }
 
