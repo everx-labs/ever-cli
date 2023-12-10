@@ -65,7 +65,7 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     let hdk_root = hdkey_derive_from_xprv_path(
         client.clone(),
         ParamsOfHDKeyDeriveFromXPrvPath {
-            xprv: hdk_master.xprv,
+            xprv: hdk_master.xprv.clone(),
             path: HD_PATH.to_string(),
             ..Default::default()
         },
@@ -74,7 +74,7 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     let secret = hdkey_secret_from_xprv(
         client.clone(),
         ParamsOfHDKeySecretFromXPrv {
-            xprv: hdk_root.xprv,
+            xprv: hdk_root.xprv.clone(),
             ..Default::default()
         },
     ).map_err(|e| format!("{}", e))?;
@@ -82,7 +82,7 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     let mut keypair: KeyPair = nacl_sign_keypair_from_secret_key(
         client,
         ParamsOfNaclSignKeyPairFromSecret {
-            secret: secret.secret,
+            secret: secret.secret.clone(),
             ..Default::default()
         },
     ).map_err(|e| format!("failed to get KeyPair from secret key: {}", e))?;

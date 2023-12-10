@@ -333,6 +333,7 @@ impl MultisigArgs {
                     name: "stateInit".to_owned(),
                     param_type: "optional(cell)".to_owned(),
                     components: vec![],
+                    init: false
                 });
             }
             if let Some(f) = abi.functions.iter_mut().find(|e| &e.name == "constructor") {
@@ -340,6 +341,7 @@ impl MultisigArgs {
                     name: "lifetime".to_owned(),
                     param_type: "uint32".to_owned(),
                     components: vec![],
+                    init: false
                 });
             }
         }

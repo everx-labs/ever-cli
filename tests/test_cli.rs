@@ -13,6 +13,7 @@ use common::{BIN_NAME, NETWORK, giver_v2, grep_address, set_config, GIVER_V2_ABI
 use crate::common::grep_message_id;
 
 const DEPOOL_ABI: &str = "tests/samples/fakeDepool.abi.json";
+const DEPOOL_ABI_V21: &str = "tests/depool.abi.json";
 const DEPOOL_TVC: &str = "tests/samples/fakeDepool.tvc";
 const SAFEMSIG_ABI: &str = "tests/samples/SafeMultisigWallet.abi.json";
 const SAFEMSIG_ABI_LINK: &str = "https://raw.githubusercontent.com/tonlabs/ton-labs-contracts/master/solidity/safemultisig/SafeMultisigWallet.abi.json";
@@ -730,7 +731,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
     let tvc_path2 = "tests/samples/fakeDepool.tvc2";
 
     let _ = std::fs::copy(tvc_path, tvc_path2)?;
-    let abi_path = "tests/samples/fakeDepool.abi.json";
+    let abi_path = DEPOOL_ABI;
 
     let time = now_ms();
     let data_str = format!(r#"{{"m_seed":{}}}"#, time);
@@ -2130,7 +2131,8 @@ fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
 fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
     let boc_path = "tests/depool_acc.boc";
     let tvc_path = "tests/depool_acc.tvc";
-    let abi_path = "tests/samples/fakeDepool.abi.json";
+    let abi_path = DEPOOL_ABI;
+    let abi_path2 = DEPOOL_ABI_V21;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -2139,7 +2141,7 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .arg("getData")
         .arg("{}")
         .arg("--abi")
-        .arg(abi_path)
+        .arg(abi_path2)
         .assert()
         .success()
         .stdout(predicate::str::contains("Succeeded."))
@@ -2194,7 +2196,7 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .arg("getData")
         .arg("{}")
         .arg("--abi")
-        .arg(abi_path)
+        .arg(abi_path2)
         .arg("--bc_config")
         .arg(config_path)
         .assert()
@@ -2588,7 +2590,7 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
         .arg("-m")
         .arg("getData")
         .arg("--abi")
-        .arg(DEPOOL_ABI)
+        .arg(DEPOOL_ABI_V21)
         .assert()
         .success()
         .stdout(predicate::str::contains("Succeeded."))

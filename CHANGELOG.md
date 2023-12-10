@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.36.0
+
+ - Supported [ABI 2.4](https://github.com/tonlabs/ever-abi/blob/master/CHANGELOG.md#version-240)
+
 ## 0.35.7
 
 ### Bug fixes

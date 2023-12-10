@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer};
 use num_bigint::BigUint;
 use crate::config::Config;
 use crate::helpers::{create_client_verbose, query_with_limit, now, now_ms, TonClient};
@@ -20,7 +19,7 @@ use ton_abi::{Contract, Token, TokenValue, Uint};
 use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, MsgAddressExt, Serializable};
 use ton_client::net::{OrderBy, SortDirection};
 use ton_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
-use ton_types::{BuilderData, Cell, IBitstring, SliceData, MAX_SAFE_DEPTH};
+use ton_types::{BuilderData, Cell, IBitstring, SliceData, ed25519_create_private_key, ed25519_sign_with_secret,MAX_SAFE_DEPTH};
 
 const PREFIX_UPDATE_CONFIG_MESSAGE_DATA: &str = "43665021";
 
@@ -422,12 +421,8 @@ fn prepare_message_new_config_param(
     cell.append_i32(key_number as i32).unwrap();
     cell.checked_append_reference(config_param.clone()).unwrap();
 
-    let secret = SecretKey::from_bytes(private_key_of_config_account)
-        .map_err(|e| format!(r#"failed to read private key from config-master file": {}"#, e))?;
-    let public = PublicKey::from(&secret);
-    let keypair = Keypair { secret, public };
-        
-    let msg_signature = keypair.sign(cell.finalize(MAX_SAFE_DEPTH).unwrap().repr_hash().as_slice()).to_bytes();
+    let msg_signature = ed25519_sign_with_secret(private_key_of_config_account, cell.finalize(MAX_SAFE_DEPTH).unwrap().repr_hash().as_slice())
+        .map_err(|e| format!("Failed to sign: {e}"))?;
 
     let mut cell = BuilderData::default();
     cell.append_raw(&msg_signature, 64*8).unwrap();
@@ -453,10 +448,8 @@ fn prepare_message_new_config_param_solidity(
     config_account: SliceData,
     private_key_of_config_account: &[u8]
 ) -> Result<Message, String> {
-    let secret = SecretKey::from_bytes(private_key_of_config_account)
-        .map_err(|e| format!(r#"failed to read private key from config-master file": {}"#, e))?;
-    let public = PublicKey::from(&secret);
-    let keypair = Keypair { secret, public };
+    let secret = ed25519_create_private_key(private_key_of_config_account)
+      .map_err(|err| err.to_string())?;
     
     let config_contract_address = MsgAddressInt::with_standart(None, -1, config_account).unwrap();
     let since_the_epoch = now_ms();
@@ -477,7 +470,7 @@ fn prepare_message_new_config_param_solidity(
     let function = contract.function("set_config_param")
         .map_err(|err| err.to_string())?;
     let body = function
-        .encode_input(&header, &parameters, false, Some(&keypair), Some(config_contract_address.clone()))
+        .encode_input(&header, &parameters, false, Some(&secret), Some(config_contract_address.clone()))
         .and_then(|builder| SliceData::load_builder(builder))
         .map_err(|err| format!("cannot prepare message body {}", err))?;
 
@@ -518,8 +511,7 @@ pub async fn dump_blockchain_config(config: &Config, path: &str) -> Result<(), S
             block_boc: block,
             ..Default::default()
         },
-    ).await
-        .map_err(|e| format!("Failed to get blockchain config: {}", e))?;
+    ).map_err(|e| format!("Failed to get blockchain config: {}", e))?;
 
     let bc_config = base64::decode(&bc_config.config_boc)
         .map_err(|e| format!("Failed to decode BOC: {}", e))?;
