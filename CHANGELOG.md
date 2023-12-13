@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.36.2
+
+ - Commands `message` and `deploy_message` get capabilities from config network
+ - Fixed `update_config` command
+
+
 ## 0.36.0
 
  - Supported [ABI 2.4](https://github.com/tonlabs/ever-abi/blob/master/CHANGELOG.md#version-240)

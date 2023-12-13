@@ -15,7 +15,7 @@ use chrono::{Local, TimeZone};
 use serde_json::json;
 use ton_client::abi::{Abi, CallSet, encode_message, FunctionHeader, ParamsOfEncodeMessage, Signer};
 use crate::config::Config;
-use crate::helpers::{create_client_local, load_abi, load_ton_address, now, TonClient};
+use crate::helpers::{create_client_verbose, load_abi, load_ton_address, now, TonClient};
 use crate::crypto::load_keypair;
 
 pub struct EncodedMessage {
@@ -163,7 +163,8 @@ pub async fn generate_message(
     output: Option<&str>,
     timestamp: Option<u64>,
 ) -> Result<(), String> {
-    let ton = create_client_local()?;
+
+    let ton = create_client_verbose(config)?;
 
     let ton_addr = load_ton_address(addr, &config)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;

@@ -19,7 +19,7 @@ use ton_abi::{Contract, Token, TokenValue, Uint};
 use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, MsgAddressExt, Serializable};
 use ton_client::net::{OrderBy, SortDirection};
 use ton_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
-use ton_types::{BuilderData, Cell, IBitstring, SliceData, ed25519_create_private_key, ed25519_sign_with_secret};
+use ton_types::{BuilderData, Cell, IBitstring, SliceData, ed25519_create_private_key, ed25519_sign_with_secret,MAX_SAFE_DEPTH};
 
 const PREFIX_UPDATE_CONFIG_MESSAGE_DATA: &str = "43665021";
 
@@ -421,7 +421,7 @@ fn prepare_message_new_config_param(
     cell.append_i32(key_number as i32).unwrap();
     cell.checked_append_reference(config_param.clone()).unwrap();
 
-    let msg_signature = ed25519_sign_with_secret(private_key_of_config_account, cell.finalize(0).unwrap().repr_hash().as_slice())
+    let msg_signature = ed25519_sign_with_secret(private_key_of_config_account, cell.finalize(MAX_SAFE_DEPTH).unwrap().repr_hash().as_slice())
         .map_err(|e| format!("Failed to sign: {e}"))?;
 
     let mut cell = BuilderData::default();
