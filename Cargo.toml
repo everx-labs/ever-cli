@@ -16,7 +16,7 @@ license = 'Apache-2.0'
 name = 'tonos-cli'
 readme = 'README.md'
 repository = 'https://github.com/tonlabs/tonos-cli'
-version = '0.36.2'
+version = '0.36.3'
 default-run = 'tonos-cli'
 
 [features]
@@ -45,15 +45,15 @@ serde = { features = [ 'derive' ], version = '1.0' }
 tokio = { default-features = false, features = [ 'full' ], version = '1.21' }
 url = '2.3.1'
 
-ton_abi = { git = 'https://github.com/tonlabs/ever-abi.git', tag = '2.4.0' }
-ton_block = { git = 'https://github.com/tonlabs/ever-block.git', tag = '1.9.107' }
-ton_block_json = { git = 'https://github.com/tonlabs/ever-block-json.git', tag = '0.7.192' }
-ton_client = { git = 'https://github.com/tonlabs/ever-sdk.git', tag = '1.45.0' }
-ton_executor = { git = 'https://github.com/tonlabs/ever-executor.git', tag = '1.16.86' }
-ton_labs_assembler = { git = 'https://github.com/tonlabs/ever-assembler.git', tag = '1.4.18' }
-ton_sdk = { git = 'https://github.com/tonlabs/ever-sdk.git', tag = '1.45.0' }
-ton_types = { git = 'https://github.com/tonlabs/ever-types.git', tag = '2.0.29' }
-ton_vm = { git = 'https://github.com/tonlabs/ever-vm.git', tag = '1.8.214' }
+ton_abi = { git = 'https://github.com/tonlabs/ever-abi.git',  branch = 'mu/fix-decode' }
+ton_block = { git = 'https://github.com/tonlabs/ever-block.git', tag = '1.9.118' }
+ton_block_json = { git = 'https://github.com/tonlabs/ever-block-json.git', tag = '0.7.206' }
+ton_client = { git = 'https://github.com/tonlabs/ever-sdk.git', branch = '1.45.1-rc' }
+ton_executor = { git = 'https://github.com/tonlabs/ever-executor.git', tag = '1.16.98' }
+ton_labs_assembler = { git = 'https://github.com/tonlabs/ever-assembler.git', tag = '1.4.30' }
+ton_sdk = { git = 'https://github.com/tonlabs/ever-sdk.git', branch = '1.45.1-rc' }
+ton_types = { git = 'https://github.com/tonlabs/ever-types.git', tag = '2.0.31' }
+ton_vm = { git = 'https://github.com/tonlabs/ever-vm.git', tag = '1.8.226' }
 sold = { git = 'https://github.com/tonlabs/TON-Solidity-Compiler.git', tag = '0.66.0', optional = true }
 
 [dev-dependencies]
