@@ -48,7 +48,7 @@ url = '2.3.1'
 ton_abi = { git = 'https://github.com/tonlabs/ever-abi.git',  tag = '2.4.10' }
 ton_block = { git = 'https://github.com/tonlabs/ever-block.git', tag = '1.9.118' }
 ton_block_json = { git = 'https://github.com/tonlabs/ever-block-json.git', tag = '0.7.206' }
-ton_client = { git = 'https://github.com/tonlabs/ever-sdk.git', branch = '1.45.1-rc' }
+ton_client = { git = 'https://github.com/tonlabs/ever-sdk.git', tag = '1.45.1' }
 ton_executor = { git = 'https://github.com/tonlabs/ever-executor.git', tag = '1.16.98' }
 ton_labs_assembler = { git = 'https://github.com/tonlabs/ever-assembler.git', tag = '1.4.30' }
 ton_sdk = { git = 'https://github.com/tonlabs/ever-sdk.git', branch = '1.45.1-rc' }
