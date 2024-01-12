@@ -523,6 +523,7 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
         &params.to_string(),
         Some(keys),
         config.wc,
+        None,
     )
     .await?;
 

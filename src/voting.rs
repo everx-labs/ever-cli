@@ -50,6 +50,7 @@ pub async fn create_proposal(
 			false,
 			None,
 			None,
+			None,
 		).await
 	} else {
 
@@ -90,6 +91,7 @@ pub async fn vote(
 			keys,
 			lifetime,
 			false,
+			None,
 			None,
 			None,
 		).await

@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::{create_client_verbose, load_abi, now_ms};
+use crate::helpers::{create_client_verbose, create_client_local, load_abi, now_ms};
 use crate::config::FullConfig;
 use crate::crypto::load_keypair;
 use crate::call::{
@@ -22,7 +22,7 @@ use ton_client::abi::{
     encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage, Abi, FunctionHeader,
 };
 use ton_client::crypto::KeyPair;
-use crate::Config;
+use crate::{Config, SignatureIDType};
 use crate::message::{display_generated_message, EncodedMessage};
 
 pub async fn deploy_contract(
@@ -42,7 +42,7 @@ pub async fn deploy_contract(
         println!("Deploying...");
     }
 
-    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file.clone(), wc, &full_config.config).await?;
+    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file.clone(), wc, &full_config.config, None).await?;
 
     let enc_msg = encode_message(ton.clone(), msg.clone()).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
@@ -88,12 +88,17 @@ pub async fn generate_deploy_message(
     is_raw: bool,
     output: Option<&str>,
     config: &Config,
+    signature_id: Option<SignatureIDType>,
 ) -> Result<(), String> {
 
-    let ton = create_client_verbose(config)?;
+    let (client,signature_id) = match signature_id {
+        Some(SignatureIDType::Online) => (create_client_verbose(config)?,None),
+        Some(SignatureIDType::Value(x)) => (create_client_local()?, Some(x)),
+        _ => (create_client_local()?,None),
+    };
 
-    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file, wc, config).await?;
-    let msg = encode_message(ton, msg).await
+    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file, wc, config, signature_id).await?;
+    let msg = encode_message(client, msg).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
     let msg = EncodedMessage {
@@ -117,6 +122,7 @@ pub async fn prepare_deploy_message(
     keys_file: Option<String>,
     wc: i32,
     config: &Config,
+    signature_id: Option<i32>,
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
     let abi = load_abi(abi, config).await?;
 
@@ -132,7 +138,8 @@ pub async fn prepare_deploy_message(
         now_ms(),
         params,
         keys,
-        wc
+        wc,
+        signature_id
     ).await
 }
 
@@ -143,7 +150,8 @@ pub async fn prepare_deploy_message_params(
     time: u64,
     params: &str,
     keys: Option<KeyPair>,
-    wc: i32
+    wc: i32,
+    signature_id: Option<i32>,
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
     let tvc = base64::encode(&tvc_bytes);
 
@@ -190,6 +198,7 @@ pub async fn prepare_deploy_message_params(
         deploy_set,
         call_set,
         signer,
+        signature_id,
         ..Default::default()
     }, address))
 }

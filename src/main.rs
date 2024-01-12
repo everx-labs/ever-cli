@@ -84,6 +84,11 @@ enum CallType {
     Fee,
 }
 
+enum SignatureIDType {
+    Online,
+    Value(i32),
+}
+
 enum DeployType {
     Full,
     MsgOnly,
@@ -331,6 +336,10 @@ async fn main_internal() -> Result <(), String> {
     let deploy_message_cmd = deploy_cmd.clone()
         .name("deploy_message")
         .about("Generates a signed message to deploy a smart contract to the blockchain.")
+        .arg(Arg::with_name("SIGNATURE_ID")
+            .long("--signature_id")
+            .takes_value(true)
+            .help("Include signature_id for message generation. Use `--signature_id online` to fetch signature_id value from the config endpoint."))
         .arg(output_arg.clone())
         .arg(raw_arg.clone());
 
@@ -386,6 +395,10 @@ async fn main_internal() -> Result <(), String> {
             .long("--time")
             .takes_value(true)
             .help("Message creation time in milliseconds. If not specified, `now` is used."))
+        .arg(Arg::with_name("SIGNATURE_ID")
+            .long("--signature_id")
+            .takes_value(true)
+            .help("Include signature_id for message generation. Use `--signature_id online` to fetch signature_id value from the config endpoint."))
         .arg(output_arg.clone())
         .arg(raw_arg.clone());
 
@@ -1251,6 +1264,14 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
                 u64::from_str_radix(val, 10)
                     .map_err(|e| format!("Failed to parse timestamp: {e}"))
             }).transpose()?;
+            let signature_id = matches.value_of("SIGNATURE_ID").map(|val| {
+                if val == "online" {
+                    return Ok::<SignatureIDType, String>(SignatureIDType::Online);
+                }
+                let sid = i32::from_str_radix(val, 10)
+                    .map_err(|e| format!("Failed to parse SIGNATURE_ID: {e}"))?;
+                Ok(SignatureIDType::Value(sid))
+            }).transpose()?;
             generate_message(
                 config,
                 address.as_str(),
@@ -1262,6 +1283,7 @@ async fn call_command(matches: &ArgMatches<'_>, config: &Config, call: CallType)
                 raw,
                 output,
                 timestamp,
+                signature_id,
             ).await
         },
     }
@@ -1348,7 +1370,17 @@ async fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, 
     }
     match deploy_type {
         DeployType::Full => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false, alias).await,
-        DeployType::MsgOnly => generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, raw, output, config).await,
+        DeployType::MsgOnly => {
+            let signature_id = matches.value_of("SIGNATURE_ID").map(|val| {
+                if val == "online" {
+                    return Ok::<SignatureIDType, String>(SignatureIDType::Online);
+                }
+                let sid = i32::from_str_radix(val, 10)
+                    .map_err(|e| format!("Failed to parse SIGNATURE_ID: {e}"))?;
+                Ok(SignatureIDType::Value(sid))
+            }).transpose()?;
+            generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, raw, output, config, signature_id).await
+        },
         DeployType::Fee => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, true, None).await,
     }
 }

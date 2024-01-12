@@ -674,6 +674,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
             None,
             None,
             full_config.config.is_json,
+            None,
         ).await?
         .message
     } else {
@@ -881,7 +882,8 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
         &load_params(&params.unwrap())?,
         sign,
         wc,
-        config
+        config,
+        None,
     ).await?;
     let initial_balance_opt = if let Some(initial_balance) = matches.value_of("INITIAL_BALANCE") {
         initial_balance.parse().ok()
@@ -1167,7 +1169,7 @@ pub async fn execute_debug(
     } else {
         bc_config
     };
-    
+
     let executor: Box<dyn TransactionExecutor> = if message.is_some() {
         Box::new(OrdinaryTransactionExecutor::new(bc_config))
     } else {

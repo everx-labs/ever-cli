@@ -1,12 +1,12 @@
 # TONOS-CLI
 
-TONOS-CLI is a multi-platform command line interface for TVM compatible networks (Everscale, Venom, Gosh, TON). 
+TONOS-CLI is a multi-platform command line interface for TVM compatible networks (Everscale, Venom, Gosh, TON).
 
 <p align="center">
   <a href="https://docs.everscale.network/">
     <img src="https://4031793516-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FCmimRVYKp3FChIIdVQ51%2Fuploads%2Fg8DCzYhXFbskTt0odAR4%2FEverscale%20Logo.png?alt=media&token=9484b624-6456-47b4-9757-c0fa43f4caa7" alt="Logo"   height="100">
 </p>
- 
+
 
 It allows user to work with keys and seed phrases, deploy contracts, call any of their methods, generate and broadcast
 messages. It supports specific commands for DeBot, DePool and Multisignature Wallet contracts, as well as a number of
@@ -182,9 +182,9 @@ cargo build --release
 cd target/release
 ```
 
-The `tonos-cli` executable is built in the `tonos-cli/target/release` folder. 
+The `tonos-cli` executable is built in the `tonos-cli/target/release` folder.
 Create a folder elsewhere. Copy the `tonos-cli` executable into the new folder you have created.
-Or just add `tonos-cli/target/release` to the PATH local variable. 
+Or just add `tonos-cli/target/release` to the PATH local variable.
 
 ### Build from source on Windows
 
@@ -200,7 +200,7 @@ Build TONOS-CLI tool from source:
 > cd target/release
 ```
 
-The `tonos-cli` executable is built in the `tonos-cli/target/release` folder. 
+The `tonos-cli` executable is built in the `tonos-cli/target/release` folder.
 Create a folder elsewhere. Copy the `tonos-cli` executable into the new folder you have created.
 Or just add `tonos-cli/target/release` to the PATH local variable.
 
@@ -249,7 +249,7 @@ Finished dev [unoptimized + debuginfo] target(s) in 0.66s
 thread 'main' has overflowed its stack
 ```
 
-User can fix this issue by using [editbin tool from MSVC Tools](https://docs.microsoft.com/ru-ru/cpp/build/reference/editbin-reference?view=msvc-170). 
+User can fix this issue by using [editbin tool from MSVC Tools](https://docs.microsoft.com/ru-ru/cpp/build/reference/editbin-reference?view=msvc-170).
 This tool allows user to increase binary stack reserve. Increase it by 2 times will help to fix tonos-cli:
 
 ```bash
@@ -411,7 +411,7 @@ Some frequently used networks:
 
 `https://mainnet.evercloud.dev` - main Free TON network.
 
-TONOS-CLI supports the use of multiple endpoints for networks: if several endpoints are 
+TONOS-CLI supports the use of multiple endpoints for networks: if several endpoints are
 [specified in the endpoint map](#24-configure-endpoints-map) for a network, TONOS-CLI will use them all when accessing
 it. Otherwise, the network URL will be treated as the only endpoint.
 
@@ -570,9 +570,9 @@ tonos-cli config endpoint add main.evercloud.dev "https://mainnet.evercloud.dev"
 
 > **Note**: If url used in the add command already exists, endpoints lists will be merged.
 
-If a network that doesn't have mapped endpoints is 
+If a network that doesn't have mapped endpoints is
 [specified in the config file](#21-set-the-network-and-parameter-values), its url will be automatically treated as the
-only endpoint. For example, configuring TONOS-CLI to connect to RustNet with the command 
+only endpoint. For example, configuring TONOS-CLI to connect to RustNet with the command
 `tonos-cli config --url https://rustnet.ton.dev` will result in TONOS-CLI using this url as a single endpoint, without
 the user having to specify it in the endpoints map additionally.
 
@@ -896,7 +896,7 @@ key_file: key.json
 Keypair successfully saved to key.json.
 Succeeded.
 
-$ tonos-cli getkeypair -o key.json 
+$ tonos-cli getkeypair -o key.json
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
 key_file: key.json
@@ -907,7 +907,7 @@ Keypair successfully saved to key.json.
 Succeeded.
 
 
-$ tonos-cli getkeypair 
+$ tonos-cli getkeypair
 Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
 Input arguments:
 key_file: None
@@ -1024,7 +1024,7 @@ or
 Sometimes it can be not obvious in which way method parameters should be specified,
 especially if it is a large structure with different and complex fields.
 It is generally described in [abi doc](https://github.com/tonlabs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
-Example ([multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) 
+Example ([multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig)
 contract deployment to the masterchain):
 
 ```bash
@@ -1048,12 +1048,14 @@ If needed, signed deploy message can be generated without immediately broadcasti
 message can be sent later.
 
 ```bash
-tonos-cli deploy_message [--raw] [--output <path_to_file>] [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc> <params>
+tonos-cli deploy_message [--raw] [--output <path_to_file>] [--signature_id <value>] [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc> <params>
 ```
 
 `--raw` - use to create raw message boc.
 
 `--output <path_to_file>` - specify path to file where the raw message should be written to, instead of printing it to terminal.
+
+`--signature_id <value>` - use this option to designate a specific signature_id for signing your message. For an automated online retrieval of the signature_id, set the `value` to `online`, which will fetch it from the network configuration. Alternatively, input a specific numerical value to facilitate offline message signing.
 
 `<deploy_seed_or_keyfile>` - can either be the seed phrase used to generate the deployment key pair file or the key pair file itself. If seed phrase is used, enclose it in double quotes.
 
@@ -1391,12 +1393,14 @@ Result: {
 An internet connection is not required to create an encrypted message. Use the following command to do it:
 
 ```bash
-tonos-cli message [--raw] [--output <path_to_file>] [--abi <contract.abi.json>] [--sign <seed_or_keyfile>] <address> <method> <params> [--lifetime <seconds>]
+tonos-cli message [--raw] [--output <path_to_file>] [--signature_id <value>] [--abi <contract.abi.json>] [--sign <seed_or_keyfile>] <address> <method> <params> [--lifetime <seconds>]
 ```
 
 `--raw` - use to create raw message boc.
 
 `--output <path_to_file>` - specify path to file where the raw message should be written to, instead of printing it to terminal.
+
+`--signature_id <value>` - use this option to designate a specific signature_id for signing your message. For an automated online retrieval of the signature_id, set the `value` to `online`, which will fetch it from the network configuration. Alternatively, input a specific numerical value to facilitate offline message signing.
 
 `<contract.abi.json>` - contract interface file.
 
@@ -1857,7 +1861,7 @@ Result: {
 Use the following command to deploy a multisignature wallet:
 
 ```bash
-tonos-cli multisig deploy [--setcode] [--v2] [--owners <owners_list>] [--confirms <confirms_cnt>] [--local <local_giver_value>] --keys <path_to_keys_or_seed_phrase> 
+tonos-cli multisig deploy [--setcode] [--v2] [--owners <owners_list>] [--confirms <confirms_cnt>] [--local <local_giver_value>] --keys <path_to_keys_or_seed_phrase>
 ```
 
 `--setcode` - flag that changes type of the wallet to the SetcodeMultisigWallet. If not specified, a SafeMultisigWallet is deployed.
@@ -2659,7 +2663,7 @@ tonos-cli update_config <seqno> <config_master_key_file> <new_param_file>
 
 `<config_master_key_file>` – prefix of config master files. There should be two files: `<config_master_key_file>.addr` with address of config master and `<config_master_key_file>.pk` with private key of config master.
 
-`<new_param_file>` – json with new config configuration. 
+`<new_param_file>` – json with new config configuration.
 
 Example of new_param_file
 
@@ -2752,7 +2756,7 @@ $ tonos-cli --json query-raw accounts "id bits cells" --order '[ { "path": "bala
 
 For more information and syntax read docs section on [playground](https://ever-live-playground.web.app/).
 
-## 9.8. Fee commands 
+## 9.8. Fee commands
 
 This commands allow user to learn how much funds smart contract can consume.
 
@@ -2816,7 +2820,7 @@ tonos-cli fee deploy [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <con
 Example:
 
 ```bash
-tonos-cli --json fee deploy tests/samples/SafeMultisigWallet.tvc '{"owners":["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"],"reqConfirms":1}' --abi tests/samples/SafeMultisigWallet.abi.json --sign tests/deploy_test.key 
+tonos-cli --json fee deploy tests/samples/SafeMultisigWallet.tvc '{"owners":["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"],"reqConfirms":1}' --abi tests/samples/SafeMultisigWallet.abi.json --sign tests/deploy_test.key
 Not set rand_seed_block
 {
   "in_msg_fwd_fee": "42421000",
@@ -2939,7 +2943,7 @@ This command allow user to fetch block and save it to the output file.
 tonos-cli fetch-block <BLOCKID> <OUTPUT>
 ```
 
-Options: 
+Options:
 
 `<BLOCKID>` - Block ID.
 `<OUTPUT>` - Output file name
@@ -3383,7 +3387,7 @@ used by commands `callx` and `runx` instead of address (`--addr`) for more conve
 Example workflow:
 
 ```bash
-$ tonos-cli deployx --abi ../samples/1_Accumulator.abi.json --keys keys/key0 --alias accum ../samples/1_Accumulator.tvc 
+$ tonos-cli deployx --abi ../samples/1_Accumulator.abi.json --keys keys/key0 --alias accum ../samples/1_Accumulator.tvc
 {}
 $ tonos-cli config alias print
 {
