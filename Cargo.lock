@@ -176,19 +176,7 @@ name = "api_derive"
 version = "1.45.1"
 source = "git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1#1815d2632f88760beaad9394761cb9111c9787d8"
 dependencies = [
- "api_info 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1)",
- "proc-macro2",
- "quote",
- "serde_json",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "api_derive"
-version = "1.45.1"
-source = "git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.1-rc#a421013eabd2b804fdc2288f717f5b19ecad5c7b"
-dependencies = [
- "api_info 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.1-rc)",
+ "api_info",
  "proc-macro2",
  "quote",
  "serde_json",
@@ -199,16 +187,6 @@ dependencies = [
 name = "api_info"
 version = "1.45.1"
 source = "git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1#1815d2632f88760beaad9394761cb9111c9787d8"
-dependencies = [
- "serde",
- "serde_derive",
- "serde_json",
-]
-
-[[package]]
-name = "api_info"
-version = "1.45.1"
-source = "git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.1-rc#a421013eabd2b804fdc2288f717f5b19ecad5c7b"
 dependencies = [
  "serde",
  "serde_derive",
@@ -3122,8 +3100,8 @@ version = "1.45.1"
 source = "git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1#1815d2632f88760beaad9394761cb9111c9787d8"
 dependencies = [
  "aes",
- "api_derive 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1)",
- "api_info 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1)",
+ "api_derive",
+ "api_info",
  "async-trait",
  "base58",
  "base64 0.10.1",
@@ -3168,7 +3146,7 @@ dependencies = [
  "ton_block_json",
  "ton_client_processing",
  "ton_executor",
- "ton_sdk 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1)",
+ "ton_sdk",
  "ton_types 2.0.31",
  "ton_vm 1.8.226",
  "zeroize",
@@ -3180,8 +3158,8 @@ name = "ton_client_processing"
 version = "1.45.1"
 source = "git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1#1815d2632f88760beaad9394761cb9111c9787d8"
 dependencies = [
- "api_derive 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1)",
- "api_info 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1)",
+ "api_derive",
+ "api_info",
  "async-trait",
  "base64 0.21.5",
  "futures",
@@ -3245,32 +3223,8 @@ name = "ton_sdk"
 version = "1.45.1"
 source = "git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1#1815d2632f88760beaad9394761cb9111c9787d8"
 dependencies = [
- "api_derive 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1)",
- "api_info 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?tag=1.45.1)",
- "base64 0.10.1",
- "chrono",
- "failure",
- "hex 0.3.2",
- "lazy_static",
- "log",
- "num-bigint",
- "num-traits",
- "serde",
- "serde_derive",
- "serde_json",
- "sha2 0.9.9",
- "ton_abi 2.4.10",
- "ton_block 1.9.118",
- "ton_types 2.0.31",
-]
-
-[[package]]
-name = "ton_sdk"
-version = "1.45.1"
-source = "git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.1-rc#a421013eabd2b804fdc2288f717f5b19ecad5c7b"
-dependencies = [
- "api_derive 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.1-rc)",
- "api_info 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.1-rc)",
+ "api_derive",
+ "api_info",
  "base64 0.10.1",
  "chrono",
  "failure",
@@ -3429,7 +3383,7 @@ dependencies = [
  "ton_client",
  "ton_executor",
  "ton_labs_assembler 1.4.30",
- "ton_sdk 1.45.1 (git+https://github.com/tonlabs/ever-sdk.git?branch=1.45.1-rc)",
+ "ton_sdk",
  "ton_types 2.0.31",
  "ton_vm 1.8.226",
  "url",
