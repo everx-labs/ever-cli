@@ -16,7 +16,7 @@ use serde_json::json;
 use ton_client::abi::{Abi, CallSet, encode_message, FunctionHeader, ParamsOfEncodeMessage, Signer};
 use crate::SignatureIDType;
 use crate::config::Config;
-use crate::helpers::{create_client_local,create_client_verbose, load_abi, load_ton_address, now, TonClient};
+use crate::helpers::{create_client_with_signature_id, load_abi, load_ton_address, now, TonClient};
 use crate::crypto::load_keypair;
 
 pub struct EncodedMessage {
@@ -169,11 +169,7 @@ pub async fn generate_message(
     signature_id: Option<SignatureIDType>
 ) -> Result<(), String> {
 
-    let (client,signature_id) = match signature_id {
-        Some(SignatureIDType::Online) => (create_client_verbose(config)?,None),
-        Some(SignatureIDType::Value(x)) => (create_client_local()?, Some(x)),
-        _ => (create_client_local()?,None),
-    };
+    let (client,signature_id) = create_client_with_signature_id(config,signature_id)?;
 
     let ton_addr = load_ton_address(addr, &config)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;

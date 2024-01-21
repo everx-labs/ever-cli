@@ -10,7 +10,7 @@
  * See the License for the specific TON DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::{create_client_verbose, create_client_local, load_abi, now_ms};
+use crate::helpers::{create_client_verbose, create_client_with_signature_id, load_abi, now_ms};
 use crate::config::FullConfig;
 use crate::crypto::load_keypair;
 use crate::call::{
@@ -91,11 +91,7 @@ pub async fn generate_deploy_message(
     signature_id: Option<SignatureIDType>,
 ) -> Result<(), String> {
 
-    let (client,signature_id) = match signature_id {
-        Some(SignatureIDType::Online) => (create_client_verbose(config)?,None),
-        Some(SignatureIDType::Value(x)) => (create_client_local()?, Some(x)),
-        _ => (create_client_local()?,None),
-    };
+    let (client,signature_id) = create_client_with_signature_id(config,signature_id)?;
 
     let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file, wc, config, signature_id).await?;
     let msg = encode_message(client, msg).await
