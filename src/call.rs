@@ -216,7 +216,7 @@ pub async fn process_message(
     config: &Config,
 ) -> Result<Value, ClientError> {
     let callback = |event| { async move {
-        if let ProcessingEvent::DidSend { 
+        if let ProcessingEvent::DidSend {
             shard_block_id: _,
             message_id,
             message_dst: _,
@@ -287,6 +287,7 @@ pub async fn call_contract_with_client(
         params,
         None,
         keys.clone(),
+        None,
     )?;
 
     let needs_encoded_msg = is_fee ||

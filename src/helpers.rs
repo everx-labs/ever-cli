@@ -14,7 +14,7 @@ use std::env;
 use std::path::PathBuf;
 use crate::config::{Config, LOCALNET};
 use crate::debug::debug_level_from_env;
-
+use crate::SignatureIDType;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use ton_client::abi::{
@@ -182,6 +182,14 @@ pub fn create_client_verbose(config: &Config) -> Result<TonClient, String> {
     log::set_boxed_logger(Box::new(SimpleLogger))
         .map_err(|e| format!("failed to init logger: {}", e))?;
     create_client(config)
+}
+
+pub fn create_client_with_signature_id(config: &Config, signature_id: Option<SignatureIDType>,) -> Result<(Arc<ClientContext>, Option<i32>), String> {
+    match signature_id {
+        Some(SignatureIDType::Online) => Ok((create_client_verbose(config)?,None)),
+        Some(SignatureIDType::Value(x)) =>Ok((create_client_local()?, Some(x))),
+        _ => Ok((create_client_local()?,None)),
+    }
 }
 
 pub async fn query_raw(
