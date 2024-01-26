@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.36.5
+
+ - Fixed output of `getconfig` command. Now it print `{}` instead of `null`
+
 ## 0.36.4
 
  - Added parameter `signature_id`  for `message` and `deploy_message` commands
