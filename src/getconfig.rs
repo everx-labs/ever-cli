@@ -322,7 +322,11 @@ pub async fn query_global_config(config: &Config, index: Option<&str>) -> Result
             if !config.is_json {
                 print!("Config {}: ", config_name);
             }
-            println!("{:#}", config_value);
+            if config_value.is_null() {
+                println!("{{}}");
+            } else {
+                println!("{:#}", config_value);
+            }
         }
     }
     Ok(())
