@@ -124,6 +124,7 @@ async fn run(
         Some(header),
         None,
         config.is_json,
+        None,
     ).await?;
 
     let execution_options = prepare_execution_options(bc_config.clone())?;
