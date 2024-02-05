@@ -2,12 +2,6 @@
 
 TONOS-CLI is a multi-platform command line interface for TVM compatible networks (Everscale, Venom, Gosh, TON).
 
-<p align="center">
-  <a href="https://docs.everscale.network/">
-    <img src="https://4031793516-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FCmimRVYKp3FChIIdVQ51%2Fuploads%2Fg8DCzYhXFbskTt0odAR4%2FEverscale%20Logo.png?alt=media&token=9484b624-6456-47b4-9757-c0fa43f4caa7" alt="Logo"   height="100">
-</p>
-
-
 It allows user to work with keys and seed phrases, deploy contracts, call any of their methods, generate and broadcast
 messages. It supports specific commands for DeBot, DePool and Multisignature Wallet contracts, as well as a number of
 supplementary functions.
