@@ -937,6 +937,8 @@ Contract address uniquely identifies the contract on the blockchain. Contract ba
 
 Contract address is generated based on contract TVC file and selected keys. To get a different address for the same type of contract, use different keys.
 
+> **Note**:  For contracts with ABI 2.4, you should use the flag `--save` to insert the deployment public key into the TCV file.
+
 > **Note**: If your contract has static variables, they can be initialized through [TVM linker](https://github.com/tonlabs/TVM-linker#5-initialize-static-variables-in-compiled-contract) before deployment.
 
 Use the following command to generate the contract address:
@@ -989,6 +991,8 @@ Succeeded
 ```
 
 ## 4.2. Deploy contract
+
+> **Note**:  For contracts using ABI 2.4, it is necessary to first insert the deployment public key into the TCV file. This can be achieved using the `genaddr` function.
 
 > **Note**: If your contract has static variables, they can be initialized with [genaddr command](#41-generate-contract-address) before deployment.
 
