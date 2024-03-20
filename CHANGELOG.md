@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.36.6
+
+ - Improved documentation on deploying contracts using ABI version 2.4.
+   
 ## 0.36.5
 
  - Fixed output of `getconfig` command. Now it print `{}` instead of `null`
