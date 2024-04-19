@@ -487,7 +487,7 @@ async fn main_internal() -> Result <(), String> {
             .help("Disables wait for transaction to appear in the network after call command."))
         .arg(Arg::with_name("DEBUG_FAIL")
             .long("--debug_fail")
-            .help("When enabled tonos-cli executes debug command on fail of run or call command. Can be enabled with values 'full' or 'minimal' which set the trace level for debug run and disabled with value 'none'."))
+            .help("When enabled ever-cli executes debug command on fail of run or call command. Can be enabled with values 'full' or 'minimal' which set the trace level for debug run and disabled with value 'none'."))
         .arg(Arg::with_name("OUT_OF_SYNC")
             .long("--out_of_sync")
             .help("Network connection \"out_of_sync_threshold\" parameter in seconds. Mind that it cant exceed half of the \"lifetime\" parameter."))
@@ -633,7 +633,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(Arg::with_name("DEBUG_FAIL")
             .long("--debug_fail")
             .takes_value(true)
-            .help("When enabled tonos-cli executes debug command on fail of run or call command. Can be enabled with values 'full' or 'minimal' which set the trace level for debug run and disabled with value 'none'."))
+            .help("When enabled ever-cli executes debug command on fail of run or call command. Can be enabled with values 'full' or 'minimal' which set the trace level for debug run and disabled with value 'none'."))
         .arg(Arg::with_name("OUT_OF_SYNC")
             .long("--out_of_sync")
             .takes_value(true)
@@ -676,7 +676,7 @@ async fn main_internal() -> Result <(), String> {
             .takes_value(true)
             .conflicts_with("DUMPTVC")
             .conflicts_with("BOC")
-            .help("Dumps the whole account state boc to the specified file. Works only if one address was given. Use 'tonos-cli dump account` to dump several accounts."));
+            .help("Dumps the whole account state boc to the specified file. Works only if one address was given. Use 'ever-cli dump account` to dump several accounts."));
 
     let account_wait_cmd = SubCommand::with_name("account-wait")
         .setting(AppSettings::AllowLeadingHyphen)
@@ -892,7 +892,7 @@ async fn main_internal() -> Result <(), String> {
                           env!("BUILD_TIME"),
                           env!("BUILD_GIT_DATE"),
                           env!("BUILD_GIT_BRANCH"));
-    let matches = App::new("tonos_cli")
+    let matches = App::new("ever_cli")
         .version(&*version)
         .author(author)
         .about("TONLabs console tool for TON")
@@ -902,7 +902,7 @@ async fn main_internal() -> Result <(), String> {
             .long("--url")
             .takes_value(true))
         .arg(Arg::with_name("CONFIG")
-            .help("Path to the tonos-cli configuration file.")
+            .help("Path to the ever-cli configuration file.")
             .short("-c")
             .long("--config")
             .takes_value(true))
@@ -979,7 +979,7 @@ async fn main_internal() -> Result <(), String> {
 
 async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), String> {
     let config_file = matches.value_of("CONFIG").map(|v| v.to_string())
-        .or(env::var("TONOSCLI_CONFIG").ok())
+        .or(env::var("EVER_CLI_CONFIG").ok())
         .unwrap_or(default_config_name());
 
     let mut full_config = FullConfig::from_file(&config_file);
@@ -1131,7 +1131,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     if matches.subcommand_matches("version").is_some() {
         if config.is_json {
             println!("{{");
-            println!(r#"  "tonos-cli": "{}","#, env!("CARGO_PKG_VERSION"));
+            println!(r#"  "ever-cli": "{}","#, env!("CARGO_PKG_VERSION"));
             println!(r#"  "COMMIT_ID": "{}","#, env!("BUILD_GIT_COMMIT"));
             println!(r#"  "BUILD_DATE": "{}","#, env!("BUILD_TIME"));
             println!(r#"  "COMMIT_DATE": "{}","#, env!("BUILD_GIT_DATE"));
@@ -1139,7 +1139,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
             println!("}}");
         } else {
             println!(
-                "tonos-cli {}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
+                "ever-cli {}\nCOMMIT_ID: {}\nBUILD_DATE: {}\nCOMMIT_DATE: {}\nGIT_BRANCH: {}",
                 env!("CARGO_PKG_VERSION"),
                 env!("BUILD_GIT_COMMIT"),
                 env!("BUILD_TIME"),

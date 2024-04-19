@@ -4,7 +4,7 @@ use std::env;
 use serde_json::{Value, Map};
 use predicates::prelude::*;
 
-pub const BIN_NAME: &str = "tonos-cli";
+pub const BIN_NAME: &str = "ever-cli";
 pub const GIVER_ADDR: &str = "0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94";
 pub const GIVER_ABI: &str = "tests/samples/giver.abi.json";
 pub const GIVER_V2_ADDR: &str = "0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415";

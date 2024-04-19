@@ -1145,7 +1145,7 @@ pub async fn execute_debug(
     last_tr_lt: u64,
     is_getter: bool,
     is_tock: bool,
-    tonos_config: &Config,
+    ever_config: &Config,
 ) -> Result<Transaction, String> {
     let bc_config = if is_getter {
         let mut config = bc_config.raw_config().to_owned();
@@ -1181,7 +1181,7 @@ pub async fn execute_debug(
         block_lt,
         last_tr_lt: Arc::new(AtomicU64::new(last_tr_lt)),
         debug: true,
-        trace_callback: Some(generate_callback(matches, tonos_config)),
+        trace_callback: Some(generate_callback(matches, ever_config)),
         ..ExecuteParams::default()
     };
 

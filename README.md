@@ -1,6 +1,6 @@
-# TONOS-CLI
+# EVER-CLI
 
-TONOS-CLI is a multi-platform command line interface for TVM compatible networks (Everscale, Venom, Gosh, TON).
+EVER-CLI is a multi-platform command line interface for TVM compatible networks (Everscale, Venom, Gosh, TON).
 
 It allows user to work with keys and seed phrases, deploy contracts, call any of their methods, generate and broadcast
 messages. It supports specific commands for DeBot, DePool and Multisignature Wallet contracts, as well as a number of
@@ -9,12 +9,12 @@ supplementary functions.
 To access built-in help, use `--help` or `-h` flag:
 
 ```bash
-tonos-cli --help
-tonos-cli <subcommand> -h
+ever-cli --help
+ever-cli <subcommand> -h
 ```
 
 # Table of contents
-- [TONOS-CLI](#tonos-cli)
+- [EVER-CLI](#ever-cli)
 - [Table of contents](#table-of-contents)
 - [1. Installation](#1-installation)
   - [Install compiled executable](#install-compiled-executable)
@@ -24,8 +24,8 @@ tonos-cli <subcommand> -h
     - [Build from source on Linux and macOS](#build-from-source-on-linux-and-macos)
     - [Build from source on Windows](#build-from-source-on-windows)
     - [Tails OS secure environment](#tails-os-secure-environment)
-    - [Put TONOS-CLI into system environment](#put-tonos-cli-into-system-environment)
-    - [Install tonos-cli, completion script and bind them](#install-tonos-cli-completion-script-and-bind-them)
+    - [Put EVER-CLI into system environment](#put-ever-cli-into-system-environment)
+    - [Install ever-cli, completion script and bind them](#install-ever-cli-completion-script-and-bind-them)
     - [Windows debug build troubleshooting](#windows-debug-build-troubleshooting)
   - [Ubuntu 22 troubleshooting](#ubuntu-22-troubleshooting)
   - [Check version](#check-version)
@@ -72,7 +72,7 @@ tonos-cli <subcommand> -h
   - [6.1. Send tokens](#61-send-tokens)
   - [6.2. Deploy wallet](#62-deploy-wallet)
 - [7. DePool commands](#7-depool-commands)
-  - [7.1. Configure TONOS-CLI for DePool operations](#71-configure-tonos-cli-for-depool-operations)
+  - [7.1. Configure EVER-CLI for DePool operations](#71-configure-ever-cli-for-depool-operations)
   - [7.2. Deposit stakes](#72-deposit-stakes)
     - [7.2.1. Ordinary stake](#721-ordinary-stake)
     - [7.2.2. Vesting stake](#722-vesting-stake)
@@ -121,31 +121,31 @@ tonos-cli <subcommand> -h
 ## Install compiled executable
 
 Create a folder. Download the `.zip` file from the latest release from here:
-[https://github.com/tonlabs/tonos-cli/releases](https://github.com/tonlabs/tonos-cli/releases) to this folder. Extract
+[https://github.com/everx-labs/ever-cli/releases](https://github.com/everx-labs/ever-cli/releases) to this folder. Extract
 it.
 
 ## Install through EVERDEV
 
-You can use [EVERDEV](https://github.com/tonlabs/everdev) to install the latest version of TONOS-CLI.
+You can use [EVERDEV](https://github.com/everx-labs/everdev) to install the latest version of EVER-CLI.
 
 ```bash
-everdev tonos-cli install
+everdev ever-cli install
 ```
 
 The installer requires [NPM](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) to be installed, so it
 can install packages globally without using sudo. In case of error, manually set environment variable
 `PATH=$PATH:$HOME./everdev/solidity`
 
-This command updates TONOS-CLI installed through EVERDEV to the latest version:
+This command updates EVER-CLI installed through EVERDEV to the latest version:
 
 ```bash
-everdev tonos-cli update
+everdev ever-cli update
 ```
 
-This command specifies TONOS-CLI version to use and downloads it if needed:
+This command specifies EVER-CLI version to use and downloads it if needed:
 
 ```bash
-everdev tonos-cli set --version 0.8.0
+everdev ever-cli set --version 0.8.0
 ```
 
 ## Build from source
@@ -166,66 +166,66 @@ sudo apt-get install pkg-config
 
 Install Cargo: [https://github.com/rust-lang/cargo#compiling-from-source](https://github.com/rust-lang/cargo#compiling-from-source)
 
-Build TONOS-CLI tool from source:
+Build EVER-CLI tool from source:
 
 ```bash
-git clone https://github.com/tonlabs/tonos-cli.git
-cd tonos-cli
+git clone https://github.com/everx-labs/ever-cli.git
+cd ever-cli
 cargo update
 cargo build --release
 cd target/release
 ```
 
-The `tonos-cli` executable is built in the `tonos-cli/target/release` folder.
-Create a folder elsewhere. Copy the `tonos-cli` executable into the new folder you have created.
-Or just add `tonos-cli/target/release` to the PATH local variable.
+The `ever-cli` executable is built in the `ever-cli/target/release` folder.
+Create a folder elsewhere. Copy the `ever-cli` executable into the new folder you have created.
+Or just add `ever-cli/target/release` to the PATH local variable.
 
 ### Build from source on Windows
 
 Install Cargo: [https://github.com/rust-lang/cargo#compiling-from-source](https://github.com/rust-lang/cargo#compiling-from-source)
 
-Build TONOS-CLI tool from source:
+Build EVER-CLI tool from source:
 
 ```bash
-> git clone https://github.com/tonlabs/tonos-cli.git
-> cd tonos-cli
+> git clone https://github.com/everx-labs/ever-cli.git
+> cd ever-cli
 > cargo update
 > cargo build --release
 > cd target/release
 ```
 
-The `tonos-cli` executable is built in the `tonos-cli/target/release` folder.
-Create a folder elsewhere. Copy the `tonos-cli` executable into the new folder you have created.
-Or just add `tonos-cli/target/release` to the PATH local variable.
+The `ever-cli` executable is built in the `ever-cli/target/release` folder.
+Create a folder elsewhere. Copy the `ever-cli` executable into the new folder you have created.
+Or just add `ever-cli/target/release` to the PATH local variable.
 
 ### Tails OS secure environment
 
-For maximum security while working with offline TONOS-CLI features (such as cryptographic commands or encrypted message
+For maximum security while working with offline EVER-CLI features (such as cryptographic commands or encrypted message
 generation), you can use the [Tails OS](https://tails.boum.org/).
 
-### Put TONOS-CLI into system environment
+### Put EVER-CLI into system environment
 
 Optional, Linux/macOS. Use the following command to put the utility into system environment:
 
 ```bash
-export PATH="<tonos_folder_path>:$PATH"
+export PATH="<ever_folder_path>:$PATH"
 ```
 
-This step can be skipped, if TONOS-CLI was installed through EVERDEV. Otherwise, if you skip this step, make sure you
+This step can be skipped, if EVER-CLI was installed through EVERDEV. Otherwise, if you skip this step, make sure you
 always run the utility from folder containing the utility:
 
 ```bash
-./tonos-cli <command> <options>
+./ever-cli <command> <options>
 ```
 
-### Install tonos-cli, completion script and bind them
+### Install ever-cli, completion script and bind them
 
-On Linux tonos-cli can be installed with a completion script by using such commands:
+On Linux ever-cli can be installed with a completion script by using such commands:
 
 ```bash
-cd tonos-cli
+cd ever-cli
 cargo install --force --path .
-complete -C __tonos-cli_completion tonos-cli
+complete -C __ever-cli_completion ever-cli
 ```
 
 After adding completion script, user can use `<Tab>` key to complete `--addr` option with aliases saved in the config
@@ -238,21 +238,21 @@ Default debug executable built after `cargo build` command may have an issue wit
 ```bash
 > cargo build
 Finished dev [unoptimized + debuginfo] target(s) in 0.66s
-> .\target\debug\tonos-cli.exe --version
+> .\target\debug\ever-cli.exe --version
 
 thread 'main' has overflowed its stack
 ```
 
 User can fix this issue by using [editbin tool from MSVC Tools](https://docs.microsoft.com/ru-ru/cpp/build/reference/editbin-reference?view=msvc-170).
-This tool allows user to increase binary stack reserve. Increase it by 2 times will help to fix tonos-cli:
+This tool allows user to increase binary stack reserve. Increase it by 2 times will help to fix ever-cli:
 
 ```bash
-> editbin /STACK:2097152 tonos-cli.exe
+> editbin /STACK:2097152 ever-cli.exe
 Microsoft (R) COFF/PE Editor Version 14.28.29914.0
 Copyright (C) Microsoft Corporation.  All rights reserved.
 
-> tonos-cli.exe --version
-tonos_cli 0.26.7
+> ever-cli.exe --version
+ever_cli 0.26.7
 COMMIT_ID: 1e1397b5561ea79d2fd7cce47cd033450b123f25
 BUILD_DATE: Unknown
 COMMIT_DATE: 2022-05-13 14:15:47 +0300
@@ -261,7 +261,7 @@ GIT_BRANCH: master
 
 ## Ubuntu 22 troubleshooting
 
-Ubuntu 22 has upgraded to OpenSSL 3.0 and this breaks execution of compiled tonos-cli releases. To fix this problem one
+Ubuntu 22 has upgraded to OpenSSL 3.0 and this breaks execution of compiled ever-cli releases. To fix this problem one
 should install old version of libssl. To do it one can download amd64 package from
 (packages.debian.org)[https://packages.debian.org/stretch/libssl1.1] and install it with dpkg:
 
@@ -271,18 +271,18 @@ sudo dpkg -i libssl1.1*.deb
 
 ## Check version
 
-You can check version of the current TONOS-CLI installation with the following command:
+You can check version of the current EVER-CLI installation with the following command:
 
 ```bash
-tonos-cli version
+ever-cli version
 ```
 
 Output example:
 
 ```bash
-$ tonos-cli version
+$ ever-cli version
 Config: default
-tonos-cli 0.2.0
+ever-cli 0.2.0
 COMMIT_ID: 21ebd53c35bf22696bf1eb434e408ed33318136a
 BUILD_DATE: 2021-01-26 15:06:18 +0300
 COMMIT_DATE: 2021-01-14 16:13:32 +0300
@@ -291,19 +291,19 @@ GIT_BRANCH: master
 
 ## A note on Windows syntax
 
-When using Windows command line, the following syntax should be used for all TONOS-CLI commands:
+When using Windows command line, the following syntax should be used for all EVER-CLI commands:
 
-1) Never use the `./` symbols before `tonos-cli`:
+1) Never use the `./` symbols before `ever-cli`:
 
 ```bash
-> tonos-cli <command_name> <options>
+> ever-cli <command_name> <options>
 ```
 
 2) For all commands with nested quotes, the outer single quotes should be changed to double quotes, and the inner double
 quotes should be shielded by a preceding `\`. Example:
 
 ```bash
-> tonos-cli deploy SafeMultisigWallet.tvc "{\"owners\":[\"0x723b2f0fa217cd10fe21326634e66106678f15d5a584babe4f576dffe9dcbb1b\",\"0x127e3ca223ad429ddaa053a39fecd21131df173bb459a4438592493245b695a3\",\"0xc2dd3682ffa9df97a968bef90b63da90fc92b22163f558b63cb7e52bfcd51bbb\"],\"reqConfirms\":2}" --abi SafeMultisigWallet.abi.json --sign deploy.keys.json
+> ever-cli deploy SafeMultisigWallet.tvc "{\"owners\":[\"0x723b2f0fa217cd10fe21326634e66106678f15d5a584babe4f576dffe9dcbb1b\",\"0x127e3ca223ad429ddaa053a39fecd21131df173bb459a4438592493245b695a3\",\"0xc2dd3682ffa9df97a968bef90b63da90fc92b22163f558b63cb7e52bfcd51bbb\"],\"reqConfirms\":2}" --abi SafeMultisigWallet.abi.json --sign deploy.keys.json
 ```
 
 If this is not done, `arguments are not in json format: key must be a string at line 1 column` error may occur.
@@ -312,25 +312,25 @@ If this is not done, `arguments are not in json format: key must be a string at 
 
 ## 2.1. Set the network and parameter values
 
-TONOS-CLI can store some parameter values in the tonos-cli configuration file and use it automatically in various
+EVER-CLI can store some parameter values in the ever-cli configuration file and use it automatically in various
 subcommands.
 
 After that you can omit the corresponding parameters in subsequent subcommands.
 
-Default path for the configuration file is `./tonos-cli.config.json`. It is created in the current working directory.
+Default path for the configuration file is `./ever-cli.config.json`. It is created in the current working directory.
 User can set up path to the configuration file [manually](#25-override-configuration-file-location).
 All subsequent calls of the utility will use this file by default.
 
 Use the following command to create a configuration file:
 
 ```bash
-tonos-cli config [--global] <--option> <option_value>
+ever-cli config [--global] <--option> <option_value>
 ```
 
-All other TONOS-CLI commands will indicate the configuration file currently used.
+All other EVER-CLI commands will indicate the configuration file currently used.
 
 Default values for options that were not specified are taken from the global configuration file. It has name
-`.tonos-cli.global.conf.json` and is located in the folder, where the `tonos-cli` executable lies. This global
+`.ever-cli.global.conf.json` and is located in the folder, where the `ever-cli` executable lies. This global
 configuration file can be configured as the ordinary one, but the option `--global` must be used for the `config`
 subcommand.
 
@@ -342,7 +342,7 @@ List of available options:
 --addr <ADDR>                                 Contract address.
 --async_call <ASYNC_CALL>                     Disables wait for transaction to appear in the network after call command.
 --balance_in_tons <BALANCE_IN_TONS>           Print balance for account command in tons. If false balance is printed in nanotons.
---debug_fail <DEBUG_FAIL>                     When enabled tonos-cli executes debug command on fail of run or call command. Can be enabled with values 'full' or 'minimal' which set the trace level for debug run and disabled with value 'none'.
+--debug_fail <DEBUG_FAIL>                     When enabled ever-cli executes debug command on fail of run or call command. Can be enabled with values 'full' or 'minimal' which set the trace level for debug run and disabled with value 'none'.
 --depool_fee <DEPOOL_FEE>                     Value added to the message sent to depool to cover its fees (change will be returned).
 --is_json <IS_JSON>                           Cli prints output in json format.
 --keys <KEYS>                                 Path to the file with keypair.
@@ -365,7 +365,7 @@ List of available options:
 Example:
 
 ```bash
-$ tonos-cli config --url https://main.evercloud.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600
+$ ever-cli config --url https://main.evercloud.dev --wc -1 --keys key.json --abi SafeMultisigWallet.abi.json --lifetime 3600 --local_run true --retries 3 --timeout 600
 Succeeded.
 {
   "url": "main.evercloud.dev",
@@ -401,52 +401,52 @@ Some frequently used networks:
 
 `http://127.0.0.1/` - Node SE local node.
 
-`https://devnet.evercloud.dev` - developer sandbox for testing. TONOS-CLI connects to it by default.
+`https://devnet.evercloud.dev` - developer sandbox for testing. EVER-CLI connects to it by default.
 
 `https://mainnet.evercloud.dev` - main Free TON network.
 
-TONOS-CLI supports the use of multiple endpoints for networks: if several endpoints are
-[specified in the endpoint map](#24-configure-endpoints-map) for a network, TONOS-CLI will use them all when accessing
+EVER-CLI supports the use of multiple endpoints for networks: if several endpoints are
+[specified in the endpoint map](#24-configure-endpoints-map) for a network, EVER-CLI will use them all when accessing
 it. Otherwise, the network URL will be treated as the only endpoint.
 
 `https://mainnet.evercloud.dev` and `https://devnet.evercloud.dev` networks already have their current endpoints specified in the default endpoint map.
 See [section 2.4 below](#24-configure-endpoints-map) on how to edit and add endpoints to the endpoint map.
 
-> **Note**: This change was introduced in version 0.16.1 and is fully compatible with scripts written for previous versions, where `https://mainnet.evercloud.dev` and `https://devnet.evercloud.dev` networks were specified with a single url. TONOS-CLI will simply use the default endpoint map to access these networks.
+> **Note**: This change was introduced in version 0.16.1 and is fully compatible with scripts written for previous versions, where `https://mainnet.evercloud.dev` and `https://devnet.evercloud.dev` networks were specified with a single url. EVER-CLI will simply use the default endpoint map to access these networks.
 
 
 Network configuration can be [overridden](#26-override-network-settings) for any single subcommand.
 
-To connect to a [DApp Server](https://github.com/tonlabs/TON-OS-DApp-Server) you are running, it should have domain name
-and a DNS record. Then its URL may be used to access it with TONOS-CLI:
+To connect to a [DApp Server](https://github.com/everx-labs/TON-OS-DApp-Server) you are running, it should have domain name
+and a DNS record. Then its URL may be used to access it with EVER-CLI:
 
 ```bash
-tonos-cli config --url <dapp_server_url>
+ever-cli config --url <dapp_server_url>
 ```
 
-> Note: Either run tonos-cli utility only from the directory where tonos-cli.config.json is placed, or use one of the available methods (see [section 2.5](#25-override-configuration-file-location)) to make the utility look for the file elsewhere.
+> Note: Either run ever-cli utility only from the directory where ever-cli.config.json is placed, or use one of the available methods (see [section 2.5](#25-override-configuration-file-location)) to make the utility look for the file elsewhere.
 
 ### 2.1.1. Troubleshooting network connectivity problems
 
 Most part of the network connectivity problems can be fixed by using right network endpoints and authentication
 credentials.
-tonos-cli reads network endpoints settings from the configuration file, so ensure that you have set them properly.
+ever-cli reads network endpoints settings from the configuration file, so ensure that you have set them properly.
 [Here](https://docs.everos.dev/ever-sdk/reference/ever-os-api/networks) you can get the list of current network
 endpoints.
-tonos-cli usually has the latest list of endpoints, but old endpoints can be saved in the configuration or global
-configuration files, so it's better to clear the config files after upgrading the tonos-cli:
+ever-cli usually has the latest list of endpoints, but old endpoints can be saved in the configuration or global
+configuration files, so it's better to clear the config files after upgrading the ever-cli:
 
 ```bash
-$ tonos-cli config --global clear
-$ tonos-cli config --global endpoint reset
-$ tonos-cli config clear
-$ tonos-cli config endpoint reset
+$ ever-cli config --global clear
+$ ever-cli config --global endpoint reset
+$ ever-cli config clear
+$ ever-cli config endpoint reset
 ```
 
 If your network connection can't be established with such error description:
 
 ```bash
-$ tonos-cli account -1:3333333333333333333333333333333333333333333333333333333333333333
+$ ever-cli account -1:3333333333333333333333333333333333333333333333333333333333333333
 Input arguments:
 addresses: -1:3333333333333333333333333333333333333333333333333333333333333333
 Connecting to:
@@ -466,8 +466,8 @@ it can be caused by absence of authentication credentials. Set them up as descri
 You can print the current or the global configuration parameters with the following command:
 
 ```bash
-tonos-cli config --list
-tonos-cli config --global --list
+ever-cli config --list
+ever-cli config --global --list
 ```
 
 ## 2.3. Clear configuration
@@ -475,13 +475,13 @@ tonos-cli config --global --list
 Use the following command to reset configuration to default values:
 
 ```bash
-tonos-cli config clear
+ever-cli config clear
 ```
 
 The same options as in ordinary `congfig` command can be used to clear only the specified parametes.
 
 ```bash
-$ tonos-cli config clear --url --addr --wallet
+$ ever-cli config clear --url --addr --wallet
 Succeeded.
 {
   "url": "net.evercloud.dev",
@@ -515,19 +515,19 @@ Succeeded.
 
 ## 2.4. Configure endpoints map
 
-TONOS-CLI configuration file also stores the endpoints map that can be updated by the user.
+EVER-CLI configuration file also stores the endpoints map that can be updated by the user.
 Each time user [changes the url](#21-set-the-network-and-parameter-values), endpoints also change in accordance to the
 endpoints map.
 To print the map use the following command:
 
 ```bash
-tonos-cli config endpoint print
+ever-cli config endpoint print
 ```
 
 User can reset map to the default state:
 
 ```bash
-tonos-cli config endpoint reset
+ever-cli config endpoint reset
 ```
 
 Default state of the map:
@@ -551,56 +551,56 @@ Default state of the map:
 Map can be changed with `remove` and `add` subcommands:
 
 ```bash
-tonos-cli config endpoint remove <url>
-tonos-cli config endpoint add <url> <list_of_endpoints>
+ever-cli config endpoint remove <url>
+ever-cli config endpoint add <url> <list_of_endpoints>
 ```
 
 Example:
 
 ```bash
-tonos-cli config endpoint remove main.evercloud.dev
-tonos-cli config endpoint add main.evercloud.dev "https://mainnet.evercloud.dev"
+ever-cli config endpoint remove main.evercloud.dev
+ever-cli config endpoint add main.evercloud.dev "https://mainnet.evercloud.dev"
 ```
 
 > **Note**: If url used in the add command already exists, endpoints lists will be merged.
 
 If a network that doesn't have mapped endpoints is
 [specified in the config file](#21-set-the-network-and-parameter-values), its url will be automatically treated as the
-only endpoint. For example, configuring TONOS-CLI to connect to RustNet with the command
-`tonos-cli config --url https://rustnet.ton.dev` will result in TONOS-CLI using this url as a single endpoint, without
+only endpoint. For example, configuring EVER-CLI to connect to RustNet with the command
+`ever-cli config --url https://rustnet.ton.dev` will result in EVER-CLI using this url as a single endpoint, without
 the user having to specify it in the endpoints map additionally.
 
 
 ## 2.5. Override configuration file location
 
-You can move the `tonos-cli.config.json` configuration file to any other convenient location and/or rename it. There are
+You can move the `ever-cli.config.json` configuration file to any other convenient location and/or rename it. There are
 several ways you can point the utility to the new location of the file:
 
-- **define environment variable** `TONOSCLI_CONFIG` with the path to your configuration file:
+- **define environment variable** `EVER_CLI_CONFIG` with the path to your configuration file:
 
 ```bash
-export TONOSCLI_CONFIG=<path_to_config_file>
+export EVER_CLI_CONFIG=<path_to_config_file>
 ```
 
 Example:
 
 ```bash
-export TONOSCLI_CONFIG=/home/user/config.json
+export EVER_CLI_CONFIG=/home/user/config.json
 ```
 
 - **define direct option** `--config <path_to_config_file>` before any other subcommand:
 
 ```bash
-tonos-cli --config <path_to_config_file> <any_subcommand>
+ever-cli --config <path_to_config_file> <any_subcommand>
 ```
 
 Example:
 
 ```bash
-tonos-cli --config /home/user/config.json account <address>
+ever-cli --config /home/user/config.json account <address>
 ```
 
-The `--config` direct option has higher priority than the `TONOSCLI_CONFIG` environment variable.
+The `--config` direct option has higher priority than the `EVER_CLI_CONFIG` environment variable.
 
 > Note: You can use the config subcommand to create or edit a configuration file located outside the current working directory.
 
@@ -609,27 +609,27 @@ The `--config` direct option has higher priority than the `TONOSCLI_CONFIG` envi
 You can also separately override [preconfigured network settings](#21-set-the-network-and-parameter-values) for a single subcommand. Use the `--url <network_url>` direct option for this purpose:
 
 ```bash
-tonos-cli --url <network_url> <any_subcommand>
+ever-cli --url <network_url> <any_subcommand>
 ```
 
 Example:
 
 ```bash
-tonos-cli --url main.evercloud.dev account <address>
+ever-cli --url main.evercloud.dev account <address>
 ```
 
 ## 2.7. Force json output
 
-You can force TONOS-CLi to print output in json format. To do so, add `--json` flag before a subcommand:
+You can force EVER-CLi to print output in json format. To do so, add `--json` flag before a subcommand:
 
 ```bash
-tonos-cli --json <any_subcommand>
+ever-cli --json <any_subcommand>
 ```
 
-This option can also be saved in the tonos-cli configuration file:
+This option can also be saved in the ever-cli configuration file:
 
 ```bash
-tonos-cli config --is_json true
+ever-cli config --is_json true
 {
   "url": "http://127.0.0.1/",
   "wc": 0,
@@ -662,10 +662,10 @@ tonos-cli config --is_json true
 
 ## 2.8. Debug on fail option
 
-You can force TONOS-CLi to debug call and run executions if they fail with error code **414**.
+You can force EVER-CLi to debug call and run executions if they fail with error code **414**.
 
 ```bash
-tonos-cli config --debug_fail <trace_level>
+ever-cli config --debug_fail <trace_level>
 ```
 
 Possible <trace_level> values:
@@ -678,10 +678,10 @@ Possible <trace_level> values:
 Yoo can explore and configure current aliases map with the list of commands
 
 ```bash
-tonos-cli config alias add [--addr <contract_address>] [--abi <contract_abi>] [--keys <contract_keys>] <alias>  # add entity to the map
-tonos-cli config alias remove <alias>  # remove entity
-tonos-cli config alias reset  # clear the map
-tonos-cli config alias print  # print the current state of the map
+ever-cli config alias add [--addr <contract_address>] [--abi <contract_abi>] [--keys <contract_keys>] <alias>  # add entity to the map
+ever-cli config alias remove <alias>  # remove entity
+ever-cli config alias reset  # clear the map
+ever-cli config alias print  # print the current state of the map
 ```
 
 Options:
@@ -693,8 +693,8 @@ Options:
 Example:
 
 ```bash
-$ tonos-cli config alias add msig --addr 0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fcd --abi samples/SafeMultisigWallet.abi.json --keys key0.keys.json
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli config alias add msig --addr 0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fcd --abi samples/SafeMultisigWallet.abi.json --keys key0.keys.json
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 {
   "msig": {
     "abi_path": "samples/SafeMultisigWallet.abi.json",
@@ -702,8 +702,8 @@ Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
     "key_path": "key0.keys.json"
   }
 }
-$ tonos-cli config alias print
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli config alias print
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 {
   "msig": {
     "abi_path": "samples/SafeMultisigWallet.abi.json",
@@ -711,8 +711,8 @@ Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
     "key_path": "key0.keys.json"
   }
 }
-$ tonos-cli config alias add msig2 --addr 0:eef5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fff --abi samples/SafeMultisigWallet.abi.json --keys key1.keys.json
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli config alias add msig2 --addr 0:eef5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fff --abi samples/SafeMultisigWallet.abi.json --keys key1.keys.json
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 {
   "msig": {
     "abi_path": "samples/SafeMultisigWallet.abi.json",
@@ -725,8 +725,8 @@ Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
     "key_path": "key1.keys.json"
   }
 }
-$ tonos-cli config alias remove msig
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli config alias remove msig
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 {
   "msig2": {
     "abi_path": "samples/SafeMultisigWallet.abi.json",
@@ -734,11 +734,11 @@ Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
     "key_path": "key1.keys.json"
   }
 }
-$ tonos-cli config alias reset
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli config alias reset
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 {}
-$ tonos-cli config alias print
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli config alias print
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 {}
 ```
 
@@ -748,7 +748,7 @@ User can increase log level of the tool execution to see more messages. To do it
 variable `RUST_LOG=debug`:
 
 ```bash
-$ tonos-cli callx --addr 0:75186644bf5157d1b638390889ec2ba297a12250f6e90d935618918cb82d12c3 --abi ../samples/1_Accumulator.abi.json --keys keys/key0 -m add --value 1
+$ ever-cli callx --addr 0:75186644bf5157d1b638390889ec2ba297a12250f6e90d935618918cb82d12c3 --abi ../samples/1_Accumulator.abi.json --keys keys/key0 -m add --value 1
 Input arguments:
  address: 0:75186644bf5157d1b638390889ec2ba297a12250f6e90d935618918cb82d12c3
   method: add
@@ -766,7 +766,7 @@ Result: {}
 # Enable verbose mode
 $ export RUST_LOG=debug
 
-$ tonos-cli callx --addr 0:75186644bf5157d1b638390889ec2ba297a12250f6e90d935618918cb82d12c3 --abi ../samples/1_Accumulator.abi.json --keys keys/key0 -m add --value 1
+$ ever-cli callx --addr 0:75186644bf5157d1b638390889ec2ba297a12250f6e90d935618918cb82d12c3 --abi ../samples/1_Accumulator.abi.json --keys keys/key0 -m add --value 1
 Input arguments:
  address: 0:75186644bf5157d1b638390889ec2ba297a12250f6e90d935618918cb82d12c3
   method: add
@@ -824,7 +824,7 @@ Result: {}
 To generate a mnemonic seed phrase enter the following command:
 
 ```bash
-tonos-cli genphrase [--dump <path>]
+ever-cli genphrase [--dump <path>]
 ```
 
 Options:
@@ -834,12 +834,12 @@ Options:
 Example:
 
 ```bash
-$ tonos-cli genphrase
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli genphrase
+Config: /home/user/ever-cli.conf.json
 Succeeded.
 Seed phrase: "rule script joy unveil chaos replace fox recipe hedgehog heavy surge online"
 
-$ tonos-cli genphrase --dump /tmp/1.key
+$ ever-cli genphrase --dump /tmp/1.key
 Succeeded.
 Seed phrase: "resist immune key jar lunar snake real vintage chicken radar famous cinnamon"
 Keypair successfully saved to /tmp/1.key.
@@ -852,7 +852,7 @@ Keypair saved to /tmp/1.key
 To generate a public key from a seed phrase enter the following command with the seed phrase in quotes:
 
 ```bash
-tonos-cli genpubkey "rule script joy unveil chaos replace fox recipe hedgehog heavy surge online"
+ever-cli genpubkey "rule script joy unveil chaos replace fox recipe hedgehog heavy surge online"
 ```
 
 The generated QR code also contains the public key.
@@ -860,8 +860,8 @@ The generated QR code also contains the public key.
 Example:
 
 ```bash
-$ tonos-cli genpubkey "rule script joy unveil chaos replace fox recipe hedgehog heavy surge online"
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli genpubkey "rule script joy unveil chaos replace fox recipe hedgehog heavy surge online"
+Config: /home/user/ever-cli.conf.json
 Succeeded.
 Public key: 88c541e9a1c173069c89bcbcc21fa2a073158c1bd21ca56b3eb264bba12d9340
 
@@ -874,7 +874,7 @@ Public key: 88c541e9a1c173069c89bcbcc21fa2a073158c1bd21ca56b3eb264bba12d9340
 To create a key pair file from a seed phrase use the following command:
 
 ```bash
-tonos-cli getkeypair [-o <keyfile.json>] [-p "<seed_phrase>"]
+ever-cli getkeypair [-o <keyfile.json>] [-p "<seed_phrase>"]
 ```
 
 `<keyfile.json>` - the file the key pair will be written to. If not specified keys will be printed to the stdout.
@@ -882,16 +882,16 @@ tonos-cli getkeypair [-o <keyfile.json>] [-p "<seed_phrase>"]
 Example:
 
 ```bash
-$ tonos-cli getkeypair -o key.json -p "rule script joy unveil chaos replace fox recipe hedgehog heavy surge online"
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli getkeypair -o key.json -p "rule script joy unveil chaos replace fox recipe hedgehog heavy surge online"
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
 key_file: key.json
   phrase: rule script joy unveil chaos replace fox recipe hedgehog heavy surge online
 Keypair successfully saved to key.json.
 Succeeded.
 
-$ tonos-cli getkeypair -o key.json
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli getkeypair -o key.json
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
 key_file: key.json
   phrase: None
@@ -901,8 +901,8 @@ Keypair successfully saved to key.json.
 Succeeded.
 
 
-$ tonos-cli getkeypair
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli getkeypair
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
 key_file: None
   phrase: None
@@ -914,7 +914,7 @@ Keypair: {
 }
 Succeeded.
 
-$ tonos-cli -j getkeypair
+$ ever-cli -j getkeypair
 {
   "public": "09889cd2f085a693ef04a6dad4b6533c7019014a7e0ca9b5b146e66e550973d9",
   "secret": "021196259435d54dfb5c41970db5bcfc2306d59877665c3b573486d441cf021a"
@@ -923,7 +923,7 @@ $ tonos-cli -j getkeypair
 
 # 4. Smart contract commands
 
-When working with smart contracts, TONOS-CLI requires the following files:
+When working with smart contracts, EVER-CLI requires the following files:
 
 - **ABI file** - a .json file that describes the contract interface, the methods and parameters used to interact with it.
 - **TVC file** - the compiled smart contract file. Used only when generating contract address and deploying contract code to the blockchain.
@@ -939,12 +939,12 @@ Contract address is generated based on contract TVC file and selected keys. To g
 
 > **Note**:  For contracts with ABI 2.4, you should use the flag `--save` to insert the deployment public key into the TCV file.
 
-> **Note**: If your contract has static variables, they can be initialized through [TVM linker](https://github.com/tonlabs/TVM-linker#5-initialize-static-variables-in-compiled-contract) before deployment.
+> **Note**: If your contract has static variables, they can be initialized through [TVM linker](https://github.com/everx-labs/TVM-linker#5-initialize-static-variables-in-compiled-contract) before deployment.
 
 Use the following command to generate the contract address:
 
 ```bash
-tonos-cli genaddr [--genkey|--setkey <keyfile.json>] [--wc <int8>] [--abi <contract.abi.json>] [--save] [--data <data>] <contract.tvc>
+ever-cli genaddr [--genkey|--setkey <keyfile.json>] [--wc <int8>] [--abi <contract.abi.json>] [--save] [--data <data>] <contract.tvc>
 ```
 
 Options:
@@ -953,7 +953,7 @@ Options:
 
 > Note: if you use --genkey, the corresponding seed phrase will be displayed. Write it down, if you mean to keep using this key pair.
 
-`--abi <contract.abi.json>` - contract ABI interface file. If not specified tonos-cli can use ABI path from config of obtained from tvc path (for `<contrac>.tvc` checks `<contract>.abi.json`).
+`--abi <contract.abi.json>` - contract ABI interface file. If not specified ever-cli can use ABI path from config of obtained from tvc path (for `<contrac>.tvc` checks `<contract>.abi.json`).
 
 `--setkey <keyfile.json>` - use already [existing](#33-generate-key-pair-file) `keyfile.json` key pair file to calculate the contract address. Seed phrase cannot be used instead of the file.
 
@@ -965,13 +965,13 @@ Options:
 
 `<contract.tvc>` - compiled smart contract file.
 
-As a result tonos-cli displays the new contract address (`Raw address`).
+As a result ever-cli displays the new contract address (`Raw address`).
 
-Example ([multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) address generation for the masterchain):
+Example ([multisignature wallet](https://github.com/everx-labs/ton-labs-contracts/tree/master/solidity/safemultisig) address generation for the masterchain):
 
 ```bash
-$ tonos-cli genaddr --genkey key.json --wc -1 SafeMultisigWallet.tvc --abi SafeMultisigWallet.abi.json
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli genaddr --genkey key.json --wc -1 SafeMultisigWallet.tvc --abi SafeMultisigWallet.abi.json
+Config: /home/user/ever-cli.conf.json
 Input arguments:
      tvc: SafeMultisigWallet.tvc
       wc: -1
@@ -999,7 +999,7 @@ Succeeded
 Use the following command to deploy a contract:
 
 ```bash
-tonos-cli deploy [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] [--alias <alias>] <contract.tvc> <params>
+ever-cli deploy [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] [--alias <alias>] <contract.tvc> <params>
 ```
 
 `<deploy_seed_or_keyfile>` - can either be the seed phrase used to generate the deployment key pair file or the key pair file itself. If seed phrase is used, enclose it in double quotes.
@@ -1021,13 +1021,13 @@ or
 
 Sometimes it can be not obvious in which way method parameters should be specified,
 especially if it is a large structure with different and complex fields.
-It is generally described in [abi doc](https://github.com/tonlabs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
-Example ([multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig)
+It is generally described in [abi doc](https://github.com/everx-labs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
+Example ([multisignature wallet](https://github.com/everx-labs/ton-labs-contracts/tree/master/solidity/safemultisig)
 contract deployment to the masterchain):
 
 ```bash
-$ tonos-cli deploy --sign key.json --wc -1 --abi SafeMultisigWallet.abi.json SafeMultisigWallet.tvc '{"owners":["0x88c541e9a1c173069c89bcbcc21fa2a073158c1bd21ca56b3eb264bba12d9340"],"reqConfirms":1}'
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli deploy --sign key.json --wc -1 --abi SafeMultisigWallet.abi.json SafeMultisigWallet.tvc '{"owners":["0x88c541e9a1c173069c89bcbcc21fa2a073158c1bd21ca56b3eb264bba12d9340"],"reqConfirms":1}'
+Config: /home/user/ever-cli.conf.json
 Input arguments:
      tvc: SafeMultisigWallet.tvc
   params: {"owners":["0x88c541e9a1c173069c89bcbcc21fa2a073158c1bd21ca56b3eb264bba12d9340"],"reqConfirms":1}
@@ -1046,7 +1046,7 @@ If needed, signed deploy message can be generated without immediately broadcasti
 message can be sent later.
 
 ```bash
-tonos-cli deploy_message [--raw] [--output <path_to_file>] [--signature_id <value>] [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc> <params>
+ever-cli deploy_message [--raw] [--output <path_to_file>] [--signature_id <value>] [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc> <params>
 ```
 
 `--raw` - use to create raw message boc.
@@ -1073,11 +1073,11 @@ or
 
 `<params>` - deploy command parameters, depend on the contract.
 
-Example (saving to a file [multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) contract deployment message to the masterchain):
+Example (saving to a file [multisignature wallet](https://github.com/everx-labs/ton-labs-contracts/tree/master/solidity/safemultisig) contract deployment message to the masterchain):
 
 ```bash
-$ tonos-cli deploy_message --raw --output deploy.boc --sign key.json --wc -1 --abi SafeMultisigWallet.abi.json SafeMultisigWallet.tvc '{"owners":["0x88c541e9a1c173069c89bcbcc21fa2a073158c1bd21ca56b3eb264bba12d9340"],"reqConfirms":1}'
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli deploy_message --raw --output deploy.boc --sign key.json --wc -1 --abi SafeMultisigWallet.abi.json SafeMultisigWallet.tvc '{"owners":["0x88c541e9a1c173069c89bcbcc21fa2a073158c1bd21ca56b3eb264bba12d9340"],"reqConfirms":1}'
+Config: /home/user/ever-cli.conf.json
 Input arguments:
      tvc: SafeMultisigWallet.tvc
   params: {"owners":["0x88c541e9a1c173069c89bcbcc21fa2a073158c1bd21ca56b3eb264bba12d9340"],"reqConfirms":1}
@@ -1097,7 +1097,7 @@ Succeeded.
 You may use the following command to check the current status of a contract:
 
 ```bash
-tonos-cli account [--boc] <list_of_addresses> [--dumptvc <tvc_path>] [--dumpboc <boc_path>]
+ever-cli account [--boc] <list_of_addresses> [--dumptvc <tvc_path>] [--dumpboc <boc_path>]
 ```
 
 `<list_of_addresses>` - contract [addresses](#41-generate-contract-address), if not specified address is taken from the config file.
@@ -1108,8 +1108,8 @@ tonos-cli account [--boc] <list_of_addresses> [--dumptvc <tvc_path>] [--dumpboc 
 Example:
 
 ```bash
-$ tonos-cli  account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli  account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
 addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13, 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566, 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12
 Connecting to net.evercloud.dev
@@ -1134,8 +1134,8 @@ code_hash:     eee7d3331153dce4aa938e3bcdc922467fa215c77f56bbea1debfa8583d22f9c
 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 not found
 
 
-$ tonos-cli  account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli  account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
 addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
 Connecting to net.evercloud.dev
@@ -1156,7 +1156,7 @@ code_hash:     ccbfc821853aa641af3813ebd477e26818b51e4ca23e5f6d34509215aa7123d9
 ### 4.4.1. Call contract on the blockchain
 
 ```bash
-tonos-cli call [--abi <contract.abi.json>] [--sign <seed_or_keyfile>] [--saved_config <config_contract_path>] <address> <method> <params>
+ever-cli call [--abi <contract.abi.json>] [--sign <seed_or_keyfile>] [--saved_config <config_contract_path>] <address> <method> <params>
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -1181,13 +1181,13 @@ or
 format.
 Sometimes it can be not obvious in which way method parameters should be specified,
 especially if it is a large structure with different and complex fields.
-It is generally described in [abi doc](https://github.com/tonlabs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
+It is generally described in [abi doc](https://github.com/everx-labs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
 
-Example (transaction creation in a [multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig) contract):
+Example (transaction creation in a [multisignature wallet](https://github.com/everx-labs/ton-labs-contracts/tree/master/solidity/safemultisig) contract):
 
 ```bash
-$ tonos-cli call 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc submitTransaction '{"dest":"-1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6","value":234000000,"bounce":false,"allBalance":false,"payload":""}' --abi SetcodeMultisigWallet.abi.json --sign k1.keys.json
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli call 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc submitTransaction '{"dest":"-1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6","value":234000000,"bounce":false,"allBalance":false,"payload":""}' --abi SetcodeMultisigWallet.abi.json --sign k1.keys.json
+Config: /home/user/ever-cli.conf.json
 Input arguments:
  address: 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc
   method: submitTransaction
@@ -1208,12 +1208,12 @@ Result: {
 }
 ```
 
-**Note**: If your function is marked as [responsible](https://github.com/tonlabs/TON-Solidity-Compiler/blob/master/API.md#external-function-calls), TONOS-CLI expects `_answer_id` field, and you may encounter errors, if it's missing.
+**Note**: If your function is marked as [responsible](https://github.com/everx-labs/TON-Solidity-Compiler/blob/master/API.md#external-function-calls), EVER-CLI expects `_answer_id` field, and you may encounter errors, if it's missing.
 
 ### 4.4.2. Run contract method locally
 
 ```bash
-tonos-cli run [--abi <contract.abi.json>] <address> <method> <params>
+ever-cli run [--abi <contract.abi.json>] <address> <method> <params>
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -1225,13 +1225,13 @@ tonos-cli run [--abi <contract.abi.json>] <address> <method> <params>
 `<params>` - parameters of the called method.
 Sometimes it can be not obvious in which way method parameters should be specified,
 especially if it is a large structure with different and complex fields.
-It is generally described in [abi doc](https://github.com/tonlabs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
+It is generally described in [abi doc](https://github.com/everx-labs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
 
-Example of a transaction list request in a [multisignature wallet](https://github.com/tonlabs/ton-labs-contracts/tree/master/solidity/safemultisig):
+Example of a transaction list request in a [multisignature wallet](https://github.com/everx-labs/ton-labs-contracts/tree/master/solidity/safemultisig):
 
 ```bash
-$ tonos-cli run 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc getTransactions {} --abi SafeMultisigWallet.abi.json
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli run 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc getTransactions {} --abi SafeMultisigWallet.abi.json
+Config: /home/user/ever-cli.conf.json
 Input arguments:
  address: 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc
   method: getTransactions
@@ -1269,7 +1269,7 @@ Result: {
 ### 4.4.3. Run funC get-method
 
 ```bash
-tonos-cli runget [--boc] [--tvc] <address> <method> [<params>...] [--bc_config <config_path>]
+ever-cli runget [--boc] [--tvc] <address> <method> [<params>...] [--bc_config <config_path>]
 ```
 
 `<address>` - contract [address](#41-generate-contract-address) or path to the file with:
@@ -1287,8 +1287,8 @@ BOC. It can be obtained with [dump blockchain config](#94-dump-blockchain-config
 Example:
 
 ```bash
-$ tonos-cli runget -1:3333333333333333333333333333333333333333333333333333333333333333 active_election_id
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli runget -1:3333333333333333333333333333333333333333333333333333333333333333 active_election_id
+Config: /home/user/ever-cli.conf.json
 Input arguments:
  address: -1:3333333333333333333333333333333333333333333333333333333333333333
   method: active_election_id
@@ -1298,8 +1298,8 @@ Running get-method...
 Succeded.
 Result: ["1619901678"]
 
-$ tonos-cli runget --boc acc.boc compute_returned_stake 0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli runget --boc acc.boc compute_returned_stake 0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
  address: acc.boc
   method: compute_returned_stake
@@ -1309,8 +1309,8 @@ Running get-method...
 Succeeded.
 Result: ["125387107580525"]
 
-$ tonos-cli runget --tvc acc.tvc compute_returned_stake 0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli runget --tvc acc.tvc compute_returned_stake 0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
  address: acc.boc
   method: compute_returned_stake
@@ -1326,7 +1326,7 @@ Result: ["125387107580525"]
 ### 4.4.4. Run contract method locally for saved account BOC
 
 ```bash
-tonos-cli run [--boc] [--tvc] [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>] [--saved_config <config_contract_path>]
+ever-cli run [--boc] [--tvc] [--abi <contract.abi.json>] <account> <method> <params> [--bc_config <config_path>] [--saved_config <config_contract_path>]
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -1346,8 +1346,8 @@ BOC. It can be obtained with [dump blockchain config](#93-dump-blockchain-config
 Example:
 
 ```bash
-$ tonos-cli run --boc tests/depool_acc.boc getData '{}' --abi tests/samples/fakeDepool.abi.json
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli run --boc tests/depool_acc.boc getData '{}' --abi tests/samples/fakeDepool.abi.json
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
  account: tests/depool_acc.boc
   method: getData
@@ -1365,8 +1365,8 @@ Result: {
   "value": "1000000000"
 }
 
-$ tonos-cli run --tvc tests/depool_acc.tvc getData '{}' --abi tests/samples/fakeDepool.abi.json
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli run --tvc tests/depool_acc.tvc getData '{}' --abi tests/samples/fakeDepool.abi.json
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
  account: tests/depool_acc.boc
   method: getData
@@ -1391,7 +1391,7 @@ Result: {
 An internet connection is not required to create an encrypted message. Use the following command to do it:
 
 ```bash
-tonos-cli message [--raw] [--output <path_to_file>] [--signature_id <value>] [--abi <contract.abi.json>] [--sign <seed_or_keyfile>] <address> <method> <params> [--lifetime <seconds>]
+ever-cli message [--raw] [--output <path_to_file>] [--signature_id <value>] [--abi <contract.abi.json>] [--sign <seed_or_keyfile>] <address> <method> <params> [--lifetime <seconds>]
 ```
 
 `--raw` - use to create raw message boc.
@@ -1420,13 +1420,13 @@ or
 
 `lifetime` – message lifetime in seconds. Once this time elapses, the message will not be accepted by the contract.
 
-The TONOS-CLI utility displays encrypted message text and a QR code that also contains the message.Copy the message text or scan the QR code and broadcast the message online.
+The EVER-CLI utility displays encrypted message text and a QR code that also contains the message.Copy the message text or scan the QR code and broadcast the message online.
 
 Example (raw boc of create new multisig transaction message with a lifetime of 1 hour saved to file):
 
 ```bash
-$ tonos-cli message --raw --output message.boc --sign k1.keys.json --abi SafeMultisigWallet.abi.json 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc submitTransaction '{"dest":"-1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6","value":234000000,"bounce":false,"allBalance":false,"payload":""}' --lifetime 3600
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli message --raw --output message.boc --sign k1.keys.json --abi SafeMultisigWallet.abi.json 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc submitTransaction '{"dest":"-1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6","value":234000000,"bounce":false,"allBalance":false,"payload":""}' --lifetime 3600
+Config: /home/user/ever-cli.conf.json
 Input arguments:
  address: 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc
   method: submitTransaction
@@ -1447,18 +1447,18 @@ Message saved to file message.boc
 Use the following command to send a previously generated message, that is not in raw format, and not in a file:
 
 ```bash
-tonos-cli send [--abi <contract.abi.json>] "<message_text>"
+ever-cli send [--abi <contract.abi.json>] "<message_text>"
 ```
 
 `<contract.abi.json>` - contract interface file.
 
-`<message_text>` – the content of the message generated by the TONOS-CLI utility during message creation. It should be enclosed in double quotes.
+`<message_text>` – the content of the message generated by the EVER-CLI utility during message creation. It should be enclosed in double quotes.
 
 Example:
 
 ```bash
-$ tonos-cli send --abi SafeMultisigWallet.abi.json "7b226d7367223a7b226d6573736167655f6964223a2266363364666332623030373065626264386365643265333865373832386630343837326465643036303735376665373430376534393037646266663338626261222c226d657373616765223a227465366363674542424145413051414252596742534d553677767679593746624464704a365a5748706b4c7846304545726f4b4a36775165555369536633674d41514868757856507a324c5376534e663344454a2f374866653165562f5a78324d644e6b4b727770323865397a7538376a4d6e7275374c48685965367642523141756c48784b44446e4e62344f47686768386e6b6b7a48386775456e7551422f655a61324d326d32546539794234723636447a61364c34635258306f744a4b465661434177414141586c4d464e7077594a61616b524d64677332414341574f663459757151715976325233654e776d49655834517048686e37537a75624c76524838657931425a6a617a6a414141414141414141414141414141414a4d61735142414d4141413d3d222c22657870697265223a313632303438323730352c2261646472657373223a22303a61343632396436313764663933316438616438366564323466346361633364333231373838626130383235373431343466353832306632383934343933666263227d2c226d6574686f64223a227375626d69745472616e73616374696f6e227d"
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli send --abi SafeMultisigWallet.abi.json "7b226d7367223a7b226d6573736167655f6964223a2266363364666332623030373065626264386365643265333865373832386630343837326465643036303735376665373430376534393037646266663338626261222c226d657373616765223a227465366363674542424145413051414252596742534d553677767679593746624464704a365a5748706b4c7846304545726f4b4a36775165555369536633674d41514868757856507a324c5376534e663344454a2f374866653165562f5a78324d644e6b4b727770323865397a7538376a4d6e7275374c48685965367642523141756c48784b44446e4e62344f47686768386e6b6b7a48386775456e7551422f655a61324d326d32546539794234723636447a61364c34635258306f744a4b465661434177414141586c4d464e7077594a61616b524d64677332414341574f663459757151715976325233654e776d49655834517048686e37537a75624c76524838657931425a6a617a6a414141414141414141414141414141414a4d61735142414d4141413d3d222c22657870697265223a313632303438323730352c2261646472657373223a22303a61343632396436313764663933316438616438366564323466346361633364333231373838626130383235373431343466353832306632383934343933666263227d2c226d6574686f64223a227375626d69745472616e73616374696f6e227d"
+Config: /home/user/ever-cli.conf.json
 Input arguments:
  message: 7b226d7367223a7b226d6573736167655f6964223a2266363364666332623030373065626264386365643265333865373832386630343837326465643036303735376665373430376534393037646266663338626261222c226d657373616765223a227465366363674542424145413051414252596742534d553677767679593746624464704a365a5748706b4c7846304545726f4b4a36775165555369536633674d41514868757856507a324c5376534e663344454a2f374866653165562f5a78324d644e6b4b727770323865397a7538376a4d6e7275374c48685965367642523141756c48784b44446e4e62344f47686768386e6b6b7a48386775456e7551422f655a61324d326d32546539794234723636447a61364c34635258306f744a4b465661434177414141586c4d464e7077594a61616b524d64677332414341574f663459757151715976325233654e776d49655834517048686e37537a75624c76524838657931425a6a617a6a414141414141414141414141414141414a4d61735142414d4141413d3d222c22657870697265223a313632303438323730352c2261646472657373223a22303a61343632396436313764663933316438616438366564323466346361633364333231373838626130383235373431343466353832306632383934343933666263227d2c226d6574686f64223a227375626d69745472616e73616374696f6e227d
      abi: SafeMultisigWallet.abi.json
@@ -1487,7 +1487,7 @@ Result: {
 Use the following command to send a previously generated message, that is stored in a .boc file:
 
 ```bash
-tonos-cli sendfile <path_to_boc_file>
+ever-cli sendfile <path_to_boc_file>
 ```
 
 `<path_to_boc_file>` – path to the file where the message was saved.
@@ -1495,8 +1495,8 @@ tonos-cli sendfile <path_to_boc_file>
 Example:
 
 ```bash
-$ tonos-cli sendfile /home/user/ton/message.boc
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli sendfile /home/user/ton/message.boc
+Config: /home/user/ever-cli.conf.json
 Input arguments:
      boc: /home/user/ton/message.boc
 Connecting to net.evercloud.dev
@@ -1511,7 +1511,7 @@ Succeded.
 Use the following command to decode previously generated messages in .boc files.
 
 ```bash
-tonos-cli decode msg --abi <contract.abi.json> <path_to_boc_file>
+ever-cli decode msg --abi <contract.abi.json> <path_to_boc_file>
 ```
 
 `<contract.abi.json>` - contract ABI file.
@@ -1521,8 +1521,8 @@ tonos-cli decode msg --abi <contract.abi.json> <path_to_boc_file>
 Example:
 
 ```bash
-$ tonos-cli decode msg --abi SafeMultisigWallet.abi.json /home/user/ton/message.boc
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli decode msg --abi SafeMultisigWallet.abi.json /home/user/ton/message.boc
+Config: /home/user/ever-cli.conf.json
 Input arguments:
      msg: /home/user/ton/message.boc
      abi: SafeMultisigWallet.abi.json
@@ -1547,7 +1547,7 @@ submitTransaction: {
 Use the following command to decode previously generated message body (can be obtained by decoding message .boc file).
 
 ```bash
-tonos-cli decode body --abi <contract.abi.json> "<message_body>"
+ever-cli decode body --abi <contract.abi.json> "<message_body>"
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -1555,8 +1555,8 @@ tonos-cli decode body --abi <contract.abi.json> "<message_body>"
 `<message_body>` - Message body encoded as base64.
 
 ```bash
-$ tonos-cli decode body --abi SafeMultisigWallet.abi.json "te6ccgEBAwEAqwAB4diOBnSVls3D8/zEb/Uj6hIfwKrdG2uRyCWmWx+mpFtdbaZNBcTW3yS3QiwLR8NgoqLcqoDsGwDA/RbrJLen+wXhJ7kAf3mWtjNptk3vcgeK+ug82ui+HEV9KLSShVWggMAAAF5S//FEWCWlSsTHYLNgAQFjn+GLqkKmL9kd3jcJiHl+EKR4Z+0s7my70R/HstQWY2s4wAAAAAAAAAAAAAAAAb5R0AQCAAA="
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli decode body --abi SafeMultisigWallet.abi.json "te6ccgEBAwEAqwAB4diOBnSVls3D8/zEb/Uj6hIfwKrdG2uRyCWmWx+mpFtdbaZNBcTW3yS3QiwLR8NgoqLcqoDsGwDA/RbrJLen+wXhJ7kAf3mWtjNptk3vcgeK+ug82ui+HEV9KLSShVWggMAAAF5S//FEWCWlSsTHYLNgAQFjn+GLqkKmL9kd3jcJiHl+EKR4Z+0s7my70R/HstQWY2s4wAAAAAAAAAAAAAAAAb5R0AQCAAA="
+Config: /home/user/ever-cli.conf.json
 Input arguments:
     body: te6ccgEBAwEAqwAB4diOBnSVls3D8/zEb/Uj6hIfwKrdG2uRyCWmWx+mpFtdbaZNBcTW3yS3QiwLR8NgoqLcqoDsGwDA/RbrJLen+wXhJ7kAf3mWtjNptk3vcgeK+ug82ui+HEV9KLSShVWggMAAAF5S//FEWCWlSsTHYLNgAQFjn+GLqkKmL9kd3jcJiHl+EKR4Z+0s7my70R/HstQWY2s4wAAAAAAAAAAAAAAAAb5R0AQCAAA=
      abi: SafeMultisigWallet.abi.json
@@ -1576,8 +1576,8 @@ submitTransaction: {
 Use the following command to decode data fields of the contract.
 
 ```bash
-tonos-cli decode account data --abi <contract.abi.json> --addr <contract_address>
-tonos-cli decode account data --abi <contract.abi.json> --tvc <contract_file>
+ever-cli decode account data --abi <contract.abi.json> --addr <contract_address>
+ever-cli decode account data --abi <contract.abi.json> --tvc <contract_file>
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -1586,8 +1586,8 @@ Contract address on blockchain or path to the file with contract's StateInit can
 with options `--addr` and `--tvc` respectively.
 
 ```bash
-$ tonos-cli decode account data --abi tests/test_abi_v2.1.abi.json --tvc tests/decode_fields.tvc
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli decode account data --abi tests/test_abi_v2.1.abi.json --tvc tests/decode_fields.tvc
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
      tvc: tests/decode_fields.tvc
      abi: tests/test_abi_v2.1.abi.json
@@ -1615,7 +1615,7 @@ Use the following command to decode data from the file with BOC of the account a
 StateInit to a separate file if needed.
 
 ```bash
-tonos-cli decode account boc <boc_file> [--dumptvc <tvc_path>]
+ever-cli decode account boc <boc_file> [--dumptvc <tvc_path>]
 ```
 
 `<boc_file>` - path to the file with BOC of the account. E.g. it can be obtained from
@@ -1623,8 +1623,8 @@ the TON Live.
 `--dumptvc <tvc_path>` - this flag can be specified to dump account StateInit to the <tvc_path> file.
 
 ```bash
-$ tonos-cli decode account boc tests/account.boc --dumptvc acc.tvc
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli decode account boc tests/account.boc --dumptvc acc.tvc
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
      boc: tests/account.boc
 tvc_path: acc.tvc
@@ -1648,7 +1648,7 @@ state_init:
 StateInit can be decoded for network account or file with account BOC or TVC.
 
 ```bash
-tonos-cli decode stateinit [--tvc] [--boc] <input>
+ever-cli decode stateinit [--tvc] [--boc] <input>
 ```
 
 `<input>` - depending on the flags this parameter should contain:
@@ -1657,8 +1657,8 @@ tonos-cli decode stateinit [--tvc] [--boc] <input>
 - contract network address otherwise.
 
 ```bash
-$ tonos-cli decode stateinit --boc account.boc
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli decode stateinit --boc account.boc
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
    input: account.boc
 Decoded data:
@@ -1675,7 +1675,7 @@ Decoded data:
   "lib":  ""
 }
 
-$ tonos-cli decode stateinit --tvc fakeDepool.tvc
+$ ever-cli decode stateinit --tvc fakeDepool.tvc
 Config: default
 Input arguments:
    input: fakeDepool.tvc
@@ -1693,8 +1693,8 @@ Decoded data:
   "lib":  ""
 }
 
-$ tonos-cli decode stateinit 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli decode stateinit 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
    input: 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
 Connecting to http://127.0.0.1/
@@ -1718,7 +1718,7 @@ Decoded data:
 Use the following command to generate payload for internal function call:
 
 ```bash
-tonos-cli body [--abi <contract.abi.json>] <method> <params>
+ever-cli body [--abi <contract.abi.json>] <method> <params>
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -1730,8 +1730,8 @@ tonos-cli body [--abi <contract.abi.json>] <method> <params>
 Example:
 
 ```bash
-$ tonos-cli body submitTransaction '{"dest":"-1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6","value":234000000,"bounce":false,"allBalance":false,"payload":""}' --abi SetcodeMultisigWallet.abi.json
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli body submitTransaction '{"dest":"-1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6","value":234000000,"bounce":false,"allBalance":false,"payload":""}' --abi SetcodeMultisigWallet.abi.json
+Config: /home/user/ever-cli.conf.json
 Input arguments:
   method: submitTransaction
   params: {"dest":"-1:0c5d5215317ec8eef1b84c43cbf08523c33f69677365de88fe3d96a0b31b59c6","value":234000000,"bounce":false,"allBalance":false,"payload":""}
@@ -1742,48 +1742,48 @@ Message body: te6ccgEBAgEAOwABaxMdgs2f4YuqQqYv2R3eNwmIeX4QpHhn7SzubLvRH8ey1BZjaz
 
 ## 4.10. Alternative syntax for call, deploy and run commands
 
-To facilitate usage of tonos-cli use commands `callx`, `runx` and `deployx` instead of `call`, `run` and `deploy`.
+To facilitate usage of ever-cli use commands `callx`, `runx` and `deployx` instead of `call`, `run` and `deploy`.
 These alternative syntax commands have almost the same syntax as classic, but allow to specify address, abi and keys
 options in the config file. Also, this commands allow to skip params option if command doesn't need it.
 Examples:
 
 ```bash
 # specify options manually
-tonos-cli callx --keys giver.key --abi giver.abi.json --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 -m sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
+ever-cli callx --keys giver.key --abi giver.abi.json --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 -m sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
 
 # options are taken from the config
-tonos-cli config --abi giver.abi.json --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --keys giver.key
-tonos-cli callx -m sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
+ever-cli config --abi giver.abi.json --addr 0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --keys giver.key
+ever-cli callx -m sendGrams --dest 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94 --amount 1000000000
 
 # if contract function or constructor doesn't take arguments, parameters can be skipped
-tonos-cli deployx contract.tvc
-tonos-cli runx -m getParameters
+ever-cli deployx contract.tvc
+ever-cli runx -m getParameters
 
 # method and parameters can be specified in config
-tonos-cli config --method add --parameters '{"value":1}' --addr 0:41af055743c85ba58fcaead78fa45b017f265c9351b5275ad76bf58be11760fd --abi ../samples/1_Accumulator.abi.json --keys keys/key0
-tonos-cli callx
-tonos-cli config --method sum --parameters '{}'
-tonos-cli runx
+ever-cli config --method add --parameters '{"value":1}' --addr 0:41af055743c85ba58fcaead78fa45b017f265c9351b5275ad76bf58be11760fd --abi ../samples/1_Accumulator.abi.json --keys keys/key0
+ever-cli callx
+ever-cli config --method sum --parameters '{}'
+ever-cli runx
 ```
 
-If some parameters have names equal to options, use can tell the tonos-cli that you have started mentioning parameters
+If some parameters have names equal to options, use can tell the ever-cli that you have started mentioning parameters
 by using empty `--`. Examples:
 
 ```bash
 # abi, addr, keys and method are specified as options and after `--` they are specified again as arguments.
-tonos-cli callx --abi arguments.abi.json --addr 0:62c2040f7f7406732037c1856e91732be3f9907b94fb34f53ba664ba94b228f6 --keys argument.key --method add -- --addr 2 --keys 3 --abi 4 --method 5
+ever-cli callx --abi arguments.abi.json --addr 0:62c2040f7f7406732037c1856e91732be3f9907b94fb34f53ba664ba94b228f6 --keys argument.key --method add -- --addr 2 --keys 3 --abi 4 --method 5
 # abi, addr, key and method are specified as arguments because `--` is specified in the beginning. Abi, addr, keys and method options are taken from the config.
-tonos-cli callx -- --addr 2 --keys 3 --abi 4 --method 5
+ever-cli callx -- --addr 2 --keys 3 --abi 4 --method 5
 ```
 
 # 5. DeBot commands
 
-TONOS-CLI has a built-in DeBot <link to DeBots repo> browser, which is regularly updated with the most recent versions of DEngine <link to DEngine>.
+EVER-CLI has a built-in DeBot <link to DeBots repo> browser, which is regularly updated with the most recent versions of DEngine <link to DEngine>.
 
 To call a DeBot, use the following command:
 
 ```bash
-tonos-cli debot fetch <--debug> <debot_address>
+ever-cli debot fetch <--debug> <debot_address>
 ```
 
 `<debot_address>` - address of the DeBot contract.
@@ -1793,8 +1793,8 @@ tonos-cli debot fetch <--debug> <debot_address>
 Example:
 
 ```bash
-$ tonos-cli debot fetch 0:09403116d2d04f3d86ab2de138b390f6ec1b0bc02363dbf006953946e807051e
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli debot fetch 0:09403116d2d04f3d86ab2de138b390f6ec1b0bc02363dbf006953946e807051e
+Config: /home/user/ever-cli.conf.json
 Connecting to net.evercloud.dev
 DeBot Info:
 Name   : Multisig
@@ -1822,7 +1822,7 @@ no need of ABI files.
 Use the following command to send tokens to any recipient:
 
 ```bash
-tonos-cli multisig send --addr <sender_address> --dest <recipient_address> --purpose <"text_in_quotes"> --sign <path_to_keys_or_seed_phrase> --value *number* [--v2]
+ever-cli multisig send --addr <sender_address> --dest <recipient_address> --purpose <"text_in_quotes"> --sign <path_to_keys_or_seed_phrase> --value *number* [--v2]
 ```
 
 `<sender_address>` - address of the multisig wallet that tokens are sent from.
@@ -1840,8 +1840,8 @@ tonos-cli multisig send --addr <sender_address> --dest <recipient_address> --pur
 Example:
 
 ```bash
-$ tonos-cli multisig send --addr 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --dest 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc --purpose "test transaction" --sign key.json --value 6
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli multisig send --addr 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --dest 0:a4629d617df931d8ad86ed24f4cac3d321788ba082574144f5820f2894493fbc --purpose "test transaction" --sign key.json --value 6
+Config: /home/user/ever-cli.conf.json
 Connecting to net.evercloud.dev
 Generating external inbound message...
 
@@ -1859,7 +1859,7 @@ Result: {
 Use the following command to deploy a multisignature wallet:
 
 ```bash
-tonos-cli multisig deploy [--setcode] [--v2] [--owners <owners_list>] [--confirms <confirms_cnt>] [--local <local_giver_value>] --keys <path_to_keys_or_seed_phrase>
+ever-cli multisig deploy [--setcode] [--v2] [--owners <owners_list>] [--confirms <confirms_cnt>] [--local <local_giver_value>] --keys <path_to_keys_or_seed_phrase>
 ```
 
 `--setcode` - flag that changes type of the wallet to the SetcodeMultisigWallet. If not specified, a SafeMultisigWallet is deployed.
@@ -1879,8 +1879,8 @@ List of owners must be specified by their public keys in hex format, split by th
 Example:
 
 ```bash
-$ tonos-cli multisig deploy -k "young tell target alter sport dignity enforce improve pottery fashion alert genuine" --local 1_000_000_000
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli multisig deploy -k "young tell target alter sport dignity enforce improve pottery fashion alert genuine" --local 1_000_000_000
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Wallet address: 0:4d892e63989c1c0ad64b0bbe22e8d036b0da271c19b6686d01bd29a99dcbc86d
 Connecting to http://127.0.0.1/
 Expire at: Mon, 13 Sep 2021 14:55:29 +0300
@@ -1890,25 +1890,25 @@ Wallet successfully deployed
 Wallet address: 0:4d892e63989c1c0ad64b0bbe22e8d036b0da271c19b6686d01bd29a99dcbc86d
 
 # deploy with owners
-tonos-cli multisig deploy -l 5000000000 -c 2 -o 8b445b0feab10b9abf4e039d649348ec8662e3673fe9c37b7208c4d9d04c9b3f,ddc5bc7198c90feb75d9ce09e1b1f25a7e14a252fef31b50fac048c6ac3ee46c -k test.key
+ever-cli multisig deploy -l 5000000000 -c 2 -o 8b445b0feab10b9abf4e039d649348ec8662e3673fe9c37b7208c4d9d04c9b3f,ddc5bc7198c90feb75d9ce09e1b1f25a7e14a252fef31b50fac048c6ac3ee46c -k test.key
 ```
 
 # 7. DePool commands
 
-## 7.1. Configure TONOS-CLI for DePool operations
+## 7.1. Configure EVER-CLI for DePool operations
 
 For all commands listed below, the DePool address, the wallet making the stake, the amount of fee to pay for DePool's
-services and the path to the keyfile/seed phrase may be specified in the TONOS-CLI config file in advance:
+services and the path to the keyfile/seed phrase may be specified in the EVER-CLI config file in advance:
 
 ```bash
-tonos-cli config --addr <address> --wallet <address> --no-answer true | false --keys <path_to_keys or seed_phrase> --depool_fee <depool_fee>
+ever-cli config --addr <address> --wallet <address> --no-answer true | false --keys <path_to_keys or seed_phrase> --depool_fee <depool_fee>
 ```
 
 `--addr <address>` - the address of the DePool
 
 `--wallet <address>` - the address of the wallet making the stake
 
-`--no-answer true | false` - no-answer flag, which determines, whether TONOS-CLI waits for DePool answer when performing various actions and prints it out, or simply generates and sends a transaction through the specified multisig wallet, without monitoring transaction results in the DePool. By default, is set to `true`. Setting to false can be useful for catching rejected stakes or other errors on the DePool side.
+`--no-answer true | false` - no-answer flag, which determines, whether EVER-CLI waits for DePool answer when performing various actions and prints it out, or simply generates and sends a transaction through the specified multisig wallet, without monitoring transaction results in the DePool. By default, is set to `true`. Setting to false can be useful for catching rejected stakes or other errors on the DePool side.
 
 `<path_to_keys or seed_phrase>` - either the keyfile for the wallet making the stake, or the seed phrase in quotes
 
@@ -1917,7 +1917,7 @@ tonos-cli config --addr <address> --wallet <address> --no-answer true | false --
 Example:
 
 ```bash
-tonos-cli config --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --no-answer false --keys "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel" --depool_fee 0.8
+ever-cli config --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --no-answer false --keys "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel" --depool_fee 0.8
 ```
 
 In this case all DePool commands allow to omit `--addr`, `--wallet`, `--wait-answer` and `--sign` options.
@@ -1927,8 +1927,8 @@ Below is an example of similar DePool commands with and without waiting for DePo
 With waiting for DePool answer:
 
 ```bash
-$ tonos-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf stake ordinary --value 25 --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --sign key.json --wait-answer
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf stake ordinary --value 25 --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --sign key.json --wait-answer
+Config: /home/user/ever-cli.conf.json
 Input arguments:
   depool: 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf
   wallet: 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
@@ -1963,8 +1963,8 @@ Done
 Same command without waiting for DePool answer:
 
 ```bash
-$ tonos-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf stake ordinary --value 25 --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --sign key.json
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf stake ordinary --value 25 --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --sign key.json
+Config: /home/user/ever-cli.conf.json
 Input arguments:
   depool: 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf
   wallet: 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
@@ -1999,7 +1999,7 @@ Ordinary stake must exceed DePool minimum stake. Check DePool's page on [ton.liv
 the minimum stake.
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake ordinary [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
+ever-cli depool [--addr <depool_address>] stake ordinary [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 `<depool_address>` - address of the DePool contract.
@@ -2010,14 +2010,14 @@ all --value parameters must be defined in tons, like this: `--value 10.5`, which
 
 `<key_file or seed_phrase>` - either the keyfile for the wallet making the stake, or the seed phrase in quotes.
 
-`--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+`--wait-answer` - optional flag, which forces EVER-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
 `--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
 ```bash
-tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake ordinary --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 100.5 --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
+ever-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake ordinary --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 100.5 --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
 ```
 
 ### 7.2.2. Vesting stake
@@ -2032,7 +2032,7 @@ unauthorized vestings from blocking the beneficiary from receiving an expected v
 - set the donor address with the following command:
 
 ```bash
-tonos-cli depool [--addr <depool_address>] donor vesting [--wallet <beneficiary_address>] --donor <donor_address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
+ever-cli depool [--addr <depool_address>] donor vesting [--wallet <beneficiary_address>] --donor <donor_address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 `<depool_address>` - address of the DePool contract.
@@ -2043,14 +2043,14 @@ tonos-cli depool [--addr <depool_address>] donor vesting [--wallet <beneficiary_
 
 `<key_file or seed_phrase>` - either the keyfile for the beneficiary wallet, or the seed phrase in quotes.
 
-`--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+`--wait-answer` - optional flag, which forces EVER-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
 `--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
 ```bash
-tonos-cli depool --addr 0:3187b4d738d69776948ca8543cb7d250c042d7aad1e0aa244d247531590b9147 donor vesting --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --donor 0:279afdbd7b2cbf9e65a5d204635a8630aec2baec60916ffdc9c79a09d2d2893d --sign "deal hazard oak major glory meat robust teach crush plastic point edge"
+ever-cli depool --addr 0:3187b4d738d69776948ca8543cb7d250c042d7aad1e0aa244d247531590b9147 donor vesting --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --donor 0:279afdbd7b2cbf9e65a5d204635a8630aec2baec60916ffdc9c79a09d2d2893d --sign "deal hazard oak major glory meat robust teach crush plastic point edge"
 ```
 
 Not the whole stake is available to the beneficiary at once. Instead, it is split into parts and the next part of stake
@@ -2066,7 +2066,7 @@ stake should exceed `validatorAssurance` *2. Similarly, to ensure any vesting st
 **Donor uses the following command to make a vesting stake:**
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake vesting [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
+ever-cli depool [--addr <depool_address>] stake vesting [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2087,14 +2087,14 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, whi
 
 `<key_file or seed_phrase>` - either the keyfile for the donor wallet making the stake, or the seed phrase in quotes.
 
-`--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+`--wait-answer` - optional flag, which forces EVER-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
 `--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
 ```bash
-tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake vesting --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 1000 --total 360 --withdrawal 30 --beneficiary 0:f22e02a1240dd4b5201f8740c38f2baf5afac3cedf8f97f3bd7cbaf23c7261e3 --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
+ever-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake vesting --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 1000 --total 360 --withdrawal 30 --beneficiary 0:f22e02a1240dd4b5201f8740c38f2baf5afac3cedf8f97f3bd7cbaf23c7261e3 --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
 ```
 
 > Note: Each participant can concurrently be the beneficiary of only one vesting stake. Once the current vesting stake expires, another can be made for the participant.
@@ -2112,7 +2112,7 @@ beneficiary from receiving an expected lock stake from a known address.
 - set the donor address with the following command:
 
 ```bash
-tonos-cli depool [--addr <depool_address>] donor lock [--wallet <beneficiary_address>] --donor <donor_address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
+ever-cli depool [--addr <depool_address>] donor lock [--wallet <beneficiary_address>] --donor <donor_address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2125,14 +2125,14 @@ Where
 
 `<key_file or seed_phrase>` - either the keyfile for the beneficiary wallet, or the seed phrase in quotes.
 
-`--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+`--wait-answer` - optional flag, which forces EVER-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
 `--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
 ```bash
-tonos-cli depool --addr 0:3187b4d738d69776948ca8543cb7d250c042d7aad1e0aa244d247531590b9147 donor lock --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --donor 0:279afdbd7b2cbf9e65a5d204635a8630aec2baec60916ffdc9c79a09d2d2893d --sign "deal hazard oak major glory meat robust teach crush plastic point edge"
+ever-cli depool --addr 0:3187b4d738d69776948ca8543cb7d250c042d7aad1e0aa244d247531590b9147 donor lock --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --donor 0:279afdbd7b2cbf9e65a5d204635a8630aec2baec60916ffdc9c79a09d2d2893d --sign "deal hazard oak major glory meat robust teach crush plastic point edge"
 ```
 
 Like vesting stake, lock stake can be configured to be unlocked in parts at the end of each round that coincides with
@@ -2148,7 +2148,7 @@ should equal `validatorAssurance` *2. Similarly, to ensure any vesting stake is 
 **Donor uses the following command to make a lock stake:**
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake lock [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
+ever-cli depool [--addr <depool_address>] stake lock [--wallet <msig_address>] --value <number> --total <days> --withdrawal <days> --beneficiary <address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2169,14 +2169,14 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, whi
 
 `key_file or seed_phrase` - either the keyfile for the donor wallet making the stake, or the seed phrase in quotes.
 
-`--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+`--wait-answer` - optional flag, which forces EVER-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
 `--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
 ```bash
-tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake lock --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 1000 --total 360 --withdrawal 30 --beneficiary 0:f22e02a1240dd4b5201f8740c38f2baf5afac3cedf8f97f3bd7cbaf23c7261e3 --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
+ever-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake lock --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 1000 --total 360 --withdrawal 30 --beneficiary 0:f22e02a1240dd4b5201f8740c38f2baf5afac3cedf8f97f3bd7cbaf23c7261e3 --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
 ```
 
 > Note: Each participant can concurrently be the beneficiary of only one lock stake. Once the current lock stake expires, another can be made for the participant.
@@ -2186,7 +2186,7 @@ tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2
 This command removes an ordinary stake from a pooling round (while it has not been staked in the Elector yet):
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake remove [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
+ever-cli depool [--addr <depool_address>] stake remove [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2199,14 +2199,14 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, whi
 
 `<key_file or seed_phrase>` - either the keyfile for the wallet making the stake, or the seed phrase in quotes.
 
-`--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+`--wait-answer` - optional flag, which forces EVER-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
 `--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
 ```bash
-tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake remove --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 100 --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
+ever-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake remove --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 100 --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
 ```
 
 ## 7.4. Transfer stakes
@@ -2216,7 +2216,7 @@ the stake is transferred, the transferring wallet is removed from the list of pa
 receiving wallet isn't listed among the participants, it will become a participant as the result of the command.
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake transfer [--wallet <msig_address>] --value <number> --dest <address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
+ever-cli depool [--addr <depool_address>] stake transfer [--wallet <msig_address>] --value <number> --dest <address> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2231,14 +2231,14 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, whi
 
 `<key_file or seed_phrase>` - either the keyfile for the wallet making the stake, or the seed phrase in quotes.
 
-`--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+`--wait-answer` - optional flag, which forces EVER-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
 `--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
 ```bash
-tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake transfer --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 1000 --dest 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
+ever-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake transfer --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 1000 --dest 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
 ```
 
 > Note: Stakes cannot be transferred from or to DePool's validator wallet, and between any wallets during round completion step.
@@ -2252,7 +2252,7 @@ available. Use `withdraw on` to receive the stake, once it's unlocked. If you th
 reinvesting it every round, run the command with `withdraw off`.
 
 ```bash
-tonos-cli depool [--addr <depool_address>] withdraw on | off [--wallet <msig_address>] [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
+ever-cli depool [--addr <depool_address>] withdraw on | off [--wallet <msig_address>] [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2263,14 +2263,14 @@ Where
 
 `<key_file or seed_phrase>` - either the keyfile for the wallet that made the stake, or the seed phrase in quotes.
 
-`--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+`--wait-answer` - optional flag, which forces EVER-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
 `--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
 ```bash
-tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace withdraw on --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
+ever-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace withdraw on --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
 ```
 
 ### 7.5.2. Withdraw part of the stake
@@ -2280,7 +2280,7 @@ becomes available. If, as result of this withdrawal, participant's ordinary stak
 participant's whole stake is sent to participant.
 
 ```bash
-tonos-cli depool [--addr <depool_address>] stake withdrawPart [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
+ever-cli depool [--addr <depool_address>] stake withdrawPart [--wallet <msig_address>] --value <number> [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 Where
@@ -2293,14 +2293,14 @@ all `--value` parameters must be defined in tons, like this: `--value 10.5`, whi
 
 `<key_file or seed_phrase>` - either the keyfile for the wallet that made the stake, or the seed phrase in quotes.
 
-`--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+`--wait-answer` - optional flag, which forces EVER-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
 `--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
 ```bash
-tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake withdrawPart --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 1000 --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
+ever-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace stake withdrawPart --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --value 1000 --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
 ```
 
 ## 7.6. Reinvest Stakes
@@ -2312,7 +2312,7 @@ remains set to `no`. To re-enable ordinary stake reinvesting after withdrawing a
 option `off`:
 
 ```bash
-tonos-cli depool [--addr <depool_address>] withdraw off [--wallet <msig_address>] [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
+ever-cli depool [--addr <depool_address>] withdraw off [--wallet <msig_address>] [--sign <key_file or seed_phrase>] [--wait-answer] [--v2]
 ```
 
 `<depool_address>` - address of the DePool contract.
@@ -2321,14 +2321,14 @@ tonos-cli depool [--addr <depool_address>] withdraw off [--wallet <msig_address>
 
 `<key_file or seed_phrase>` - either the keyfile for the wallet that made the stake, or the seed phrase in quotes.
 
-`--wait-answer` - optional flag, which forces TONOS-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
+`--wait-answer` - optional flag, which forces EVER-CLI to wait for DePool answer when performing the action and print out the resulting message. Without it only the results of the multisig transaction to DePool will be displayed.
 
 `--v2` - optional flag, force to interpret wallet as multisig v2.
 
 Example:
 
 ```bash
-tonos-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace withdraw off --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
+ever-cli depool --addr 0:37fbcb6e3279cbf5f783d61c213ed20fee16e0b1b94a48372d20a2596b700ace withdraw off --wallet 0:1b91c010f35b1f5b42a05ad98eb2df80c302c37df69651e1f5ac9c69b7e90d4e --sign "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
 ```
 
 **Note:**
@@ -2345,7 +2345,7 @@ distributed, DePool sends the participant a message with the relevant details. U
 messages:
 
 ```bash
-tonos-cli depool --addr <depool_address> answers --wallet <msig_address> [--since <unixtime>]
+ever-cli depool --addr <depool_address> answers --wallet <msig_address> [--since <unixtime>]
 ```
 
 `<depool_address>` - address of the DePool contract.
@@ -2357,8 +2357,8 @@ tonos-cli depool --addr <depool_address> answers --wallet <msig_address> [--sinc
 Example:
 
 ```bash
-$ tonos-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf answers --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf answers --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
+Config: /home/user/ever-cli.conf.json
 Connecting to net.evercloud.dev
 34 answers found
 Answer:
@@ -2375,7 +2375,7 @@ Various events occurring in the DePool are broadcasted to the blockchain and can
 to view them:
 
 ```bash
-tonos-cli depool [--addr <depool_address>] events [--since <unixtime>]
+ever-cli depool [--addr <depool_address>] events [--since <unixtime>]
 ```
 
 `<depool_address>` - address of the DePool contract.
@@ -2385,8 +2385,8 @@ tonos-cli depool [--addr <depool_address>] events [--since <unixtime>]
 Example:
 
 ```bash
-$ tonos-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf events --since 1619803870
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf events --since 1619803870
+Config: /home/user/ever-cli.conf.json
 Input arguments:
   depool: 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf
    since: 1619803870
@@ -2410,10 +2410,10 @@ Done
 To wait for a new event, use the following command:
 
 ```bash
-tonos-cli depool [--addr <depool_address>] events --wait-one
+ever-cli depool [--addr <depool_address>] events --wait-one
 ```
 
-TONOS-CLI waits until new event will be emitted and then prints it to terminal.
+EVER-CLI waits until new event will be emitted and then prints it to terminal.
 
 ## 7.9. Replenish DePool balance
 
@@ -2422,7 +2422,7 @@ some cases, when normal operation is interrupted, DePool balance may drop lower.
 DePool balance (this is not counted towards any stake):
 
 ```bash
-tonos-cli depool [--addr <depool_address>] replenish --value *number* [--wallet <msig_address>] [--sign <key_file_or_seed_phrase>] [--v2]
+ever-cli depool [--addr <depool_address>] replenish --value *number* [--wallet <msig_address>] [--sign <key_file_or_seed_phrase>] [--v2]
 ```
 
 `<depool_address>` - address of the DePool contract.
@@ -2438,8 +2438,8 @@ all `--value` parameters must be defined in tons, like this: `--value 150.5`, wh
 Example:
 
 ```bash
-$ tonos-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf replenish --value 5 --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --sign key.json
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf replenish --value 5 --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --sign key.json
+Config: /home/user/ever-cli.conf.json
 Input arguments:
   depool: 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf
   wallet: 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
@@ -2460,11 +2460,11 @@ Result: {
 ## 7.10. Send ticktock to DePool
 
 To operate correctly, DePool needs to receive regular ticktock (state update) calls. One way to set them up, is through
-a TONOS-CLI with the use of a multisig wallet. Use the following command to send a ticktock call (you may set up a
+a EVER-CLI with the use of a multisig wallet. Use the following command to send a ticktock call (you may set up a
 script to run this command regularly):
 
 ```bash
-tonos-cli depool [--addr <depool_address>] ticktock [--wallet <msig_address>] [--sign <path_to_keys_or_seed_phrase>] [--v2]
+ever-cli depool [--addr <depool_address>] ticktock [--wallet <msig_address>] [--sign <path_to_keys_or_seed_phrase>] [--v2]
 ```
 
 - `--addr <depool_address>` - the address of the DePool
@@ -2477,8 +2477,8 @@ tonos-cli depool [--addr <depool_address>] ticktock [--wallet <msig_address>] [-
 Example:
 
 ```bash
-$ tonos-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf ticktock --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --sign key.json
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli depool --addr 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf ticktock --wallet 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3 --sign key.json
+Config: /home/user/ever-cli.conf.json
 Input arguments:
   depool: 0:127ae93241278304fff6b7e5b7b182fd382b6e95b200551061a7354e032e50bf
   wallet: 0:255a3ad9dfa8aa4f3481856aafc7d79f47d50205190bd56147138740e9b177f3
@@ -2505,7 +2505,7 @@ The following commands are used when voting for various FreeTON proposals at
 Use the following command:
 
 ```bash
-tonos-cli proposal create <msig_address> <proposal_address> "<comment>" <path_to_keyfile_or_seed_phrase>
+ever-cli proposal create <msig_address> <proposal_address> "<comment>" <path_to_keyfile_or_seed_phrase>
 ```
 
 `<msig_address>` -  address of judge wallet.
@@ -2526,7 +2526,7 @@ communicated to them.
 Receive proposal transaction ID and use the following command to cast a vote:
 
 ```bash
-tonos-cli proposal vote <msig_address> <proposal_id> <path_to_keyfile_or_seed_phrase>
+ever-cli proposal vote <msig_address> <proposal_id> <path_to_keyfile_or_seed_phrase>
 ```
 
 `<msig_address>` - address of judge wallet.
@@ -2543,7 +2543,7 @@ transaction is executed and the proposal is considered approved.
 Use the following command to read the proposal comment added when the proposal transaction was created:
 
 ```bash
-tonos-cli proposal decode <msig_address> <proposal_id>
+ever-cli proposal decode <msig_address> <proposal_id>
 ```
 
 `<msig_address>` - address of judge wallet.
@@ -2555,7 +2555,7 @@ tonos-cli proposal decode <msig_address> <proposal_id>
 ## 9.1. Get global config
 
 ```bash
-tonos-cli getconfig [<index>]
+ever-cli getconfig [<index>]
 ```
 
 Options:
@@ -2565,8 +2565,8 @@ Options:
 Example (requesting the maximum and minimum numbers of validators on the blockchain):
 
 ```bash
-$ tonos-cli getconfig 16
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli getconfig 16
+Config: /home/user/ever-cli.conf.json
 Input arguments:
    index: 16
 Connecting to net.evercloud.dev
@@ -2582,7 +2582,7 @@ Config p16: {
 The following command calculates node ID from validator public key:
 
 ```bash
-tonos-cli nodeid --pubkey <validator_public_key> | --keypair <path_to_key_or_seed_phrase>
+ever-cli nodeid --pubkey <validator_public_key> | --keypair <path_to_key_or_seed_phrase>
 ```
 
 `<validator_public_key>` - public key of the validator wallet.
@@ -2592,8 +2592,8 @@ tonos-cli nodeid --pubkey <validator_public_key> | --keypair <path_to_key_or_see
 Example:
 
 ```bash
-$ tonos-cli nodeid ---keypair "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
-Config: /home/user/tonos-cli.conf.json
+$ ever-cli nodeid ---keypair "dizzy modify exotic daring gloom rival pipe disagree again film neck fuel"
+Config: /home/user/ever-cli.conf.json
 Input arguments:
      key: None
  keypair: dizzy modify exotic daring gloom rival pipe disagree again film neck fuel
@@ -2603,7 +2603,7 @@ Input arguments:
 ## 9.3. Dump blockchain config
 
 ```bash
-tonos-cli dump config <path>
+ever-cli dump config <path>
 ```
 
 `<path>` - path where to save the blockchain config dump.
@@ -2611,8 +2611,8 @@ tonos-cli dump config <path>
 Example:
 
 ```bash
-$ tonos-cli dump config config.boc
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli dump config config.boc
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
     path: config.boc
 Connecting to main.evercloud.dev
@@ -2624,7 +2624,7 @@ Config successfully saved to config.boc
 Dumps the list of accounts. Files will have address without workchain id as a name.
 
 ```bash
-tonos-cli dump account <list_of_addresses> [--path <dir_path>]
+ever-cli dump account <list_of_addresses> [--path <dir_path>]
 ```
 
 `<list_of_addresses>` - list of account addresses. Addresses should be specified separately with space delimiter.
@@ -2635,8 +2635,8 @@ Example: `0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:1
 Example:
 
 ```bash
-$ tonos-cli dump account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 3333333333333333333333333333333333333333333333333333333333333333
-Config: /home/user/TONLabs/tonos-cli/tonos-cli.conf.json
+$ ever-cli dump account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 3333333333333333333333333333333333333333333333333333333333333333
+Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
 Input arguments:
 addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13, 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566, 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12, 0:3333333333333333333333333333333333333333333333333333333333333333
     path: None
@@ -2654,7 +2654,7 @@ Succeeded.
 Use the following command to update one parameter of the blockchain global config, that is stored in a .json file:
 
 ```bash
-tonos-cli update_config <seqno> <config_master_key_file> <new_param_file>
+ever-cli update_config <seqno> <config_master_key_file> <new_param_file>
 ```
 
 `<seqno>` – current seqno of config contract. It can get from command `seqno` on config account.
@@ -2677,8 +2677,8 @@ Example of new_param_file
 Example:
 
 ```bash
-$ tonos-cli update_config 9 config-master example.json
-Config: /home/user/tonos-cli/tonos-cli.conf.json
+$ ever-cli update_config 9 config-master example.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
    seqno: 9
 config_master: config-master
@@ -2692,7 +2692,7 @@ Message: b5ee9c720101020100850001e589feaaaaaaaaaaaaa...
 The command `account-wait` waits for the change of the `last_trans_lt` account field. It exits with zero exit code upon success (the field has changed before timeout). Otherwise, it exits with non-zero code.
 
 ```bash
-tonos-cli account-wait <address> [--timeout <timeout_in_secs>]
+ever-cli account-wait <address> [--timeout <timeout_in_secs>]
 ```
 
 `<address>` - address of account to wait for.
@@ -2702,7 +2702,7 @@ tonos-cli account-wait <address> [--timeout <timeout_in_secs>]
 Example:
 
 ```bash
-$ tonos-cli account-wait --timeout 10 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
+$ ever-cli account-wait --timeout 10 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
 ...
 Succeeded.
 $ echo $?
@@ -2715,7 +2715,7 @@ The command `query-raw` executes a raw network query by directly calling the `to
 interface.
 
 ```bash
-tonos-cli query-raw <collection> <result> [--filter <filter>] [--limit <limit>] [--order <order>]
+ever-cli query-raw <collection> <result> [--filter <filter>] [--limit <limit>] [--order <order>]
 ```
 
 See relevant SDK documentation to learn about the command's parameters.
@@ -2723,7 +2723,7 @@ See relevant SDK documentation to learn about the command's parameters.
 Examples:
 
 ```bash
-$ tonos-cli --json query-raw accounts "id bits cells" --filter '{ "id": { "eq": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13" } }'
+$ ever-cli --json query-raw accounts "id bits cells" --filter '{ "id": { "eq": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13" } }'
 [
   {
     "id": "0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13",
@@ -2732,7 +2732,7 @@ $ tonos-cli --json query-raw accounts "id bits cells" --filter '{ "id": { "eq": 
   }
 ]
 
-$ tonos-cli --json query-raw accounts "id bits cells" --order '[ { "path": "balance", "direction": "DESC" } ]' --limit 3
+$ ever-cli --json query-raw accounts "id bits cells" --order '[ { "path": "balance", "direction": "DESC" } ]' --limit 3
 [
   {
     "id": "-1:7777777777777777777777777777777777777777777777777777777777777777",
@@ -2761,10 +2761,10 @@ This commands allow user to learn how much funds smart contract can consume.
 ### 9.8.1. Call fee command
 
 This command executes smart contract call locally, calculates fees and prints table of all fees in nanotons.
-Command has the same option as [tonos-cli call](#441-call-contract-on-the-blockchain) command:
+Command has the same option as [ever-cli call](#441-call-contract-on-the-blockchain) command:
 
 ```bash
-tonos-cli fee call  [--abi <contract.abi.json>] [--sign <seed_or_keyfile>] [--saved_config <config_contract_path>] <address> <method> <params>
+ever-cli fee call  [--abi <contract.abi.json>] [--sign <seed_or_keyfile>] [--saved_config <config_contract_path>] <address> <method> <params>
 ```
 
 `<contract.abi.json>` - contract interface file.
@@ -2783,7 +2783,7 @@ format.
 Example:
 
 ```bash
-tonos-cli --json fee call --abi tests/samples/giver_v2.abi.json 0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415 --sign tests/samples/giver_v2.key sendTransaction '{"dest":"0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415","value":1000000,"bounce":false}'
+ever-cli --json fee call --abi tests/samples/giver_v2.abi.json 0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415 --sign tests/samples/giver_v2.key sendTransaction '{"dest":"0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415","value":1000000,"bounce":false}'
 Not set rand_seed_block
 {
   "in_msg_fwd_fee": "2237000",
@@ -2798,10 +2798,10 @@ Not set rand_seed_block
 ### 9.8.2. Deploy fee command
 
 This command executes smart contract deploy locally, calculates fees and prints table of all fees in nanotons.
-Command has the same option as [tonos-cli deploy](#42-deploy-contract) command:
+Command has the same option as [ever-cli deploy](#42-deploy-contract) command:
 
 ```bash
-tonos-cli fee deploy [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc> <params>
+ever-cli fee deploy [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <contract.abi.json>] <contract.tvc> <params>
 ```
 
 `<deploy_seed_or_keyfile>` - can either be the seed phrase used to generate the deployment key pair file or the key pair file itself. If seed phrase is used, enclose it in double quotes.
@@ -2818,7 +2818,7 @@ tonos-cli fee deploy [--sign <deploy_seed_or_keyfile>] [--wc <int8>] [--abi <con
 Example:
 
 ```bash
-tonos-cli --json fee deploy tests/samples/SafeMultisigWallet.tvc '{"owners":["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"],"reqConfirms":1}' --abi tests/samples/SafeMultisigWallet.abi.json --sign tests/deploy_test.key
+ever-cli --json fee deploy tests/samples/SafeMultisigWallet.tvc '{"owners":["0xc8bd66f90d61f7e1e1a6151a0dbe9d8640666920d8c0cf399cbfb72e089d2e41"],"reqConfirms":1}' --abi tests/samples/SafeMultisigWallet.abi.json --sign tests/deploy_test.key
 Not set rand_seed_block
 {
   "in_msg_fwd_fee": "42421000",
@@ -2835,7 +2835,7 @@ Not set rand_seed_block
 This command allows user to calculate storage fees for a deployed contract using it's address.
 
 ```bash
-tonos-cli fee storage [--period <period>] <address>
+ever-cli fee storage [--period <period>] <address>
 ```
 
 `<period>` - Time period in seconds (default value is 1 year).
@@ -2845,7 +2845,7 @@ tonos-cli fee storage [--period <period>] <address>
 Example:
 
 ```bash
-tonos-cli --json fee storage --period 1000000 0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415
+ever-cli --json fee storage --period 1000000 0:ece57bcc6c530283becbbd8a3b24d3c5987cdddc3c8b7b33be6e4a6312490415
 {
   "storage_fee": "332978",
   "period": "1000000"
@@ -2862,19 +2862,19 @@ Example:
 1) Dump blockchain config history to the file.
 
 ```bash
-$ tonos-cli fetch -- -1:5555555555555555555555555555555555555555555555555555555555555555 config.txns
+$ ever-cli fetch -- -1:5555555555555555555555555555555555555555555555555555555555555555 config.txns
 ```
 
 2) Dump account transactions from the network to the file.
 
 ```bash
-$ tonos-cli fetch 0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d 570ddeb8.txns
+$ ever-cli fetch 0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d 570ddeb8.txns
 ```
 where `0:570ddeb8f632e5f9fde198dd4a799192f149f01c8fd360132b38b04bb7761c5d` is an example of account address,
 `570ddeb8.txns` - name of the output file.
 
 ```bash
-$ tonos-cli replay [-e] [-c config.txns] 570ddeb8.txns 197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270
+$ ever-cli replay [-e] [-c config.txns] 570ddeb8.txns 197ee1fe7876d4e2987b5dd24fb6701e76d76f9d08a5eeceb7fe8ca73d9b8270
 ```
 
 Transaction can be replayed with config using option `-c` or with the current network config (option `-e`).
@@ -2885,7 +2885,7 @@ be restored.
 Note 1: last command generates 3 files. The file with the longest name in the form of `<addr>-<txn_id>.boc` is a
 replayed and serialized Account state.
 
-Note 2: to get StateInit (tvc) from Account state use `tonos-cli decode account boc` command with `--dumptvc` option.
+Note 2: to get StateInit (tvc) from Account state use `ever-cli decode account boc` command with `--dumptvc` option.
 
 ### 10.1. How to unfreeze account
 
@@ -2898,7 +2898,7 @@ deploy the extracted tvc to the frozen account. Send 1 ton to its address and th
 
 Example:
 
-`tonos-cli --url main.evercloud.dev call 0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64 deploy --abi deployer.abi.json "{\"stateInit\":\"$(cat state.tvc | base64 -w 0)\",\"value\":500000000,\"dest\":\"-1:618272d6b15fd8f1eaa3cdb61ab9d77ae47ebbfcf7f28d495c727d0e98d523eb\"}"`
+`ever-cli --url main.evercloud.dev call 0:51616debd4296a4598530d57c10a630db6dc677ecbe1500acaefcfdb9c596c64 deploy --abi deployer.abi.json "{\"stateInit\":\"$(cat state.tvc | base64 -w 0)\",\"value\":500000000,\"dest\":\"-1:618272d6b15fd8f1eaa3cdb61ab9d77ae47ebbfcf7f28d495c727d0e98d523eb\"}"`
 
 where `dest` - an address of frozen account, `state.tvc` - extracted account StateInit in step 2.
 
@@ -2938,7 +2938,7 @@ Deployer.abi.json:
 This command allow user to fetch block and save it to the output file.
 
 ```bash
-tonos-cli fetch-block <BLOCKID> <OUTPUT>
+ever-cli fetch-block <BLOCKID> <OUTPUT>
 ```
 
 Options:
@@ -2949,12 +2949,12 @@ Options:
 ## 11. Debug commands
 
 Debug commands allow user to replay transaction locally or execute a function call locally and obtain TVM trace.
-More about debug flow is written in [Debug.md](https://github.com/tonlabs/tonos-cli/blob/master/Debug.md).
+More about debug flow is written in [Debug.md](https://github.com/everx-labs/ever-cli/blob/master/Debug.md).
 
 ### 11.1. Debug transaction
 
 ```bash
-tonos-cli debug transaction [FLAGS] [OPTIONS] <tx_id>
+ever-cli debug transaction [FLAGS] [OPTIONS] <tx_id>
 ```
 
 FLAGS:
@@ -2994,8 +2994,8 @@ execution if the contract needs config is to reuse dump of config transactions b
 Example:
 
 ```bash
-$ tonos-cli debug transaction -o tvm_trace.log 74acbd354e605519d799c7e1e90e52030e8f9e781453e48ecad18bb035fe1586 --empty-config
-Config: /home/user/TONLabs/sol2tvm/scripts/tonos-cli.conf.json
+$ ever-cli debug transaction -o tvm_trace.log 74acbd354e605519d799c7e1e90e52030e8f9e781453e48ecad18bb035fe1586 --empty-config
+Config: /home/user/TONLabs/sol2tvm/scripts/ever-cli.conf.json
 Input arguments:
  address: 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78
    tx_id: 74acbd354e605519d799c7e1e90e52030e8f9e781453e48ecad18bb035fe1586
@@ -3012,7 +3012,7 @@ Log saved to tvm_trace.log.
 ### 11.2. Debug call
 
 ```bash
-tonos-cli debug call [FLAGS] [OPTIONS] [--addr <address>] [-m <method>] <params>
+ever-cli debug call [FLAGS] [OPTIONS] [--addr <address>] [-m <method>] <params>
 ```
 
 FLAGS:
@@ -3057,7 +3057,7 @@ in format of account BOC or pure StateInit TVC. If contract is passed via TVC fi
 with `--address <tvc_address>` option. Also, execution timestamp can be specified with option `--now <timestamp>`.
 
 ```bash
-$ tonos-cli debug call --addr 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb --abi ../samples/2_StorageClient.abi.json --keys keys/key0  -o call.log -m store -- --storageAddress 0:e59d5eee37b399eea0121eac2571d3762779ba88f1c575863f0ed1595caed0e8 --value 257
+$ ever-cli debug call --addr 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb --abi ../samples/2_StorageClient.abi.json --keys keys/key0  -o call.log -m store -- --storageAddress 0:e59d5eee37b399eea0121eac2571d3762779ba88f1c575863f0ed1595caed0e8 --value 257
 Input arguments:
    input: 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb
   method: store
@@ -3076,7 +3076,7 @@ Log saved to call.log
 ### 11.3. Debug run
 
 ```bash
-tonos-cli debug run [FLAGS] [OPTIONS] [--addr <address>] [-m <method>] <params>
+ever-cli debug run [FLAGS] [OPTIONS] [--addr <address>] [-m <method>] <params>
 ```
 
 FLAGS:
@@ -3111,10 +3111,10 @@ ARGUMENTS:
 
 `<params>`     Function arguments. Must be specified in [alternative manner](#410-alternative-syntax-for-call-deploy-and-run-commands) or can be passed as a file path.
 
-This command is similar to `tonos-cli debug call` but allows user to debug get methods.
+This command is similar to `ever-cli debug call` but allows user to debug get methods.
 
 ```bash
-$ tonos-cli debug run --addr 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb --abi ../samples/2_UintStorage.abi.json -o run.log -m value
+$ ever-cli debug run --addr 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb --abi ../samples/2_UintStorage.abi.json -o run.log -m value
 Input arguments:
    input: 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb
   method: value
@@ -3133,7 +3133,7 @@ Log saved to run.log
 ### 11.4. Debug replay transaction on the saved account state
 
 ```bash
-    tonos-cli debug replay [FLAGS] [OPTIONS] <TX_ID> <INPUT>
+    ever-cli debug replay [FLAGS] [OPTIONS] <TX_ID> <INPUT>
 ```
 
 FLAGS:
@@ -3162,7 +3162,7 @@ This command allows replay transaction on the saved account state. This can be u
 transaction execution on the contract state, whose code was replaced to a new one using TVM_LINKER.
 
 ```bash
-$ tonos-cli debug replay --min_trace --update -d 2_StorageClient.dbg.json2 --decode_abi 2_UintStorage.abi.json -o trace2.log 82733d3ddf7cae1d3fa07ec5ce288b7febf3bffd9d229a8e538f62fac10eec3e contract.boc
+$ ever-cli debug replay --min_trace --update -d 2_StorageClient.dbg.json2 --decode_abi 2_UintStorage.abi.json -o trace2.log 82733d3ddf7cae1d3fa07ec5ce288b7febf3bffd9d229a8e538f62fac10eec3e contract.boc
 Config: default
 Input arguments:
    input: contract.boc
@@ -3178,7 +3178,7 @@ Log saved to trace2.log
 ### 11.5. Debug deploy
 
 ```bash
-tonos-cli debug deploy [FLAGS] [OPTIONS] <tvc> <params>
+ever-cli debug deploy [FLAGS] [OPTIONS] <tvc> <params>
 ```
 
 FLAGS:
@@ -3218,7 +3218,7 @@ specified).
 ### 11.6. Debug message
 
 ```bash
-$ tonos-cli debug message [--boc] [--addr <address_or_path>] [-u] [-o <log_path>] <message_in_base64_or_path_to_file>
+$ ever-cli debug message [--boc] [--addr <address_or_path>] [-u] [-o <log_path>] <message_in_base64_or_path_to_file>
 ```
 
 FLAGS:
@@ -3249,7 +3249,7 @@ ARGUMENTS:
 
 This command allows to play message on the contract state locally with trace.
 It can be useful when user wants to play contract interaction locally. User can call one contract locally with
-`tonos-cli debug call` and find output messages in trace log:
+`ever-cli debug call` and find output messages in trace log:
 
 ```log
 Output messages:
@@ -3275,14 +3275,14 @@ Output messages:
 }
 ```
 
-`Message_base64` then can be passed to `tonos-cli debug message` to play it on another account.
+`Message_base64` then can be passed to `ever-cli debug message` to play it on another account.
 
 ### 11.7. Debug account
 
 Allows to debug transaction of the specified account
 
 ```bash
-$ tonos-cli debug account [--addr <address_or_path>] [-o <log_path>] [FLAGS] [OPTIONS]
+$ ever-cli debug account [--addr <address_or_path>] [-o <log_path>] [FLAGS] [OPTIONS]
 ```
 
 FLAGS:
@@ -3312,7 +3312,7 @@ OPTIONS:
 Example:
 
 ```bash
-$ tonos-cli debug account -e --addr 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb
+$ ever-cli debug account -e --addr 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb
 Input arguments:
  address: 0:2eb2365dba1bff21d786d7ceeb9b9641149709790c7b83337ef9e2fb528c69cb
 trace_path: ./trace.log
@@ -3353,7 +3353,7 @@ Log saved to ./trace.log.
 ### 11.8. Render UML sequence diagram
 
 ```bash
-    tonos-cli debug sequence-diagram <address_list>
+    ever-cli debug sequence-diagram <address_list>
 ```
 
 `<address_list>`    File containing a list of account addresses, one address per line. Blank lines and lines starting with # character are ignored.
@@ -3385,9 +3385,9 @@ used by commands `callx` and `runx` instead of address (`--addr`) for more conve
 Example workflow:
 
 ```bash
-$ tonos-cli deployx --abi ../samples/1_Accumulator.abi.json --keys keys/key0 --alias accum ../samples/1_Accumulator.tvc
+$ ever-cli deployx --abi ../samples/1_Accumulator.abi.json --keys keys/key0 --alias accum ../samples/1_Accumulator.tvc
 {}
-$ tonos-cli config alias print
+$ ever-cli config alias print
 {
   "accum": {
     "abi_path": "../samples/1_Accumulator.abi.json",
@@ -3395,13 +3395,13 @@ $ tonos-cli config alias print
     "key_path": "keys/key0"
   }
 }
-$ tonos-cli runx --addr accum -m sum
+$ ever-cli runx --addr accum -m sum
 {
   "sum": "0x0000000000000000000000000000000000000000000000000000000000000000"
 }
-$ tonos-cli callx --addr accum -m add --value 255
+$ ever-cli callx --addr accum -m add --value 255
 {}
-$ tonos-cli runx --addr accum -m sum
+$ ever-cli runx --addr accum -m sum
 {
   "sum": "0x00000000000000000000000000000000000000000000000000000000000000ff"
 }
@@ -3409,17 +3409,17 @@ $ tonos-cli runx --addr accum -m sum
 
 ## 13. Evercloud authentication
 
-Starting from version 0.28.1 tonos-cli can perform [Evercloud](https://dashboard.evercloud.dev/)
+Starting from version 0.28.1 ever-cli can perform [Evercloud](https://dashboard.evercloud.dev/)
 (url: `https://dashboard.evercloud.dev/`) authentication. To use it user can specify config parameters:
 
 ```
 --access_key <ACCESS_KEY>                     Project secret or JWT in Evercloud (dashboard.evercloud.dev).
 --project_id <PROJECT_ID>                     Project Id in Evercloud (dashboard.evercloud.dev).
 
-$ tonos-cli config --project_id 1233316546 --access_key 8465465413246
+$ ever-cli config --project_id 1233316546 --access_key 8465465413246
 Succeeded.
 {
-  "url": "sdk2.dev.tonlabs.io",
+  "url": "sdk2.dev.everx.dev",
   "wc": 0,
   "addr": null,
   "method": null,
@@ -3453,7 +3453,7 @@ Currently `mainnet.evercloud.dev` and `devnet.evercloud.dev` networks require a 
 unauthenticated connection with such error:
 
 ```bash
-$ tonos-cli account -1:3333333333333333333333333333333333333333333333333333333333333333
+$ ever-cli account -1:3333333333333333333333333333333333333333333333333333333333333333
 Input arguments:
 addresses: -1:3333333333333333333333333333333333333333333333333333333333333333
 Connecting to:
@@ -3471,7 +3471,7 @@ This can be fixed by using valid `project_id` and `access_key`. They can be obta
 Example (Note: this authentication credentials are placed just for demonstration and can't be used for real networks):
 
 ```bash
-$ tonos-cli config --project_id b2ad82504ff54fccb5bc6db8cbb3df1e --access_key 27377ff9027d4de792f100eb869e18e8
+$ ever-cli config --project_id b2ad82504ff54fccb5bc6db8cbb3df1e --access_key 27377ff9027d4de792f100eb869e18e8
 Succeeded.
 {
   "url": "main.evercloud.dev",
@@ -3501,7 +3501,7 @@ Succeeded.
     "https://mainnet.evercloud.dev"
   ]
 }
-user@user-ZenBook:~/TONLabs/tonos-cli/target$ tonos-cli account -1:3333333333333333333333333333333333333333333333333333333333333333
+user@user-ZenBook:~/TONLabs/ever-cli/target$ ever-cli account -1:3333333333333333333333333333333333333333333333333333333333333333
 Input arguments:
 addresses: -1:3333333333333333333333333333333333333333333333333333333333333333
 Connecting to:
@@ -3533,18 +3533,18 @@ Connecting to:
 
 ## 14. Sold
 
-Starting from version 0.29.1 [sold](https://github.com/tonlabs/TON-Solidity-Compiler/tree/master/sold) functionality was
-added to the tonos-cli. To use it one should build tonos-cli with corresponding feature:
+Starting from version 0.29.1 [sold](https://github.com/everx-labs/TON-Solidity-Compiler/tree/master/sold) functionality was
+added to the ever-cli. To use it one should build ever-cli with corresponding feature:
 
 ```bash
 $ cargo build --release -F sold
 ```
 
-tonos-cli build with such feature has command `compile solidity` which can compile source files with
-[Solidity](https://github.com/tonlabs/TON-Solidity-Compiler) code.
+ever-cli build with such feature has command `compile solidity` which can compile source files with
+[Solidity](https://github.com/everx-labs/TON-Solidity-Compiler) code.
 
 ```bash
-tonos-cli compile solidity [FLAGS] [OPTIONS] <INPUT>
+ever-cli compile solidity [FLAGS] [OPTIONS] <INPUT>
 ```
 
 FLAGS:
@@ -3576,7 +3576,7 @@ ARGS:
 Example:
 
 ```bash
-$ tonos-cli compile solidity tests/samples/1_Accumulator.sol --genkey contract.key
+$ ever-cli compile solidity tests/samples/1_Accumulator.sol --genkey contract.key
 Contract successfully compiled. Saved to file 1_Accumulator.tvc.
 Contract initial hash: 2712519fefb219d76d640028943fe76287a280e3a9e75a0700147cea4e1b94c6
 Path to the TVC file: ./1_Accumulator.tvc
