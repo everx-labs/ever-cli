@@ -112,7 +112,8 @@ ever-cli <subcommand> -h
   - [11.4. Debug replay transaction on the saved account state](#114-debug-replay-transaction-on-the-saved-account-state)
   - [11.5. Debug deploy](#115-debug-deploy)
   - [11.6. Debug message](#116-debug-message)
-  - [11.7. Render UML sequence diagram](#117-render-uml-sequence-diagram)
+  - [11.7. Debug account](#117-debug-account)
+  - [11.8. Render UML sequence diagram](#118-render-uml-sequence-diagram)
 - [12. Alias functionality](#12-alias-functionality)
 - [13. Evercloud authentication](#13-evercloud-authentication)
 
@@ -694,7 +695,7 @@ Example:
 
 ```bash
 $ ever-cli config alias add msig --addr 0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fcd --abi samples/SafeMultisigWallet.abi.json --keys key0.keys.json
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 {
   "msig": {
     "abi_path": "samples/SafeMultisigWallet.abi.json",
@@ -703,7 +704,7 @@ Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
   }
 }
 $ ever-cli config alias print
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 {
   "msig": {
     "abi_path": "samples/SafeMultisigWallet.abi.json",
@@ -712,7 +713,7 @@ Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
   }
 }
 $ ever-cli config alias add msig2 --addr 0:eef5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fff --abi samples/SafeMultisigWallet.abi.json --keys key1.keys.json
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 {
   "msig": {
     "abi_path": "samples/SafeMultisigWallet.abi.json",
@@ -726,7 +727,7 @@ Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
   }
 }
 $ ever-cli config alias remove msig
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 {
   "msig2": {
     "abi_path": "samples/SafeMultisigWallet.abi.json",
@@ -735,10 +736,10 @@ Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
   }
 }
 $ ever-cli config alias reset
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 {}
 $ ever-cli config alias print
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 {}
 ```
 
@@ -883,7 +884,7 @@ Example:
 
 ```bash
 $ ever-cli getkeypair -o key.json -p "rule script joy unveil chaos replace fox recipe hedgehog heavy surge online"
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
 key_file: key.json
   phrase: rule script joy unveil chaos replace fox recipe hedgehog heavy surge online
@@ -891,7 +892,7 @@ Keypair successfully saved to key.json.
 Succeeded.
 
 $ ever-cli getkeypair -o key.json
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
 key_file: key.json
   phrase: None
@@ -902,7 +903,7 @@ Succeeded.
 
 
 $ ever-cli getkeypair
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
 key_file: None
   phrase: None
@@ -1021,7 +1022,7 @@ or
 
 Sometimes it can be not obvious in which way method parameters should be specified,
 especially if it is a large structure with different and complex fields.
-It is generally described in [abi doc](https://github.com/everx-labs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
+It is generally described in [abi doc](https://github.com/everx-labs/ever-abi/blob/master/docs/ABI_2.1_spec.md).
 Example ([multisignature wallet](https://github.com/everx-labs/ton-labs-contracts/tree/master/solidity/safemultisig)
 contract deployment to the masterchain):
 
@@ -1109,7 +1110,7 @@ Example:
 
 ```bash
 $ ever-cli  account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
 addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13, 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566, 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12
 Connecting to net.evercloud.dev
@@ -1135,7 +1136,7 @@ code_hash:     eee7d3331153dce4aa938e3bcdc922467fa215c77f56bbea1debfa8583d22f9c
 
 
 $ ever-cli  account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
 addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13
 Connecting to net.evercloud.dev
@@ -1181,7 +1182,7 @@ or
 format.
 Sometimes it can be not obvious in which way method parameters should be specified,
 especially if it is a large structure with different and complex fields.
-It is generally described in [abi doc](https://github.com/everx-labs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
+It is generally described in [abi doc](https://github.com/everx-labs/ever-abi/blob/master/docs/ABI_2.1_spec.md).
 
 Example (transaction creation in a [multisignature wallet](https://github.com/everx-labs/ton-labs-contracts/tree/master/solidity/safemultisig) contract):
 
@@ -1225,7 +1226,7 @@ ever-cli run [--abi <contract.abi.json>] <address> <method> <params>
 `<params>` - parameters of the called method.
 Sometimes it can be not obvious in which way method parameters should be specified,
 especially if it is a large structure with different and complex fields.
-It is generally described in [abi doc](https://github.com/everx-labs/ton-labs-abi/blob/master/docs/ABI_2.1_spec.md).
+It is generally described in [abi doc](https://github.com/everx-labs/ever-abi/blob/master/docs/ABI_2.1_spec.md).
 
 Example of a transaction list request in a [multisignature wallet](https://github.com/everx-labs/ton-labs-contracts/tree/master/solidity/safemultisig):
 
@@ -1282,7 +1283,7 @@ ever-cli runget [--boc] [--tvc] <address> <method> [<params>...] [--bc_config <c
 Parameters should be specified separately without json wrap and argument names.
 
 `--bc_config <config_path>` - this option can be used with `--boc` option to specify the file with the blockchain config
-BOC. It can be obtained with [dump blockchain config](#94-dump-blockchain-config) command.
+BOC. It can be obtained with [dump blockchain config](#93-dump-blockchain-config) command.
 
 Example:
 
@@ -1299,7 +1300,7 @@ Succeded.
 Result: ["1619901678"]
 
 $ ever-cli runget --boc acc.boc compute_returned_stake 0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
  address: acc.boc
   method: compute_returned_stake
@@ -1310,7 +1311,7 @@ Succeeded.
 Result: ["125387107580525"]
 
 $ ever-cli runget --tvc acc.tvc compute_returned_stake 0x0166d0181a19f87af9397040a68671e1b239f12152824f7d987fd6897d6a9587
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
  address: acc.boc
   method: compute_returned_stake
@@ -1347,7 +1348,7 @@ Example:
 
 ```bash
 $ ever-cli run --boc tests/depool_acc.boc getData '{}' --abi tests/samples/fakeDepool.abi.json
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
  account: tests/depool_acc.boc
   method: getData
@@ -1366,7 +1367,7 @@ Result: {
 }
 
 $ ever-cli run --tvc tests/depool_acc.tvc getData '{}' --abi tests/samples/fakeDepool.abi.json
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
  account: tests/depool_acc.boc
   method: getData
@@ -1587,7 +1588,7 @@ with options `--addr` and `--tvc` respectively.
 
 ```bash
 $ ever-cli decode account data --abi tests/test_abi_v2.1.abi.json --tvc tests/decode_fields.tvc
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
      tvc: tests/decode_fields.tvc
      abi: tests/test_abi_v2.1.abi.json
@@ -1624,7 +1625,7 @@ the TON Live.
 
 ```bash
 $ ever-cli decode account boc tests/account.boc --dumptvc acc.tvc
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
      boc: tests/account.boc
 tvc_path: acc.tvc
@@ -1658,7 +1659,7 @@ ever-cli decode stateinit [--tvc] [--boc] <input>
 
 ```bash
 $ ever-cli decode stateinit --boc account.boc
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
    input: account.boc
 Decoded data:
@@ -1694,7 +1695,7 @@ Decoded data:
 }
 
 $ ever-cli decode stateinit 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
    input: 989439e29664a71e57a21bff0ff9896b5e58018fcac32e83fade913c4f43479e
 Connecting to http://127.0.0.1/
@@ -1880,7 +1881,7 @@ Example:
 
 ```bash
 $ ever-cli multisig deploy -k "young tell target alter sport dignity enforce improve pottery fashion alert genuine" --local 1_000_000_000
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Wallet address: 0:4d892e63989c1c0ad64b0bbe22e8d036b0da271c19b6686d01bd29a99dcbc86d
 Connecting to http://127.0.0.1/
 Expire at: Mon, 13 Sep 2021 14:55:29 +0300
@@ -2612,7 +2613,7 @@ Example:
 
 ```bash
 $ ever-cli dump config config.boc
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
     path: config.boc
 Connecting to main.evercloud.dev
@@ -2636,7 +2637,7 @@ Example:
 
 ```bash
 $ ever-cli dump account 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566  f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12 3333333333333333333333333333333333333333333333333333333333333333
-Config: /home/user/TONLabs/ever-cli/ever-cli.conf.json
+Config: /home/user/ever-cli/ever-cli.conf.json
 Input arguments:
 addresses: 0:2bb4a0e8391e7ea8877f4825064924bd41ce110fce97e939d3323999e1efbb13, 0:14014af4a374bdd13dae2379063ea2597634c2c2fc8e99ca9eab431a7ab6f566, 0:f89d946b5b4b8a06f01dc20dceef30caff844d5285abea8a21ad3730c0f3dd12, 0:3333333333333333333333333333333333333333333333333333333333333333
     path: None
@@ -2832,7 +2833,7 @@ Not set rand_seed_block
 
 ### 9.8.3. Storage fee command
 
-This command allows user to calculate storage fees for a deployed contract using it's address.
+This command allows user to calculate storage fees for a deployed contract using its address.
 
 ```bash
 ever-cli fee storage [--period <period>] <address>
@@ -2995,7 +2996,7 @@ Example:
 
 ```bash
 $ ever-cli debug transaction -o tvm_trace.log 74acbd354e605519d799c7e1e90e52030e8f9e781453e48ecad18bb035fe1586 --empty-config
-Config: /home/user/TONLabs/sol2tvm/scripts/ever-cli.conf.json
+Config: /home/user/sol2tvm/scripts/ever-cli.conf.json
 Input arguments:
  address: 0:e5b3856d4d6b45f33ea625b9c4d949c601b8b6fb60fe6b968c5c0e5000a6aa78
    tx_id: 74acbd354e605519d799c7e1e90e52030e8f9e781453e48ecad18bb035fe1586
@@ -3501,7 +3502,7 @@ Succeeded.
     "https://mainnet.evercloud.dev"
   ]
 }
-user@user-ZenBook:~/TONLabs/ever-cli/target$ ever-cli account -1:3333333333333333333333333333333333333333333333333333333333333333
+user@user-ZenBook:~/ever-cli/target$ ever-cli account -1:3333333333333333333333333333333333333333333333333333333333333333
 Input arguments:
 addresses: -1:3333333333333333333333333333333333333333333333333333333333333333
 Connecting to:
