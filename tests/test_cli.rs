@@ -16,7 +16,7 @@ const DEPOOL_ABI: &str = "tests/samples/fakeDepool.abi.json";
 const DEPOOL_ABI_V21: &str = "tests/depool.abi.json";
 const DEPOOL_TVC: &str = "tests/samples/fakeDepool.tvc";
 const SAFEMSIG_ABI: &str = "tests/samples/SafeMultisigWallet.abi.json";
-const SAFEMSIG_ABI_LINK: &str = "https://raw.githubusercontent.com/tonlabs/ton-labs-contracts/master/solidity/safemultisig/SafeMultisigWallet.abi.json";
+const SAFEMSIG_ABI_LINK: &str = "https://raw.githubusercontent.com/everx-labs/ton-labs-contracts/master/solidity/safemultisig/SafeMultisigWallet.abi.json";
 const SAFEMSIG_TVC: &str = "tests/samples/SafeMultisigWallet.tvc";
 const SAFEMSIG_SEED: &str = "blanket time net universe ketchup maid way poem scatter blur limit drill";
 const SAFEMSIG_ADDR: &str = "0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fcd";
@@ -322,7 +322,7 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
         .arg("endpoint")
         .arg("add")
         .arg("myownhost")
-        .arg("[1.1.1.1,my.net.com,tonlabs.net]");
+        .arg("[1.1.1.1,my.net.com,everx-labs.net]");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("main.evercloud.dev"))
@@ -333,7 +333,7 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("myownhost"))
         .stdout(predicate::str::contains("1.1.1.1"))
         .stdout(predicate::str::contains("my.net.com"))
-        .stdout(predicate::str::contains("tonlabs.net"));
+        .stdout(predicate::str::contains("everx-labs.net"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -346,7 +346,7 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#""url": "myownhost","#))
         .stdout(predicate::str::contains("1.1.1.1"))
         .stdout(predicate::str::contains("my.net.com"))
-        .stdout(predicate::str::contains("tonlabs.net"));
+        .stdout(predicate::str::contains("everx-labs.net"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -409,7 +409,7 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#""url": "myownhost","#))
         .stdout(predicate::str::contains("1.1.1.1"))
         .stdout(predicate::str::contains("my.net.com"))
-        .stdout(predicate::str::contains("tonlabs.net"));
+        .stdout(predicate::str::contains("everx-labs.net"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -870,7 +870,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Url: https://test.ton.dev"));
     // config from env variable
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.env("TONOSCLI_CONFIG", "./tests/conf2.json")
+    cmd.env("EVER_CLI_CONFIG", "./tests/conf2.json")
         .arg("account")
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
@@ -881,7 +881,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
         .arg("tests/conf1.json")
-        .env("TONOSCLI_CONFIG", "./tests/conf2.json")
+        .env("EVER_CLI_CONFIG", "./tests/conf2.json")
         .arg("account")
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()

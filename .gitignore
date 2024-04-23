@@ -1,8 +1,8 @@
 target
 .vscode
 .solc_imports
-/tonlabs-cli.conf.json
-/tonos-cli.conf.json
+/everx-labs-cli.conf.json
+/ever-cli.conf.json
 /call.boc
 /key1
 /tests/data.tvc

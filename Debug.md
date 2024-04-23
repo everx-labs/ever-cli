@@ -1,11 +1,11 @@
-# How to debug contracts with tonos-cli
+# How to debug contracts with ever-cli
 
-tonos-cli can help user investigate at what moment of contract execution has error happened.
+ever-cli can help user investigate at what moment of contract execution has error happened.
 
 # 1. Preliminary actions
 
 User should generate debug info file to bind contract and source files on the stage of contract compilation with
-[tvm-linker](https://github.com/tonlabs/TVM-linker#1-generating-a-ready-to-deploy-contract):
+[tvm-linker](https://github.com/everx-labs/TVM-linker#1-generating-a-ready-to-deploy-contract):
 
 ```bash
 $ tvm_linker compile <contract>.code --abi-json <contract>.abi.json --debug-map <contract>.dbg.json -o <contract>.tvc --lib stdlib_sol.tvm
@@ -17,14 +17,14 @@ Besides **.tvc** file pay attention to the **.dbg.json** file, it contains debug
 # 2. Deploy your contract
 
 ```bash
-$ tonos-cli deploy --wc <wc> --abi <contract>.abi.json --sign <key> <contract>.tvc <params>
+$ ever-cli deploy --wc <wc> --abi <contract>.abi.json --sign <key> <contract>.tvc <params>
 ```
 
 Here user obtains contract address, which will be denoted as `<address>` in further instruction.  
-Before actual deploy or if deploy failed user can debug deploy with tonos-cli command which has almost the same options:
+Before actual deploy or if deploy failed user can debug deploy with ever-cli command which has almost the same options:
 
 ```bash
-$ tonos-cli debug deploy --wc <wc> --abi <contract>.abi.json --sign <key> -d <contract>.dbg.json <contract>.tvc <params> [--init_balance] [-o <path_to_log>]
+$ ever-cli debug deploy --wc <wc> --abi <contract>.abi.json --sign <key> -d <contract>.dbg.json <contract>.tvc <params> [--init_balance] [-o <path_to_log>]
 ```
 
 `--init_balance` option allows to debug deploy without preliminary initiating balance of the network address.  
@@ -36,13 +36,13 @@ default path is `./trace.log`)
 Before calling contract function onchain, user can run function call locally with trace.
 
 ```bash
-tonos-cli debug call --abi <contract>.abi.json --sign <key> -d <contract>.dbg.json [-o <path_to_log>] <address> <function> <params>
+ever-cli debug call --abi <contract>.abi.json --sign <key> -d <contract>.dbg.json [-o <path_to_log>] <address> <function> <params>
 ```
 
 The same as call, run command can also be debugged:
 
 ```bash
-tonos-cli debug run --abi <contract>.abi.json -d <contract>.dbg.json [-o <path_to_log>] <address> <function> <params>
+ever-cli debug run --abi <contract>.abi.json -d <contract>.dbg.json [-o <path_to_log>] <address> <function> <params>
 ```
 
 As in previous case log will be saved to a specified path.
@@ -60,10 +60,10 @@ Error: Failed: {
 
 Or get transaction ID from [Live](https://ever.live/landing).
 
-3) Run the tonos-cli debug transaction command with the obtained value to get TVM trace:
+3) Run the ever-cli debug transaction command with the obtained value to get TVM trace:
 
 ```
-tonos-cli debug transaction 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 \
+ever-cli debug transaction 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 \
 --dump_contract -e --min_trace -d <contract>.dbg.json -o trace_old_code.log
 ```
 
@@ -85,13 +85,13 @@ tvm_linker replace_code -a <new_contract>.abi.json --debug-map <new_contract>.db
 7.1) Run debug replay to replay the transaction on the modified account state:
 
 ```
-tonos-cli debug replay --update_state -d <new_contract>.dbg.json -o new_trace.log 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 contract.boc"
+ever-cli debug replay --update_state -d <new_contract>.dbg.json -o new_trace.log 69a8250000571041c011ef717228f6637b836248f8af46755c33bc9bcf0e9b88 contract.boc"
 ```
 
 7.2) Run debug call locally on the new account to test new version of the contract on a new generated call message:
 
 ```
-tonos-cli debug call --boc --abi <new_contract>.abi.json -d <new_contract>.dbg.json -o new_trace.log --sign <key> contract.boc <function> <params>
+ever-cli debug call --boc --abi <new_contract>.abi.json -d <new_contract>.dbg.json -o new_trace.log --sign <key> contract.boc <function> <params>
 ```
 
 

@@ -38,8 +38,8 @@ use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
 
-const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
-const GLOBAL_CONFIG_PATH: &str = ".tonos-cli.global.conf.json";
+const CONFIG_BASE_NAME: &str = "ever-cli.conf.json";
+const GLOBAL_CONFIG_PATH: &str = ".ever-cli.global.conf.json";
 
 pub fn default_config_name() -> String {
     env::current_dir()
@@ -736,7 +736,7 @@ pub fn contract_data_from_matches_or_config_alias(
 }
 
 pub fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String> {
-    // Default config params from evernode-se https://github.com/tonlabs/evernode-se/blob/master/docker/ton-node/blockchain.conf.json
+    // Default config params from evernode-se https://github.com/everx-labs/evernode-se/blob/master/docker/ton-node/blockchain.conf.json
     let json = r#"{
   "p0": "5555555555555555555555555555555555555555555555555555555555555555",
   "p1": "3333333333333333333333333333333333333333333333333333333333333333",

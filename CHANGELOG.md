@@ -22,7 +22,7 @@ All notable changes to this project will be documented in this file.
 
 ## 0.36.0
 
- - Supported [ABI 2.4](https://github.com/tonlabs/ever-abi/blob/master/CHANGELOG.md#version-240)
+ - Supported [ABI 2.4](https://github.com/everx-labs/ever-abi/blob/master/CHANGELOG.md#version-240)
 
 ## 0.35.7
 
@@ -69,7 +69,7 @@ All notable changes to this project will be documented in this file.
 ## Version: 0.29.1
 
 ### New
-- Added [sold](https://github.com/tonlabs/TON-Solidity-Compiler/tree/master/sold) functionality as feature;
+- Added [sold](https://github.com/everx-labs/TON-Solidity-Compiler/tree/master/sold) functionality as feature;
 - Improved behavior of the `decode msg` command. Now it doesn't require `--base64` flag to decode base64 input. It can
   also decode message by id in the blockchain and decode files with messages not in binary but with text in base64;
 - Changed `debug transaction` and `debug account` commands flag `--empty_config` to `--default_config` which uses
@@ -90,9 +90,9 @@ All notable changes to this project will be documented in this file.
 
 ### New
  - Updated version of SDK;
- - Added global tonos-cli config which is used to create default configs;
+ - Added global ever-cli config which is used to create default configs;
  - Added config parameters for Evercloud authentication;
- - Added new input format for `tonos-cli decode message` command.
+ - Added new input format for `ever-cli decode message` command.
 
 ## Version: 0.27.33
 

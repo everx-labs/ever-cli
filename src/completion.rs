@@ -59,7 +59,7 @@ pub struct Config {
     pub endpoints: Vec<String>,
 }
 
-const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
+const CONFIG_BASE_NAME: &str = "ever-cli.conf.json";
 
 fn print_paths(prefix: &str) {
     let folder = if !prefix.contains('/') {

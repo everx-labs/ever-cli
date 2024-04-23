@@ -2,14 +2,14 @@ pragma ton-solidity >=0.47.0;
 pragma AbiHeader expire;
 pragma AbiHeader time;
 pragma AbiHeader pubkey;
-import "https://raw.githubusercontent.com/tonlabs/debots/main/Debot.sol";
-import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/Terminal/Terminal.sol";
-import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/ConfirmInput/ConfirmInput.sol";
-import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/Menu/Menu.sol";
-import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/AddressInput/AddressInput.sol";
-import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/AmountInput/AmountInput.sol";
-import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/UserInfo/UserInfo.sol";
-import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/SigningBoxInput/SigningBoxInput.sol";
+import "https://raw.githubusercontent.com/everx-labs/debots/main/Debot.sol";
+import "https://raw.githubusercontent.com/everx-labs/DeBot-IS-consortium/main/Terminal/Terminal.sol";
+import "https://raw.githubusercontent.com/everx-labs/DeBot-IS-consortium/main/ConfirmInput/ConfirmInput.sol";
+import "https://raw.githubusercontent.com/everx-labs/DeBot-IS-consortium/main/Menu/Menu.sol";
+import "https://raw.githubusercontent.com/everx-labs/DeBot-IS-consortium/main/AddressInput/AddressInput.sol";
+import "https://raw.githubusercontent.com/everx-labs/DeBot-IS-consortium/main/AmountInput/AmountInput.sol";
+import "https://raw.githubusercontent.com/everx-labs/DeBot-IS-consortium/main/UserInfo/UserInfo.sol";
+import "https://raw.githubusercontent.com/everx-labs/DeBot-IS-consortium/main/SigningBoxInput/SigningBoxInput.sol";
 import "ICompleted.sol";
 
 contract Invoked is Debot {
