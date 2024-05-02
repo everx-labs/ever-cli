@@ -1,8 +1,8 @@
 use predicates::prelude::*;
 use assert_cmd::Command;
 use std::env;
-use std::time::Duration;
 use std::thread::sleep;
+use std::time::{SystemTime, Duration};
 use std::fs;
 use serde_json::{json, Value};
 
@@ -13,9 +13,10 @@ use common::{BIN_NAME, NETWORK, giver_v2, grep_address, set_config, GIVER_V2_ABI
 use crate::common::grep_message_id;
 
 const DEPOOL_ABI: &str = "tests/samples/fakeDepool.abi.json";
+const DEPOOL_ABI_V21: &str = "tests/depool.abi.json";
 const DEPOOL_TVC: &str = "tests/samples/fakeDepool.tvc";
 const SAFEMSIG_ABI: &str = "tests/samples/SafeMultisigWallet.abi.json";
-const SAFEMSIG_ABI_LINK: &str = "https://raw.githubusercontent.com/tonlabs/ton-labs-contracts/master/solidity/safemultisig/SafeMultisigWallet.abi.json";
+const SAFEMSIG_ABI_LINK: &str = "https://raw.githubusercontent.com/everx-labs/ton-labs-contracts/master/solidity/safemultisig/SafeMultisigWallet.abi.json";
 const SAFEMSIG_TVC: &str = "tests/samples/SafeMultisigWallet.tvc";
 const SAFEMSIG_SEED: &str = "blanket time net universe ketchup maid way poem scatter blur limit drill";
 const SAFEMSIG_ADDR: &str = "0:d5f5cfc4b52d2eb1bd9d3a8e51707872c7ce0c174facddd0e06ae5ffd17d2fcd";
@@ -23,7 +24,10 @@ const SAFEMSIG_CONSTR_ARG: &str = r#"{"owners":["0xc8bd66f90d61f7e1e1a6151a0dbe9
 const SAVED_CONFIG: &str = "tests/config_contract.saved";
 
 fn now_ms() -> u64 {
-    chrono::prelude::Utc::now().timestamp_millis() as u64
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_else(|e| panic!("failed to obtain system time: {}", e))
+        .as_millis() as u64
 }
 
 fn generate_public_key(seed: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -318,7 +322,7 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
         .arg("endpoint")
         .arg("add")
         .arg("myownhost")
-        .arg("[1.1.1.1,my.net.com,tonlabs.net]");
+        .arg("[1.1.1.1,my.net.com,everx-labs.net]");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("main.evercloud.dev"))
@@ -329,7 +333,7 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("myownhost"))
         .stdout(predicate::str::contains("1.1.1.1"))
         .stdout(predicate::str::contains("my.net.com"))
-        .stdout(predicate::str::contains("tonlabs.net"));
+        .stdout(predicate::str::contains("everx-labs.net"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -342,7 +346,7 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#""url": "myownhost","#))
         .stdout(predicate::str::contains("1.1.1.1"))
         .stdout(predicate::str::contains("my.net.com"))
-        .stdout(predicate::str::contains("tonlabs.net"));
+        .stdout(predicate::str::contains("everx-labs.net"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -405,7 +409,7 @@ fn test_config_endpoints() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#""url": "myownhost","#))
         .stdout(predicate::str::contains("1.1.1.1"))
         .stdout(predicate::str::contains("my.net.com"))
-        .stdout(predicate::str::contains("tonlabs.net"));
+        .stdout(predicate::str::contains("everx-labs.net"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -727,7 +731,7 @@ fn test_deploy() -> Result<(), Box<dyn std::error::Error>> {
     let tvc_path2 = "tests/samples/fakeDepool.tvc2";
 
     let _ = std::fs::copy(tvc_path, tvc_path2)?;
-    let abi_path = "tests/samples/fakeDepool.abi.json";
+    let abi_path = DEPOOL_ABI;
 
     let time = now_ms();
     let data_str = format!(r#"{{"m_seed":{}}}"#, time);
@@ -866,7 +870,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Url: https://test.ton.dev"));
     // config from env variable
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd.env("TONOSCLI_CONFIG", "./tests/conf2.json")
+    cmd.env("EVER_CLI_CONFIG", "./tests/conf2.json")
         .arg("account")
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
@@ -877,7 +881,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
         .arg("tests/conf1.json")
-        .env("TONOSCLI_CONFIG", "./tests/conf2.json")
+        .env("EVER_CLI_CONFIG", "./tests/conf2.json")
         .arg("account")
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
@@ -1073,7 +1077,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("balance:"))
         .stdout(predicate::str::contains("last_paid:"))
         .stdout(predicate::str::contains("last_trans_lt:"))
-        .stdout(predicate::str::contains("data(boc):"));
+        .stdout(predicate::str::contains("data_boc:"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -1094,7 +1098,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("balance:"))
         .stdout(predicate::str::contains("last_paid:"))
         .stdout(predicate::str::contains("last_trans_lt:"))
-        .stdout(predicate::str::contains("data(boc):"));
+        .stdout(predicate::str::contains("data_boc:"));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--config")
@@ -1122,7 +1126,7 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("balance:"))
         .stdout(predicate::str::contains("last_paid:"))
         .stdout(predicate::str::contains("last_trans_lt:"))
-        .stdout(predicate::str::contains("data(boc):"));
+        .stdout(predicate::str::contains("data_boc:"));
 
     set_config(
         &["--url", "--addr"],
@@ -1141,10 +1145,11 @@ fn test_account_command() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("balance:"))
         .stdout(predicate::str::contains("last_paid:"))
         .stdout(predicate::str::contains("last_trans_lt:"))
-        .stdout(predicate::str::contains("data(boc):"));
+        .stdout(predicate::str::contains("data_boc:"));
 
 
     fs::remove_file(config_path)?;
+    env::remove_var("RUST_LOG");
     Ok(())
 }
 
@@ -2127,7 +2132,8 @@ fn test_dump_tvc() -> Result<(), Box<dyn std::error::Error>> {
 fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
     let boc_path = "tests/depool_acc.boc";
     let tvc_path = "tests/depool_acc.tvc";
-    let abi_path = "tests/samples/fakeDepool.abi.json";
+    let abi_path = DEPOOL_ABI;
+    let abi_path2 = DEPOOL_ABI_V21;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -2136,7 +2142,7 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .arg("getData")
         .arg("{}")
         .arg("--abi")
-        .arg(abi_path)
+        .arg(abi_path2)
         .assert()
         .success()
         .stdout(predicate::str::contains("Succeeded."))
@@ -2191,7 +2197,7 @@ fn test_run_account() -> Result<(), Box<dyn std::error::Error>> {
         .arg("getData")
         .arg("{}")
         .arg("--abi")
-        .arg(abi_path)
+        .arg(abi_path2)
         .arg("--bc_config")
         .arg(config_path)
         .assert()
@@ -2585,7 +2591,7 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
         .arg("-m")
         .arg("getData")
         .arg("--abi")
-        .arg(DEPOOL_ABI)
+        .arg(DEPOOL_ABI_V21)
         .assert()
         .success()
         .stdout(predicate::str::contains("Succeeded."))

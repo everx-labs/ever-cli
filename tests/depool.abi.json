@@ -1,0 +1,176 @@
+{
+	"ABI version": 2,
+	"version": "2.1",
+	"header": ["time", "expire"],
+	"functions": [
+		{
+			"name": "sendAnswer",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "addOrdinaryStake",
+			"inputs": [
+				{"name":"stake","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "addVestingStake",
+			"inputs": [
+				{"name":"stake","type":"uint64"},
+				{"name":"beneficiary","type":"address"},
+				{"name":"withdrawalPeriod","type":"uint32"},
+				{"name":"totalPeriod","type":"uint32"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "addLockStake",
+			"inputs": [
+				{"name":"stake","type":"uint64"},
+				{"name":"beneficiary","type":"address"},
+				{"name":"withdrawalPeriod","type":"uint32"},
+				{"name":"totalPeriod","type":"uint32"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "withdrawFromPoolingRound",
+			"inputs": [
+				{"name":"withdrawValue","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "withdrawPart",
+			"inputs": [
+				{"name":"withdrawValue","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "withdrawAll",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "cancelWithdrawal",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "transferStake",
+			"inputs": [
+				{"name":"dest","type":"address"},
+				{"name":"amount","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "ticktock",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "receiveFunds",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "getData",
+			"inputs": [
+			],
+			"outputs": [
+				{"name":"stake","type":"uint64"},
+				{"name":"sender","type":"address"},
+				{"name":"receiver","type":"address"},
+				{"name":"withdrawal","type":"uint32"},
+				{"name":"total","type":"uint32"},
+				{"name":"reinvest","type":"bool"},
+				{"name":"value","type":"uint128"}
+			]
+		},
+		{
+			"name": "setVestingDonor",
+			"inputs": [
+				{"name":"donor","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "setLockDonor",
+			"inputs": [
+				{"name":"donor","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "error",
+			"inputs": [
+				{"name":"code","type":"uint256"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "outOfGas",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "constructor",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		}
+	],
+	"data": [
+		{"key":1,"name":"m_seed","type":"uint256"}
+	],
+	"events": [
+		{
+			"name": "StakeSigningRequested",
+			"inputs": [
+				{"name":"electionId","type":"uint32"},
+				{"name":"proxy","type":"address"}
+			],
+			"outputs": [
+			]
+		}
+	],
+	"fields": [
+		{"name":"_pubkey","type":"uint256"},
+		{"name":"_timestamp","type":"uint64"},
+		{"name":"_constructorFlag","type":"bool"},
+		{"name":"m_seed","type":"uint256"},
+		{"name":"m_stake","type":"uint64"},
+		{"name":"m_sender","type":"address"},
+		{"name":"m_receiver","type":"address"},
+		{"name":"m_withdrawal","type":"uint32"},
+		{"name":"m_total","type":"uint32"},
+		{"name":"m_reinvest","type":"bool"},
+		{"name":"m_value","type":"uint128"}
+	]
+}

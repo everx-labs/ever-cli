@@ -69,9 +69,9 @@ fn test_json_output_2() -> Result<(), Box<dyn std::error::Error>> {
     run_command_and_decode_json(&format!("deployx --abi {} --keys {} {}", DEPOOL_ABI, key_path, DEPOOL_TVC))?;
     run_command_and_decode_json(&format!("deploy_message --raw --abi {} -o fakeDepool.msg --sign {} {} {{}}", DEPOOL_ABI, key_path, DEPOOL_TVC))?;
     run_command_and_decode_json(r#"dump account 841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94"#)?;
-    let command = format!("run --abi tests/samples/fakeDepool.abi.json {} getData {{}}", depool_addr);
+    let command = format!("run --abi {} {} getData {{}}", DEPOOL_ABI, depool_addr);
     run_command_and_decode_json(&command)?;
-    let command = format!("runx --abi tests/samples/fakeDepool.abi.json --addr {} getData ", depool_addr);
+    let command = format!("runx --abi {} --addr {} getData ", DEPOOL_ABI, depool_addr);
     run_command_and_decode_json(&command)?;
 
     fs::remove_file(key_path)?;

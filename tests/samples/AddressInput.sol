@@ -3,8 +3,8 @@ pragma AbiHeader expire;
 pragma AbiHeader time;
 pragma AbiHeader pubkey;
 import "Debot.sol";
-import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/Terminal/Terminal.sol";
-import "https://raw.githubusercontent.com/tonlabs/DeBot-IS-consortium/main/AddressInput/AddressInput.sol";
+import "https://raw.githubusercontent.com/everx-labs/DeBot-IS-consortium/main/Terminal/Terminal.sol";
+import "https://raw.githubusercontent.com/everx-labs/DeBot-IS-consortium/main/AddressInput/AddressInput.sol";
 
 contract AddressInputDebot is Debot {
     address m_addr = address(0xea5be6a13f20fcdfddc2c2b0d317dfeab56718249b090767e5940137b7af89f1);

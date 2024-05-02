@@ -2,9 +2,58 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.36.6
+
+ - Improved documentation on deploying contracts using ABI version 2.4.
+   
+## 0.36.5
+
+ - Fixed output of `getconfig` command. Now it print `{}` instead of `null`
+
+## 0.36.4
+
+ - Added parameter `signature_id`  for `message` and `deploy_message` commands
+
+## 0.36.2
+
+ - Commands `message` and `deploy_message` get capabilities from config network
+ - Fixed `update_config` command
+
+
+## 0.36.0
+
+ - Supported [ABI 2.4](https://github.com/everx-labs/ever-abi/blob/master/CHANGELOG.md#version-240)
+
+## 0.35.7
+
+### Bug fixes
+- Fixed double log initialization bug for runx subcommand
+
+## 0.35.6
+
+### New
+- Fixed double log initialization bug
+
+## 0.35.5
+
+### New
+- Migrated to ever-sdk 1.43.3
+
+## 0.35.4
+
+### New
+- Added `test` command and subcommands: `config`, `deploy`, `sign`, `ticktock`
+- Added ability not to receive debug output for `debug` command using `nul` for output file name
+- Added ability to set `initial_balance` for account deployment
+
+## 0.34.1
+
+### New
+- Fixed update_config command bug for solidity contracts
+
 ## 0.34.0
 
-### New 
+### New
 - Flag `--v2` in `multisig` and `depool` subcommands to support multisig v2.
 
 ## 0.33.0
@@ -20,10 +69,10 @@ All notable changes to this project will be documented in this file.
 ## Version: 0.29.1
 
 ### New
-- Added [sold](https://github.com/tonlabs/TON-Solidity-Compiler/tree/master/sold) functionality as feature;
+- Added [sold](https://github.com/everx-labs/TON-Solidity-Compiler/tree/master/sold) functionality as feature;
 - Improved behavior of the `decode msg` command. Now it doesn't require `--base64` flag to decode base64 input. It can
   also decode message by id in the blockchain and decode files with messages not in binary but with text in base64;
-- Changed `debug transaction` and `debug account` commands flag `--empty_config` to `--default_config` which uses 
+- Changed `debug transaction` and `debug account` commands flag `--empty_config` to `--default_config` which uses
   current network config or default one if it is unavailable;
 - Removed option `--saved_config` from call and run commands.
 
@@ -35,15 +84,15 @@ All notable changes to this project will be documented in this file.
 ## Version: 0.28.3
 
 ### Breaking changes:
- - `debug` commands `call`, `run` and `deploy` now take function parameters in alternative syntax. 
+ - `debug` commands `call`, `run` and `deploy` now take function parameters in alternative syntax.
 
 ## Version: 0.28.1
 
 ### New
  - Updated version of SDK;
- - Added global tonos-cli config which is used to create default configs;
+ - Added global ever-cli config which is used to create default configs;
  - Added config parameters for Evercloud authentication;
- - Added new input format for `tonos-cli decode message` command.
+ - Added new input format for `ever-cli decode message` command.
 
 ## Version: 0.27.33
 
@@ -100,7 +149,7 @@ All notable changes to this project will be documented in this file.
 
 ### New
  - `tokio` library updated to `1.*` version
- 
+
 ## Version: 0.26.44
 
 ### New
@@ -176,7 +225,7 @@ All notable changes to this project will be documented in this file.
 ### New
  - Add support copyleft
 
- 
+
 ## Version: 0.25.11
 
 ### New

@@ -1,5 +1,5 @@
 /*
-* Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+* Copyright 2018-2023 EverX.
 *
 * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
 * this file except in compliance with the License.
@@ -7,7 +7,7 @@
 * Unless required by applicable law or agreed to in writing, software
 * distributed under the License is distributed on an "AS IS" BASIS,
 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific TON DEV software governing permissions and
+* See the License for the specific EVERX DEV software governing permissions and
 * limitations under the License.
 */
 use std::sync::Arc;
@@ -144,7 +144,7 @@ pub async fn get_account(config: &Config, addresses: Vec<String>, dumptvc: Optio
                 };
                 let code_hash = acc["code_hash"].as_str().unwrap_or("null").to_owned();
                 if config.is_json {
-                    json_res[address.clone()] = json_account(
+                    json_res = json_account(
                         Some(acc_type),
                         Some(address.clone()),
                         Some(balance),
@@ -168,7 +168,7 @@ pub async fn get_account(config: &Config, addresses: Vec<String>, dumptvc: Optio
                     );
                 }
             } else if config.is_json {
-                json_res[address.clone()] = json_account(Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
+                json_res = json_account(Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
             } else {
                 print_account(&config, Some(acc_type), Some(address.clone()), None, None, None, None, None, None);
             }
@@ -179,7 +179,8 @@ pub async fn get_account(config: &Config, addresses: Vec<String>, dumptvc: Optio
         for address in addresses.iter() {
             if !found_addresses.contains(address) {
                 if config.is_json {
-                    json_res[address.clone()] = json!({
+                    json_res = json!({
+                       "address": address.clone(),
                        "acc_type": "NonExist"
                     });
                 } else {
@@ -189,8 +190,7 @@ pub async fn get_account(config: &Config, addresses: Vec<String>, dumptvc: Optio
             }
         }
         if config.is_json {
-            println!("{}", serde_json::to_string_pretty(&json_res)
-                .map_err(|e| format!("Failed to serialize result: {}", e))?);
+            println!("{:#}", json_res);
         }
     } else if config.is_json {
         println!("{{\n}}");

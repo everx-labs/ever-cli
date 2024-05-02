@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2021 EverX Labs Ltd.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -7,7 +7,7 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and
+ * See the License for the specific EVERX DEV software governing permissions and
  * limitations under the License.
  */
 use crate::helpers::{create_client_local, read_keys, WORD_COUNT, HD_PATH, check_dir};
@@ -65,7 +65,7 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     let hdk_root = hdkey_derive_from_xprv_path(
         client.clone(),
         ParamsOfHDKeyDeriveFromXPrvPath {
-            xprv: hdk_master.xprv,
+            xprv: hdk_master.xprv.clone(),
             path: HD_PATH.to_string(),
             ..Default::default()
         },
@@ -74,7 +74,7 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     let secret = hdkey_secret_from_xprv(
         client.clone(),
         ParamsOfHDKeySecretFromXPrv {
-            xprv: hdk_root.xprv,
+            xprv: hdk_root.xprv.clone(),
             ..Default::default()
         },
     ).map_err(|e| format!("{}", e))?;
@@ -82,7 +82,7 @@ pub fn generate_keypair_from_mnemonic(mnemonic: &str) -> Result<KeyPair, String>
     let mut keypair: KeyPair = nacl_sign_keypair_from_secret_key(
         client,
         ParamsOfNaclSignKeyPairFromSecret {
-            secret: secret.secret,
+            secret: secret.secret.clone(),
             ..Default::default()
         },
     ).map_err(|e| format!("failed to get KeyPair from secret key: {}", e))?;

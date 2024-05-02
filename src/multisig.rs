@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -7,7 +7,7 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and
+ * See the License for the specific EVERX DEV software governing permissions and
  * limitations under the License.
  */
 extern crate reqwest;
@@ -17,7 +17,7 @@ use crate::convert;
 use crate::crypto::load_keypair;
 use crate::deploy::prepare_deploy_message_params;
 use crate::helpers::{
-    create_client_local, create_client_verbose, load_file_with_url, load_ton_address,
+    create_client_local, create_client_verbose, load_file_with_url, load_ton_address, now_ms,
 };
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use serde_json::json;
@@ -25,8 +25,8 @@ use ton_client::abi::{
     encode_message_body, Abi, AbiContract, AbiParam, CallSet, ParamsOfEncodeMessageBody,
 };
 
-const SAFEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/safemultisig/SafeMultisigWallet.tvc?raw=true";
-const SETCODEMULTISIG_LINK: &str = "https://github.com/tonlabs/ton-labs-contracts/blob/master/solidity/setcodemultisig/SetcodeMultisigWallet.tvc?raw=true";
+const SAFEMULTISIG_LINK: &str = "https://github.com/everx-labs/ton-labs-contracts/blob/master/solidity/safemultisig/SafeMultisigWallet.tvc?raw=true";
+const SETCODEMULTISIG_LINK: &str = "https://github.com/everx-labs/ton-labs-contracts/blob/master/solidity/setcodemultisig/SetcodeMultisigWallet.tvc?raw=true";
 const SAFEMULTISIG_V2_LINK: &str =
     "https://github.com/EverSurf/contracts/blob/main/multisig2/build/SafeMultisig.tvc?raw=true";
 const SETCODEMULTISIG_V2_LINK: &str =
@@ -333,6 +333,7 @@ impl MultisigArgs {
                     name: "stateInit".to_owned(),
                     param_type: "optional(cell)".to_owned(),
                     components: vec![],
+                    init: false
                 });
             }
             if let Some(f) = abi.functions.iter_mut().find(|e| &e.name == "constructor") {
@@ -340,6 +341,7 @@ impl MultisigArgs {
                     name: "lifetime".to_owned(),
                     param_type: "uint32".to_owned(),
                     components: vec![],
+                    init: false
                 });
             }
         }
@@ -516,9 +518,12 @@ async fn multisig_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> R
     let (msg, address) = prepare_deploy_message_params(
         args.image().unwrap_or_default(),
         args.abi().clone(),
+        "constructor".to_string(),
+        now_ms(),
         &params.to_string(),
         Some(keys),
         config.wc,
+        None,
     )
     .await?;
 

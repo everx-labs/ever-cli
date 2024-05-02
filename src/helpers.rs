@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -7,13 +7,14 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and
+ * See the License for the specific EVERX DEV software governing permissions and
  * limitations under the License.
  */
 use std::env;
 use std::path::PathBuf;
 use crate::config::{Config, LOCALNET};
-
+use crate::debug::debug_level_from_env;
+use crate::SignatureIDType;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use ton_client::abi::{
@@ -28,22 +29,17 @@ use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, Stat
 use std::str::FromStr;
 use clap::ArgMatches;
 use serde_json::{Value, json};
-use ton_client::abi::Abi::Contract;
 use ton_executor::BlockchainConfig;
 use url::Url;
 use crate::call::parse_params;
 use crate::{FullConfig, resolve_net_name};
 use crate::replay::{CONFIG_ADDR, construct_blockchain_config};
 
-pub const TEST_MAX_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
-pub const MAX_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
-
 pub const HD_PATH: &str = "m/44'/396'/0'/0/0";
 pub const WORD_COUNT: u8 = 12;
 
-pub const SDK_EXECUTION_ERROR_CODE: u32 = 414;
-const CONFIG_BASE_NAME: &str = "tonos-cli.conf.json";
-const GLOBAL_CONFIG_PATH: &str = ".tonos-cli.global.conf.json";
+const CONFIG_BASE_NAME: &str = "ever-cli.conf.json";
+const GLOBAL_CONFIG_PATH: &str = ".ever-cli.global.conf.json";
 
 pub fn default_config_name() -> String {
     env::current_dir()
@@ -65,8 +61,8 @@ pub fn global_config_path() -> String {
 struct SimpleLogger;
 
 impl log::Log for SimpleLogger {
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() < MAX_LEVEL
+    fn enabled(&self, _metadata: &log::Metadata) -> bool {
+        true
     }
 
     fn log(&self, record: &log::Record) {
@@ -102,16 +98,15 @@ pub fn load_ton_address(addr: &str, config: &Config) -> Result<String, String> {
     Ok(addr)
 }
 
-pub fn now() -> Result<u32, String> {
-    Ok(SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .map_err(|e| format!("failed to obtain system time: {}", e))?
-        .as_secs() as u32
-    )
+pub fn now() -> u32 {
+    (now_ms() / 1000) as u32
 }
 
 pub fn now_ms() -> u64 {
-    chrono::prelude::Utc::now().timestamp_millis() as u64
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_else(|e| panic!("failed to obtain system time: {}", e))
+        .as_millis() as u64
 }
 
 pub type TonClient = Arc<ClientContext>;
@@ -170,7 +165,7 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
             message_retries_count: config.retries as i8,
             message_processing_timeout: 30000,
             wait_for_timeout: config.timeout,
-            out_of_sync_threshold: config.out_of_sync_threshold * 1000,
+            out_of_sync_threshold: Some(config.out_of_sync_threshold * 1000),
             access_key: config.access_key.clone(),
             ..Default::default()
         },
@@ -182,18 +177,19 @@ pub fn create_client(config: &Config) -> Result<TonClient, String> {
 }
 
 pub fn create_client_verbose(config: &Config) -> Result<TonClient, String> {
-    let level = if std::env::var("RUST_LOG")
-        .unwrap_or_default()
-        .eq_ignore_ascii_case("debug")
-    {
-        TEST_MAX_LEVEL
-    } else {
-        MAX_LEVEL
-    };
+    let level = debug_level_from_env();
     log::set_max_level(level);
     log::set_boxed_logger(Box::new(SimpleLogger))
         .map_err(|e| format!("failed to init logger: {}", e))?;
     create_client(config)
+}
+
+pub fn create_client_with_signature_id(config: &Config, signature_id: Option<SignatureIDType>,) -> Result<(Arc<ClientContext>, Option<i32>), String> {
+    match signature_id {
+        Some(SignatureIDType::Online) => Ok((create_client_verbose(config)?,None)),
+        Some(SignatureIDType::Value(x)) =>Ok((create_client_local()?, Some(x))),
+        _ => Ok((create_client_local()?,None)),
+    }
 }
 
 pub async fn query_raw(
@@ -313,7 +309,6 @@ pub async fn decode_msg_body(
             ..Default::default()
         },
     )
-    .await
     .map_err(|e| format!("failed to decode body: {}", e))
 }
 
@@ -333,9 +328,7 @@ pub async fn load_abi_str(abi_path: &str, config: &Config) -> Result<String, Str
 
 pub async fn load_abi(abi_path: &str, config: &Config) -> Result<Abi, String> {
     let abi_str = load_abi_str(abi_path, config).await?;
-    Ok(Contract(serde_json::from_str::<AbiContract>(&abi_str)
-            .map_err(|e| format!("ABI is not a valid json: {}", e))?,
-    ))
+    Ok(ton_client::abi::Abi::Json(abi_str))
 }
 
 pub async fn load_ton_abi(abi_path: &str, config: &Config) -> Result<ton_abi::Contract, String> {
@@ -369,20 +362,35 @@ pub async fn calc_acc_address(
     init_data: Option<&str>,
     abi: Abi,
 ) -> Result<String, String> {
+
+    let data_map_supported = abi.abi().unwrap().data_map_supported();
+
     let ton = create_client_local()?;
+    let dset=
+        if data_map_supported {
+            let init_data_json = init_data
+                .map(serde_json::from_str)
+                .transpose()
+                .map_err(|e| format!("initial data is not in json: {}", e))?;
 
-    let init_data_json = init_data
-        .map(serde_json::from_str)
-        .transpose()
-        .map_err(|e| format!("initial data is not in json: {}", e))?;
-
-    let dset = DeploySet {
-        tvc: base64::encode(tvc),
-        workchain_id: Some(wc),
-        initial_data: init_data_json,
-        initial_pubkey: pubkey.clone(),
-        ..Default::default()
-    };
+            DeploySet {
+                tvc: Some(base64::encode(tvc)),
+                workchain_id: Some(wc),
+                initial_data: init_data_json,
+                initial_pubkey: pubkey.clone(),
+                ..Default::default()
+            }
+        } else {
+            let init_data_json = insert_pubkey_to_init_data(pubkey.clone(), init_data)?;
+            let js = serde_json::from_str(init_data_json.as_str()).map_err(|e| format!("initial data is not in json: {}", e))?;
+            DeploySet {
+                tvc: Some(base64::encode(tvc)),
+                workchain_id: Some(wc),
+                initial_data: js,
+                initial_pubkey: None, // initial_pubkey: pubkey.clone(),
+                ..Default::default()
+            }
+        };
     let result = ton_client::abi::encode_message(
         ton.clone(),
         ParamsOfEncodeMessage {
@@ -443,7 +451,7 @@ pub async fn print_message(ton: TonClient, message: &Value, abi: &str, is_intern
                 is_internal,
                 ..Default::default()
             },
-        ).await;
+        );
         let (name, args) = if result.is_err() {
             ("unknown".to_owned(), "{}".to_owned())
         } else {
@@ -485,7 +493,7 @@ pub fn json_account(
         res["last_trans_lt"] = json!(last_trans_lt.unwrap());
     }
     if data.is_some() {
-        res["data(boc)"] = json!(data.unwrap());
+        res["data_boc"] = json!(data.unwrap());
     }
     if code_hash.is_some() {
         res["code_hash"] = json!(code_hash.unwrap());
@@ -519,7 +527,7 @@ pub fn print_account(
             code_hash,
             state_init,
         );
-        println!("{}", serde_json::to_string_pretty(&acc).unwrap_or("Undefined".to_string()));
+        println!("{:#}", acc);
     } else {
         if acc_type.is_some() && acc_type.clone().unwrap() == "NonExist" {
             println!("Account does not exist.");
@@ -541,13 +549,13 @@ pub fn print_account(
             println!("last_trans_lt: {}", last_trans_lt.unwrap());
         }
         if data.is_some() {
-            println!("data(boc):     {}", data.unwrap());
+            println!("data_boc:      {}", data.unwrap());
         }
         if code_hash.is_some() {
             println!("code_hash:     {}", code_hash.unwrap());
         }
         if state_init.is_some() {
-            println!("state_init: {}", state_init.unwrap());
+            println!("state_init:    {}", state_init.unwrap());
         }
     }
 }
@@ -676,20 +684,20 @@ macro_rules! print_args {
 }
 
 pub fn load_params(params: &str) -> Result<String, String> {
-    Ok(if params.find('{').is_none() {
+    if params.find('{').is_none() {
         std::fs::read_to_string(params)
-            .map_err(|e| format!("failed to load params from file: {}", e))?
+            .map_err(|e| format!("failed to load params from file: {}", e))
     } else {
-        params.to_string()
-    })
+        Ok(params.to_string())
+    }
 }
 
-pub async fn unpack_alternative_params(matches: &ArgMatches<'_>, abi_path: &str, method: &str, config: &Config) -> Result<Option<String>, String> {
-    if matches.is_present("PARAMS") {
-        let params = matches.values_of("PARAMS").unwrap().collect::<Vec<_>>();
-        Ok(Some(parse_params(params, abi_path, method, config).await?))
+pub async fn unpack_alternative_params(matches: &ArgMatches<'_>, abi_path: &str, method: &str, config: &Config) -> Result<String, String> {
+    if let Some(params) = matches.values_of("PARAMS") {
+        let params = params.collect();
+        parse_params(params, abi_path, method, config).await
     } else {
-        Ok(config.parameters.clone().or(Some("{}".to_string())))
+        Ok(config.parameters.clone().unwrap_or("{}".to_string()))
     }
 }
 
@@ -728,21 +736,12 @@ pub fn contract_data_from_matches_or_config_alias(
 }
 
 pub fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String> {
-    // Default config params from evernode-se https://github.com/tonlabs/evernode-se/blob/master/docker/ton-node/blockchain.conf.json
+    // Default config params from evernode-se https://github.com/everx-labs/evernode-se/blob/master/docker/ton-node/blockchain.conf.json
     let json = r#"{
   "p0": "5555555555555555555555555555555555555555555555555555555555555555",
   "p1": "3333333333333333333333333333333333333333333333333333333333333333",
   "p2": "0000000000000000000000000000000000000000000000000000000000000000",
-  "p7": [
-    {
-      "currency": 239,
-      "value": "666666666666"
-    },
-    {
-      "currency": 4294967279,
-      "value": "1000000000000"
-    }
-  ],
+  "p7": [],
   "p8": {
     "version": 5,
     "capabilities": "1180974"
@@ -978,30 +977,6 @@ pub fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String>
       {
         "public_key": "5457fef5bf496f65ea64d1d8bb4a90694f61fe2787cdb67d16f9ffe548d0b8d9",
         "weight": "17"
-      },
-      {
-        "public_key": "d3ccd99924c61509fc6f1c940a3b027cc2c68f351be9eecb2ce259b4721d9aee",
-        "weight": "17"
-      },
-      {
-        "public_key": "51c45bdff0adbf75b61c186129f93361aad0bacff4b729d6061519dee5bc360c",
-        "weight": "17"
-      },
-      {
-        "public_key": "f752195a66941a6526c5bd3aef65f07d20aa4b7d9ae57a0dbb01e9d4849ca30d",
-        "weight": "17"
-      },
-      {
-        "public_key": "3d0537cd35cc24d1a2098e359b49594665f72cd9c8744c1e1b2e456c7060829a",
-        "weight": "17"
-      },
-      {
-        "public_key": "b8639405595ec2a40d65673020e7638c4588d1a72dd2c6a80ecf47499913f509",
-        "weight": "17"
-      },
-      {
-        "public_key": "bfa0d77ec39ac4fc386cfd0fb2a940b746502adbbdc361271042cea05f14e7fb",
-        "weight": "17"
       }
     ]
   }
@@ -1020,7 +995,7 @@ pub async fn get_blockchain_config(cli_config: &Config, config_contract_boc_path
     Result<BlockchainConfig, String> {
     match config_contract_boc_path {
         Some(config_path) => {
-            let acc =Account::construct_from_file(config_path)
+            let acc = Account::construct_from_file(config_path)
                 .map_err(|e| format!("Failed to load config contract account from file {config_path}: {e}"))?;
             construct_blockchain_config(&acc)
         },
@@ -1050,4 +1025,28 @@ pub fn decode_data(data: &str, param_name: &str) -> Result<Vec<u8>, String> {
     } else {
         Err(format!("the {} parameter should be base64 or hex encoded", param_name))
     }
+}
+
+pub fn insert_pubkey_to_init_data(pubkey: Option<String>, opt_init_data: Option<&str>) -> Result<String, String> {
+    let init_data = match opt_init_data {
+        Some(json) => json,
+        None => "{}"
+    };
+
+    let mut js_init_data = serde_json::from_str(init_data)
+        .map_err(|e| format!("Failed to decode initial data as json: {}", e))?;
+    match &mut js_init_data {
+        Value::Object(obj) => {
+            if obj.contains_key(&"_pubkey".to_string()) {
+                return Err("Public key was set via init data. Please, use command line options --genkey/--setkey to set public key.".to_owned())
+            }
+            if let Some(pk) = pubkey {
+                let pubkey_str = format!("0x{}", pk);
+                obj.insert("_pubkey".to_string(), Value::String(pubkey_str));
+            }
+        }
+        _ => panic!("js_init_data is not Value::Object")
+    }
+
+    Ok(js_init_data.to_string())
 }

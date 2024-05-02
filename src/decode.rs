@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -7,7 +7,7 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and
+ * See the License for the specific EVERX DEV software governing permissions and
  * limitations under the License.
  */
 use crate::{load_abi, print_args};
@@ -15,8 +15,7 @@ use crate::config::Config;
 use crate::decode::msg_printer::tree_of_cells_into_base64;
 use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query_account_field, abi_from_matches_or_config, load_ton_address, load_ton_abi, create_client, query_message};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
-use ton_types::{Cell, SliceData, serialize_tree_of_cells};
-use std::io::Cursor;
+use ton_types::{Cell, SliceData, write_boc, read_single_root_boc};
 use ton_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData};
 use serde::Serialize;
@@ -291,14 +290,11 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
                 data: b64,
                 ..Default::default()
             }
-        )
-        .await
-        .map_err(|e| format!("failed to decode data: {}", e))?;
+        ).map_err(|e| format!("failed to decode data: {}", e))?;
     if !config.is_json {
         println!("TVC fields:");
     }
-    println!("{}", serde_json::to_string_pretty(&res.data)
-        .map_err(|e| format!("failed to serialize the result: {}", e))?);
+    println!("{:#}", res.data);
     Ok(())
 }
 
@@ -321,14 +317,11 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<()
                 data,
                 ..Default::default()
             }
-        )
-        .await
-        .map_err(|e| format!("failed to decode data: {}", e))?;
+        ).map_err(|e| format!("failed to decode data: {}", e))?;
     if !config.is_json {
         println!("Account fields:");
     }
-    println!("{}", serde_json::to_string_pretty(&res.data)
-        .map_err(|e| format!("failed to serialize the result: {}", e))?);
+    println!("{:#}", res.data);
     Ok(())
 }
 
@@ -343,8 +336,7 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool, config: &
     let body_vec  = base64::decode(body_base64)
         .map_err(|e| format!("body is not a valid base64 string: {}", e))?;
 
-    let mut empty_boc = vec![];
-    serialize_tree_of_cells(&Cell::default(), &mut empty_boc)
+    let empty_boc = write_boc(&Cell::default())
         .map_err(|e| format!("failed to serialize tree of cells: {}", e))?;
     if body_vec.cmp(&empty_boc) == std::cmp::Ordering::Equal {
         return Err("body is empty".to_string());
@@ -360,7 +352,7 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool, config: &
     };
     let mut signature = None;
 
-    let cell = ton_types::cells_serialization::deserialize_tree_of_cells(&mut Cursor::new(&body_vec))
+    let cell = read_single_root_boc(body_vec)
         .map_err(|e| format!("Failed to create cell: {}", e))?;
     let orig_slice = SliceData::load_cell(cell)
         .map_err(|e| format!("Failed to load cell: {}", e))?;
@@ -392,14 +384,11 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool, config: &
         result["Signature"] = json!(signature.unwrap_or("None".to_string()));
         result["Header"] = json!(header);
         result["FunctionId"] = json!(format!("{:08X}", func_id));
-        println!("{}", serde_json::to_string_pretty(&result)
-            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+        println!("{:#}", result);
     } else {
-        println!("\n\n{}: {}", res.name, serde_json::to_string_pretty(&output)
-            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+        println!("\n\n{}: {:#}", res.name, output);
         println!("Signature: {}", signature.unwrap_or("None".to_string()));
-        println!("Header: {}", serde_json::to_string_pretty(&json!(header))
-            .map_err(|e| format!("failed to serialize the result: {}", e))?);
+        println!("Header: {:#}", json!(header));
         println!("FunctionId: {:08X}", func_id);
     }
     Ok(())
@@ -467,7 +456,7 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), S
 pub mod msg_printer {
     use serde_json::{Value, json};
     use ton_block::{CurrencyCollection, StateInit, Message, CommonMsgInfo, Grams};
-    use ton_types::cells_serialization::serialize_tree_of_cells;
+    use ton_types::write_boc;
     use ton_types::Cell;
     use crate::helpers::{TonClient, create_client_local, decode_msg_body};
     use ton_client::boc::{get_compiler_version, ParamsOfGetCompilerVersion};
@@ -476,8 +465,7 @@ pub mod msg_printer {
     pub fn tree_of_cells_into_base64(root_cell: Option<&Cell>) -> Result<String, String> {
         match root_cell {
             Some(cell) => {
-                let mut bytes = Vec::new();
-                serialize_tree_of_cells(cell, &mut bytes)
+                let bytes = write_boc(cell)
                     .map_err(|e| format!("failed to serialize tree of cells: {}", e))?;
                 Ok(base64::encode(&bytes))
             }
@@ -492,7 +480,7 @@ pub mod msg_printer {
                 code,
                 ..Default::default()
             }
-        ).await;
+        );
 
         if let Ok(result) = result {
             if let Some(version) = result.version {
@@ -581,8 +569,7 @@ pub mod msg_printer {
     }
 
     pub async fn serialize_body(body_vec: Vec<u8>, abi_path: &str, ton: TonClient, config: &Config) -> Result<Value, String> {
-        let mut empty_boc = vec![];
-        serialize_tree_of_cells(&Cell::default(), &mut empty_boc)
+        let empty_boc = write_boc(&Cell::default())
             .map_err(|e| format!("failed to serialize tree of cells: {}", e))?;
         if body_vec.cmp(&empty_boc) == std::cmp::Ordering::Equal {
             return Ok(json!("empty"));
@@ -624,8 +611,7 @@ pub mod msg_printer {
         )?);
         if abi_path.is_some() && msg.body().is_some() {
             let abi_path = abi_path.unwrap();
-            let mut body_vec = Vec::new();
-            serialize_tree_of_cells(&msg.body().unwrap().into_cell(), &mut body_vec)
+            let body_vec = write_boc(&msg.body().unwrap().into_cell())
                 .map_err(|e| format!("failed to serialize body: {}", e))?;
             res["BodyCall"] =  match serialize_body(body_vec, &abi_path, ton, config).await {
                 Ok(res) => res,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2021 EverX Labs Ltd.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -7,13 +7,12 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and
+ * See the License for the specific EVERX DEV software governing permissions and
  * limitations under the License.
  */
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use clap::ArgMatches;
-use lazy_static::lazy_static;
 use regex::Regex;
 use crate::global_config_path;
 use crate::helpers::default_config_name;
@@ -214,21 +213,17 @@ impl Config {
 }
 
 
-lazy_static! {
-    static ref MAIN_ENDPOINTS: Vec<String> = vec![
-        "https://mainnet.evercloud.dev".to_string()
-    ];
-
-    static ref NET_ENDPOINTS: Vec<String> = vec![
-        "https://devnet.evercloud.dev".to_string()
-    ];
-
-    static ref SE_ENDPOINTS: Vec<String> = vec![
-        "http://0.0.0.0".to_string(),
-        "http://127.0.0.1".to_string(),
-        "http://localhost".to_string(),
-    ];
-}
+const MAIN_ENDPOINTS: &[&str] = &[
+    "https://mainnet.evercloud.dev",
+];
+const NET_ENDPOINTS: &[&str] = &[
+    "https://devnet.evercloud.dev",
+];
+const SE_ENDPOINTS: &[&str] = &[
+    "http://0.0.0.0",
+    "http://127.0.0.1",
+    "http://localhost",
+];
 
 pub fn resolve_net_name(url: &str) -> Option<String> {
     let url_regex = Regex::new(r"^\s*(?:https?://)?(?P<net>\w+\.evercloud\.dev)\s*")
@@ -277,10 +272,17 @@ impl FullConfig {
     }
 
     pub fn default_map() -> BTreeMap<String, Vec<String>> {
-        [(MAINNET.to_owned(), MAIN_ENDPOINTS.to_owned()),
-            (TESTNET.to_owned(), NET_ENDPOINTS.to_owned()),
-            (LOCALNET.to_owned(), SE_ENDPOINTS.to_owned()),
-        ].iter().cloned().collect()
+        [
+            (MAINNET, MAIN_ENDPOINTS),
+            (TESTNET, NET_ENDPOINTS),
+            (LOCALNET, SE_ENDPOINTS),
+        ]
+        .iter()
+        .map(|(k, v)| (
+            k.to_string(),
+            v.iter().map(|s| s.to_string()).collect())
+        )
+        .collect()
     }
 
     pub fn from_file(path: &str) -> FullConfig {
@@ -377,7 +379,7 @@ pub fn clear_config(
     matches: &ArgMatches,
     is_json: bool,
 ) -> Result<(), String> {
-    let mut config = &mut full_config.config;
+    let config = &mut full_config.config;
     let is_json = config.is_json || is_json;
     if matches.is_present("URL") {
         let url = default_url();
@@ -470,7 +472,7 @@ pub fn set_config(
     matches: &ArgMatches,
     is_json: bool,
 ) -> Result<(), String> {
-    let mut config= &mut full_config.config;
+    let config= &mut full_config.config;
     if let Some(s) = matches.value_of("URL") {
         let resolved_url = resolve_net_name(s).unwrap_or(s.to_owned());
         let empty : Vec<String> = Vec::new();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2021 EverX Labs Ltd.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -7,15 +7,16 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and
+ * See the License for the specific EVERX DEV software governing permissions and
  * limitations under the License.
  */
 
 use chrono::{Local, TimeZone};
 use serde_json::json;
 use ton_client::abi::{Abi, CallSet, encode_message, FunctionHeader, ParamsOfEncodeMessage, Signer};
+use crate::SignatureIDType;
 use crate::config::Config;
-use crate::helpers::{create_client_local, load_abi, load_ton_address, now, TonClient};
+use crate::helpers::{create_client_with_signature_id, load_abi, load_ton_address, now, TonClient};
 use crate::crypto::load_keypair;
 
 pub struct EncodedMessage {
@@ -34,12 +35,13 @@ pub async fn prepare_message(
     header: Option<FunctionHeader>,
     keys: Option<String>,
     is_json: bool,
+    signature_id: Option<i32>,
 ) -> Result<EncodedMessage, String> {
     if !is_json {
         println!("Generating external inbound message...");
     }
 
-    let msg_params = prepare_message_params(addr, abi, method, params, header.clone(), keys)?;
+    let msg_params = prepare_message_params(addr, abi, method, params, header.clone(), keys, signature_id)?;
 
     let msg = encode_message(ton, msg_params).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
@@ -59,6 +61,7 @@ pub fn prepare_message_params (
     params: &str,
     header: Option<FunctionHeader>,
     keys: Option<String>,
+    signature_id: Option<i32>,
 ) -> Result<ParamsOfEncodeMessage, String> {
     let keys = keys.map(|k| load_keypair(&k)).transpose()?;
     let params = serde_json::from_str(&params)
@@ -79,6 +82,7 @@ pub fn prepare_message_params (
         } else {
             Signer::None
         },
+        signature_id,
         ..Default::default()
     })
 }
@@ -162,15 +166,17 @@ pub async fn generate_message(
     is_raw: bool,
     output: Option<&str>,
     timestamp: Option<u64>,
+    signature_id: Option<SignatureIDType>
 ) -> Result<(), String> {
-    let ton = create_client_local()?;
+
+    let (client,signature_id) = create_client_with_signature_id(config,signature_id)?;
 
     let ton_addr = load_ton_address(addr, &config)
         .map_err(|e| format!("failed to parse address: {}", e.to_string()))?;
 
     let abi = load_abi(abi, config).await?;
 
-    let expire_at = lifetime + timestamp.clone().map(|millis| (millis / 1000) as u32).unwrap_or(now()?);
+    let expire_at = lifetime + timestamp.clone().map(|ms| (ms / 1000) as u32).unwrap_or(now());
     let header = FunctionHeader {
         expire: Some(expire_at),
         time: timestamp,
@@ -178,7 +184,7 @@ pub async fn generate_message(
     };
 
     let msg = prepare_message(
-        ton.clone(),
+        client.clone(),
         &ton_addr,
         abi,
         method,
@@ -186,6 +192,7 @@ pub async fn generate_message(
         Some(header),
         keys,
         config.is_json,
+        signature_id,
     ).await?;
 
     display_generated_message(&msg, method, is_raw, output, config.is_json)?;
@@ -231,4 +238,3 @@ pub fn display_generated_message(
     }
     Ok(())
 }
-

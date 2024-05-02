@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -7,7 +7,7 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and
+ * See the License for the specific EVERX DEV software governing permissions and
  * limitations under the License.
  */
 
@@ -24,13 +24,13 @@ use serde_json::Value;
 
 use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable,
                 Transaction, TransactionDescr, Block, HashmapAugType};
-use ton_client::{
-    net::{AggregationFn, FieldAggregation, OrderBy, ParamsOfAggregateCollection,
-          ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection},
+use ton_client::net::{
+    AggregationFn, FieldAggregation, OrderBy, ParamsOfAggregateCollection,
+    ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection,
 };
 use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor,
                    TickTockTransactionExecutor, TransactionExecutor};
-use ton_types::{BuilderData, SliceData, UInt256, serialize_tree_of_cells};
+use ton_types::{BuilderData, SliceData, UInt256, write_boc};
 use ton_vm::executor::{Engine, EngineTraceInfo};
 
 use crate::config::Config;
@@ -48,7 +48,7 @@ pub fn construct_blockchain_config(config_account: &Account) -> Result<Blockchai
     construct_blockchain_config_err(config_account).map_err(|e| format!("Failed to construct config: {}", e))
 }
 
-fn construct_blockchain_config_err(config_account: &Account) -> Result<BlockchainConfig, failure::Error> {
+fn construct_blockchain_config_err(config_account: &Account) -> ton_types::Result<BlockchainConfig> {
     let config_cell = config_account
         .get_data().ok_or(err_msg("Failed to get account's data"))?
         .reference(0).ok();
@@ -283,7 +283,7 @@ pub async fn replay(
     config_filename: &str,
     txnid: &str,
     trace_callback: Option<Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync>>,
-    init_trace_last_logger: impl Fn() -> Result<(), String>,
+    init_trace_last_logger: impl FnOnce() -> Result<(), String>,
     dump_mask: u8,
     cli_config: &Config,
     blockchain_config: Option<BlockchainConfig>,
@@ -341,7 +341,8 @@ pub async fn replay(
         if tr.id == txnid {
             if dump_mask & DUMP_ACCOUNT != 0 {
                 let path = format!("{}-{}.boc", account_address.split(':').last().unwrap_or(""), txnid);
-                account_root.write_to_file(&path);
+                account_root.write_to_file(&path)
+                    .map_err(|e| format!("Failed to write account: {}", e))?;
                 if !cli_config.is_json {
                     println!("Contract account was dumped to {}", path);
                 }
@@ -350,7 +351,8 @@ pub async fn replay(
                 let path = format!("config-{}.boc", txnid);
                 let account = config_account.serialize()
                     .map_err(|e| format!("Failed to serialize config account: {}", e))?;
-                account.write_to_file(&path);
+                account.write_to_file(&path)
+                    .map_err(|e| format!("Failed to write config account: {}", e))?;
                 if !cli_config.is_json {
                     println!("Config account was dumped to {}", path);
                 }
@@ -371,7 +373,8 @@ pub async fn replay(
                     .map_err(|e| format!("Failed to append config reference: {}", e))?;
                 let path = format!("config-{}-test.boc", txnid);
                 cfg.into_cell().map_err(|e| format!("Failed to finalize builder: {}", e))?
-                    .write_to_file(&path);
+                    .write_to_file(&path)
+                    .map_err(|e| format!("Failed to write config data: {}", e))?;
                 if !cli_config.is_json {
                     println!("Config for executor was dumped to {}", path);
                 }
@@ -458,7 +461,7 @@ pub async fn replay(
     Err("Specified transaction was not found.".to_string())
 }
 
-pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Result<(), failure::Error> {
+pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> ton_types::Status {
     let context = create_client(config)
         .map_err(|e| err_msg(format!("Failed to create ctx: {}", e)))?;
 
@@ -498,8 +501,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
         let mut txns = vec!();
         account_block.transaction_iterate(|tr| {
             let cell = tr.serialize()?;
-            let mut bytes = vec!();
-            serialize_tree_of_cells(&cell, &mut bytes)?;
+            let bytes = write_boc(&cell)?;
             txns.push((cell.repr_hash().to_hex_string(), base64::encode(&bytes)));
             Ok(true)
         })?;
@@ -590,9 +592,9 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> Res
         });
     }
 
-    let mut writer = std::io::BufWriter::new(File::create(filename)?);
-    writer.write_all(serde_json::to_string_pretty(&block)?.as_bytes())?;
-    println!("Wrote block to {}", filename);
+    let writer = std::io::BufWriter::new(File::create(filename)?);
+    serde_json::to_writer_pretty(writer, &block)?;
+    println!("Block written to {}", filename);
     Ok(())
 }
 

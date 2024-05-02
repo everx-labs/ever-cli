@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2021 EverX Labs Ltd.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -7,7 +7,7 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and
+ * See the License for the specific EVERX DEV software governing permissions and
  * limitations under the License.
  */
 use crate::config::Config;
@@ -375,7 +375,7 @@ impl<'a> DepoolCmd<'a> {
         let call_args = CallArgs::submit_with_args(self.m, &self.depool, &format!("{}", self.value), true, body).await?;
         let msig_args = MultisigArgs::new(self.m, self.config, call_args)?;
         
-        let since = now()?;
+        let since = now();
         let depool = self.depool.to_owned();
         let wallet = msig_args.address().to_owned();
 
@@ -635,7 +635,7 @@ async fn print_event(ton: TonClient, event: &serde_json::Value) -> Result<(), St
             is_internal: false,
             ..Default::default()
         },
-    ).await;
+    );
     let (name, args) = if result.is_err() {
         ("unknown".to_owned(), "{}".to_owned())
     } else {
@@ -683,7 +683,7 @@ async fn wait_for_event(config: &Config, depool: &str) -> Result<(), String> {
         ton.clone(),
         ParamsOfWaitForCollection {
             collection: "messages".to_owned(),
-            filter: Some(events_filter(depool, now()?)),
+            filter: Some(events_filter(depool, now())),
             result: "id body created_at created_at_string".to_owned(),
             timeout: Some(config.timeout),
             ..Default::default()

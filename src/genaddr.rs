@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+ * Copyright 2018-2023 EverX.
  *
  * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
  * this file except in compliance with the License.
@@ -7,12 +7,11 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific TON DEV software governing permissions and
+ * See the License for the specific EVERX DEV software governing permissions and
  * limitations under the License.
  */
 use crate::config::Config;
 use crate::helpers::{create_client_local, read_keys, load_abi, calc_acc_address, load_abi_str};
-use ed25519_dalek::PublicKey;
 use serde_json::json;
 use std::fs::OpenOptions;
 
@@ -60,11 +59,7 @@ pub async fn generate_address(
     let addr = calc_acc_address(
         &contract,
         wc,
-        if keys.is_some() {
-            Some(keys.clone().unwrap().public)
-        } else {
-            None
-        },
+        keys.as_ref().map(|v| v.public.clone()),
         initial_data,
         abi.clone()
     ).await?;
@@ -122,8 +117,7 @@ pub async fn generate_address(
             "non-bounceable": calc_userfriendly_address(&addr, false, false)?,
             "bounceable": calc_userfriendly_address(&addr, true, false)?
         });
-        println!("{}", serde_json::to_string_pretty(&res)
-            .map_err(|e| format!("Failed to serialize result: {}", e))?);
+        println!("{:#}", res);
     }
     Ok(())
 }
@@ -143,17 +137,37 @@ fn calc_userfriendly_address(address: &str, bounce: bool, test: bool) -> Result<
 
 fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, abi: &str) -> Result<(), String> {
     use std::io::{Seek, Write};
+    use ton_abi::Contract;
+    use ton_sdk::ContractImage;
+
+    let data_map_supported : bool = (Contract::load(abi.as_bytes())
+        .map_err(|e| format!("unable to load abi: {}", e))?).data_map_supported();
+
     let mut state_init = OpenOptions::new().read(true).write(true).open(tvc_file)
         .map_err(|e| format!("unable to open contract file: {}", e))?;
 
-    let pubkey_object = PublicKey::from_bytes(pubkey)
+    let pubkey_object = pubkey.try_into()
         .map_err(|e| format!("unable to load public key: {}", e))?;
 
-    let mut contract_image = ton_sdk::ContractImage::from_state_init_and_key(&mut state_init, &pubkey_object)
-        .map_err(|e| format!("unable to load contract image: {}", e))?;
+    let mut contract_image = if data_map_supported {
+        ContractImage::from_state_init_and_key(&mut state_init, &pubkey_object)
+            .map_err(|e| format!("unable to load contract image with key: {}", e))?
+    } else {
+        ContractImage::from_state_init(&mut state_init)
+            .map_err(|e| format!("unable to load contract image: {}", e))?
+    };
 
-    if data.is_some() {
-        contract_image.update_data(&data.unwrap(), abi)
+    if data_map_supported {
+        if data.is_some() {
+            contract_image.update_data(true, &data.unwrap(), abi)
+                .map_err(|e| format!("unable to update contract image data: {}", e))?;
+        }
+    } else {
+        let js_init_data = crate::helpers::insert_pubkey_to_init_data(
+            Some(hex::encode(pubkey)),
+            data.as_deref()
+        )?;
+        contract_image.update_data(false, js_init_data.as_str(), abi)
             .map_err(|e| format!("unable to update contract image data: {}", e))?;
     }
 

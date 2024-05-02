@@ -1,5 +1,5 @@
 /*
-* Copyright 2018-2021 TON DEV SOLUTIONS LTD.
+* Copyright 2018-2021 EverX Labs Ltd.
 *
 * Licensed under the SOFTWARE EVALUATION License (the "License"); you may not use
 * this file except in compliance with the License.
@@ -7,7 +7,7 @@
 * Unless required by applicable law or agreed to in writing, software
 * distributed under the License is distributed on an "AS IS" BASIS,
 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific TON DEV software governing permissions and
+* See the License for the specific EVERX DEV software governing permissions and
 * limitations under the License.
 */
 use super::term_signing_box::TerminalSigningBox;
@@ -87,7 +87,6 @@ impl TerminalBrowser {
                         ..Default::default()
                     },
                 )
-                .await
                 .map_err(|e| format!("{}", e))?
                 .message,
             );
@@ -176,7 +175,6 @@ impl TerminalBrowser {
                     ..Default::default()
                 }
             )
-            .await
             .map_err(|e| format!("{}", e))?
             .message;
             let result = debot.dengine.send(response_msg).await;
@@ -223,7 +221,7 @@ impl TerminalBrowser {
                     message,
                     ..Default::default()
                  },
-            ).await.map_err(|e| format!("{}", e))?;
+            ).map_err(|e| format!("{}", e))?;
             decoded.value.unwrap_or(json!({}))
         } else {
             json!({"message": message})
@@ -330,7 +328,6 @@ pub async fn run_debot_browser(
                 ton.clone(),
                 ParamsOfParse { boc: msg.clone(), ..Default::default() },
             )
-            .await
             .map_err(|e| format!("{}", e))?
             .parsed;
 
