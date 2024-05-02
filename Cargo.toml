@@ -1,14 +1,14 @@
 [package]
-authors = [ 'TON DEV SOLUTIONS LTD <support@everx.dev>' ]
+authors = [ 'EverX Labs Ltd <support@everx.dev>' ]
 build = 'build.rs'
-description = 'command line tool for TON blockchain'
+description = 'command line tool for TVM blockchain'
 documentation = 'https://docs.everos.dev/'
 edition = '2021'
 homepage = 'https://docs.everos.dev/'
 keywords = [
-    'TON',
+    'TVM',
     'SDK',
-    'smart contract',
+    'smart-contract',
     'everx-labs',
     'solidity'
 ]
@@ -16,7 +16,7 @@ license = 'Apache-2.0'
 name = 'ever-cli'
 readme = 'README.md'
 repository = 'https://github.com/everx-labs/ever-cli'
-version = '0.36.7'
+version = '0.36.8'
 default-run = 'ever-cli'
 
 [features]
