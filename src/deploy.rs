@@ -34,6 +34,7 @@ pub async fn deploy_contract(
     wc: i32,
     is_fee: bool,
     alias: Option<&str>,
+    method: String,
 ) -> Result<(), String> {
     let config = &full_config.config;
     let ton = create_client_verbose(config)?;
@@ -42,7 +43,7 @@ pub async fn deploy_contract(
         println!("Deploying...");
     }
 
-    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file.clone(), wc, &full_config.config, None).await?;
+    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file.clone(), wc, &full_config.config, None, method).await?;
 
     let enc_msg = encode_message(ton.clone(), msg.clone()).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
@@ -89,11 +90,12 @@ pub async fn generate_deploy_message(
     output: Option<&str>,
     config: &Config,
     signature_id: Option<SignatureIDType>,
+    method: String,
 ) -> Result<(), String> {
+    let (client, signature_id) = create_client_with_signature_id(config, signature_id)?;
 
-    let (client,signature_id) = create_client_with_signature_id(config,signature_id)?;
-
-    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file, wc, config, signature_id).await?;
+    let (msg, addr) = prepare_deploy_message(tvc, abi, params, keys_file,
+                                             wc, config, signature_id, method.clone()).await?;
     let msg = encode_message(client, msg).await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
@@ -103,7 +105,7 @@ pub async fn generate_deploy_message(
         expire: None,
         address: addr.to_owned(),
     };
-    display_generated_message(&msg, "constructor", is_raw, output, config.is_json)?;
+    display_generated_message(&msg, method.as_str(), is_raw, output, config.is_json)?;
     if !config.is_json {
         println!("Contract's address: {}", addr);
         println!("Succeeded.");
@@ -119,6 +121,7 @@ pub async fn prepare_deploy_message(
     wc: i32,
     config: &Config,
     signature_id: Option<i32>,
+    method: String,
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
     let abi = load_abi(abi, config).await?;
 
@@ -130,7 +133,7 @@ pub async fn prepare_deploy_message(
     prepare_deploy_message_params(
         &tvc_bytes,
         abi,
-        "constructor".to_string(),
+        method,
         now_ms(),
         params,
         keys,
@@ -184,7 +187,7 @@ pub async fn prepare_deploy_message_params(
         ..Default::default()
     });
     let signer = if let Some(keys) = keys {
-        Signer::Keys{ keys }
+        Signer::Keys { keys }
     } else {
         Signer::None
     };

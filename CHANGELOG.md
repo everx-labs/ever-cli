@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.37.0
+ - Added parameter `method`  for `deploy` and `deployx` commands.
+
 ## 0.36.6
 
  - Improved documentation on deploying contracts using ABI version 2.4.
