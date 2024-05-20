@@ -184,6 +184,7 @@ async fn main_internal() -> Result <(), String> {
         .arg(wc_arg.clone())
         .arg(tvc_arg.clone())
         .arg(alias_arg_long.clone())
+        .arg(method_opt_arg.clone())
         .arg(multi_params_arg.clone());
 
     let address_boc_tvc_arg = Arg::with_name("ADDRESS")
@@ -321,7 +322,8 @@ async fn main_internal() -> Result <(), String> {
         .arg(abi_arg.clone())
         .arg(sign_arg.clone())
         .arg(keys_arg.clone())
-        .arg(wc_arg.clone());
+        .arg(wc_arg.clone())
+        .arg(method_opt_arg.clone());
 
     let output_arg = Arg::with_name("OUTPUT")
         .short("-o")
@@ -1360,10 +1362,11 @@ async fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, 
             .map(|s| s.to_string())
             .or(config.keys_path.clone());
     let alias = matches.value_of("ALIAS");
+    let method = matches.value_of("METHOD").unwrap_or("constructor");
     let params = Some(unpack_alternative_params(
         matches,
         abi.as_ref().unwrap(),
-        "constructor",
+        method,
         config
     ).await?);
     if !config.is_json {
@@ -1371,7 +1374,9 @@ async fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, 
         print_args!(tvc, params, abi, keys, signature_id, opt_wc, alias);
     }
     match deploy_type {
-        DeployType::Full => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false, alias).await,
+        DeployType::Full => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(),
+                                            &params.unwrap(), keys, wc, false, alias,
+                                            method.to_string()).await,
         DeployType::MsgOnly => {
             let signature_id = matches.value_of("SIGNATURE_ID").map(|val| {
                 if val == "online" {
@@ -1381,9 +1386,12 @@ async fn deploy_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig, 
                     .map_err(|e| format!("Failed to parse SIGNATURE_ID: {e}"))?;
                 Ok(SignatureIDType::Value(sid))
             }).transpose()?;
-            generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, raw, output, config, signature_id).await
+            generate_deploy_message(tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, raw,
+                                    output, config, signature_id, method.to_string()).await
         },
-        DeployType::Fee => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, true, None).await,
+        DeployType::Fee => deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(),
+                                           &params.unwrap(), keys, wc, true, None,
+                                           method.to_string()).await,
     }
 }
 
@@ -1392,10 +1400,11 @@ async fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig)
     let tvc = matches.value_of("TVC");
     let wc = wc_from_matches_or_config(matches, config)?;
     let abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let method = matches.value_of("METHOD").unwrap_or("constructor");
     let params = Some(unpack_alternative_params(
         matches,
         abi.as_ref().unwrap(),
-        "constructor",
+        method,
         config
     ).await?);
     let keys = matches.value_of("KEYS")
@@ -1407,7 +1416,8 @@ async fn deployx_command(matches: &ArgMatches<'_>, full_config: &mut FullConfig)
         let opt_wc = Some(format!("{}", wc));
         print_args!(tvc, params, abi, keys, opt_wc, alias);
     }
-    deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc, false, alias).await
+    deploy_contract(full_config, tvc.unwrap(), &abi.unwrap(), &params.unwrap(), keys, wc,
+                    false, alias, method.to_string()).await
 }
 
 fn config_command(matches: &ArgMatches, mut full_config: FullConfig, is_json: bool) -> Result<(), String> {

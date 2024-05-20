@@ -297,6 +297,7 @@ pub fn create_debug_command<'a, 'b>() -> App<'a, 'b> {
             .long("--wc")
             .help("Workchain ID"))
         .arg(params_arg.clone())
+        .arg(method_arg.clone())
         .arg(
             update_arg.clone()
             .help("Store account in same file, but with BOC extension."))
@@ -865,10 +866,11 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
     let sign = matches.value_of("KEYS")
         .map(|s| s.to_string())
         .or(config.keys_path.clone());
+    let method = matches.value_of("METHOD").unwrap_or("constructor");
     let params = Some(unpack_alternative_params(
         matches,
         opt_abi.as_ref().unwrap(),
-        "constructor",
+        method,
         config
     ).await?);
     let wc = wc_from_matches_or_config(matches, config)?;
@@ -884,6 +886,7 @@ async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Resu
         wc,
         config,
         None,
+        method.to_string()
     ).await?;
     let initial_balance_opt = if let Some(initial_balance) = matches.value_of("INITIAL_BALANCE") {
         initial_balance.parse().ok()
