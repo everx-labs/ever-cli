@@ -15,8 +15,6 @@ pub enum ApproveKind {
 #[derive(Deserialize, Clone, Default)]
 #[serde(rename_all(deserialize = "camelCase"))]
 pub struct PipeChain {
-    pub version: u8,
-    pub debot_address: String,
     #[serde(default = "default_init_method")]
     pub init_method: String,
     pub init_args: Option<Value>,

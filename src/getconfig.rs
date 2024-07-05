@@ -15,11 +15,11 @@ use num_bigint::BigUint;
 use crate::config::Config;
 use crate::helpers::{create_client_verbose, query_with_limit, now, now_ms, TonClient};
 use serde_json::{json, Value};
-use ton_abi::{Contract, Token, TokenValue, Uint};
-use ton_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, MsgAddressExt, Serializable};
+use ever_abi::{Contract, Token, TokenValue, Uint};
+use ever_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, MsgAddressExt, Serializable};
 use ton_client::net::{OrderBy, SortDirection};
 use ton_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
-use ton_types::{BuilderData, Cell, IBitstring, SliceData, ed25519_create_private_key, ed25519_sign_with_secret,MAX_SAFE_DEPTH};
+use ever_block::{BuilderData, Cell, IBitstring, SliceData, ed25519_create_private_key, ed25519_sign_with_secret,MAX_SAFE_DEPTH};
 
 const PREFIX_UPDATE_CONFIG_MESSAGE_DATA: &str = "43665021";
 
@@ -341,7 +341,7 @@ pub async fn gen_update_config_message(
 ) -> Result<(), String> {
     let config_master_address = std::fs::read(&*(config_master_file.to_string() + ".addr"))
         .map_err(|e| format!(r#"failed to read "config_master": {}"#, e))?;
-    let config_account = ton_types::AccountId::from_raw(config_master_address, 32*8);
+    let config_account = ever_block::AccountId::from_raw(config_master_address, 32*8);
 
     let private_key_of_config_account = std::fs::read(&*(config_master_file.to_string() + ".pk"))
         .map_err(|e| format!(r#"failed to read "config_master": {}"#, e))?;
@@ -393,7 +393,7 @@ pub fn serialize_config_param(config_str: &str) -> Result<(Cell, u32), String> {
         .parse::<u32>()
         .map_err(|e| format!(r#""new_param_file" is not a valid json: {}"#, e))?;
 
-    let config_params = ton_block_json::parse_config(config_json)
+    let config_params = ever_block_json::parse_config(config_json)
         .map_err(|e| format!(r#"failed to parse config params from "new_param_file": {}"#, e))?;
 
     let config_param = config_params.config(key_number)

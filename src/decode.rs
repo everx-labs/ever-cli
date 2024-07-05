@@ -15,8 +15,8 @@ use crate::config::Config;
 use crate::decode::msg_printer::tree_of_cells_into_base64;
 use crate::helpers::{decode_msg_body, print_account, create_client_local, create_client_verbose, query_account_field, abi_from_matches_or_config, load_ton_address, load_ton_abi, create_client, query_message};
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
-use ton_types::{Cell, SliceData, write_boc, read_single_root_boc};
-use ton_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
+use ever_block::{Cell, SliceData, write_boc, read_single_root_boc};
+use ever_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
 use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData};
 use serde::Serialize;
 use serde_json::json;
@@ -368,7 +368,7 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool, config: &
     }
     let contr = load_ton_abi(abi_path, config).await?;
 
-    let (_, func_id, _) = ton_abi::Function::decode_header(contr.version(), orig_slice.clone(), contr.header(), !is_external)
+    let (_, func_id, _) = ever_abi::Function::decode_header(contr.version(), orig_slice.clone(), contr.header(), !is_external)
         .map_err(|e| format!("Failed to decode header: {}", e))?;
     let output = res.value.take().ok_or("failed to obtain the result")?;
     let header = res.header.map(|hdr| {
@@ -455,9 +455,9 @@ async fn decode_tvc_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), S
 
 pub mod msg_printer {
     use serde_json::{Value, json};
-    use ton_block::{CurrencyCollection, StateInit, Message, CommonMsgInfo, Grams};
-    use ton_types::write_boc;
-    use ton_types::Cell;
+    use ever_block::{CurrencyCollection, StateInit, Message, CommonMsgInfo, Grams};
+    use ever_block::write_boc;
+    use ever_block::Cell;
     use crate::helpers::{TonClient, create_client_local, decode_msg_body};
     use ton_client::boc::{get_compiler_version, ParamsOfGetCompilerVersion};
     use crate::Config;

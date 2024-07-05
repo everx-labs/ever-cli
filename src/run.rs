@@ -13,7 +13,7 @@
 
 use clap::ArgMatches;
 use serde_json::{Map, Value};
-use ton_block::{Account, Deserializable, Serializable};
+use ever_block::{Account, Deserializable, Serializable};
 use ton_client::abi::FunctionHeader;
 use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
 use crate::config::{Config, FullConfig};
@@ -181,7 +181,7 @@ fn prepare_execution_options(bc_config: Option<&str>) -> Result<Option<Execution
     if let Some(config) = bc_config {
         let mut bytes = std::fs::read(config)
             .map_err(|e| format!("Failed to read data from file {config}: {e}"))?;
-        let cell = ton_types::read_single_root_boc(&bytes)
+        let cell = ever_block::read_single_root_boc(&bytes)
             .map_err(|e| format!("Failed to deserialize {config}: {e}"))?;
         if let Ok(acc) = Account::construct_from_cell(cell.clone()) {
             let config = construct_blockchain_config(&acc)?;

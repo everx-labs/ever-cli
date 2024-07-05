@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.38.0
+ - Deleted feature `sold`
+
 ## 0.37.0
  - Added parameter `method`  for `deploy` and `deployx` commands.
 

@@ -26,11 +26,10 @@ use crate::replay::{
 };
 use std::io::{Write, BufRead};
 use std::collections::{HashSet, HashMap};
-use ton_block::{Message, Account, Serializable, Deserializable, Transaction,
-                MsgAddressInt, CurrencyCollection, GasLimitsPrices, ConfigParamEnum, TransactionTickTock, InRefValue, TrComputePhase};
-use ton_types::{UInt256, Cell, AccountId};
+use ever_block::{Message, Account, Serializable, Deserializable, Transaction, MsgAddressInt, CurrencyCollection, GasLimitsPrices, ConfigParamEnum, TransactionTickTock, InRefValue, TrComputePhase, CommonMessage};
+use ever_block::{UInt256, Cell, AccountId};
 use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
-use ton_executor::{
+use ever_executor::{
     BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TransactionExecutor, TickTockTransactionExecutor
 };
 use std::sync::{Arc, atomic::AtomicU64};
@@ -39,8 +38,9 @@ use crate::crypto::load_keypair;
 use std::fmt;
 use std::fs::File;
 use serde_json::{Value, json};
-use ton_labs_assembler::DbgInfo;
-use ton_vm::executor::{Engine, EngineTraceInfo, EngineTraceInfoType};
+use ever_assembler::DbgInfo;
+use ever_block::CommonMessage::Std;
+use ever_vm::executor::{Engine, EngineTraceInfo, EngineTraceInfoType};
 use crate::decode::msg_printer::serialize_msg;
 use crate::deploy::prepare_deploy_message;
 
@@ -976,13 +976,14 @@ pub async fn decode_messages(tr: &Transaction, abi: Option<String>, config: &Con
 
     let mut res = vec![];
     let mut output = vec![];
-    for InRefValue(msg) in msgs {
+    for InRefValue(common_msg) in msgs {
+        let msg = common_msg.get_std().unwrap();
         let mut ser_msg = serialize_msg(&msg, abi.clone(), config).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
         let msg_cell = msg.serialize()
             .map_err(|e| format!("Failed to serialize out message: {}", e))?;
         ser_msg["id"] = msg_cell.repr_hash().as_hex_string().into();
-        let msg_bytes = ton_types::write_boc(&msg_cell)
+        let msg_bytes = ever_block::write_boc(&msg_cell)
             .map_err(|e| format!("failed to encode out message: {e}"))?;
         ser_msg["Message_base64"] = base64::encode(msg_bytes).into();
         let body = &ser_msg["BodyCall"];
@@ -1002,7 +1003,7 @@ pub async fn decode_messages(tr: &Transaction, abi: Option<String>, config: &Con
             ),
             _ => (0, 0)
         };
-        // let _tr = match ton_block_json::debug_transaction(tr.clone()) {
+        // let _tr = match ever_block_json::debug_transaction(tr.clone()) {
         //     Ok(tr) => serde_json::from_str::<Value>(&tr).unwrap(),
         //     Err(err) => err.to_string().into()
         // };
@@ -1188,15 +1189,16 @@ pub async fn execute_debug(
         ..ExecuteParams::default()
     };
 
+    let common_message: Option<CommonMessage> = message.map(|m| Std(m.clone()));
     executor.execute_with_libs_and_params(
-        message,
+        common_message.as_ref(),
         account_root,
         params
     ).map_err(|e| {
         let exit_code = match e.downcast_ref() {
-            Some(ton_executor::ExecutorError::NoAcceptError(exit_code, _)) => *exit_code,
-            Some(ton_executor::ExecutorError::TvmExceptionCode(exit_code)) => *exit_code as i32,
-            None => ton_vm::error::tvm_exception_or_custom_code(&e),
+            Some(ever_executor::ExecutorError::NoAcceptError(exit_code, _)) => *exit_code,
+            Some(ever_executor::ExecutorError::TvmExceptionCode(exit_code)) => *exit_code as i32,
+            None => ever_vm::error::tvm_exception_or_custom_code(&e),
             _ => return format!("Debug failed: {}", e)
         };
         let result = json!({
@@ -1414,7 +1416,7 @@ async fn fetch_transactions(config: &Config, addresses: &Vec<String>) -> Result<
 fn map_inbound_messages_onto_tr(txns: &Vec<TransactionExt>) -> HashMap<UInt256, Transaction> {
     let mut map = HashMap::default();
     for txn in txns {
-        let hash = txn.tr.in_msg.as_ref().unwrap().hash();
+        let hash = txn.tr.in_msg.hash();
         map.insert(hash, txn.tr.clone());
     }
     map
@@ -1422,7 +1424,8 @@ fn map_inbound_messages_onto_tr(txns: &Vec<TransactionExt>) -> HashMap<UInt256, 
 
 fn sort_outbound_messages(tr: &Transaction, map: &HashMap<UInt256, Transaction>) -> Result<Vec<Message>, String> {
     let mut messages = vec!();
-    tr.iterate_out_msgs(|msg| {
+    tr.iterate_out_msgs(|common_msg| {
+        let msg = common_msg.get_std().unwrap().clone();
         let hash = msg.serialize().unwrap().repr_hash();
         let lt = if let Some(tr) = map.get(&hash) {
             tr.logical_time()
@@ -1476,10 +1479,11 @@ async fn make_sequence_diagram(
         let is_separate = last_tr_id.as_ref() != Some(&id);
         let tr_name = id.split_at(MESSAGE_WIDTH).0;
         let (own_index, _) = &name_map[&address];
-        let in_msg_cell = tr.in_msg.as_ref().unwrap();
+        let in_msg_cell = &tr.in_msg;
 
         if rendered.insert(in_msg_cell.hash()) || is_separate {
-            let in_msg = in_msg_cell.read_struct().unwrap();
+            let common_message = in_msg_cell.read_struct().unwrap();
+            let in_msg = common_message.get_std().unwrap();
             let msg_id = in_msg_cell.hash().to_hex_string();
             let msg_name = msg_id.split_at(MESSAGE_WIDTH).0;
             if let Some(src) = in_msg.src_ref() { // internal message
@@ -1504,8 +1508,8 @@ async fn make_sequence_diagram(
 
         let desc = tr.read_description().map_err(|e| format!("Failed to read tr desc: {}", e))?;
         let (tr_color, tr_gas) = match desc.compute_phase_ref() {
-            None | Some(ton_block::TrComputePhase::Skipped(_)) => ("", None),
-            Some(ton_block::TrComputePhase::Vm(tr_compute_phase_vm)) => {
+            None | Some(ever_block::TrComputePhase::Skipped(_)) => ("", None),
+            Some(ever_block::TrComputePhase::Vm(tr_compute_phase_vm)) => {
                 let gas = tr_compute_phase_vm.gas_used.to_string();
                 if tr_compute_phase_vm.success {
                     ("#YellowGreen", Some(gas))

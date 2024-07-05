@@ -137,7 +137,7 @@ fn calc_userfriendly_address(address: &str, bounce: bool, test: bool) -> Result<
 
 fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, abi: &str) -> Result<(), String> {
     use std::io::{Seek, Write};
-    use ton_abi::Contract;
+    use ever_abi::Contract;
     use ton_sdk::ContractImage;
 
     let data_map_supported : bool = (Contract::load(abi.as_bytes())

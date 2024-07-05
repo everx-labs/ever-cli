@@ -30,10 +30,10 @@ use ton_client::tvm::{
     ParamsOfRunExecutor,
     AccountForExecutor
 };
-use ton_block::{Account, Serializable};
+use ever_block::{Account, Serializable};
 use std::str::FromStr;
 use serde_json::{json, Value};
-use ton_abi::ParamType;
+use ever_abi::ParamType;
 use ton_client::error::ClientError;
 use crate::debug::{init_debug_logger, debug_error, DebugParams};
 use crate::message::{EncodedMessage, prepare_message_params, print_encoded_message, unpack_message};
@@ -115,10 +115,10 @@ pub async fn emulate_locally(
     let state_boc = query_account_field(ton.clone(), addr, "boc").await;
     if state_boc.is_err() {
         if is_fee {
-            let addr = ton_block::MsgAddressInt::from_str(addr)
+            let addr = ever_block::MsgAddressInt::from_str(addr)
                 .map_err(|e| format!("couldn't decode address: {}", e))?;
             state = base64::encode(
-                &ton_types::write_boc(
+                &ever_block::write_boc(
                     &Account::with_address(addr)
                         .serialize()
                         .map_err(|e| format!("couldn't create dummy account for deploy emulation: {}", e))?
