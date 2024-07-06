@@ -848,7 +848,7 @@ dependencies = [
 
 [[package]]
 name = "ever-cli"
-version = "0.38.0"
+version = "0.37.1"
 dependencies = [
  "assert_cmd",
  "async-trait",
