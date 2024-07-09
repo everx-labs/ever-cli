@@ -36,8 +36,6 @@ mod debug;
 mod run;
 mod test;
 mod message;
-#[cfg(feature = "sold")]
-mod compile;
 
 use account::{get_account, calc_storage, wait_for_change};
 use call::{call_contract, call_contract_with_msg};
@@ -63,8 +61,6 @@ use test::{create_test_command, test_command, test_sign_command, create_test_sig
 use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use voting::{create_proposal, decode_proposal, vote};
 use crate::account::dump_accounts;
-#[cfg(feature = "sold")]
-use crate::compile::{compile_command, create_compile_command};
 
 use crate::config::{FullConfig, resolve_net_name};
 use crate::getconfig::gen_update_config_message;
@@ -951,8 +947,6 @@ async fn main_internal() -> Result <(), String> {
         .subcommand(runx_cmd)
         .subcommand(update_config_param_cmd)
         .setting(AppSettings::SubcommandRequired);
-#[cfg(feature = "sold")]
-    let matches = matches.subcommand(create_compile_command());
 
     let matches = matches.get_matches_safe()
         .map_err(|e| match e.kind {
@@ -1125,10 +1119,6 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result <(), 
     }
     if let Some(m) = matches.subcommand_matches("test") {
         return test_command(m, &full_config).await;
-    }
-#[cfg(feature = "sold")]
-    if let Some(m) = matches.subcommand_matches("compile") {
-        return compile_command(m, &config).await;
     }
     if matches.subcommand_matches("version").is_some() {
         if config.is_json {

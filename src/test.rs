@@ -22,14 +22,14 @@ use crate::FullConfig;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use serde_json::json;
 use std::path::PathBuf;
-use ton_block::{
+use ever_block::{
     Account, ConfigParams, CurrencyCollection, Deserializable, Message, Serializable, TickTock,
 };
 use ton_client::abi::{
     encode_internal_message, encode_message, CallSet, DeploySet, FunctionHeader,
     ParamsOfEncodeInternalMessage, ParamsOfEncodeMessage, Signer as AbiSigner,
 };
-use ton_types::{read_single_root_boc, write_boc, SliceData, BuilderData, ed25519_sign_with_secret};
+use ever_block::{read_single_root_boc, write_boc, SliceData, BuilderData, ed25519_sign_with_secret};
 
 pub fn create_test_sign_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("sign")
@@ -457,12 +457,12 @@ pub fn test_config_command(matches: &ArgMatches<'_>, config: &Config) -> Result<
                 .config_params
                 .set_builder(key, &value)
                 .map_err(|e| format!("Failed to store config param with index {index}: {e}"))?;
-            ton_block_json::serialize_config_param(&params, index)
+            ever_block_json::serialize_config_param(&params, index)
                 .map_err(|e| format!("Failed to serialize config param with index {index}: {e}"))?
         } else {
             let params = ConfigParams::construct_from_cell(cell)
                 .map_err(|e| format!("Failed to construct ConfigParams: {e}"))?;
-            ton_block_json::serialize_config_param(&params, 0)
+            ever_block_json::serialize_config_param(&params, 0)
                 .map_err(|e| format!("Failed to serialize config params: {e}"))?
         };
         println!("{}", result);

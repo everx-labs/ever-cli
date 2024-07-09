@@ -25,11 +25,11 @@ use ton_client::crypto::{CryptoConfig, KeyPair, MnemonicDictionary};
 use ton_client::error::ClientError;
 use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection, NetworkConfig};
 use ton_client::{ClientConfig, ClientContext};
-use ton_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
+use ever_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
 use std::str::FromStr;
 use clap::ArgMatches;
 use serde_json::{Value, json};
-use ton_executor::BlockchainConfig;
+use ever_executor::BlockchainConfig;
 use url::Url;
 use crate::call::parse_params;
 use crate::{FullConfig, resolve_net_name};
@@ -331,9 +331,9 @@ pub async fn load_abi(abi_path: &str, config: &Config) -> Result<Abi, String> {
     Ok(ton_client::abi::Abi::Json(abi_str))
 }
 
-pub async fn load_ton_abi(abi_path: &str, config: &Config) -> Result<ton_abi::Contract, String> {
+pub async fn load_ton_abi(abi_path: &str, config: &Config) -> Result<ever_abi::Contract, String> {
     let abi_str = load_abi_str(abi_path, config).await?;
-    Ok(ton_abi::Contract::load(abi_str.as_bytes())
+    Ok(ever_abi::Contract::load(abi_str.as_bytes())
         .map_err(|e| format!("Failed to load ABI: {}", e))?)
 }
 
@@ -983,7 +983,7 @@ pub fn blockchain_config_from_default_json() -> Result<BlockchainConfig, String>
 }"#;
     let map = serde_json::from_str::<serde_json::Map<String, Value>>(&json)
         .map_err(|e| format!("Failed to parse config params as json: {e}"))?;
-    let config_params = ton_block_json::parse_config(&map)
+    let config_params = ever_block_json::parse_config(&map)
         .map_err(|e| format!("Failed to parse config params: {e}"))?;
     BlockchainConfig::with_config(config_params)
         .map_err(|e| format!("Failed to construct default config: {e}"))

@@ -16,7 +16,6 @@ lazy_static! {
         .unwrap_or("http://127.0.0.1/".to_string());
 }
 
-#[allow(dead_code)]
 pub fn get_config() -> Result<Map<String, Value>, Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     let out = cmd.arg("config")
@@ -32,7 +31,6 @@ pub fn get_config() -> Result<Map<String, Value>, Box<dyn std::error::Error>> {
 }
 
 
-#[allow(dead_code)]
 pub fn set_config(config: &[&str], argument: &[&str], config_path: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     if config_path.is_some() {
@@ -50,7 +48,6 @@ pub fn set_config(config: &[&str], argument: &[&str], config_path: Option<&str>)
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn giver(addr: &str) {
     let mut cmd = Command::cargo_bin(BIN_NAME).unwrap();
     cmd.arg("call")
@@ -63,7 +60,6 @@ pub fn giver(addr: &str) {
         .success();
 }
 
-#[allow(dead_code)]
 pub fn giver_v2(addr: &str) {
     let mut cmd = Command::cargo_bin(BIN_NAME).unwrap();
     cmd.arg("call")
@@ -78,7 +74,6 @@ pub fn giver_v2(addr: &str) {
         .success();
 }
 
-#[allow(dead_code)]
 pub fn grep_address(output: &[u8]) -> String {
     let mut addr = String::from_utf8_lossy(output).to_string();
     addr.replace_range(..addr.find("0:").unwrap_or(0), "");
@@ -86,7 +81,6 @@ pub fn grep_address(output: &[u8]) -> String {
     addr
 }
 
-#[allow(dead_code)]
 pub fn grep_message_id(output: &[u8]) -> String {
     let mut message_id = String::from_utf8_lossy(output).to_string();
     let index = message_id.find("MessageId: ").map(|i| i + "MessageId: ".len()).unwrap_or(0);
@@ -97,7 +91,6 @@ pub fn grep_message_id(output: &[u8]) -> String {
     message_id
 }
 
-#[allow(dead_code)]
 pub fn generate_key_and_address(
     key_path: &str,
     tvc_path: &str,
@@ -116,7 +109,6 @@ pub fn generate_key_and_address(
     Ok(grep_address(&out.stdout))
 }
 
-#[allow(dead_code)]
 pub fn generate_phrase_and_key(key_path: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     let out = cmd.arg("genphrase")

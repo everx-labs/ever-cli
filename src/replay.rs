@@ -22,16 +22,15 @@ use failure::err_msg;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use ton_block::{Account, ConfigParams, Deserializable, Message, Serializable,
-                Transaction, TransactionDescr, Block, HashmapAugType};
+use ever_block::{Account, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr, Block, HashmapAugType, CommonMessage};
 use ton_client::net::{
     AggregationFn, FieldAggregation, OrderBy, ParamsOfAggregateCollection,
     ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection,
 };
-use ton_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor,
+use ever_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor,
                    TickTockTransactionExecutor, TransactionExecutor};
-use ton_types::{BuilderData, SliceData, UInt256, write_boc};
-use ton_vm::executor::{Engine, EngineTraceInfo};
+use ever_block::{BuilderData, SliceData, UInt256, write_boc};
+use ever_vm::executor::{Engine, EngineTraceInfo};
 
 use crate::config::Config;
 use crate::helpers::{create_client, get_blockchain_config};
@@ -48,7 +47,7 @@ pub fn construct_blockchain_config(config_account: &Account) -> Result<Blockchai
     construct_blockchain_config_err(config_account).map_err(|e| format!("Failed to construct config: {}", e))
 }
 
-fn construct_blockchain_config_err(config_account: &Account) -> ton_types::Result<BlockchainConfig> {
+fn construct_blockchain_config_err(config_account: &Account) -> ever_block::Result<BlockchainConfig> {
     let config_cell = config_account
         .get_data().ok_or(err_msg("Failed to get account's data"))?
         .reference(0).ok();
@@ -358,7 +357,7 @@ pub async fn replay(
                 }
             }
             if dump_mask & DUMP_EXECUTOR_CONFIG != 0 {
-                // config.boc suitable for creating ton-labs-executor tests
+                // config.boc suitable for creating ever-executor tests
                 let cell = config_account.get_data()
                     .ok_or("Failed to get config data")?;
                 let mut config_data = SliceData::load_cell(cell)
@@ -391,8 +390,9 @@ pub async fn replay(
                     trace_callback,
                     ..ExecuteParams::default()
                 };
+                let common_message: Option<CommonMessage> = msg.map(|m| CommonMessage::Std(m));
                 let tr = executor.execute_with_libs_and_params(
-                    msg.as_ref(),
+                    common_message.as_ref(),
                     &mut account_root,
                     params).map_err(|e| format!("Failed to execute txn: {}", e))?;
                 return Ok(tr);
@@ -421,8 +421,9 @@ pub async fn replay(
             last_tr_lt: Arc::new(AtomicU64::new(tr.tr.logical_time())),
             ..ExecuteParams::default()
         };
+        let common_message: Option<CommonMessage> = msg.map(|m| CommonMessage::Std(m));
         let tr_local = executor.execute_with_libs_and_params(
-            msg.as_ref(),
+            common_message.as_ref(),
             &mut account_root,
             params).map_err(|e| format!("Failed to execute txn: {}", e))?;
         state.account = Account::construct_from_cell(account_root.clone())
@@ -461,7 +462,7 @@ pub async fn replay(
     Err("Specified transaction was not found.".to_string())
 }
 
-pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> ton_types::Status {
+pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> ever_block::Status {
     let context = create_client(config)
         .map_err(|e| err_msg(format!("Failed to create ctx: {}", e)))?;
 
