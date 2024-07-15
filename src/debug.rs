@@ -14,8 +14,8 @@ use crate::{contract_data_from_matches_or_config_alias, FullConfig, print_args,
             unpack_alternative_params};
 use crate::message::prepare_message;
 use clap::{ArgMatches, SubCommand, Arg, App};
-use ton_client::boc::internal::deserialize_cell_from_base64;
-use ton_client::error::ClientError;
+use ever_client::boc::internal::deserialize_cell_from_base64;
+use ever_client::error::ClientError;
 use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
                      query_account_field, query_with_limit, create_client_verbose,
@@ -28,12 +28,12 @@ use std::io::{Write, BufRead};
 use std::collections::{HashSet, HashMap};
 use ever_block::{Message, Account, Serializable, Deserializable, Transaction, MsgAddressInt, CurrencyCollection, GasLimitsPrices, ConfigParamEnum, TransactionTickTock, InRefValue, TrComputePhase, CommonMessage};
 use ever_block::{UInt256, Cell, AccountId};
-use ton_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
+use ever_client::abi::{CallSet, Signer, FunctionHeader, encode_message, ParamsOfEncodeMessage};
 use ever_executor::{
     BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor, TransactionExecutor, TickTockTransactionExecutor
 };
 use std::sync::{Arc, atomic::AtomicU64};
-use ton_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDirection};
+use ever_client::net::{OrderBy, ParamsOfQueryCollection, query_collection, SortDirection};
 use crate::crypto::load_keypair;
 use std::fmt;
 use std::fs::File;
@@ -1197,7 +1197,6 @@ pub async fn execute_debug(
     ).map_err(|e| {
         let exit_code = match e.downcast_ref() {
             Some(ever_executor::ExecutorError::NoAcceptError(exit_code, _)) => *exit_code,
-            Some(ever_executor::ExecutorError::TvmExceptionCode(exit_code)) => *exit_code as i32,
             None => ever_vm::error::tvm_exception_or_custom_code(&e),
             _ => return format!("Debug failed: {}", e)
         };

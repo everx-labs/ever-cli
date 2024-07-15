@@ -2,7 +2,7 @@ use super::term_browser::input;
 use crate::crypto::load_keypair;
 use crate::helpers::{TonClient, HD_PATH};
 use std::io::{self};
-use ton_client::crypto::{
+use ever_client::crypto::{
     register_encryption_box, remove_encryption_box,
     EncryptionBoxHandle, RegisteredEncryptionBox, ChaCha20ParamsEB, ChaCha20EncryptionBox,
     NaclBoxParamsEB, NaclEncryptionBox, NaclSecretBoxParamsEB, NaclSecretEncryptionBox

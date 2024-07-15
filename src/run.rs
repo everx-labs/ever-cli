@@ -14,8 +14,8 @@
 use clap::ArgMatches;
 use serde_json::{Map, Value};
 use ever_block::{Account, Deserializable, Serializable};
-use ton_client::abi::FunctionHeader;
-use ton_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
+use ever_client::abi::FunctionHeader;
+use ever_client::tvm::{ExecutionOptions, ParamsOfRunGet, ParamsOfRunTvm, run_get, run_tvm};
 use crate::config::{Config, FullConfig};
 use crate::call::print_json_result;
 use crate::debug::{debug_error, DebugParams, init_debug_logger};

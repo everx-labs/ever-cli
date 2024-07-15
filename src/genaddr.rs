@@ -16,7 +16,7 @@ use serde_json::json;
 use std::fs::OpenOptions;
 use std::ptr::eq;
 use crate::crypto::{gen_seed_phrase, generate_keypair_from_mnemonic};
-use ton_client::utils::{convert_address, ParamsOfConvertAddress, AddressStringFormat};
+use ever_client::utils::{convert_address, ParamsOfConvertAddress, AddressStringFormat};
 
 pub async fn generate_address(
     config: &Config,
@@ -138,7 +138,7 @@ fn calc_userfriendly_address(address: &str, bounce: bool, test: bool) -> Result<
 fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, abi: &str) -> Result<(), String> {
     use std::io::{Seek, Write};
     use ever_abi::Contract;
-    use ton_sdk::ContractImage;
+    use ever_sdk::ContractImage;
 
     let data_map_supported : bool = (Contract::load(abi.as_bytes())
         .map_err(|e| format!("unable to load abi: {}", e))?).data_map_supported();

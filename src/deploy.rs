@@ -18,10 +18,10 @@ use crate::call::{
     process_message,
     send_message_and_wait,
 };
-use ton_client::abi::{
+use ever_client::abi::{
     encode_message, Signer, CallSet, DeploySet, ParamsOfEncodeMessage, Abi, FunctionHeader,
 };
-use ton_client::crypto::KeyPair;
+use ever_client::crypto::KeyPair;
 use crate::{Config, SignatureIDType};
 use crate::message::{display_generated_message, EncodedMessage};
 

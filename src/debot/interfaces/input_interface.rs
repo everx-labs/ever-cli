@@ -1,6 +1,6 @@
-use ton_client::abi::Abi;
+use ever_client::abi::Abi;
 use crate::debot::{ChainProcessor, ProcessorError};
-use ton_client::debot::{DebotInterface, InterfaceResult};
+use ever_client::debot::{DebotInterface, InterfaceResult};
 use std::sync::{Arc};
 use tokio::sync::RwLock;
 use serde_json::{Value, json};

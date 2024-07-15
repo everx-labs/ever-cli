@@ -18,9 +18,9 @@ use crate::helpers::TonClient;
 use std::collections::VecDeque;
 use std::io;
 use std::sync::{Arc, RwLock};
-use ton_client::crypto::SigningBoxHandle;
-use ton_client::debot::{BrowserCallbacks, DAction, DebotActivity, STATE_EXIT};
-use ton_client::error::ClientResult;
+use ever_client::crypto::SigningBoxHandle;
+use ever_client::debot::{BrowserCallbacks, DAction, DebotActivity, STATE_EXIT};
+use ever_client::error::ClientResult;
 
 #[derive(Default)]
 struct ActiveState {

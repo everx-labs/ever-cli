@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use ever_block::{
     Account, ConfigParams, CurrencyCollection, Deserializable, Message, Serializable, TickTock,
 };
-use ton_client::abi::{
+use ever_client::abi::{
     encode_internal_message, encode_message, CallSet, DeploySet, FunctionHeader,
     ParamsOfEncodeInternalMessage, ParamsOfEncodeMessage, Signer as AbiSigner,
 };

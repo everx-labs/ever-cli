@@ -2712,7 +2712,7 @@ $ echo $?
 
 ## 9.7. Make a raw GraphQL query
 
-The command `query-raw` executes a raw network query by directly calling the `ton_client::net::query_collection` SDK
+The command `query-raw` executes a raw network query by directly calling the `ever_client::net::query_collection` SDK
 interface.
 
 ```bash

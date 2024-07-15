@@ -18,12 +18,12 @@ use std::{
     sync::{Arc, atomic::AtomicU64}
 };
 use clap::ArgMatches;
-use failure::err_msg;
+use anyhow::format_err;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use ever_block::{Account, ConfigParams, Deserializable, Message, Serializable, Transaction, TransactionDescr, Block, HashmapAugType, CommonMessage};
-use ton_client::net::{
+use ever_client::net::{
     AggregationFn, FieldAggregation, OrderBy, ParamsOfAggregateCollection,
     ParamsOfQueryCollection, SortDirection, aggregate_collection, query_collection,
 };
@@ -49,7 +49,7 @@ pub fn construct_blockchain_config(config_account: &Account) -> Result<Blockchai
 
 fn construct_blockchain_config_err(config_account: &Account) -> ever_block::Result<BlockchainConfig> {
     let config_cell = config_account
-        .get_data().ok_or(err_msg("Failed to get account's data"))?
+        .get_data().ok_or(format_err!("Failed to get account's data"))?
         .reference(0).ok();
     let config_params = ConfigParams::with_address_and_params(
         UInt256::with_array([0x55; 32]), config_cell);
@@ -464,7 +464,7 @@ pub async fn replay(
 
 pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> ever_block::Status {
     let context = create_client(config)
-        .map_err(|e| err_msg(format!("Failed to create ctx: {}", e)))?;
+        .map_err(|e| format_err!(format!("Failed to create ctx: {}", e)))?;
 
     let block = query_collection(
         context.clone(),
@@ -483,7 +483,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> eve
     ).await?;
 
     if block.result.len() != 1 {
-        return Err(err_msg("Failed to fetch the block"))
+        return Err(format_err!("Failed to fetch the block"))
     }
 
     let mut accounts = vec!();
@@ -511,7 +511,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> eve
     })?;
 
     if accounts.is_empty() {
-        return Err(err_msg("The block is empty"))
+        return Err(format_err!("The block is empty"))
     }
 
     for (account, _) in &accounts {
@@ -519,7 +519,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> eve
         fetch(config,
             account.as_str(),
             format!("{}.txns", account).as_str(),
-            Some(end_lt), false).await.map_err(err_msg)?;
+            Some(end_lt), false).await.map_err(|e| format_err!(e))?;
     }
 
     let config_txns_path = format!("{}.txns", CONFIG_ADDR);
@@ -528,7 +528,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> eve
         fetch(config,
             CONFIG_ADDR,
             config_txns_path.as_str(),
-            Some(end_lt), false).await.map_err(err_msg)?;
+            Some(end_lt), false).await.map_err(|e| format_err!(e))?;
     }
 
     let acc = accounts[0].0.as_str();
@@ -540,7 +540,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> eve
         replay(format!("{}.txns", acc).as_str(),config_txns_path.as_str(),
                txnid, None, || Ok(()), DUMP_CONFIG,
                config, None
-        ).await.map_err(err_msg)?;
+        ).await.map_err(|e| format_err!(e))?;
     } else {
         println!("Using pre-computed config {}", config_path);
     }
@@ -561,7 +561,7 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> eve
                     DUMP_ACCOUNT,
                     &_config,
                     None,
-                ).await.map_err(err_msg).unwrap();
+                ).await.map_err(|e| format_err!(e)).unwrap();
             }
         })
     }).collect();

@@ -16,7 +16,7 @@ license = 'Apache-2.0'
 name = 'ever-cli'
 readme = 'README.md'
 repository = 'https://github.com/everx-labs/ever-cli'
-version = '0.38.0'
+version = '0.38.1'
 default-run = 'ever-cli'
 
 [dependencies]
@@ -24,7 +24,8 @@ async-trait = '0.1.42'
 base64 = '0.13'
 chrono = '0.4'
 clap = '2.32'
-failure = '0.1'
+anyhow = '1.0'
+thiserror = '1.0'
 futures = '0.3'
 hex = '0.4'
 indicatif = '0.16'
@@ -42,14 +43,14 @@ serde = { features = [ 'derive' ], version = '1.0' }
 tokio = { default-features = false, features = [ 'full' ], version = '1.21' }
 url = '2.3.1'
 
-ever_abi = { git = 'https://github.com/everx-labs/ever-abi.git',  tag = '2.5.5' }
-ever_block = { git = 'https://github.com/everx-labs/ever-block.git', tag = '1.10.4' }
-ever_block_json = { git = 'https://github.com/everx-labs/ever-block-json.git', tag = '0.8.9' }
-ever_executor = { git = 'https://github.com/everx-labs/ever-executor.git', tag = '1.17.9' }
-ever_assembler = { git = 'https://github.com/everx-labs/ever-assembler.git', tag = '1.5.9' }
-ton_sdk = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.46.1' }
-ton_client = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.46.1' }
-ever_vm = { git = 'https://github.com/everx-labs/ever-vm.git', tag = '2.1.7' }
+ever_abi = { git = 'https://github.com/everx-labs/ever-abi.git',  tag = '2.6.2' }
+ever_block = { git = 'https://github.com/everx-labs/ever-block.git', tag = '1.11.1' }
+ever_block_json = { git = 'https://github.com/everx-labs/ever-block-json.git', tag = '0.9.4' }
+ever_executor = { git = 'https://github.com/everx-labs/ever-executor.git', tag = '1.18.2' }
+ever_assembler = { git = 'https://github.com/everx-labs/ever-assembler.git', tag = '1.6.4' }
+ever_sdk = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.47.0' }
+ever_client = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.47.0' }
+ever_vm = { git = 'https://github.com/everx-labs/ever-vm.git', tag = '2.2.2' }
 
 [dev-dependencies]
 assert_cmd = '2.0'
@@ -64,4 +65,3 @@ path = "src/main.rs"
 [[bin]]
 name = "__ever-cli_completion"
 path = "src/completion.rs"
-
