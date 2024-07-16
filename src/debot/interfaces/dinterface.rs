@@ -14,8 +14,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use ton_client::debot::{DebotInterface, DebotInterfaceExecutor};
-use ton_client::encoding::{decode_abi_bigint, decode_abi_number};
+use ever_client::debot::{DebotInterface, DebotInterfaceExecutor};
+use ever_client::encoding::{decode_abi_bigint, decode_abi_number};
 
 pub struct SupportedInterfaces {
     client: TonClient,

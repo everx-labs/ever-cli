@@ -17,8 +17,8 @@ use crate::helpers::{create_client_verbose, query_with_limit, now, now_ms, TonCl
 use serde_json::{json, Value};
 use ever_abi::{Contract, Token, TokenValue, Uint};
 use ever_block::{ExternalInboundMessageHeader, Grams, Message, MsgAddressInt, MsgAddressExt, Serializable};
-use ton_client::net::{OrderBy, SortDirection};
-use ton_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
+use ever_client::net::{OrderBy, SortDirection};
+use ever_client::boc::{get_blockchain_config, ParamsOfGetBlockchainConfig};
 use ever_block::{BuilderData, Cell, IBitstring, SliceData, ed25519_create_private_key, ed25519_sign_with_secret,MAX_SAFE_DEPTH};
 
 const PREFIX_UPDATE_CONFIG_MESSAGE_DATA: &str = "43665021";

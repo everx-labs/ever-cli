@@ -21,7 +21,7 @@ use crate::helpers::{
 };
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use serde_json::json;
-use ton_client::abi::{
+use ever_client::abi::{
     encode_message_body, Abi, AbiContract, AbiParam, CallSet, ParamsOfEncodeMessageBody,
 };
 

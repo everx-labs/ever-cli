@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 use crate::helpers::{create_client_local, read_keys, WORD_COUNT, HD_PATH, check_dir};
-use ton_client::crypto::{
+use ever_client::crypto::{
     KeyPair,
     mnemonic_from_random,
     hdkey_xprv_from_mnemonic,

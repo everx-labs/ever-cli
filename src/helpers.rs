@@ -17,14 +17,14 @@ use crate::debug::debug_level_from_env;
 use crate::SignatureIDType;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use ton_client::abi::{
+use ever_client::abi::{
     Abi, AbiConfig, AbiContract, DecodedMessageBody, DeploySet, ParamsOfDecodeMessageBody,
     ParamsOfEncodeMessage, Signer,
 };
-use ton_client::crypto::{CryptoConfig, KeyPair, MnemonicDictionary};
-use ton_client::error::ClientError;
-use ton_client::net::{query_collection, OrderBy, ParamsOfQueryCollection, NetworkConfig};
-use ton_client::{ClientConfig, ClientContext};
+use ever_client::crypto::{CryptoConfig, KeyPair, MnemonicDictionary};
+use ever_client::error::ClientError;
+use ever_client::net::{query_collection, OrderBy, ParamsOfQueryCollection, NetworkConfig};
+use ever_client::{ClientConfig, ClientContext};
 use ever_block::{Account, MsgAddressInt, Deserializable, CurrencyCollection, StateInit, Serializable};
 use std::str::FromStr;
 use clap::ArgMatches;
@@ -210,7 +210,7 @@ pub async fn query_raw(
     let order = order.map(|s| serde_json::from_str(s)).transpose()
         .map_err(|e| format!("Failed to parse order field: {}", e))?;
 
-    let query = ton_client::net::query_collection(
+    let query = ever_client::net::query_collection(
         context.clone(),
         ParamsOfQueryCollection {
             collection: collection.to_owned(),
@@ -300,7 +300,7 @@ pub async fn decode_msg_body(
 ) -> Result<DecodedMessageBody, String> {
 
     let abi = load_abi(abi_path, config).await?;
-    ton_client::abi::decode_message_body(
+    ever_client::abi::decode_message_body(
         ton,
         ParamsOfDecodeMessageBody {
             abi,
@@ -328,7 +328,7 @@ pub async fn load_abi_str(abi_path: &str, config: &Config) -> Result<String, Str
 
 pub async fn load_abi(abi_path: &str, config: &Config) -> Result<Abi, String> {
     let abi_str = load_abi_str(abi_path, config).await?;
-    Ok(ton_client::abi::Abi::Json(abi_str))
+    Ok(ever_client::abi::Abi::Json(abi_str))
 }
 
 pub async fn load_ton_abi(abi_path: &str, config: &Config) -> Result<ever_abi::Contract, String> {
@@ -391,7 +391,7 @@ pub async fn calc_acc_address(
                 ..Default::default()
             }
         };
-    let result = ton_client::abi::encode_message(
+    let result = ever_client::abi::encode_message(
         ton.clone(),
         ParamsOfEncodeMessage {
             abi,
@@ -443,7 +443,7 @@ pub async fn print_message(ton: TonClient, message: &Value, abi: &str, is_intern
     if body.is_some() {
         let body = body.unwrap();
         let def_config = Config::default();
-        let result = ton_client::abi::decode_message_body(
+        let result = ever_client::abi::decode_message_body(
             ton.clone(),
             ParamsOfDecodeMessageBody {
                 abi: load_abi(abi, &def_config).await?,

@@ -58,7 +58,7 @@ use std::collections::BTreeMap;
 use std::env;
 use std::process::exit;
 use test::{create_test_command, test_command, test_sign_command, create_test_sign_command};
-use ton_client::abi::{ParamsOfEncodeMessageBody, CallSet};
+use ever_client::abi::{ParamsOfEncodeMessageBody, CallSet};
 use voting::{create_proposal, decode_proposal, vote};
 use crate::account::dump_accounts;
 
@@ -1187,7 +1187,7 @@ async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
         .map_err(|e| format!("arguments are not in json format: {}", e))?;
 
     let client = create_client_local()?;
-    let body = ton_client::abi::encode_message_body(
+    let body = ever_client::abi::encode_message_body(
         client.clone(),
         ParamsOfEncodeMessageBody {
             abi: load_abi(abi.as_ref().unwrap(), config).await?,

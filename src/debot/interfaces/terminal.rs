@@ -1,10 +1,10 @@
 use super::dinterface::{decode_answer_id, decode_bool_arg, decode_prompt, decode_string_arg, Printer};
 use crate::debot::term_browser::terminal_input;
 use serde_json::{Value, json};
-use ton_client::abi::Abi;
-use ton_client::debot::{DebotInterface, InterfaceResult};
+use ever_client::abi::Abi;
+use ever_client::debot::{DebotInterface, InterfaceResult};
 use crate::convert::convert_token;
-use ton_client::encoding::decode_abi_bigint;
+use ever_client::encoding::decode_abi_bigint;
 use std::io::{Read};
 
 pub(super) const ID: &str = "8796536366ee21852db56dccb60bc564598b618c865fc50c8b1ab740bba128e3";

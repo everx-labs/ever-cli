@@ -16,10 +16,10 @@ use crate::helpers::{create_client, load_ton_address, load_abi, TonClient};
 use std::io::{self, BufRead, Write};
 use std::sync::Arc;
 use serde_json::json;
-use ton_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, ParamsOfDecodeMessage,
+use ever_client::abi::{ Abi, CallSet, ParamsOfEncodeInternalMessage, ParamsOfDecodeMessage,
     encode_internal_message, decode_message};
-use ton_client::boc::{ParamsOfParse, parse_message};
-use ton_client::debot::{DebotInterfaceExecutor, DEngine, DebotInfo, DEBOT_WC};
+use ever_client::boc::{ParamsOfParse, parse_message};
+use ever_client::debot::{DebotInterfaceExecutor, DEngine, DebotInfo, DEBOT_WC};
 use std::collections::{HashMap, VecDeque};
 use super::{Callbacks, ChainLink, PipeChain, ChainProcessor, SupportedInterfaces};
 

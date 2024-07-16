@@ -1,9 +1,9 @@
 use super::dinterface::{decode_answer_id, decode_prompt, decode_array};
 
 use serde_json::Value;
-use ton_client::abi::Abi;
-use ton_client::debot::{DebotInterface, InterfaceResult};
-use ton_client::encoding::decode_abi_bigint;
+use ever_client::abi::Abi;
+use ever_client::debot::{DebotInterface, InterfaceResult};
+use ever_client::encoding::decode_abi_bigint;
 use crate::helpers::TonClient;
 use crate::debot::term_signing_box::TerminalSigningBox;
 use crate::debot::{ChainProcessor, ProcessorError};

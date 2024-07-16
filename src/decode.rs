@@ -17,7 +17,7 @@ use crate::helpers::{decode_msg_body, print_account, create_client_local, create
 use clap::{ArgMatches, SubCommand, Arg, App, AppSettings};
 use ever_block::{Cell, SliceData, write_boc, read_single_root_boc};
 use ever_block::{Account, Deserializable, Serializable, AccountStatus, StateInit};
-use ton_client::abi::{decode_account_data, ParamsOfDecodeAccountData};
+use ever_client::abi::{decode_account_data, ParamsOfDecodeAccountData};
 use serde::Serialize;
 use serde_json::json;
 
@@ -395,7 +395,7 @@ async fn decode_body(body_base64: &str, abi_path: &str, is_json: bool, config: &
 }
 
 async fn decode_message(msg_boc: Vec<u8>, abi_path: Option<String>) -> Result<String, String> {
-    let tvm_msg = ton_sdk::Contract::deserialize_message(&msg_boc[..])
+    let tvm_msg = ever_sdk::Contract::deserialize_message(&msg_boc[..])
         .map_err(|e| format!("failed to deserialize message boc: {}", e))?;
     let config = Config::default();
     let result = msg_printer::serialize_msg(&tvm_msg, abi_path, &config).await?;
@@ -459,7 +459,7 @@ pub mod msg_printer {
     use ever_block::write_boc;
     use ever_block::Cell;
     use crate::helpers::{TonClient, create_client_local, decode_msg_body};
-    use ton_client::boc::{get_compiler_version, ParamsOfGetCompilerVersion};
+    use ever_client::boc::{get_compiler_version, ParamsOfGetCompilerVersion};
     use crate::Config;
 
     pub fn tree_of_cells_into_base64(root_cell: Option<&Cell>) -> Result<String, String> {

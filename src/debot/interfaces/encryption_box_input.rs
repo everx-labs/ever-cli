@@ -5,8 +5,8 @@ use crate::debot::term_encryption_box::{
 use crate::helpers::TonClient;
 use serde_json::{Value, json};
 use tokio::sync::RwLock;
-use ton_client::{abi::Abi, crypto::EncryptionBoxHandle};
-use ton_client::debot::{DebotInterface, InterfaceResult};
+use ever_client::{abi::Abi, crypto::EncryptionBoxHandle};
+use ever_client::debot::{DebotInterface, InterfaceResult};
 
 const ID: &str = "5b5f76b54d976d72f1ada3063d1af2e5352edaf1ba86b3b311170d4d81056d61";
 
