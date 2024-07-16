@@ -14,7 +14,7 @@ use crate::config::Config;
 use crate::helpers::{create_client_local, read_keys, load_abi, calc_acc_address, load_abi_str};
 use serde_json::json;
 use std::fs::OpenOptions;
-
+use std::ptr::eq;
 use crate::crypto::{gen_seed_phrase, generate_keypair_from_mnemonic};
 use ton_client::utils::{convert_address, ParamsOfConvertAddress, AddressStringFormat};
 
@@ -146,10 +146,9 @@ fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, ab
     let mut state_init = OpenOptions::new().read(true).write(true).open(tvc_file)
         .map_err(|e| format!("unable to open contract file: {}", e))?;
 
-    let pubkey_object = pubkey.try_into()
-        .map_err(|e| format!("unable to load public key: {}", e))?;
-
     let mut contract_image = if data_map_supported {
+        let pubkey_object = pubkey.try_into()
+            .map_err(|e| format!("unable to load public key: {}", e))?;
         ContractImage::from_state_init_and_key(&mut state_init, &pubkey_object)
             .map_err(|e| format!("unable to load contract image with key: {}", e))?
     } else {
@@ -163,8 +162,13 @@ fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, ab
                 .map_err(|e| format!("unable to update contract image data: {}", e))?;
         }
     } else {
+        let pk = if eq(pubkey, vec![0; 32].as_slice()) {
+            Some(hex::encode(pubkey))
+        } else {
+            None
+        };
         let js_init_data = crate::helpers::insert_pubkey_to_init_data(
-            Some(hex::encode(pubkey)),
+            pk,
             data.as_deref()
         )?;
         contract_image.update_data(false, js_init_data.as_str(), abi)

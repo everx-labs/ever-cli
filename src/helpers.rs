@@ -1028,17 +1028,15 @@ pub fn decode_data(data: &str, param_name: &str) -> Result<Vec<u8>, String> {
 }
 
 pub fn insert_pubkey_to_init_data(pubkey: Option<String>, opt_init_data: Option<&str>) -> Result<String, String> {
-    let init_data = match opt_init_data {
-        Some(json) => json,
-        None => "{}"
-    };
+    let init_data = opt_init_data.unwrap_or_else(|| "{}");
 
     let mut js_init_data = serde_json::from_str(init_data)
         .map_err(|e| format!("Failed to decode initial data as json: {}", e))?;
     match &mut js_init_data {
         Value::Object(obj) => {
-            if obj.contains_key(&"_pubkey".to_string()) {
-                return Err("Public key was set via init data. Please, use command line options --genkey/--setkey to set public key.".to_owned())
+            if obj.contains_key(&"_pubkey".to_string()) && pubkey.is_some() {
+                return Err("Public key was set via init data and via commad-line option --genkey/--setkey. \
+Please, use one way to set public key.".to_owned())
             }
             if let Some(pk) = pubkey {
                 let pubkey_str = format!("0x{}", pk);
