@@ -1035,7 +1035,7 @@ pub fn decode_data(data: &str, param_name: &str) -> Result<Vec<u8>, String> {
 }
 
 pub fn insert_pubkey_to_init_data(pubkey: Option<String>, opt_init_data: Option<&str>) -> Result<String, String> {
-    let init_data = opt_init_data.unwrap_or_else(|| "{}");
+    let init_data = opt_init_data.unwrap_or("{}");
 
     let mut js_init_data = serde_json::from_str(init_data)
         .map_err(|e| format!("Failed to decode initial data as json: {}", e))?;

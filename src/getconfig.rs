@@ -475,7 +475,7 @@ fn prepare_message_new_config_param_solidity(
         .map_err(|err| err.to_string())?;
     let body = function
         .encode_input(&header, &parameters, false, Some(&secret), Some(config_contract_address.clone()))
-        .and_then(|builder| SliceData::load_builder(builder))
+        .and_then(SliceData::load_builder)
         .map_err(|err| format!("cannot prepare message body {}", err))?;
 
     let hdr = ExternalInboundMessageHeader::new(MsgAddressExt::AddrNone, config_contract_address);

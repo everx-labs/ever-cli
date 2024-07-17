@@ -40,7 +40,7 @@ use std::fs::File;
 use serde_json::{Value, json};
 use ever_assembler::DbgInfo;
 use ever_block::CommonMessage::Std;
-use ever_vm::executor::{Engine, EngineTraceInfo, EngineTraceInfoType};
+use ever_vm::executor::{EngineTraceInfo, EngineTraceInfoType};
 use crate::decode::msg_printer::serialize_msg;
 use crate::deploy::prepare_deploy_message;
 
@@ -94,7 +94,7 @@ impl log::Log for DebugLogger {
         match record.target() {
             "tvm" | "executor" => {
                 match std::fs::OpenOptions::new()
-                    .write(true)
+                    
                     .append(true)
                     .create(true)
                     .open(&self.tvm_trace)
@@ -626,23 +626,23 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: &Config) -> Option<String> 
 async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_getter: bool) -> Result<(), String> {
     let contract_data = contract_data_from_matches_or_config_alias(matches, full_config)?;
     let input = contract_data.address.as_ref();
-    let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let method = Some(matches.value_of("METHOD").or(full_config.config.method.as_deref())
-        .ok_or("Method is not defined. Supply it in the config file or command line.")?);
+    let output = matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH);
+    let method = matches.value_of("METHOD").or(full_config.config.method.as_deref())
+        .ok_or("Method is not defined. Supply it in the config file or command line.")?;
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
     let abi = load_abi(contract_data.abi.as_ref().unwrap(), &full_config.config).await?;
     let params = Some(unpack_alternative_params(
         matches,
         contract_data.abi.as_ref().unwrap(),
-        method.unwrap(),
+        method,
         &full_config.config
     ).await?);
 
     if !full_config.config.is_json {
         let keys = &contract_data.keys;
         let abi = &contract_data.abi;
-        print_args!(input, method, params, keys, abi, output);
+        print_args!(input, Some(method), params, keys, abi, Some(output));
     }
 
     let input = input.unwrap();
@@ -672,7 +672,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
             ton_client.clone(),
             &addr,
             abi.clone(),
-            method.unwrap(),
+            method,
             &params,
             None,
             None,
@@ -691,7 +691,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         let params = serde_json::from_str(&params)
             .map_err(|e| format!("params are not in json format: {e}"))?;
         let call_set = CallSet {
-            function_name: method.unwrap().to_string(),
+            function_name: method.to_string(),
             input: Some(params),
             header: Some(header)
         };
@@ -723,7 +723,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
-    let trace_path = output.unwrap();
+    let trace_path = output;
     init_debug_logger(trace_path)?;
 
     let bc_config = get_blockchain_config(&full_config.config, matches.value_of("CONFIG_PATH")).await?;
@@ -980,7 +980,7 @@ pub async fn decode_messages(tr: &Transaction, abi: Option<String>, config: &Con
     let mut output = vec![];
     for InRefValue(common_msg) in msgs {
         let msg = common_msg.get_std().unwrap();
-        let mut ser_msg = serialize_msg(&msg, abi.clone(), config).await
+        let mut ser_msg = serialize_msg(msg, abi.clone(), config).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
         let msg_cell = msg.serialize()
             .map_err(|e| format!("Failed to serialize out message: {}", e))?;
@@ -1311,7 +1311,7 @@ pub async fn sequence_diagram_command(matches: &ArgMatches<'_>, config: &Config)
 
     let mut addresses = vec!();
     let lines = std::io::BufReader::new(file).lines();
-    for line in lines.flatten() {
+    for line in lines.map_while(Result::ok) {
         if !line.is_empty() && !line.starts_with('#'){
             addresses.push(load_ton_address(&line, config)?);
         }

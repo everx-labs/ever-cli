@@ -636,6 +636,6 @@ mod tests {
     async fn test_decode_body_json() {
         let body = "te6ccgEBAQEARAAAgwAAALqUCTqWL8OX7JivfJrAAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMQAAAAAAAAAAAAAAAEeGjADA==";
         let config = Config::default();
-        let _out = decode_body(body, "tests/samples/wallet.abi.json", true, &config).await.unwrap();
+        decode_body(body, "tests/samples/wallet.abi.json", true, &config).await.unwrap();
     }
 }

@@ -3088,7 +3088,7 @@ fn test_alternative_paths() -> Result<(), Box<dyn std::error::Error>> {
 
     set_config(
         &["--abi"],
-        &[&*SAFEMSIG_ABI_LINK],
+        &[SAFEMSIG_ABI_LINK],
         Some(config_path)
     )?;
 

@@ -300,7 +300,7 @@ impl FullConfig {
             let conf_str = std::fs::read_to_string(global_config_path()).ok()
                 .unwrap_or_default();
             let mut global_config = serde_json::from_str::<FullConfig>(&conf_str)
-                .unwrap_or(FullConfig::default());
+                .unwrap_or_default();
             global_config.path = path.to_string();
             global_config
         };
@@ -352,7 +352,7 @@ impl FullConfig {
             .map(|s| s.to_string())
             .collect();
 
-        let old_endpoints = fconf.endpoints_map.entry(url.to_string()).or_insert(vec![]);
+        let old_endpoints = fconf.endpoints_map.entry(url.to_string()).or_default();
         old_endpoints.append(&mut new_endpoints);
         old_endpoints.sort();
         old_endpoints.dedup();

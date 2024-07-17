@@ -164,7 +164,7 @@ pub async fn prepare_deploy_message_params(
             abi.clone()
         ).await?
     } else {
-        let tvc_cell = ever_block::boc::read_single_root_boc(&tvc_bytes).unwrap();
+        let tvc_cell = ever_block::boc::read_single_root_boc(tvc_bytes).unwrap();
         let tvc_hash = tvc_cell.repr_hash();
         format!("{}:{}", wc, tvc_hash.as_hex_string())
     };

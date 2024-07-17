@@ -30,7 +30,6 @@ use ever_client::net::{
 use ever_executor::{BlockchainConfig, ExecuteParams, OrdinaryTransactionExecutor,
                    TickTockTransactionExecutor, TransactionExecutor};
 use ever_block::{BuilderData, SliceData, UInt256, write_boc};
-use ever_vm::executor::{Engine, EngineTraceInfo};
 
 use crate::{config::Config, helpers::CallbackType};
 use crate::helpers::{create_client, get_blockchain_config};
@@ -97,8 +96,7 @@ pub async fn fetch(config: &Config, account_address: &str, filename: &str, lt_bo
     .await
     .map_err(|e| format!("Failed to fetch txns count: {}", e))?;
     let tr_count = u64::from_str_radix(
-        tr_count.values.as_array().ok_or("Failed to parse value".to_string())?
-        .get(0).ok_or("Failed to parse value".to_string())?
+        tr_count.values.as_array().ok_or("Failed to parse value".to_string())?.first().ok_or("Failed to parse value".to_string())?
         .as_str().ok_or("Failed to parse value".to_string())?, 10)
         .map_err(|e| format!("Failed to parse decimal int: {}", e))?;
 
@@ -137,7 +135,7 @@ pub async fn fetch(config: &Config, account_address: &str, filename: &str, lt_bo
             println!("account {}: zerostate not found, writing out default initial state", account_address);
         }
         let data = format!("{{\"id\":\"{}\",\"boc\":\"{}\"}}\n",
-            account_address, base64::encode(&Account::default().write_to_bytes()
+            account_address, base64::encode(Account::default().write_to_bytes()
                 .map_err(|e| format!("failed to serialize account: {}", e))?));
         writer.write_all(data.as_bytes()).map_err(|e| format!("Failed to write to file: {}", e))?;
     }
@@ -385,7 +383,7 @@ pub async fn replay(
                     trace_callback,
                     ..ExecuteParams::default()
                 };
-                let common_message: Option<CommonMessage> = msg.map(|m| CommonMessage::Std(m));
+                let common_message: Option<CommonMessage> = msg.map(CommonMessage::Std);
                 let tr = executor.execute_with_libs_and_params(
                     common_message.as_ref(),
                     &mut account_root,
@@ -416,7 +414,7 @@ pub async fn replay(
             last_tr_lt: Arc::new(AtomicU64::new(tr.tr.logical_time())),
             ..ExecuteParams::default()
         };
-        let common_message: Option<CommonMessage> = msg.map(|m| CommonMessage::Std(m));
+        let common_message: Option<CommonMessage> = msg.map(CommonMessage::Std);
         let tr_local = executor.execute_with_libs_and_params(
             common_message.as_ref(),
             &mut account_root,
@@ -482,10 +480,10 @@ pub async fn fetch_block(config: &Config, block_id: &str, filename: &str) -> eve
 
     let mut accounts = vec!();
 
-    let wid = block.result.get(0).unwrap()["workchain_id"].as_i64().unwrap();
-    let end_lt = block.result.get(0).unwrap()["end_lt"].as_str().unwrap().trim_start_matches("0x");
+    let wid = block.result.first().unwrap()["workchain_id"].as_i64().unwrap();
+    let end_lt = block.result.first().unwrap()["end_lt"].as_str().unwrap().trim_start_matches("0x");
     let end_lt = u64::from_str_radix(end_lt, 16).unwrap();
-    let block = Block::construct_from_base64(block.result.get(0).unwrap()["boc"].as_str().unwrap())?;
+    let block = Block::construct_from_base64(block.result.first().unwrap()["boc"].as_str().unwrap())?;
     let extra = block.read_extra()?;
     let account_blocks = extra.read_account_blocks()?;
 
