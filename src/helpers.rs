@@ -1035,7 +1035,7 @@ pub fn insert_pubkey_to_init_data(pubkey: Option<String>, opt_init_data: Option<
     match &mut js_init_data {
         Value::Object(obj) => {
             if obj.contains_key(&"_pubkey".to_string()) && pubkey.is_some() {
-                return Err("Public key was set via init data and via commad-line option --genkey/--setkey. \
+                return Err("Public key was set via init data and via command-line option --genkey/--setkey. \
 Please, use one way to set public key.".to_owned())
             }
             if let Some(pk) = pubkey {
@@ -1045,6 +1045,5 @@ Please, use one way to set public key.".to_owned())
         }
         _ => panic!("js_init_data is not Value::Object")
     }
-
     Ok(js_init_data.to_string())
 }

@@ -14,7 +14,6 @@ use crate::config::Config;
 use crate::helpers::{create_client_local, read_keys, load_abi, calc_acc_address, load_abi_str};
 use serde_json::json;
 use std::fs::OpenOptions;
-use std::ptr::eq;
 use crate::crypto::{gen_seed_phrase, generate_keypair_from_mnemonic};
 use ever_client::utils::{convert_address, ParamsOfConvertAddress, AddressStringFormat};
 
@@ -32,6 +31,9 @@ pub async fn generate_address(
         .map_err(|e| format!("failed to read smart contract file: {}", e))?;
 
     let abi = load_abi(abi_path, config).await?;
+    if !abi.abi().unwrap().data_map_supported() && !update_tvc {
+        return Err("Use command-line option --save for abi >= 2.4".to_string());
+    }
 
     let phrase = if new_keys {
         gen_seed_phrase()?
@@ -162,10 +164,10 @@ fn update_contract_state(tvc_file: &str, pubkey: &[u8], data: Option<String>, ab
                 .map_err(|e| format!("unable to update contract image data: {}", e))?;
         }
     } else {
-        let pk = if eq(pubkey, vec![0; 32].as_slice()) {
-            Some(hex::encode(pubkey))
-        } else {
+        let pk = if pubkey == vec![0; 32].as_slice() {
             None
+        } else {
+            Some(hex::encode(pubkey))
         };
         let js_init_data = crate::helpers::insert_pubkey_to_init_data(
             pk,
