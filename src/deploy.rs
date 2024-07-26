@@ -56,7 +56,7 @@ pub async fn deploy_contract(
     }
 
     if config.async_call {
-        let abi = load_abi(&abi, config).await?;
+        let abi = load_abi(abi, config).await?;
         send_message_and_wait(ton,
                               Some(abi),
                               enc_msg.message,
@@ -152,7 +152,7 @@ pub async fn prepare_deploy_message_params(
     wc: i32,
     signature_id: Option<i32>,
 ) -> Result<(ParamsOfEncodeMessage, String), String> {
-    let tvc = base64::encode(&tvc_bytes);
+    let tvc = base64::encode(tvc_bytes);
 
     let data_map_supported = abi.abi().unwrap().data_map_supported();
     let address = if data_map_supported {
@@ -164,7 +164,7 @@ pub async fn prepare_deploy_message_params(
             abi.clone()
         ).await?
     } else {
-        let tvc_cell = ever_block::boc::read_single_root_boc(&tvc_bytes).unwrap();
+        let tvc_cell = ever_block::boc::read_single_root_boc(tvc_bytes).unwrap();
         let tvc_hash = tvc_cell.repr_hash();
         format!("{}:{}", wc, tvc_hash.as_hex_string())
     };
@@ -184,7 +184,6 @@ pub async fn prepare_deploy_message_params(
         function_name,
         input: Some(params),
         header,
-        ..Default::default()
     });
     let signer = if let Some(keys) = keys {
         Signer::Keys { keys }

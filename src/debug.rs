@@ -20,7 +20,7 @@ use crate::config::Config;
 use crate::helpers::{load_ton_address, create_client, load_abi, now_ms, construct_account_from_tvc,
                      query_account_field, query_with_limit, create_client_verbose,
                      abi_from_matches_or_config, load_debug_info, wc_from_matches_or_config,
-                     get_blockchain_config, load_params, create_client_local};
+                     get_blockchain_config, load_params, create_client_local, CallbackType};
 use crate::replay::{
     fetch, CONFIG_ADDR, replay, DUMP_NONE, DUMP_CONFIG, DUMP_ACCOUNT
 };
@@ -40,7 +40,7 @@ use std::fs::File;
 use serde_json::{Value, json};
 use ever_assembler::DbgInfo;
 use ever_block::CommonMessage::Std;
-use ever_vm::executor::{Engine, EngineTraceInfo, EngineTraceInfoType};
+use ever_vm::executor::{EngineTraceInfo, EngineTraceInfoType};
 use crate::decode::msg_printer::serialize_msg;
 use crate::deploy::prepare_deploy_message;
 
@@ -60,9 +60,10 @@ pub fn debug_level_from_env() -> log::LevelFilter {
         } else if debug_level.eq_ignore_ascii_case("trace") {
             return log::LevelFilter::Trace;
         }
-        return TEST_MAX_LEVEL;
+        TEST_MAX_LEVEL
+    } else {
+        MAX_LEVEL
     }
-    return MAX_LEVEL;
 }
 
 struct DebugLogger {
@@ -93,7 +94,7 @@ impl log::Log for DebugLogger {
         match record.target() {
             "tvm" | "executor" => {
                 match std::fs::OpenOptions::new()
-                    .write(true)
+                    
                     .append(true)
                     .create(true)
                     .open(&self.tvm_trace)
@@ -417,7 +418,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
         if !config.is_json {
             print_args!(tx_id, trace_path, config_path, contract_path);
         }
-        let address = query_address(tx_id.unwrap(), &config).await?;
+        let address = query_address(tx_id.unwrap(), config).await?;
         (tx_id.unwrap().to_string(), address)
     } else {
         let address =
@@ -430,7 +431,7 @@ async fn debug_transaction_command(matches: &ArgMatches<'_>, config: &Config, is
             print_args!(address, trace_path, config_path, contract_path);
         }
         let address = address.unwrap();
-        let transactions = query_transactions(&address, &config).await?;
+        let transactions = query_transactions(&address, config).await?;
         let tr_id = choose_transaction(transactions)?;
         (tr_id, address)
     };
@@ -512,7 +513,7 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
         print_args!(input, tx_id, output, config_path);
     }
 
-    let ton_client = create_client(&config)?;
+    let ton_client = create_client(config)?;
     let trans = query_collection(
         ton_client.clone(),
         ParamsOfQueryCollection {
@@ -525,7 +526,6 @@ async fn replay_transaction_command(matches: &ArgMatches<'_>, config: &Config) -
             result: "lt block { start_lt } boc".to_string(),
             limit: Some(1),
             order: None,
-            ..Default::default()
         },
     ).await
         .map_err(|e| format!("Failed to query transaction: {}", e))?;
@@ -608,7 +608,7 @@ fn parse_now(matches: &ArgMatches<'_>) -> Result<u64, String> {
 fn load_decode_abi(matches: &ArgMatches<'_>, config: &Config) -> Option<String> {
     let abi = matches.value_of("DECODE_ABI")
         .map(|s| s.to_owned())
-        .or(abi_from_matches_or_config(matches, &config).ok());
+        .or(abi_from_matches_or_config(matches, config).ok());
     match abi {
         Some(path) => match std::fs::read_to_string(path) {
             Ok(res) => Some(res),
@@ -624,23 +624,25 @@ fn load_decode_abi(matches: &ArgMatches<'_>, config: &Config) -> Option<String> 
 }
 
 async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, is_getter: bool) -> Result<(), String> {
-    let (input, opt_abi, sign) = contract_data_from_matches_or_config_alias(matches, full_config)?;
-    let input = input.as_ref();
-    let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let method = Some(matches.value_of("METHOD").or(full_config.config.method.as_deref())
-        .ok_or("Method is not defined. Supply it in the config file or command line.")?);
+    let contract_data = contract_data_from_matches_or_config_alias(matches, full_config)?;
+    let input = contract_data.address.as_ref();
+    let output = matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH);
+    let method = matches.value_of("METHOD").or(full_config.config.method.as_deref())
+        .ok_or("Method is not defined. Supply it in the config file or command line.")?;
     let is_boc = matches.is_present("BOC");
     let is_tvc = matches.is_present("TVC");
-    let abi = load_abi(opt_abi.as_ref().unwrap(), &full_config.config).await?;
+    let abi = load_abi(contract_data.abi.as_ref().unwrap(), &full_config.config).await?;
     let params = Some(unpack_alternative_params(
         matches,
-        opt_abi.as_ref().unwrap(),
-        method.unwrap(),
+        contract_data.abi.as_ref().unwrap(),
+        method,
         &full_config.config
     ).await?);
 
     if !full_config.config.is_json {
-        print_args!(input, method, params, sign, opt_abi, output);
+        let keys = &contract_data.keys;
+        let abi = &contract_data.abi;
+        print_args!(input, Some(method), params, keys, abi, Some(output));
     }
 
     let input = input.unwrap();
@@ -670,7 +672,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
             ton_client.clone(),
             &addr,
             abi.clone(),
-            method.unwrap(),
+            method,
             &params,
             None,
             None,
@@ -679,7 +681,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         ).await?
         .message
     } else {
-        let keys = sign.map(|k| load_keypair(&k)).transpose()?;
+        let keys = contract_data.keys.map(|k| load_keypair(&k)).transpose()?;
 
         let header = FunctionHeader {
             expire: Some((now / 1000) as u32 + full_config.config.lifetime),
@@ -689,7 +691,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
         let params = serde_json::from_str(&params)
             .map_err(|e| format!("params are not in json format: {e}"))?;
         let call_set = CallSet {
-            function_name: method.unwrap().to_string(),
+            function_name: method.to_string(),
             input: Some(params),
             header: Some(header)
         };
@@ -721,7 +723,7 @@ async fn debug_call_command(matches: &ArgMatches<'_>, full_config: &FullConfig, 
     let mut acc_root = account.serialize()
         .map_err(|e| format!("Failed to serialize account: {}", e))?;
 
-    let trace_path = output.unwrap();
+    let trace_path = output;
     init_debug_logger(trace_path)?;
 
     let bc_config = get_blockchain_config(&full_config.config, matches.value_of("CONFIG_PATH")).await?;
@@ -789,13 +791,13 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
         print_args!(input, message, output, debug_info);
     }
 
-    let ton_client = create_client(&config)?;
+    let ton_client = create_client(config)?;
     let input = input.unwrap();
     let account = if is_boc {
         Account::construct_from_file(input)
             .map_err(|e| format!(" failed to load account from the file {}: {}", input, e))?
     } else {
-        let address = load_ton_address(input, &config)?;
+        let address = load_ton_address(input, config)?;
         let account = query_account_field(ton_client.clone(), &address, "boc").await?;
         Account::construct_from_base64(&account)
             .map_err(|e| format!("Failed to construct account: {}", e))?
@@ -860,7 +862,7 @@ async fn debug_message_command(matches: &ArgMatches<'_>, config: &Config) -> Res
 async fn debug_deploy_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let tvc = matches.value_of("TVC");
     let output = Some(matches.value_of("LOG_PATH").unwrap_or(DEFAULT_TRACE_PATH));
-    let opt_abi = Some(abi_from_matches_or_config(matches, &config)?);
+    let opt_abi = Some(abi_from_matches_or_config(matches, config)?);
     let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
         .or(load_debug_info(opt_abi.as_ref().unwrap()));
     let sign = matches.value_of("KEYS")
@@ -978,7 +980,7 @@ pub async fn decode_messages(tr: &Transaction, abi: Option<String>, config: &Con
     let mut output = vec![];
     for InRefValue(common_msg) in msgs {
         let msg = common_msg.get_std().unwrap();
-        let mut ser_msg = serialize_msg(&msg, abi.clone(), config).await
+        let mut ser_msg = serialize_msg(msg, abi.clone(), config).await
             .map_err(|e| format!("Failed to serialize message: {}", e))?;
         let msg_cell = msg.serialize()
             .map_err(|e| format!("Failed to serialize out message: {}", e))?;
@@ -1247,7 +1249,7 @@ fn trace_callback_minimal(info: &EngineTraceInfo, debug_info: Option<&DbgInfo>) 
 }
 
 fn get_position(info: &EngineTraceInfo, debug_info: Option<&DbgInfo>) -> Result<String, String> {
-    let debug_info = debug_info.ok_or_else(|| String::new())?;
+    let debug_info = debug_info.ok_or_else(String::new)?;
     let cell_hash = info.cmd_code.cell().repr_hash();
     let offset = info.cmd_code.pos();
     match debug_info.get(&cell_hash) {
@@ -1259,7 +1261,7 @@ fn get_position(info: &EngineTraceInfo, debug_info: Option<&DbgInfo>) -> Result<
     }
 }
 
-fn generate_callback(matches: Option<&ArgMatches<'_>>, config: &Config) -> Arc<dyn Fn(&Engine, &EngineTraceInfo) + Send + Sync> {
+fn generate_callback(matches: Option<&ArgMatches<'_>>, config: &Config) -> CallbackType {
     if let Some(matches) = matches {
         let opt_abi = abi_from_matches_or_config(matches, config);
         let debug_info = matches.value_of("DBG_INFO").map(|s| s.to_string())
@@ -1292,7 +1294,7 @@ fn generate_callback(matches: Option<&ArgMatches<'_>>, config: &Config) -> Arc<d
         } else {
             Arc::new(move |_, info| trace_callback_minimal(info, debug_info.as_ref()))
         }
-    } else if config.debug_fail == "Full".to_string() {
+    } else if config.debug_fail == "Full" {
         Arc::new(move |_, info| trace_callback(info, None))
     } else {
         Arc::new(move |_, info| trace_callback_minimal(info, None))
@@ -1309,11 +1311,9 @@ pub async fn sequence_diagram_command(matches: &ArgMatches<'_>, config: &Config)
 
     let mut addresses = vec!();
     let lines = std::io::BufReader::new(file).lines();
-    for line in lines {
-        if let Ok(line) = line {
-            if !line.is_empty() && !line.starts_with('#'){
-                addresses.push(load_ton_address(&line, config)?);
-            }
+    for line in lines.map_while(Result::ok) {
+        if !line.is_empty() && !line.starts_with('#'){
+            addresses.push(load_ton_address(&line, config)?);
         }
     }
     if addresses.iter().collect::<HashSet<_>>().len() < addresses.len() {
@@ -1326,7 +1326,7 @@ pub async fn sequence_diagram_command(matches: &ArgMatches<'_>, config: &Config)
     })
 }
 
-fn infer_address_width(input: &Vec<String>, min_width: usize) -> Result<usize, String> {
+fn infer_address_width(input: &[String], min_width: usize) -> Result<usize, String> {
     let max_width = input.iter().fold(0, |acc, item| {
         std::cmp::max(acc, item.len())
     });
