@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.39.0
+ - Using sdk 1.48.0
+
 ## 0.38.0
  - Deleted feature `sold`
 

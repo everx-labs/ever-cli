@@ -847,7 +847,7 @@ dependencies = [
 
 [[package]]
 name = "ever-cli"
-version = "0.38.3"
+version = "0.39.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
