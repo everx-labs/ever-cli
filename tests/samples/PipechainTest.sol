@@ -37,9 +37,9 @@ contract Invoked is Debot {
     ) {
         name = "InvokeTest";
         version = "0.1.0";
-        publisher = "TON Labs";
+        publisher = "EverX";
         caption = "For testing invokes";
-        author = "TON Labs";
+        author = "EverX";
         support = address(0);
         hello = "Hello";
         language = "en";

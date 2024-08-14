@@ -1800,8 +1800,8 @@ Connecting to net.evercloud.dev
 DeBot Info:
 Name   : Multisig
 Version: 1.2.0
-Author : TON Labs
-Publisher: TON Labs
+Author : EverX
+Publisher: EverX
 Support: 0:66e01d6df5a8d7677d9ab2daf7f258f1e2a7fe73da5320300395f99e01dc3b5f
 Description: DeBot for multisig wallets
 Hi, I will help you work with multisig wallets that can have multiple custodians.

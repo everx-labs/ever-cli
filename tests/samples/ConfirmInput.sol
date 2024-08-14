@@ -27,9 +27,9 @@ contract ConfirmInputDebot is Debot {
     ) {
         name = "ConfirmInput example DeBot";
         version = "0.1.0";
-        publisher = "TON Labs";
+        publisher = "EverX";
         caption = "How to use the ConfirmInput interface";
-        author = "TON Labs";
+        author = "EverX";
         support = address(0);
         hello = "Hello, i am an ConfirmInput example DeBot.";
         language = "en";

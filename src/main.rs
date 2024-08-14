@@ -99,7 +99,9 @@ fn main() {
         .expect("Can't create Engine tokio runtime");
     let result = runtime.block_on(async move { main_internal().await });
     if let Err(err_str) = result {
-        if !err_str.is_empty() { println!("{}", err_str); }
+        if !err_str.is_empty() {
+            println!("{}", err_str);
+        }
         exit(1)
     }
 }
@@ -893,7 +895,7 @@ async fn main_internal() -> Result <(), String> {
     let matches = App::new("ever_cli")
         .version(&*version)
         .author(author)
-        .about("TONLabs console tool for TON")
+        .about("EverX console tool for TON")
         .arg(Arg::with_name("NETWORK")
             .help("Network to connect.")
             .short("-u")
@@ -1322,13 +1324,7 @@ async fn runget_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(),
     if !config.is_json {
         print_args!(address, method, params);
     }
-    let source_type = if matches.is_present("TVC") {
-        AccountSource::Tvc
-    } else if matches.is_present("BOC") {
-        AccountSource::Boc
-    } else {
-        AccountSource::Network
-    };
+    let source_type = run::get_account_source(matches);
     let address =  if source_type != AccountSource::Network {
         address.unwrap().to_string()
     } else {

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.40.0
+- Supported [ABI 2.7](https://github.com/everx-labs/ever-abi/blob/master/CHANGELOG.md#version-270)
+- Supported calling [TVM-Solidity getters](https://github.com/everx-labs/TVM-Solidity-Compiler/blob/master/API.md#getter).
+
 ## 0.39.0
  - Using sdk 1.48.0
 

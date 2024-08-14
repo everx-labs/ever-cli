@@ -24,7 +24,7 @@ abstract contract Debot {
     /// @notice Returns DeBot metadata.
     /// @return name String with name of debot, e.g. "DePool".
     /// @return version Semver version of debot, that will be converted to string like "x.y.z".
-    /// @return publisher String with info about who has deployed debot to blokchain, e.g. "TON Labs".
+    /// @return publisher String with info about who has deployed debot to blokchain, e.g. "EverX".
     /// @return caption (10-20 ch.) String with short description, e.g. "Work with Smthg".
     /// @return author String with name of author of DeBot, e.g. "Ivan Ivanov".
     /// @return support Free TON address of author for questions and donations.

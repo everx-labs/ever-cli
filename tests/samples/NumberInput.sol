@@ -27,9 +27,9 @@ contract NumberInputDebot is Debot {
     ) {
         name = "NumberInput example DeBot";
         version = "0.1.0";
-        publisher = "TON Labs";
+        publisher = "EverX";
         caption = "How to use the NumberInput interface";
-        author = "TON Labs";
+        author = "EverX";
         support = address(0);
         hello = "Hello, i am an NumberInput example DeBot.";
         language = "en";
