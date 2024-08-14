@@ -11,13 +11,15 @@
  * limitations under the License.
  */
 
-use chrono::{Local, TimeZone};
-use serde_json::json;
-use ever_client::abi::{Abi, CallSet, encode_message, FunctionHeader, ParamsOfEncodeMessage, Signer};
-use crate::SignatureIDType;
 use crate::config::Config;
-use crate::helpers::{create_client_with_signature_id, load_abi, load_ton_address, now, TonClient};
 use crate::crypto::load_keypair;
+use crate::helpers::{create_client_with_signature_id, load_abi, load_ton_address, now, TonClient};
+use crate::SignatureIDType;
+use chrono::{Local, TimeZone};
+use ever_client::abi::{
+    encode_message, Abi, CallSet, FunctionHeader, ParamsOfEncodeMessage, Signer,
+};
+use serde_json::json;
 
 pub struct EncodedMessage {
     pub message_id: String,
@@ -41,9 +43,18 @@ pub async fn prepare_message(
         println!("Generating external inbound message...");
     }
 
-    let msg_params = prepare_message_params(addr, abi, method, params, header.clone(), keys, signature_id)?;
+    let msg_params = prepare_message_params(
+        addr,
+        abi,
+        method,
+        params,
+        header.clone(),
+        keys,
+        signature_id,
+    )?;
 
-    let msg = encode_message(ton, msg_params).await
+    let msg = encode_message(ton, msg_params)
+        .await
         .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
     Ok(EncodedMessage {
@@ -54,7 +65,7 @@ pub async fn prepare_message(
     })
 }
 
-pub fn prepare_message_params (
+pub fn prepare_message_params(
     addr: &str,
     abi: Abi,
     method: &str,
@@ -87,9 +98,12 @@ pub fn prepare_message_params (
     })
 }
 
-pub fn print_encoded_message(msg: &EncodedMessage, is_json:bool) {
+pub fn print_encoded_message(msg: &EncodedMessage, is_json: bool) {
     let expire = if msg.expire.is_some() {
-        let expire_at = Local.timestamp_opt(msg.expire.unwrap() as i64, 0).single().unwrap();
+        let expire_at = Local
+            .timestamp_opt(msg.expire.unwrap() as i64, 0)
+            .single()
+            .unwrap();
         expire_at.to_rfc2822()
     } else {
         "unknown".to_string()
@@ -106,8 +120,7 @@ pub fn print_encoded_message(msg: &EncodedMessage, is_json:bool) {
 
 pub fn pack_message(msg: &EncodedMessage, method: &str, is_raw: bool) -> Result<Vec<u8>, String> {
     let res = if is_raw {
-        base64::decode(&msg.message)
-            .map_err(|e| format!("failed to decode message: {}", e))?
+        base64::decode(&msg.message).map_err(|e| format!("failed to decode message: {}", e))?
     } else {
         let json_msg = json!({
             "msg": {
@@ -126,31 +139,37 @@ pub fn pack_message(msg: &EncodedMessage, method: &str, is_raw: bool) -> Result<
 }
 
 pub fn unpack_message(str_msg: &str) -> Result<(EncodedMessage, String), String> {
-    let bytes = hex::decode(str_msg)
-        .map_err(|e| format!("couldn't unpack message: {}", e))?;
+    let bytes = hex::decode(str_msg).map_err(|e| format!("couldn't unpack message: {}", e))?;
 
-    let str_msg = std::str::from_utf8(&bytes)
-        .map_err(|e| format!("message is corrupted: {}", e))?;
+    let str_msg =
+        std::str::from_utf8(&bytes).map_err(|e| format!("message is corrupted: {}", e))?;
 
-    let json_msg: serde_json::Value = serde_json::from_str(str_msg)
-        .map_err(|e| format!("couldn't decode message: {}", e))?;
+    let json_msg: serde_json::Value =
+        serde_json::from_str(str_msg).map_err(|e| format!("couldn't decode message: {}", e))?;
 
-    let method = json_msg["method"].as_str()
+    let method = json_msg["method"]
+        .as_str()
         .ok_or(r#"couldn't find "method" key in message"#)?
         .to_owned();
-    let message_id = json_msg["msg"]["message_id"].as_str()
+    let message_id = json_msg["msg"]["message_id"]
+        .as_str()
         .ok_or(r#"couldn't find "message_id" key in message"#)?
         .to_owned();
-    let message = json_msg["msg"]["message"].as_str()
+    let message = json_msg["msg"]["message"]
+        .as_str()
         .ok_or(r#"couldn't find "message" key in message"#)?
         .to_owned();
     let expire = json_msg["msg"]["expire"].as_u64().map(|x| x as u32);
-    let address = json_msg["msg"]["address"].as_str()
+    let address = json_msg["msg"]["address"]
+        .as_str()
         .ok_or(r#"couldn't find "address" key in message"#)?
         .to_owned();
 
     let msg = EncodedMessage {
-        message_id, message, expire, address
+        message_id,
+        message,
+        expire,
+        address,
     };
     Ok((msg, method))
 }
@@ -166,13 +185,12 @@ pub async fn generate_message(
     is_raw: bool,
     output: Option<&str>,
     timestamp: Option<u64>,
-    signature_id: Option<SignatureIDType>
+    signature_id: Option<SignatureIDType>,
 ) -> Result<(), String> {
+    let (client, signature_id) = create_client_with_signature_id(config, signature_id)?;
 
-    let (client,signature_id) = create_client_with_signature_id(config,signature_id)?;
-
-    let ton_addr = load_ton_address(addr, config)
-        .map_err(|e| format!("failed to parse address: {}", e))?;
+    let ton_addr =
+        load_ton_address(addr, config).map_err(|e| format!("failed to parse address: {}", e))?;
 
     let abi = load_abi(abi, config).await?;
 
@@ -193,7 +211,8 @@ pub async fn generate_message(
         keys,
         config.is_json,
         signature_id,
-    ).await?;
+    )
+    .await?;
 
     display_generated_message(&msg, method, is_raw, output, config.is_json)?;
 

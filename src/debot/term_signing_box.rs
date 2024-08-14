@@ -1,10 +1,10 @@
 use super::term_browser::input;
 use crate::crypto::load_keypair;
 use crate::helpers::{read_keys, TonClient};
-use std::io::{self, BufRead, Write, Read, BufReader};
 use ever_client::crypto::{
     get_signing_box, remove_signing_box, KeyPair, RegisteredSigningBox, SigningBoxHandle,
 };
+use std::io::{self, BufRead, BufReader, Read, Write};
 
 pub(super) struct TerminalSigningBox {
     handle: SigningBoxHandle,
@@ -12,8 +12,11 @@ pub(super) struct TerminalSigningBox {
 }
 
 impl TerminalSigningBox {
-    pub async fn new<R: Read>(client: TonClient, possible_keys: Vec<String>, reader: Option<BufReader<R>>) -> Result<Self, String>
-    {
+    pub async fn new<R: Read>(
+        client: TonClient,
+        possible_keys: Vec<String>,
+        reader: Option<BufReader<R>>,
+    ) -> Result<Self, String> {
         let keys = {
             if let Some(mut reader) = reader {
                 let mut writer = io::stdout();
@@ -118,8 +121,7 @@ mod tests {
     use std::fs::File;
 
     const PUBLIC: &str = "9711a04f0b19474272bc7bae5472a8fbbb6ef71ce9c193f5ec3f5af808069a41";
-    const PRIVATE: &str =
-        "cdf2a820517fa783b9b6094d15e650af92d485084ab217fc2c859f02d49623f3";
+    const PRIVATE: &str = "cdf2a820517fa783b9b6094d15e650af92d485084ab217fc2c859f02d49623f3";
     const SEED: &str =
         "episode polar pistol excite essence van cover fox visual gown yellow minute";
     const KEYS_FILE: &str = "./keys.json";

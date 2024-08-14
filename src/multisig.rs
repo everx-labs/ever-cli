@@ -20,10 +20,10 @@ use crate::helpers::{
     create_client_local, create_client_verbose, load_file_with_url, load_ton_address, now_ms,
 };
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-use serde_json::json;
 use ever_client::abi::{
     encode_message_body, Abi, AbiContract, AbiParam, CallSet, ParamsOfEncodeMessageBody,
 };
+use serde_json::json;
 
 const SAFEMULTISIG_LINK: &str = "https://github.com/everx-labs/ton-labs-contracts/blob/master/solidity/safemultisig/SafeMultisigWallet.tvc?raw=true";
 const SETCODEMULTISIG_LINK: &str = "https://github.com/everx-labs/ton-labs-contracts/blob/master/solidity/setcodemultisig/SetcodeMultisigWallet.tvc?raw=true";
@@ -328,7 +328,7 @@ impl MultisigArgs {
                     name: "stateInit".to_owned(),
                     param_type: "optional(cell)".to_owned(),
                     components: vec![],
-                    init: false
+                    init: false,
                 });
             }
             if let Some(f) = abi.functions.iter_mut().find(|e| &e.name == "constructor") {
@@ -336,7 +336,7 @@ impl MultisigArgs {
                     name: "lifetime".to_owned(),
                     param_type: "uint32".to_owned(),
                     components: vec![],
-                    init: false
+                    init: false,
                 });
             }
         }

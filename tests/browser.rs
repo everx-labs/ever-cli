@@ -1,12 +1,12 @@
-use std::thread::sleep;
-use std::time::Duration;
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::thread::sleep;
+use std::time::Duration;
 // uncomment for debug
 // use std::io::Write;
 use serde_json::json;
 mod common;
-use common::{BIN_NAME, NETWORK, giver_v2, grep_address};
+use common::{giver_v2, grep_address, BIN_NAME, NETWORK};
 
 fn get_debot_paths(name: &str) -> (String, String, String) {
     (
@@ -64,8 +64,7 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
         .arg(&addr)
         .arg("setABI")
         .arg(format!(r#"{{"dabi":"{}"}}"#, hex::encode(abi_string)));
-    cmd.assert()
-        .success();
+    cmd.assert().success();
 
     Ok(addr)
 }
@@ -105,8 +104,7 @@ fn test_userinfo() -> Result<(), Box<dyn std::error::Error>> {
         .arg(&wallet)
         .arg("--pubkey")
         .arg(&key);
-    cmd.assert()
-        .success();
+    cmd.assert().success();
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("call")
@@ -117,8 +115,7 @@ fn test_userinfo() -> Result<(), Box<dyn std::error::Error>> {
         .arg(&addr)
         .arg("setParams")
         .arg(format!(r#"{{"wallet":"{}","key":"{}"}}"#, wallet, key));
-    cmd.assert()
-        .success();
+    cmd.assert().success();
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
@@ -144,7 +141,10 @@ fn test_pipechain_inputs() -> Result<(), Box<dyn std::error::Error>> {
     let mut val: serde_json::Value = serde_json::from_str(&chain)?;
     val["debotAddress"] = json!(addr);
     let return_value = val["initArgs"]["arg7"].clone();
-    std::fs::write(path_to_pipechain_tmp, serde_json::to_string_pretty(&val).unwrap())?;
+    std::fs::write(
+        path_to_pipechain_tmp,
+        serde_json::to_string_pretty(&val).unwrap(),
+    )?;
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
@@ -154,9 +154,7 @@ fn test_pipechain_inputs() -> Result<(), Box<dyn std::error::Error>> {
         .arg(&addr)
         .arg("--pipechain")
         .arg(path_to_pipechain_tmp);
-    let assert = cmd
-        .assert()
-        .success();
+    let assert = cmd.assert().success();
 
     std::fs::remove_file(path_to_pipechain_tmp)?;
 
@@ -202,7 +200,10 @@ fn test_address_input() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.timeout(std::time::Duration::from_secs(2))
-        .write_stdin(format!("y\n{}", "0:ea5be6a13f20fcdfddc2c2b0d317dfeab56718249b090767e5940137b7af89f1"))
+        .write_stdin(format!(
+            "y\n{}",
+            "0:ea5be6a13f20fcdfddc2c2b0d317dfeab56718249b090767e5940137b7af89f1"
+        ))
         .arg("debot")
         .arg("fetch")
         .arg(&addr);
@@ -227,8 +228,12 @@ fn test_amount_input() -> Result<(), Box<dyn std::error::Error>> {
     let _cmd = cmd
         .assert()
         .success()
-        .stdout(predicate::str::contains("Enter amount of tons with decimals:"))
-        .stdout(predicate::str::contains("(>= 0.000000000 and <= 100.000000000)"))
+        .stdout(predicate::str::contains(
+            "Enter amount of tons with decimals:",
+        ))
+        .stdout(predicate::str::contains(
+            "(>= 0.000000000 and <= 100.000000000)",
+        ))
         .stdout(predicate::str::contains("AmountInput tests completed!"));
     Ok(())
 }
@@ -297,8 +302,7 @@ fn test_pipechain_signing() -> Result<(), Box<dyn std::error::Error>> {
     val["debotAddress"] = json!(addr);
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
-    cmd
-        .arg("-j")
+    cmd.arg("-j")
         .arg("debot")
         .arg("start")
         .arg(&addr)

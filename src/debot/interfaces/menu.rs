@@ -1,10 +1,10 @@
-use super::dinterface::{decode_string_arg};
-use crate::debot::term_browser::{action_input};
-use serde_json::{Value, json};
-use serde::{de, Deserialize, Deserializer};
+use super::dinterface::decode_string_arg;
+use crate::debot::term_browser::action_input;
 use ever_client::abi::Abi;
 use ever_client::debot::{DebotInterface, InterfaceResult};
 use ever_client::encoding::decode_abi_number;
+use serde::{de, Deserialize, Deserializer};
+use serde_json::{json, Value};
 
 pub(super) const ID: &str = "ac1a4d3ecea232e49783df4a23a81823cdca3205dc58cd20c4db259c25605b48";
 
@@ -58,7 +58,7 @@ pub struct MenuItem {
 
 fn from_abi_num<'de, D>(des: D) -> Result<u32, D::Error>
 where
-    D: Deserializer<'de>
+    D: Deserializer<'de>,
 {
     let s: String = Deserialize::deserialize(des)?;
     decode_abi_number(&s).map_err(de::Error::custom)
@@ -66,13 +66,12 @@ where
 
 pub struct Menu {}
 impl Menu {
-
-	pub fn new() -> Self {
-		Self{}
-	}
+    pub fn new() -> Self {
+        Self {}
+    }
 
     fn select(&self, args: &Value) -> InterfaceResult {
-		let menu_items: Vec<MenuItem> = serde_json::from_value(args["items"].clone()).unwrap();
+        let menu_items: Vec<MenuItem> = serde_json::from_value(args["items"].clone()).unwrap();
         let title = decode_string_arg(args, "title")?;
         let description = decode_string_arg(args, "description")?;
         if !title.is_empty() {
@@ -100,9 +99,8 @@ impl Menu {
                 continue;
             }
 
-            return Ok(( menu.unwrap().handler_id, json!({ "index": n - 1 }) ));
+            return Ok((menu.unwrap().handler_id, json!({ "index": n - 1 })));
         }
-
     }
 }
 

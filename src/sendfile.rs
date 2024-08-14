@@ -10,17 +10,17 @@
  * See the License for the specific EVERX DEV software governing permissions and
  * limitations under the License.
  */
-use crate::helpers::create_client_verbose;
-use crate::config::Config;
 use crate::call::send_message_and_wait;
+use crate::config::Config;
+use crate::helpers::create_client_verbose;
 
 pub async fn sendfile(config: &Config, msg_boc: &str) -> Result<(), String> {
     let ton = create_client_verbose(config)?;
-    let boc_vec = std::fs::read(msg_boc)
-        .map_err(|e| format!("failed to read boc file: {}", e))?;
+    let boc_vec = std::fs::read(msg_boc).map_err(|e| format!("failed to read boc file: {}", e))?;
     let tvm_msg = ever_sdk::Contract::deserialize_message(&boc_vec[..])
         .map_err(|e| format!("failed to parse message from boc: {}", e))?;
-    let dst = tvm_msg.dst()
+    let dst = tvm_msg
+        .dst()
         .ok_or("failed to parse dst address".to_string())?;
 
     if !config.is_json {

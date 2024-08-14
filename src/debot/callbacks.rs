@@ -15,12 +15,12 @@ use super::{action_input, input, terminal_input, ChainProcessor, ProcessorError}
 use crate::config::Config;
 use crate::convert::convert_u64_to_tokens;
 use crate::helpers::TonClient;
-use std::collections::VecDeque;
-use std::io;
-use std::sync::{Arc, RwLock};
 use ever_client::crypto::SigningBoxHandle;
 use ever_client::debot::{BrowserCallbacks, DAction, DebotActivity, STATE_EXIT};
 use ever_client::error::ClientResult;
+use std::collections::VecDeque;
+use std::io;
+use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
 struct ActiveState {
@@ -182,8 +182,7 @@ impl BrowserCallbacks for Callbacks {
                 }
                 info += &format!("  Message signer public key: {}\n", signkey);
                 if setcode {
-                    info +=
-                        "  Warning: the transaction will change the account's code\n";
+                    info += "  Warning: the transaction will change the account's code\n";
                 }
                 "Confirm the transaction (y/n)?"
             }

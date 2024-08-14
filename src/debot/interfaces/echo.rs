@@ -1,6 +1,6 @@
-use serde_json::{Value, json};
-use ever_client::debot::{DebotInterface, InterfaceResult};
 use ever_client::abi::Abi;
+use ever_client::debot::{DebotInterface, InterfaceResult};
+use serde_json::{json, Value};
 
 const ECHO_ID: &str = "f6927c0d4bdb69e1b52d27f018d156ff04152f00558042ff674f0fec32e4369d";
 
@@ -36,16 +36,18 @@ pub const ECHO_ABI: &str = r#"
 
 pub struct Echo {}
 impl Echo {
-	
-	pub fn new() -> Self {
-		Self{}
-	}
-	
+    pub fn new() -> Self {
+        Self {}
+    }
+
     fn echo(&self, args: &Value) -> InterfaceResult {
-		let answer_id = u32::from_str_radix(args["answerId"].as_str().unwrap(), 10).unwrap();
-		let request_vec = hex::decode(args["request"].as_str().unwrap()).unwrap();
-		let request = std::str::from_utf8(&request_vec).unwrap();
-		Ok(( answer_id, json!({ "response": hex::encode(request.as_bytes()) }) ))
+        let answer_id = u32::from_str_radix(args["answerId"].as_str().unwrap(), 10).unwrap();
+        let request_vec = hex::decode(args["request"].as_str().unwrap()).unwrap();
+        let request = std::str::from_utf8(&request_vec).unwrap();
+        Ok((
+            answer_id,
+            json!({ "response": hex::encode(request.as_bytes()) }),
+        ))
     }
 }
 

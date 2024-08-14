@@ -32,8 +32,7 @@ pub fn convert_amount(amount: &str, decimals: usize) -> Result<String, String> {
             result += &"0".repeat(decimals);
         }
         let result = result.trim_start_matches('0').to_string();
-        u64::from_str_radix(&result, 10)
-            .map_err(|e| format!("failed to parse amount: {}", e))?;
+        u64::from_str_radix(&result, 10).map_err(|e| format!("failed to parse amount: {}", e))?;
 
         return Ok(result);
     }

@@ -12,33 +12,34 @@
  */
 use crate::config::Config;
 use crate::convert;
-use crate::helpers::{TonClient, now_ms, create_client_verbose, load_abi, query_account_field,
-    create_client, load_ton_abi, get_blockchain_config};
+use crate::helpers::{
+    create_client, create_client_verbose, get_blockchain_config, load_abi, load_ton_abi, now_ms,
+    query_account_field, TonClient,
+};
 
-use ever_client::abi::{encode_message, decode_message, ParamsOfDecodeMessage, ParamsOfEncodeMessage,
-                      Abi};
-use ever_client::processing::{
-    ParamsOfSendMessage,
-    ParamsOfWaitForTransaction,
-    ParamsOfProcessMessage,
-    ProcessingEvent,
-    wait_for_transaction,
-    send_message,
+use crate::debug::{debug_error, init_debug_logger, DebugParams};
+use crate::message::{
+    prepare_message_params, print_encoded_message, unpack_message, EncodedMessage,
 };
-use ever_client::tvm::{
-    run_executor,
-    ParamsOfRunExecutor,
-    AccountForExecutor
-};
-use ever_block::{Account, Serializable};
-use std::str::FromStr;
-use serde_json::{json, Value};
 use ever_abi::ParamType;
+use ever_block::{Account, Serializable};
+use ever_client::abi::{
+    decode_message, encode_message, Abi, ParamsOfDecodeMessage, ParamsOfEncodeMessage,
+};
 use ever_client::error::ClientError;
-use crate::debug::{init_debug_logger, debug_error, DebugParams};
-use crate::message::{EncodedMessage, prepare_message_params, print_encoded_message, unpack_message};
+use ever_client::processing::{
+    send_message, wait_for_transaction, ParamsOfProcessMessage, ParamsOfSendMessage,
+    ParamsOfWaitForTransaction, ProcessingEvent,
+};
+use ever_client::tvm::{run_executor, AccountForExecutor, ParamsOfRunExecutor};
+use serde_json::{json, Value};
+use std::str::FromStr;
 
-async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) -> Result<(String, String), String> {
+async fn decode_call_parameters(
+    ton: TonClient,
+    msg: &EncodedMessage,
+    abi: Abi,
+) -> Result<(String, String), String> {
     let result = decode_message(
         ton,
         ParamsOfDecodeMessage {
@@ -51,7 +52,7 @@ async fn decode_call_parameters(ton: TonClient, msg: &EncodedMessage, abi: Abi) 
 
     Ok((
         result.name,
-        format!("{:#}", result.value.unwrap_or(json!({})))
+        format!("{:#}", result.value.unwrap_or(json!({}))),
     ))
 }
 
@@ -65,27 +66,42 @@ fn parse_integer_param(value: &str) -> Result<String, String> {
     }
 }
 
-async fn build_json_from_params(params_vec: Vec<&str>, abi_path: &str, method: &str, config: &Config) -> Result<String, String> {
+async fn build_json_from_params(
+    params_vec: Vec<&str>,
+    abi_path: &str,
+    method: &str,
+    config: &Config,
+) -> Result<String, String> {
     let abi_obj = load_ton_abi(abi_path, config).await?;
     let functions = abi_obj.functions();
 
-    let func_obj = functions.get(method).ok_or("failed to load function from abi")?;
+    let func_obj = functions
+        .get(method)
+        .ok_or("failed to load function from abi")?;
     let inputs = func_obj.input_params();
 
-    let mut params_json = json!({ });
+    let mut params_json = json!({});
     for input in inputs {
         let mut iter = params_vec.iter();
-        let _param = iter.find(|x| x.starts_with('-') && (x.trim_start_matches('-') == input.name))
-            .ok_or(format!(r#"argument "{}" of type "{}" not found"#, input.name, input.kind))?;
+        let _param = iter
+            .find(|x| x.starts_with('-') && (x.trim_start_matches('-') == input.name))
+            .ok_or(format!(
+                r#"argument "{}" of type "{}" not found"#,
+                input.name, input.kind
+            ))?;
 
-        let value = iter.next()
-            .ok_or(format!(r#"argument "{}" of type "{}" has no value"#, input.name, input.kind))?
+        let value = iter
+            .next()
+            .ok_or(format!(
+                r#"argument "{}" of type "{}" has no value"#,
+                input.name, input.kind
+            ))?
             .to_string();
 
         let value = match input.kind {
             ParamType::Uint(_) | ParamType::Int(_) => {
                 json!(parse_integer_param(&value)?)
-            },
+            }
             ParamType::Array(ref _x) => {
                 let mut result_vec: Vec<String> = vec![];
                 for i in value.split(|c| c == ',' || c == '[' || c == ']') {
@@ -94,7 +110,7 @@ async fn build_json_from_params(params_vec: Vec<&str>, abi_path: &str, method: &
                     }
                 }
                 json!(result_vec)
-            },
+            }
             _ => {
                 json!(value)
             }
@@ -118,11 +134,10 @@ pub async fn emulate_locally(
             let addr = ever_block::MsgAddressInt::from_str(addr)
                 .map_err(|e| format!("couldn't decode address: {}", e))?;
             state = base64::encode(
-                ever_block::write_boc(
-                    &Account::with_address(addr)
-                        .serialize()
-                        .map_err(|e| format!("couldn't create dummy account for deploy emulation: {}", e))?
-                ).map_err(|e| format!("failed to serialize account cell: {}", e))?
+                ever_block::write_boc(&Account::with_address(addr).serialize().map_err(|e| {
+                    format!("couldn't create dummy account for deploy emulation: {}", e)
+                })?)
+                .map_err(|e| format!("failed to serialize account cell: {}", e))?,
             );
         } else {
             return Err(state_boc.err().unwrap());
@@ -136,11 +151,7 @@ pub async fn emulate_locally(
             message: msg.clone(),
             account: AccountForExecutor::Account {
                 boc: state,
-                unlimited_balance: if is_fee {
-                    Some(true)
-                } else {
-                    None
-                },
+                unlimited_balance: if is_fee { Some(true) } else { None },
             },
             ..Default::default()
         },
@@ -172,13 +183,10 @@ pub async fn send_message_and_wait(
     msg: String,
     config: &Config,
 ) -> Result<Value, String> {
-
     if !config.is_json {
         println!("Processing... ");
     }
-    let callback = |_| {
-        async move {}
-    };
+    let callback = |_| async move {};
     let result = send_message(
         ton.clone(),
         ParamsOfSendMessage {
@@ -187,8 +195,9 @@ pub async fn send_message_and_wait(
             send_events: false,
         },
         callback,
-    ).await
-        .map_err(|e| format!("{:#}", e))?;
+    )
+    .await
+    .map_err(|e| format!("{:#}", e))?;
 
     if !config.async_call {
         let result = wait_for_transaction(
@@ -201,8 +210,9 @@ pub async fn send_message_and_wait(
                 ..Default::default()
             },
             callback,
-        ).await
-            .map_err(|e| format!("{:#}", e))?;
+        )
+        .await
+        .map_err(|e| format!("{:#}", e))?;
         Ok(result.decoded.and_then(|d| d.output).unwrap_or(json!({})))
     } else {
         Ok(json!({}))
@@ -214,16 +224,17 @@ pub async fn process_message(
     msg: ParamsOfEncodeMessage,
     config: &Config,
 ) -> Result<Value, ClientError> {
-    let callback = |event| { async move {
+    let callback = |event| async move {
         if let ProcessingEvent::DidSend {
             shard_block_id: _,
             message_id,
             message_dst: _,
             message: _,
-        } = event {
+        } = event
+        {
             println!("MessageId: {}", message_id)
         }
-    }};
+    };
     let res = if !config.is_json {
         ever_client::processing::process_message(
             ton.clone(),
@@ -232,7 +243,8 @@ pub async fn process_message(
                 send_events: true,
             },
             callback,
-        ).await
+        )
+        .await
     } else {
         ever_client::processing::process_message(
             ton.clone(),
@@ -240,8 +252,9 @@ pub async fn process_message(
                 message_encode_params: msg.clone(),
                 send_events: true,
             },
-            |_| { async move {} },
-        ).await
+            |_| async move {},
+        )
+        .await
     }?;
 
     Ok(res.decoded.and_then(|d| d.output).unwrap_or(json!({})))
@@ -277,23 +290,15 @@ pub async fn call_contract_with_client(
 ) -> Result<Value, String> {
     let abi = load_abi(abi_path, config).await?;
 
-    let msg_params = prepare_message_params(
-        addr,
-        abi.clone(),
-        method,
-        params,
-        None,
-        keys.clone(),
-        None,
-    )?;
+    let msg_params =
+        prepare_message_params(addr, abi.clone(), method, params, None, keys.clone(), None)?;
 
-    let needs_encoded_msg = is_fee ||
-        config.async_call ||
-        config.local_run ||
-        config.debug_fail != "None";
+    let needs_encoded_msg =
+        is_fee || config.async_call || config.local_run || config.debug_fail != "None";
 
     let message = if needs_encoded_msg {
-        let msg = encode_message(ton.clone(), msg_params.clone()).await
+        let msg = encode_message(ton.clone(), msg_params.clone())
+            .await
             .map_err(|e| format!("failed to create inbound message: {}", e))?;
 
         if config.local_run || is_fee {
@@ -303,10 +308,7 @@ pub async fn call_contract_with_client(
             }
         }
         if config.async_call {
-            return send_message_and_wait(ton,
-                                         Some(abi),
-                                         msg.message.clone(),
-                                         config).await;
+            return send_message_and_wait(ton, Some(abi), msg.message.clone(), config).await;
         }
         Some(msg.message)
     } else {
@@ -316,11 +318,7 @@ pub async fn call_contract_with_client(
     match process_message(ton.clone(), msg_params, config).await {
         Ok(result) => Ok(result),
         Err(e) => {
-            let acc_boc = query_account_field(
-                ton.clone(),
-                addr,
-                "boc",
-            ).await?;
+            let acc_boc = query_account_field(ton.clone(), addr, "boc").await?;
             let now = now_ms();
             let bc_config = get_blockchain_config(config, None).await?;
             let debug_params = DebugParams {
@@ -357,7 +355,8 @@ pub async fn call_contract(
     keys: Option<String>,
     is_fee: bool,
 ) -> Result<(), String> {
-    let result = call_contract_with_result(config, addr, abi_path, method, params, keys, is_fee).await?;
+    let result =
+        call_contract_with_result(config, addr, abi_path, method, params, keys, is_fee).await?;
     if !config.is_json {
         println!("Succeeded.");
     }
@@ -365,8 +364,11 @@ pub async fn call_contract(
     Ok(())
 }
 
-
-pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: &str) -> Result<(), String> {
+pub async fn call_contract_with_msg(
+    config: &Config,
+    str_msg: String,
+    abi_path: &str,
+) -> Result<(), String> {
     let ton = create_client_verbose(config)?;
     let abi = load_abi(abi_path, config).await?;
 
@@ -387,7 +389,7 @@ pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: 
         println!("  \"Parameters\": {},", params.1);
         println!("}}");
     }
-    let result = send_message_and_wait(ton, Some(abi), msg.message,  config).await?;
+    let result = send_message_and_wait(ton, Some(abi), msg.message, config).await?;
 
     if !config.is_json {
         println!("Succeeded.");
@@ -398,7 +400,12 @@ pub async fn call_contract_with_msg(config: &Config, str_msg: String, abi_path: 
     Ok(())
 }
 
-pub async fn parse_params(params_vec: Vec<&str>, abi_path: &str, method: &str, config: &Config) -> Result<String, String> {
+pub async fn parse_params(
+    params_vec: Vec<&str>,
+    abi_path: &str,
+    method: &str,
+    config: &Config,
+) -> Result<String, String> {
     if params_vec.len() == 1 {
         // if there is only 1 parameter it must be a json string with arguments
         Ok(params_vec[0].to_owned())
