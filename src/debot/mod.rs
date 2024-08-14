@@ -14,19 +14,19 @@ mod callbacks;
 mod interfaces;
 mod pipechain;
 mod processor;
-mod term_signing_box;
-mod term_encryption_box;
 pub mod term_browser;
+mod term_encryption_box;
+mod term_signing_box;
 
 use crate::config::Config;
-use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-use simplelog::*;
-use term_browser::{run_debot_browser, terminal_input, input, action_input};
 use crate::helpers::load_ton_address;
 use callbacks::Callbacks;
-use processor::{ChainProcessor, ProcessorError};
-use pipechain::{ApproveKind, PipeChain, ChainLink};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 pub use interfaces::dinterface::SupportedInterfaces;
+use pipechain::{ApproveKind, ChainLink, PipeChain};
+use processor::{ChainProcessor, ProcessorError};
+use simplelog::*;
+use term_browser::{action_input, input, run_debot_browser, terminal_input};
 
 pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("debot")
@@ -42,7 +42,7 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                     Arg::with_name("ADDRESS")
                         .required(true)
                         .help("DeBot TON address."),
-                )
+                ),
         )
         .subcommand(
             SubCommand::with_name("start")
@@ -65,7 +65,7 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                         .long("signkey")
                         .takes_value(true)
                         .help("Define keypair to auto sign transactions."),
-                )
+                ),
         )
         .subcommand(
             SubCommand::with_name("invoke")
@@ -73,13 +73,13 @@ pub fn create_debot_command<'a, 'b>() -> App<'a, 'b> {
                 .arg(
                     Arg::with_name("ADDRESS")
                         .required(true)
-                        .help("Debot TON address.")
+                        .help("Debot TON address."),
                 )
                 .arg(
                     Arg::with_name("MESSAGE")
                         .required(true)
-                        .help("Message to DeBot encoded as base64/base64url.")
-                )
+                        .help("Message to DeBot encoded as base64/base64url."),
+                ),
         )
 }
 
@@ -125,7 +125,8 @@ pub async fn debot_command(m: &ArgMatches<'_>, config: Config) -> Result<(), Str
 async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String> {
     let addr = m.value_of("ADDRESS");
     let pipechain = m.value_of("PIPECHAIN");
-    let signkey_path = m.value_of("SIGNKEY")
+    let signkey_path = m
+        .value_of("SIGNKEY")
         .map(|x| x.to_owned())
         .or(config.keys_path.clone());
     let is_json = config.is_json;
@@ -141,12 +142,14 @@ async fn fetch_command(m: &ArgMatches<'_>, config: Config) -> Result<(), String>
     let result = run_debot_browser(addr.as_str(), config, pipechain, signkey_path).await;
     match result {
         Ok(Some(arg)) => {
-            if !is_json { println!("Returned value:"); }
+            if !is_json {
+                println!("Returned value:");
+            }
             println!("{:#}", arg);
             Ok(())
         }
         Err(err) if err.contains("NoMoreChainlinks") => Ok(()),
-        result => result.map(|_| ())
+        result => result.map(|_| ()),
     }
 }
 

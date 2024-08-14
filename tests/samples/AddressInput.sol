@@ -28,9 +28,9 @@ contract AddressInputDebot is Debot {
     ) {
         name = "AddressInput example DeBot";
         version = "0.1.0";
-        publisher = "TON Labs";
+        publisher = "EverX";
         caption = "How to use the AddressInput interface";
-        author = "TON Labs";
+        author = "EverX";
         support = address(0);
         hello = "Hello, i am an AddressInput example DeBot.";
         language = "en";

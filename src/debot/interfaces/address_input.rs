@@ -1,10 +1,10 @@
-use crate::debot::term_browser::terminal_input;
-use crate::helpers::load_ton_address;
-use serde_json::{Value, json};
-use ever_client::abi::Abi;
-use ever_client::debot::{DebotInterface, InterfaceResult};
 use super::dinterface::{decode_answer_id, decode_prompt};
 use crate::config::Config;
+use crate::debot::term_browser::terminal_input;
+use crate::helpers::load_ton_address;
+use ever_client::abi::Abi;
+use ever_client::debot::{DebotInterface, InterfaceResult};
+use serde_json::{json, Value};
 
 const ID: &str = "d7ed1bd8e6230871116f4522e58df0a93c5520c56f4ade23ef3d8919a984653b";
 
@@ -47,17 +47,18 @@ pub const ABI: &str = r#"
 "#;
 
 pub struct AddressInput {
-    config: Config
+    config: Config,
 }
 impl AddressInput {
     pub fn new(config: Config) -> Self {
-        Self {config}
+        Self { config }
     }
     fn get(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let prompt = decode_prompt(args)?;
         let value = terminal_input(&prompt, |val| {
-            let _ = load_ton_address(val, &self.config).map_err(|e| format!("Invalid address: {}", e))?;
+            let _ = load_ton_address(val, &self.config)
+                .map_err(|e| format!("Invalid address: {}", e))?;
             Ok(())
         });
         Ok((answer_id, json!({ "value": value })))
@@ -65,7 +66,8 @@ impl AddressInput {
     fn select(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let value = terminal_input("", |val| {
-            let _ = load_ton_address(val, &self.config).map_err(|e| format!("Invalid address: {}", e))?;
+            let _ = load_ton_address(val, &self.config)
+                .map_err(|e| format!("Invalid address: {}", e))?;
             Ok(())
         });
         Ok((answer_id, json!({ "value": value })))

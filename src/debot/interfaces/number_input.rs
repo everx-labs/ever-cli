@@ -1,9 +1,9 @@
+use super::dinterface::{decode_answer_id, decode_int256, decode_prompt};
 use crate::debot::term_browser::terminal_input;
-use serde_json::{Value, json};
 use ever_client::abi::Abi;
 use ever_client::debot::{DebotInterface, InterfaceResult};
-use super::dinterface::{decode_answer_id, decode_int256, decode_prompt};
 use ever_client::encoding::decode_abi_bigint;
+use serde_json::{json, Value};
 
 const ID: &str = "c5a9558b2664aed7dc3e6123436d544f13ffe69ab0e259412f48c6d1c8588401";
 

@@ -16,12 +16,14 @@ use crate::crypto::{self, load_keypair};
 use crate::debug::{decode_messages, execute_debug, init_debug_logger, DEFAULT_TRACE_PATH};
 use crate::getconfig::serialize_config_param;
 use crate::helpers::{
-    create_client_local, decode_data, get_blockchain_config, load_abi, now_ms, unpack_alternative_params, load_params,
+    create_client_local, decode_data, get_blockchain_config, load_abi, load_params, now_ms,
+    unpack_alternative_params,
 };
 use crate::FullConfig;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use serde_json::json;
-use std::path::PathBuf;
+use ever_block::{
+    ed25519_sign_with_secret, read_single_root_boc, write_boc, BuilderData, SliceData,
+};
 use ever_block::{
     Account, ConfigParams, CurrencyCollection, Deserializable, Message, Serializable, TickTock,
 };
@@ -29,7 +31,8 @@ use ever_client::abi::{
     encode_internal_message, encode_message, CallSet, DeploySet, FunctionHeader,
     ParamsOfEncodeInternalMessage, ParamsOfEncodeMessage, Signer as AbiSigner,
 };
-use ever_block::{read_single_root_boc, write_boc, SliceData, BuilderData, ed25519_sign_with_secret};
+use serde_json::json;
+use std::path::PathBuf;
 
 pub fn create_test_sign_command<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("sign")
@@ -272,7 +275,8 @@ async fn test_deploy(matches: &ArgMatches<'_>, config: &Config) -> Result<(), St
             .address
             .parse()
             .map_err(|e| format!("Failed to set address {}: {e}", enc_msg.address))?;
-        let balance = balance.parse()
+        let balance = balance
+            .parse()
             .map_err(|e| format!("Failed to parse initial balance: {e}"))?;
 
         let balance = CurrencyCollection::with_grams(balance);
@@ -292,8 +296,9 @@ async fn test_deploy(matches: &ArgMatches<'_>, config: &Config) -> Result<(), St
             .map_err(|e| format!("Failed to create deploy internal message: {e}"))?;
         message = Message::construct_from_base64(&enc_msg.message).unwrap();
         if let Some(header) = message.int_header_mut() {
-            header.value.grams = balance.parse()
-               .map_err(|e| format!("Failed to parse initial balance: {e}"))?;
+            header.value.grams = balance
+                .parse()
+                .map_err(|e| format!("Failed to parse initial balance: {e}"))?;
         }
         account = Account::default();
     }

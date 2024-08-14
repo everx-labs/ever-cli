@@ -2,7 +2,7 @@ pragma solidity >=0.6.0;
 pragma AbiHeader expire;
 
 /// @title Simple wallet
-/// @author Tonlabs
+/// @author EverX
 contract Wallet {
     /*
      *  Storage

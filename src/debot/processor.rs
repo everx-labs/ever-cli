@@ -1,8 +1,8 @@
-use serde_json::Value;
-use super::{ApproveKind, PipeChain, ChainLink};
-use std::vec::IntoIter;
+use super::{ApproveKind, ChainLink, PipeChain};
+use ever_client::abi::{Abi, CallSet};
 use ever_client::debot::DebotActivity;
-use ever_client::abi::{CallSet, Abi};
+use serde_json::Value;
+use std::vec::IntoIter;
 
 #[derive(Debug)]
 pub enum ProcessorError {
@@ -22,9 +22,12 @@ pub struct ChainProcessor {
 }
 
 impl ChainProcessor {
-    pub fn new(mut pipechain: PipeChain ) -> Self {
+    pub fn new(mut pipechain: PipeChain) -> Self {
         let chain_vec = std::mem::take(&mut pipechain.chain);
-        Self { pipechain, chain_iter: chain_vec.into_iter() }
+        Self {
+            pipechain,
+            chain_iter: chain_vec.into_iter(),
+        }
     }
 
     pub fn abi(&self) -> Option<Abi> {
@@ -57,28 +60,32 @@ impl ChainProcessor {
             return None;
         }
         match &self.pipechain.init_args {
-            Some(args) => CallSet::some_with_function_and_input(&self.pipechain.init_method, args.clone()),
+            Some(args) => {
+                CallSet::some_with_function_and_input(&self.pipechain.init_method, args.clone())
+            }
             None => CallSet::some_with_function(&self.pipechain.init_method),
         }
-
     }
 
     pub fn next_input(
         &mut self,
         in_interface: &str,
         in_method: &str,
-        _in_params: &Value
+        _in_params: &Value,
     ) -> Result<Option<Value>, ProcessorError> {
-        let chlink = self.chain_iter.next().ok_or(
-            if self.interactive() {
-                ProcessorError::InterfaceCallNeeded
-            } else {
-                ProcessorError::NoMoreChainlinks
-            }
-        )?;
+        let chlink = self.chain_iter.next().ok_or(if self.interactive() {
+            ProcessorError::InterfaceCallNeeded
+        } else {
+            ProcessorError::NoMoreChainlinks
+        })?;
 
         match chlink {
-            ChainLink::Input {interface, method, params, mandatory} => {
+            ChainLink::Input {
+                interface,
+                method,
+                params,
+                mandatory,
+            } => {
                 if interface != in_interface {
                     if !mandatory {
                         self.next_input(in_interface, in_method, _in_params)
@@ -90,34 +97,33 @@ impl ChainProcessor {
                 } else {
                     Ok(params)
                 }
-            },
+            }
             _ => Err(ProcessorError::UnexpectedChainLinkKind),
         }
     }
 
     pub fn next_signing_box(&mut self) -> Result<u32, ProcessorError> {
-        let chlink = self.chain_iter.next().ok_or(
-            if self.interactive() {
-                ProcessorError::InterfaceCallNeeded
-            } else {
-                ProcessorError::NoMoreChainlinks
-            }
-        )?;
+        let chlink = self.chain_iter.next().ok_or(if self.interactive() {
+            ProcessorError::InterfaceCallNeeded
+        } else {
+            ProcessorError::NoMoreChainlinks
+        })?;
 
         match chlink {
-            ChainLink::SigningBox {handle} => {
-                Ok(handle)
-            },
+            ChainLink::SigningBox { handle } => Ok(handle),
             _ => Err(ProcessorError::UnexpectedChainLinkKind),
         }
     }
 
     pub fn next_approve(&mut self, activity: &DebotActivity) -> Result<bool, ProcessorError> {
-
         let app_kind = match activity {
-            DebotActivity::Transaction {..} => ApproveKind::ApproveOnChainCall,
+            DebotActivity::Transaction { .. } => ApproveKind::ApproveOnChainCall,
         };
-        let auto_approve = self.pipechain.auto_approve.as_ref().map(|vec| vec.iter().any(|x| *x == app_kind));
+        let auto_approve = self
+            .pipechain
+            .auto_approve
+            .as_ref()
+            .map(|vec| vec.iter().any(|x| *x == app_kind));
 
         let chlink = self.chain_iter.next();
         if chlink.is_none() {
@@ -133,15 +139,22 @@ impl ChainProcessor {
         // TODO: ?
         let chlink = chlink.unwrap();
         match chlink {
-            ChainLink::OnchainCall { approve, iflq: _, ifeq: _ } => {
-                match activity {
-                    DebotActivity::Transaction {msg: _, dst: _, out: _, fee: _, setcode: _, signkey: _, signing_box_handle: _} => {
-                        Ok(approve)
-                    }
-                }
+            ChainLink::OnchainCall {
+                approve,
+                iflq: _,
+                ifeq: _,
+            } => match activity {
+                DebotActivity::Transaction {
+                    msg: _,
+                    dst: _,
+                    out: _,
+                    fee: _,
+                    setcode: _,
+                    signkey: _,
+                    signing_box_handle: _,
+                } => Ok(approve),
             },
-            _ => Err(ProcessorError::UnexpectedChainLinkKind)
+            _ => Err(ProcessorError::UnexpectedChainLinkKind),
         }
     }
 }
-

@@ -1,10 +1,10 @@
+use super::dinterface::{decode_answer_id, decode_num_arg, decode_prompt};
+use crate::convert;
 use crate::debot::term_browser::terminal_input;
-use serde_json::{Value, json};
 use ever_client::abi::Abi;
 use ever_client::debot::{DebotInterface, InterfaceResult};
-use super::dinterface::{decode_answer_id, decode_num_arg, decode_prompt};
 use ever_client::encoding::decode_abi_number;
-use crate::convert;
+use serde_json::{json, Value};
 
 const ID: &str = "a1d347099e29c1624c8890619daf207bde18e92df5220a54bcc6d858309ece84";
 
@@ -103,7 +103,7 @@ impl DebotInterface for AmountInput {
     }
 }
 
-fn format_amount(amount: u128, decimals: usize) ->  String {
+fn format_amount(amount: u128, decimals: usize) -> String {
     if decimals == 0 {
         format!("{}", amount)
     } else {

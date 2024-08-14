@@ -10,7 +10,6 @@ interface IAccept {
 }
 
 /// @title Multisignature wallet
-/// @author Tonlabs (https://everx.dev)
 contract MultisigWallet is IAccept {
 
     /*

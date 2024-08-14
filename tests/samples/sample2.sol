@@ -42,9 +42,9 @@ contract Sample2 is Debot {
     ) {
         name = "UserInfo";
         version = "0.1.0";
-        publisher = "TON Labs";
+        publisher = "EverX";
         caption = "Test for UserInfo.";
-        author = "TON Labs";
+        author = "EverX";
         support = address(0);
         hello = "Test DeBot.";
         language = "en";

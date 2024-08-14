@@ -1,11 +1,13 @@
-use super::dinterface::{decode_answer_id, decode_bool_arg, decode_prompt, decode_string_arg, Printer};
+use super::dinterface::{
+    decode_answer_id, decode_bool_arg, decode_prompt, decode_string_arg, Printer,
+};
+use crate::convert::convert_token;
 use crate::debot::term_browser::terminal_input;
-use serde_json::{Value, json};
 use ever_client::abi::Abi;
 use ever_client::debot::{DebotInterface, InterfaceResult};
-use crate::convert::convert_token;
 use ever_client::encoding::decode_abi_bigint;
-use std::io::{Read};
+use serde_json::{json, Value};
+use std::io::Read;
 
 pub(super) const ID: &str = "8796536366ee21852db56dccb60bc564598b618c865fc50c8b1ab740bba128e3";
 
@@ -75,7 +77,7 @@ pub struct Terminal {
 
 impl Terminal {
     pub fn new(printer: Printer) -> Self {
-        Self {printer}
+        Self { printer }
     }
     fn input_str(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
@@ -89,7 +91,8 @@ impl Terminal {
             } else {
                 println!("(Ctrl+D to exit)");
             }
-            std::io::stdin().read_to_string(&mut value)
+            std::io::stdin()
+                .read_to_string(&mut value)
                 .map_err(|e| format!("input error: {}", e))?;
             println!();
         } else {
@@ -144,8 +147,8 @@ impl Terminal {
     pub async fn print(&self, args: &Value) -> InterfaceResult {
         let answer_id = decode_answer_id(args)?;
         let message = decode_string_arg(args, "message")?;
-		self.printer.print(&message).await;
-		Ok((answer_id, json!({})))
+        self.printer.print(&message).await;
+        Ok((answer_id, json!({})))
     }
 }
 

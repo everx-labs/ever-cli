@@ -33,9 +33,9 @@ contract ExampleContract is Debot {
     ) {
         name = "SigningBoxInput";
         version = "0.1.0";
-        publisher = "TON Labs";
+        publisher = "EverX";
         caption = "Test for SigningBoxInput.";
-        author = "TON Labs";
+        author = "EverX";
         support = address(0);
         hello = "Test DeBot.";
         language = "en";
