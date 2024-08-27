@@ -39,8 +39,8 @@ url = '2.3.1'
 
 ever_abi = { git = 'https://github.com/everx-labs/ever-abi.git', tag = '2.7.2' }
 ever_assembler = { git = 'https://github.com/everx-labs/ever-assembler.git', tag = '1.6.14' }
-ever_block = { git = 'https://github.com/everx-labs/ever-block.git', tag = '1.11.11' }
-ever_block_json = { git = 'https://github.com/everx-labs/ever-block-json.git', tag = '0.9.18' }
+ever_block = { git = 'https://github.com/everx-labs/ever-block.git', branch = 'master' }
+ever_block_json = { git = 'https://github.com/everx-labs/ever-block-json.git', branch = 'master' }
 ever_client = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.48.0' }
 ever_executor = { git = 'https://github.com/everx-labs/ever-executor.git', tag = '1.18.12' }
 ever_sdk = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.48.0' }
@@ -52,3 +52,8 @@ lazy_static = '1.4'
 predicates = '2.1'
 string-error = '0.1.0'
 
+[patch.'https://github.com/everx-labs/ever-block.git']
+ever_block = { git = 'https://github.com:443//everx-labs/ever-block.git', branch = 'master' }
+
+[patch.'https://github.com/everx-labs/ever-block-json.git']
+ever_block_json = { git = 'https://github.com:443//everx-labs/ever-block-json.git', branch = 'master' }
