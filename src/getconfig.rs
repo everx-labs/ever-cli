@@ -243,6 +243,29 @@ const QUERY_FIELDS: &str = r#"
     signature_r
     signature_s
   }
+  p62 {
+    max_forwarding_neighbours_count
+    max_forwarding_neighbours_count
+    min_far_neighbours_count
+    max_far_neighbours_count
+    min_block_sync_period_ms
+    max_block_sync_period_ms
+    min_far_neighbours_sync_period_ms
+    max_far_neighbours_sync_period_ms
+    far_neighbours_resync_period_ms
+    block_sync_lifetime_period_ms
+    block_lifetime_period_ms
+    verification_obligation_cutoff_numerator
+    verification_obligation_cutoff_denominator
+    delivery_cutoff_numerator
+    delivery_cutoff_denominator
+    manual_candidate_loading_delay_ms
+    mc_allowed_force_delivery_delay_ms
+    mc_force_delivery_duplication_factor_numerator
+    mc_force_delivery_duplication_factor_denominator
+    mc_max_delivery_waiting_timeout_ms
+    use_debug_bls_keys
+  }
 "#;
 const OPTIONAL_CONFIGS: [&str; 3] = [
     "p5",
