@@ -355,7 +355,13 @@ pub async fn load_abi_str(abi_path: &str, config: &Config) -> Result<String, Str
             )
         });
     }
-    std::fs::read_to_string(abi_path).map_err(|e| format!("failed to read ABI file: {}", e))
+    std::fs::read_to_string(abi_path).map_err(|e| {
+        format!(
+            "Failed to read ABI file {:?}: {}",
+            std::path::absolute(abi_path),
+            e
+        )
+    })
 }
 
 pub async fn load_abi(abi_path: &str, config: &Config) -> Result<Abi, String> {

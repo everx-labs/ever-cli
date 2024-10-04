@@ -6,7 +6,7 @@ use std::time::Duration;
 // use std::io::Write;
 use serde_json::json;
 mod common;
-use common::{giver_v2, grep_address, BIN_NAME, NETWORK};
+use common::create::{giver_v2, grep_address, BIN_NAME, NETWORK};
 
 fn get_debot_paths(name: &str) -> (String, String, String) {
     (

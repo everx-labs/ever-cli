@@ -1,6 +1,6 @@
 use assert_cmd::Command;
 mod common;
-use common::{BIN_NAME, GIVER_V2_ABI, GIVER_V2_ADDR, GIVER_V2_KEY, NETWORK};
+use common::create::{BIN_NAME, GIVER_V2_ABI, GIVER_V2_ADDR, GIVER_V2_KEY, NETWORK};
 
 #[test]
 fn test_network() -> Result<(), Box<dyn std::error::Error>> {

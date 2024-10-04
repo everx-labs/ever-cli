@@ -117,15 +117,17 @@ async fn main_internal() -> Result<(), String> {
         .takes_value(true)
         .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file.");
 
+    let key_help = "Private key in hex or seed phrase or path to the file with keypair used to sign the message. Can be specified in the config file file.";
+
     let keys_arg = Arg::with_name("KEYS")
         .long("--keys")
         .takes_value(true)
-        .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config file.");
+        .help(key_help);
 
     let sign_arg = Arg::with_name("SIGN")
         .long("--sign")
         .takes_value(true)
-        .help("Seed phrase or path to the file with keypair used to sign the message. Can be specified in the config.");
+        .help(key_help);
 
     let method_opt_arg = Arg::with_name("METHOD")
         .takes_value(true)
@@ -1216,7 +1218,7 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result<(), S
         }
         return Ok(());
     }
-    Err("invalid arguments".to_string())
+    Err("Unknown command".to_string())
 }
 
 fn genphrase_command(matches: &ArgMatches, config: &Config) -> Result<(), String> {

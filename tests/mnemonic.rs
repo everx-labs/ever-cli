@@ -3,7 +3,7 @@ use predicates::prelude::*;
 use std::process::Command;
 
 mod common;
-use common::BIN_NAME;
+use common::create::BIN_NAME;
 
 #[test]
 fn test_has_mnemonic_checks() -> Result<(), Box<dyn std::error::Error>> {

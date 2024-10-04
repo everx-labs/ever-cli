@@ -20,7 +20,6 @@ use crate::helpers::{
     load_ton_address, now_ms, query_account_field, query_with_limit, wc_from_matches_or_config,
     CallbackType,
 };
-use crate::message::prepare_message;
 use crate::replay::{fetch, replay, CONFIG_ADDR, DUMP_ACCOUNT, DUMP_CONFIG, DUMP_NONE};
 use crate::{
     contract_data_from_matches_or_config_alias, print_args, unpack_alternative_params, FullConfig,
@@ -709,25 +708,9 @@ async fn debug_call_command(
     };
     let now = parse_now(matches)?;
 
-    let addr = account.get_addr().unwrap().to_string();
     let params = load_params(&params.unwrap())?;
-    let message = if false {
-        prepare_message(
-            ton_client.clone(),
-            &addr,
-            abi.clone(),
-            method,
-            &params,
-            None,
-            None,
-            full_config.config.is_json,
-            None,
-        )
-        .await?
-        .message
-    } else {
+    let message = {
         let keys = contract_data.keys.map(|k| load_keypair(&k)).transpose()?;
-
         let header = FunctionHeader {
             expire: Some((now / 1000) as u32 + full_config.config.lifetime),
             time: Some(now),
@@ -1107,8 +1090,8 @@ async fn query_address(tr_id: &str, config: &Config) -> Result<String, String> {
         0 => Err("Transaction was not found".to_string()),
         _ => Ok(query_result[0]["account_addr"]
             .to_string()
-            .trim_start_matches(|c| c == '"')
-            .trim_end_matches(|c| c == '"')
+            .trim_start_matches('"')
+            .trim_end_matches('"')
             .to_string()),
     }
 }
@@ -1183,8 +1166,8 @@ fn choose_transaction(transactions: Vec<TrDetails>) -> Result<String, String> {
     }
     Ok(transactions[chosen - 1]
         .transaction_id
-        .trim_start_matches(|c| c == '"')
-        .trim_end_matches(|c| c == '"')
+        .trim_start_matches('"')
+        .trim_end_matches('"')
         .to_string())
 }
 

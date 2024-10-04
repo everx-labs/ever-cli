@@ -7,8 +7,8 @@ use std::thread::sleep;
 use std::time::{Duration, SystemTime};
 
 mod common;
-use crate::common::grep_message_id;
-use common::{
+use crate::common::create::grep_message_id;
+use common::create::{
     generate_key_and_address, generate_phrase_and_key, giver_v2, grep_address, set_config,
     BIN_NAME, GIVER_ABI, GIVER_V2_ABI, GIVER_V2_ADDR, GIVER_V2_KEY, NETWORK,
 };

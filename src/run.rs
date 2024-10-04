@@ -168,7 +168,7 @@ async fn run(
         abi.clone(),
         &method,
         &params,
-        Some(header),
+        header,
         None,
         config.is_json,
         None,
