@@ -20,7 +20,15 @@ use ever_client::crypto::{
 };
 
 pub fn load_keypair(keys: &str) -> Result<KeyPair, String> {
-    if keys.find(' ').is_none() {
+    let is_private_key =
+        keys.chars().all(|ch: char| char::is_ascii_hexdigit(&ch)) && keys.len() == 128;
+
+    if is_private_key {
+        Ok(KeyPair {
+            public: keys[64..].to_string(),
+            secret: keys[..64].to_string(),
+        })
+    } else if keys.find(' ').is_none() {
         let keys = read_keys(keys)?;
         Ok(keys)
     } else {
@@ -166,7 +174,7 @@ pub fn generate_keypair(
     if let Some(keys_path) = keys_path {
         let folder_path = keys_path
             .trim_end_matches(|c| c != '/')
-            .trim_end_matches(|c| c == '/');
+            .trim_end_matches('/');
         check_dir(folder_path)?;
         std::fs::write(keys_path, &keys_json)
             .map_err(|e| format!("failed to create file with keys: {}", e))?;

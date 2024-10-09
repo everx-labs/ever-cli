@@ -34,7 +34,7 @@ pub async fn prepare_message(
     abi: Abi,
     method: &str,
     params: &str,
-    header: Option<FunctionHeader>,
+    header: FunctionHeader,
     keys: Option<String>,
     is_json: bool,
     signature_id: Option<i32>,
@@ -48,7 +48,7 @@ pub async fn prepare_message(
         abi,
         method,
         params,
-        header.clone(),
+        Some(header.clone()),
         keys,
         signature_id,
     )?;
@@ -60,7 +60,7 @@ pub async fn prepare_message(
     Ok(EncodedMessage {
         message: msg.message,
         message_id: msg.message_id,
-        expire: header.and_then(|h| h.expire),
+        expire: header.expire,
         address: addr.to_owned(),
     })
 }
@@ -194,9 +194,17 @@ pub async fn generate_message(
 
     let abi = load_abi(abi, config).await?;
 
-    let expire_at = lifetime + timestamp.map(|ms| (ms / 1000) as u32).unwrap_or(now());
+    let expire_at = {
+        let contract = abi.abi().unwrap();
+        let headers = contract.header();
+        if headers.iter().any(|param| param.name == "expire") {
+            Some(lifetime + timestamp.map(|ms| (ms / 1000) as u32).unwrap_or(now()))
+        } else {
+            None
+        }
+    };
     let header = FunctionHeader {
-        expire: Some(expire_at),
+        expire: expire_at,
         time: timestamp,
         ..Default::default()
     };
@@ -207,7 +215,7 @@ pub async fn generate_message(
         abi,
         method,
         params,
-        Some(header),
+        header,
         keys,
         config.is_json,
         signature_id,

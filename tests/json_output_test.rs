@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::fs;
 
 mod common;
-use common::{
+use common::create::{
     generate_key_and_address, generate_phrase_and_key, giver_v2, BIN_NAME, GIVER_ABI, GIVER_ADDR,
     GIVER_V2_ADDR, GIVER_V2_KEY, NETWORK,
 };

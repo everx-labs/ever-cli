@@ -104,7 +104,7 @@ async fn build_json_from_params(
             }
             ParamType::Array(ref _x) => {
                 let mut result_vec: Vec<String> = vec![];
-                for i in value.split(|c| c == ',' || c == '[' || c == ']') {
+                for i in value.split([',', '[', ']']) {
                     if !i.is_empty() {
                         result_vec.push(parse_integer_param(i)?)
                     }
