@@ -11,7 +11,7 @@ license = 'Apache-2.0'
 name = 'ever-cli'
 readme = 'README.md'
 repository = 'https://github.com/everx-labs/ever-cli'
-version = '0.40.1'
+version = '0.40.2'
 
 [dependencies]
 anyhow = '1.0'
@@ -36,15 +36,14 @@ thiserror = '1.0'
 tokio = { default-features = false, features = [ 'full' ], version = '1.21' }
 tokio-retry = '0.3'
 url = '2.3.1'
-
-ever_abi = { git = 'https://github.com/everx-labs/ever-abi.git', tag = '2.7.2' }
-ever_assembler = { git = 'https://github.com/everx-labs/ever-assembler.git', tag = '1.6.14' }
-ever_block = { git = 'https://github.com/everx-labs/ever-block.git', tag = '1.11.11' }
-ever_block_json = { git = 'https://github.com/everx-labs/ever-block-json.git', tag = '0.9.18' }
-ever_client = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.48.0' }
-ever_executor = { git = 'https://github.com/everx-labs/ever-executor.git', tag = '1.18.12' }
-ever_sdk = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.48.0' }
-ever_vm = { git = 'https://github.com/everx-labs/ever-vm.git', tag = '2.2.12' }
+ever_abi = { git = 'https://github.com/everx-labs/ever-abi.git', tag = '2.7.11' }
+ever_assembler = { git = 'https://github.com/everx-labs/ever-assembler.git', tag = '1.8.0' }
+ever_block = { git = 'https://github.com/everx-labs/ever-block.git', tag = '1.11.20' }
+ever_block_json = { git = 'https://github.com/everx-labs/ever-block-json.git', tag = '0.9.37' }
+ever_client = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.48.1' }
+ever_executor = { git = 'https://github.com/everx-labs/ever-executor.git', tag = '1.18.22' }
+ever_sdk = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.48.1' }
+ever_vm = { git = 'https://github.com/everx-labs/ever-vm.git', tag = '2.2.21' }
 
 [dev-dependencies]
 assert_cmd = '2.0'
