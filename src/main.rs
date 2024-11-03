@@ -194,6 +194,11 @@ async fn main_internal() -> Result<(), String> {
         "Contract address or path to the saved account state if --boc or --tvc flag is specified.",
     );
 
+    let address_tvc_arg = Arg::with_name("ADDR")
+        .takes_value(true)
+        .long("--addr")
+        .help("Contract address if --tvc flag is specified.");
+
     let method_arg = Arg::with_name("METHOD")
         .required(true)
         .takes_value(true)
@@ -435,6 +440,7 @@ async fn main_internal() -> Result<(), String> {
         .arg(abi_arg.clone())
         .arg(boc_flag.clone())
         .arg(tvc_flag.clone())
+        .arg(address_tvc_arg.clone())
         .arg(bc_config_arg.clone());
 
     let config_clear_cmd = SubCommand::with_name("clear")

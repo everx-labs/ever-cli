@@ -95,12 +95,24 @@ pub async fn run_command(
         create_client_local()?
     };
 
-    let (account, account_boc) =
-        load_account(&account_source, &address, Some(ton_client.clone()), config).await?;
+    let (account, account_boc) = load_account(
+        &account_source,
+        &address,
+        Some(ton_client.clone()),
+        config,
+        matches.value_of("ADDR"),
+    )
+    .await?;
     let address = match account_source {
         AccountSource::Network => address,
         AccountSource::Boc => account.get_addr().unwrap().to_string(),
-        AccountSource::Tvc => "0".repeat(64),
+        AccountSource::Tvc => {
+            if let Some(addr) = account.get_addr() {
+                addr.to_string()
+            } else {
+                "0".repeat(64)
+            }
+        }
     };
     run(
         matches,
@@ -323,7 +335,8 @@ pub async fn run_get_method(
         create_client_local()?
     };
 
-    let (_, acc_boc) = load_account(&source_type, addr, Some(ton.clone()), config).await?;
+    let (_, acc_boc) =
+        load_account(&source_type, addr, Some(ton.clone()), config, None).await?;
 
     let params = params
         .map(|p| serde_json::from_str(&p))
