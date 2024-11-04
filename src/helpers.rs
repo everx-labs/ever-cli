@@ -645,6 +645,7 @@ pub async fn load_account(
     source: &str,
     ton_client: Option<TonClient>,
     config: &Config,
+    addr: Option<&str>,
 ) -> Result<(Account, String), String> {
     match source_type {
         AccountSource::Network => {
@@ -665,7 +666,7 @@ pub async fn load_account(
                     format!(" failed to load account from the file {}: {}", source, e)
                 })?
             } else {
-                construct_account_from_tvc(source, None, None)?
+                construct_account_from_tvc(source, addr, None)?
             };
             let account_bytes = account
                 .write_to_bytes()

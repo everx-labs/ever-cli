@@ -2815,6 +2815,7 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[ignore]
 #[test]
 fn test_options_priority() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = "options.config";

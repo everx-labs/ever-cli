@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.42.0
+- Added option `--addr` for subcommand `run`.
+
 ## 0.41.0
 - Option `--keys`/`--sign` can take private key as argument in `message`/`call` and another commands.
 
