@@ -335,8 +335,7 @@ pub async fn run_get_method(
         create_client_local()?
     };
 
-    let (_, acc_boc) =
-        load_account(&source_type, addr, Some(ton.clone()), config, None).await?;
+    let (_, acc_boc) = load_account(&source_type, addr, Some(ton.clone()), config, None).await?;
 
     let params = params
         .map(|p| serde_json::from_str(&p))
