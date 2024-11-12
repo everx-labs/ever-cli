@@ -36,7 +36,7 @@ thiserror = '1.0'
 tokio = { default-features = false, features = [ 'full' ], version = '1.21' }
 tokio-retry = '0.3'
 url = '2.3.1'
-ever_abi = { git = 'https://github.com/everx-labs/ever-abi.git', tag = '2.7.11' }
+ever_abi = { git = 'https://github.com/everx-labs/ever-abi.git', tag = '2.8.0' }
 ever_assembler = { git = 'https://github.com/everx-labs/ever-assembler.git', tag = '1.8.0' }
 ever_block = { git = 'https://github.com/everx-labs/ever-block.git', tag = '1.11.20' }
 ever_block_json = { git = 'https://github.com/everx-labs/ever-block-json.git', tag = '0.9.37' }
