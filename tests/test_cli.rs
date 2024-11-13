@@ -909,7 +909,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
         .failure()
-        .stdout(predicate::str::contains("Url: https://test.ton.dev"));
+        .stdout(predicate::str::contains("Url: https://net.ton.dev"));
     // config from env variable
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.env("EVER_CLI_CONFIG", "./tests/conf2.json")
@@ -917,7 +917,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
         .failure()
-        .stdout(predicate::str::contains("Url: https://test2.ton.dev"));
+        .stdout(predicate::str::contains("Url: https://net.ton.dev"));
 
     // config from cmd line has higher priority than env variable
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -928,7 +928,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
         .failure()
-        .stdout(predicate::str::contains("Url: https://test.ton.dev"));
+        .stdout(predicate::str::contains("Url: https://net.ton.dev"));
 
     // if there is neither --config nor env variable then config file is searched in current working dir
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
