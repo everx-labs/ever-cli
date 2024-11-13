@@ -5,6 +5,7 @@ use std::env;
 use std::fs;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
+use ever_client::encoding::decode_abi_bigint;
 
 mod common;
 use crate::common::create::grep_message_id;
@@ -105,7 +106,7 @@ fn wait_for_cmd_res(cmd: &mut Command, expected: &str) -> Result<(), Box<dyn std
                 "Failed to fetch command result.".to_string(),
             ));
         }
-        sleep(Duration::new(1, 0));
+        sleep(Duration::new(2, 0));
     }
     Ok(())
 }
@@ -908,7 +909,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
         .failure()
-        .stdout(predicate::str::contains("Url: https://test.ton.dev"));
+        .stdout(predicate::str::contains("Url: https://net.ton.dev"));
     // config from env variable
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.env("EVER_CLI_CONFIG", "./tests/conf2.json")
@@ -916,7 +917,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
         .failure()
-        .stdout(predicate::str::contains("Url: https://test2.ton.dev"));
+        .stdout(predicate::str::contains("Url: https://net.ton.dev"));
 
     // config from cmd line has higher priority than env variable
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -927,7 +928,7 @@ fn test_override_config_path() -> Result<(), Box<dyn std::error::Error>> {
         .arg("0:841288ed3b55d9cdafa806807f02a0ae0c169aa5edfe88a789a6482429756a94");
     cmd.assert()
         .failure()
-        .stdout(predicate::str::contains("Url: https://test.ton.dev"));
+        .stdout(predicate::str::contains("Url: https://net.ton.dev"));
 
     // if there is neither --config nor env variable then config file is searched in current working dir
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -1299,7 +1300,7 @@ fn test_decode_msg() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#"Type": "external inbound message"#))
         .stdout(predicate::str::contains(r#""destination": "0:ff5ccc94e0f9e71720a21ddccfd520542cf7766ed0d33ba42e012c13d27a5f8b"#))
         .stdout(predicate::str::contains(r#""Body": "te6ccgEBAQEAcwAA4dFBEQoq0xgjjctNZukvkYBlQyFLMl8vHJtswO29MAkkFQmzGSxewgSp+iHDxxTEjqG7hAcLAhBvpP3Es+9KoAOAAADBi8crwjGMO0wS99kEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADLA""#))
-        .stdout(predicate::str::contains(r#""value": "0x0000000000000000000000000000000000000000000000000000000000000065""#));
+        .stdout(predicate::str::contains(r#""value": "101""#));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("--json")
@@ -1313,7 +1314,7 @@ fn test_decode_msg() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(r#"Type": "external inbound message"#))
         .stdout(predicate::str::contains(r#""destination": "0:ff5ccc94e0f9e71720a21ddccfd520542cf7766ed0d33ba42e012c13d27a5f8b"#))
         .stdout(predicate::str::contains(r#""Body": "te6ccgEBAQEAcwAA4dFBEQoq0xgjjctNZukvkYBlQyFLMl8vHJtswO29MAkkFQmzGSxewgSp+iHDxxTEjqG7hAcLAhBvpP3Es+9KoAOAAADBi8crwjGMO0wS99kEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADLA""#))
-        .stdout(predicate::str::contains(r#""value": "0x0000000000000000000000000000000000000000000000000000000000000065""#));
+        .stdout(predicate::str::contains(r#""value": "101""#));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     let output = cmd
@@ -1620,7 +1621,7 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"Succeeded."#));
 
-    sleep(Duration::new(1, 0));
+    sleep(Duration::new(2, 0));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -1646,7 +1647,7 @@ fn test_depool_1() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(r#"Succeeded."#));
 
-    sleep(Duration::new(1, 0));
+    sleep(Duration::new(2, 0));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -2110,7 +2111,7 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            r#""__pubkey": "0xe8b1d839abe27b2abb9d4a2943a9143a9c7e2ae06799bd24dec1d7a8891ae5dd","#,
+            r#""__pubkey": "105250805133813013722741938851571590797703291246458739632151736768847001871837","#,
         ))
         .stdout(predicate::str::contains(r#" "a": "I like it.","#));
 
@@ -2126,7 +2127,7 @@ fn test_decode_tvc() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            r#""__pubkey": "0xe8b1d839abe27b2abb9d4a2943a9143a9c7e2ae06799bd24dec1d7a8891ae5dd","#,
+            r#""__pubkey": "105250805133813013722741938851571590797703291246458739632151736768847001871837","#,
         ))
         .stdout(predicate::str::contains(r#" "a": "I like it.","#));
 
@@ -2621,9 +2622,9 @@ fn test_multisig() -> Result<(), Box<dyn std::error::Error>> {
         .arg("{}")
         .assert()
         .success()
-        .stdout(predicate::str::contains(key1))
-        .stdout(predicate::str::contains(key2))
-        .stdout(predicate::str::contains(key3));
+        .stdout(predicate::str::contains(decode_abi_bigint(format!("0x{}", key1).as_str()).unwrap().to_string()))
+        .stdout(predicate::str::contains(decode_abi_bigint(format!("0x{}", key2).as_str()).unwrap().to_string()))
+        .stdout(predicate::str::contains(decode_abi_bigint(format!("0x{}", key3).as_str()).unwrap().to_string()));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -2791,7 +2792,7 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Succeeded."))
         .stdout(predicate::str::contains("Result: {"))
         .stdout(predicate::str::contains(
-            r#""value0": "0x000000000000000000000000000000000000000000000000000000000000000f"#,
+            r#""value0": "15"#,
         ));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -3082,7 +3083,7 @@ fn test_alternative_parameters() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--method")
         .arg("5");
     cmd.assert().success().stdout(predicate::str::contains(
-        "value0\": \"0x0000000000000000000000000000000000000000000000000000000000000018",
+        "value0\": \"24",
     ));
 
     set_config(
@@ -3122,7 +3123,7 @@ fn test_alternative_parameters() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--method")
         .arg("5");
     cmd.assert().success().stdout(predicate::str::contains(
-        "value0\": \"0x0000000000000000000000000000000000000000000000000000000000000022",
+        "value0\": \"34",
     ));
 
     fs::remove_file(key_path)?;

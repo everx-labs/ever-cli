@@ -39,7 +39,7 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
         .expect("Failed to generate address.");
     let addr = grep_address(&out.stdout);
     giver_v2(&addr);
-    sleep(Duration::new(1, 0));
+    sleep(Duration::new(2, 0));
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("deploy")
         .arg(&tvc)
@@ -52,7 +52,7 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains(&addr))
         .stdout(predicate::str::contains("Transaction succeeded."));
-    sleep(Duration::new(1, 0));
+    sleep(Duration::new(2, 0));
 
     let abi_string = std::fs::read_to_string(&abi).unwrap();
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
@@ -65,6 +65,7 @@ fn deploy_debot(name: &str) -> Result<String, Box<dyn std::error::Error>> {
         .arg("setABI")
         .arg(format!(r#"{{"dabi":"{}"}}"#, hex::encode(abi_string)));
     cmd.assert().success();
+    sleep(Duration::new(2, 0));
 
     Ok(addr)
 }
