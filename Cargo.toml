@@ -40,9 +40,9 @@ ever_abi = { git = 'https://github.com/everx-labs/ever-abi.git', tag = '2.8.0' }
 ever_assembler = { git = 'https://github.com/everx-labs/ever-assembler.git', tag = '1.8.0' }
 ever_block = { git = 'https://github.com/everx-labs/ever-block.git', tag = '1.11.20' }
 ever_block_json = { git = 'https://github.com/everx-labs/ever-block-json.git', tag = '0.9.37' }
-ever_client = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.48.1' }
+ever_client = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.49.0' }
 ever_executor = { git = 'https://github.com/everx-labs/ever-executor.git', tag = '1.18.22' }
-ever_sdk = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.48.1' }
+ever_sdk = { git = 'https://github.com/everx-labs/ever-sdk.git', tag = '1.49.0' }
 ever_vm = { git = 'https://github.com/everx-labs/ever-vm.git', tag = '2.2.21' }
 
 [dev-dependencies]

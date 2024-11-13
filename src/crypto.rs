@@ -28,11 +28,11 @@ pub fn load_keypair(keys: &str) -> Result<KeyPair, String> {
             public: keys[64..].to_string(),
             secret: keys[..64].to_string(),
         })
-    } else if keys.find(' ').is_none() {
+    } else if keys.find(' ').is_some() {
+        generate_keypair_from_mnemonic(keys)
+    } else {
         let keys = read_keys(keys)?;
         Ok(keys)
-    } else {
-        generate_keypair_from_mnemonic(keys)
     }
 }
 
