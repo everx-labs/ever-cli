@@ -160,9 +160,9 @@ fn update_contract_state(
     use ever_sdk::ContractImage;
     use std::io::{Seek, Write};
 
-    let data_map_supported: bool = (Contract::load(abi.as_bytes())
-        .map_err(|e| format!("unable to load abi: {}", e))?)
-    .data_map_supported();
+    let contract =
+        Contract::load(abi.as_bytes()).map_err(|e| format!("unable to load abi: {}", e))?;
+    let data_map_supported: bool = contract.data_map_supported();
 
     let mut state_init = OpenOptions::new()
         .read(true)
@@ -193,7 +193,8 @@ fn update_contract_state(
         } else {
             Some(hex::encode(pubkey))
         };
-        let js_init_data = crate::helpers::insert_pubkey_to_init_data(pk, data.as_deref())?;
+        let js_init_data =
+            crate::helpers::insert_pubkey_to_init_data(pk, data.as_deref(), &contract)?;
         contract_image
             .update_data(false, js_init_data.as_str(), abi)
             .map_err(|e| format!("unable to update contract image data: {}", e))?;

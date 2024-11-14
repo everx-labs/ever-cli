@@ -10,9 +10,6 @@
  * See the License for the specific EVERX DEV software governing permissions and
  * limitations under the License.
  */
-use ever_vm::stack::integer::IntegerData;
-use std::sync::Arc;
-use ever_block::base64_decode;
 use crate::config::Config;
 use crate::decode::msg_printer::tree_of_cells_into_base64;
 use crate::helpers::{
@@ -24,13 +21,16 @@ use crate::{load_abi, print_args};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use ever_abi::contract::MAX_SUPPORTED_VERSION;
 use ever_abi::ParamType;
+use ever_block::base64_decode;
 use ever_block::{read_single_root_boc, write_boc, Cell, SliceData};
 use ever_block::{Account, AccountStatus, Deserializable, Serializable, StateInit};
 use ever_client::abi::{decode_account_data, ParamsOfDecodeAccountData, StackItemToJson};
 use ever_vm::int;
+use ever_vm::stack::integer::IntegerData;
 use ever_vm::stack::StackItem;
 use serde::Serialize;
 use serde_json::json;
+use std::sync::Arc;
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
     let tvc_cmd = SubCommand::with_name("stateinit")
@@ -158,7 +158,8 @@ async fn decode_data_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), 
 
 async fn decode_abi_param(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
     let str_abi = abi_from_matches_or_config(m, config)?;
-    let params = serde_json::from_str::<ever_abi::Param>(str_abi.as_str()).map_err(|e| e.to_string())?;
+    let params =
+        serde_json::from_str::<ever_abi::Param>(str_abi.as_str()).map_err(|e| e.to_string())?;
 
     let cell_in_base64 = m.value_of("CELL").unwrap();
     let data = base64_decode(cell_in_base64).map_err(|e| e.to_string())?;
@@ -166,9 +167,9 @@ async fn decode_abi_param(m: &ArgMatches<'_>, config: &Config) -> Result<(), Str
     let stack_items = {
         match params.kind {
             ParamType::Array(_) => {
-                let mut slice = SliceData::load_cell(cell.clone()).map_err(|e|e.to_string())?;
-                let size = slice.get_next_u32().map_err(|e|e.to_string())?;
-                let dict = slice.reference(0).map_err(|e|e.to_string())?;
+                let mut slice = SliceData::load_cell(cell.clone()).map_err(|e| e.to_string())?;
+                let size = slice.get_next_u32().map_err(|e| e.to_string())?;
+                let dict = slice.reference(0).map_err(|e| e.to_string())?;
 
                 let res: Vec<StackItem> = vec![int!(size), StackItem::Cell(dict)];
                 [StackItem::Tuple(Arc::new(res))]
@@ -176,19 +177,15 @@ async fn decode_abi_param(m: &ArgMatches<'_>, config: &Config) -> Result<(), Str
             ParamType::Cell | ParamType::Map(_, _) | ParamType::Bytes | ParamType::String => {
                 [StackItem::Cell(cell)]
             }
-            _ => return Err("Only cell, map, bytes, string and array".to_string())
+            _ => return Err("Only cell, map, bytes, string and array".to_string()),
         }
     };
 
-
     let abi_version = MAX_SUPPORTED_VERSION;
 
-    let js_result = StackItemToJson::convert_vm_items_to_json(
-        &stack_items,
-        &[params],
-        &abi_version,
-    )
-        .map_err(|e| e.to_string())?;
+    let js_result =
+        StackItemToJson::convert_vm_items_to_json(&stack_items, &[params], &abi_version)
+            .map_err(|e| e.to_string())?;
 
     println!("{:#}", js_result);
 
@@ -270,7 +267,7 @@ pub async fn print_account_data(
                 serde_json::to_string_pretty(
                     &msg_printer::serialize_state_init(state_init, ton).await?,
                 )
-                    .map_err(|e| format!("Failed to serialize stateInit: {}", e))?,
+                .map_err(|e| format!("Failed to serialize stateInit: {}", e))?,
                 Some(code.repr_hash().to_hex_string()),
             )
         }
@@ -372,7 +369,7 @@ async fn decode_tvc_fields(m: &ArgMatches<'_>, config: &Config) -> Result<(), St
             ..Default::default()
         },
     )
-        .map_err(|e| format!("failed to decode data: {}", e))?;
+    .map_err(|e| format!("failed to decode data: {}", e))?;
     if !config.is_json {
         println!("TVC fields:");
     }
@@ -400,7 +397,7 @@ async fn decode_account_fields(m: &ArgMatches<'_>, config: &Config) -> Result<()
             ..Default::default()
         },
     )
-        .map_err(|e| format!("failed to decode data: {}", e))?;
+    .map_err(|e| format!("failed to decode data: {}", e))?;
     if !config.is_json {
         println!("Account fields:");
     }
@@ -465,7 +462,7 @@ async fn decode_body(
         contr.header(),
         !is_external,
     )
-        .map_err(|e| format!("Failed to decode header: {}", e))?;
+    .map_err(|e| format!("Failed to decode header: {}", e))?;
     let output = res.value.take().ok_or("failed to obtain the result")?;
     let header = res.header.map(|hdr| SortedFunctionHeader {
         pubkey: hdr.pubkey,

@@ -17,6 +17,7 @@ use crate::replay::{construct_blockchain_config, CONFIG_ADDR};
 use crate::SignatureIDType;
 use crate::{resolve_net_name, FullConfig};
 use clap::ArgMatches;
+use ever_abi::{Contract, ParamType};
 use ever_block::{
     Account, CurrencyCollection, Deserializable, MsgAddressInt, Serializable, StateInit,
 };
@@ -397,7 +398,8 @@ pub async fn calc_acc_address(
     init_data: Option<&str>,
     abi: Abi,
 ) -> Result<String, String> {
-    let data_map_supported = abi.abi().unwrap().data_map_supported();
+    let contract = abi.abi().unwrap();
+    let data_map_supported = contract.data_map_supported();
 
     let ton = create_client_local()?;
     let dset = if data_map_supported {
@@ -414,7 +416,7 @@ pub async fn calc_acc_address(
             ..Default::default()
         }
     } else {
-        let init_data_json = insert_pubkey_to_init_data(pubkey.clone(), init_data)?;
+        let init_data_json = insert_pubkey_to_init_data(pubkey.clone(), init_data, &contract)?;
         let js = serde_json::from_str(init_data_json.as_str())
             .map_err(|e| format!("initial data is not in json: {}", e))?;
         DeploySet {
@@ -1116,6 +1118,7 @@ pub fn decode_data(data: &str, param_name: &str) -> Result<Vec<u8>, String> {
 pub fn insert_pubkey_to_init_data(
     pubkey: Option<String>,
     opt_init_data: Option<&str>,
+    contract: &Contract,
 ) -> Result<String, String> {
     let init_data = opt_init_data.unwrap_or("{}");
 
@@ -1128,8 +1131,20 @@ pub fn insert_pubkey_to_init_data(
 Please, use one way to set public key.".to_owned());
             }
             if let Some(pk) = pubkey {
-                let pubkey_str = format!("0x{}", pk);
-                obj.insert("_pubkey".to_string(), Value::String(pubkey_str));
+                let pubkey_abi = contract.fields().get(0).unwrap();
+                assert_eq!(pubkey_abi.name, "_pubkey");
+                match pubkey_abi.kind {
+                    ParamType::Uint(256) => {
+                        let pubkey_str = format!("0x{}", pk);
+                        obj.insert("_pubkey".to_string(), Value::String(pubkey_str));
+                    }
+                    ParamType::FixedBytes(32) => {
+                        let mut pubkey_str = format!("{}", pk);
+                        assert_eq!(pubkey_str.len(), 64);
+                        obj.insert("_pubkey".to_string(), Value::String(pubkey_str));
+                    }
+                    _ => panic!("Unsupported type of pubkey"),
+                }
             }
         }
         _ => panic!("js_init_data is not Value::Object"),

@@ -4,8 +4,8 @@ use crate::helpers::{read_keys, TonClient};
 use ever_client::crypto::{
     get_signing_box, remove_signing_box, KeyPair, RegisteredSigningBox, SigningBoxHandle,
 };
-use std::io::{self, BufRead, BufReader, Read, Write};
 use ever_client::encoding::decode_abi_bigint;
+use std::io::{self, BufRead, BufReader, Read, Write};
 
 pub(super) struct TerminalSigningBox {
     handle: SigningBoxHandle,
@@ -96,11 +96,10 @@ where
         });
         if let Ok(ref keys) = pair {
             if !possible_keys.is_empty() {
-                let pub_key_in_radix10 = decode_abi_bigint(&*("0x".to_string() + &*keys.public)).unwrap().to_string();
-                if !possible_keys
-                    .iter()
-                    .any(|x| *x == pub_key_in_radix10)
-                {
+                let pub_key_in_radix10 = decode_abi_bigint(&*("0x".to_string() + &*keys.public))
+                    .unwrap()
+                    .to_string();
+                if !possible_keys.iter().any(|x| *x == pub_key_in_radix10) {
                     println!("Unexpected keys.");
                     println!(
                         "Hint: enter keypair which contains one of the following public keys: {}",

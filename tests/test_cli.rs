@@ -1,11 +1,11 @@
 use assert_cmd::Command;
+use ever_client::encoding::decode_abi_bigint;
 use predicates::prelude::*;
 use serde_json::{json, Value};
 use std::env;
 use std::fs;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
-use ever_client::encoding::decode_abi_bigint;
 
 mod common;
 use crate::common::create::grep_message_id;
@@ -2622,9 +2622,21 @@ fn test_multisig() -> Result<(), Box<dyn std::error::Error>> {
         .arg("{}")
         .assert()
         .success()
-        .stdout(predicate::str::contains(decode_abi_bigint(format!("0x{}", key1).as_str()).unwrap().to_string()))
-        .stdout(predicate::str::contains(decode_abi_bigint(format!("0x{}", key2).as_str()).unwrap().to_string()))
-        .stdout(predicate::str::contains(decode_abi_bigint(format!("0x{}", key3).as_str()).unwrap().to_string()));
+        .stdout(predicate::str::contains(
+            decode_abi_bigint(format!("0x{}", key1).as_str())
+                .unwrap()
+                .to_string(),
+        ))
+        .stdout(predicate::str::contains(
+            decode_abi_bigint(format!("0x{}", key2).as_str())
+                .unwrap()
+                .to_string(),
+        ))
+        .stdout(predicate::str::contains(
+            decode_abi_bigint(format!("0x{}", key3).as_str())
+                .unwrap()
+                .to_string(),
+        ));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("run")
@@ -2791,9 +2803,7 @@ fn test_alternative_syntax() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Succeeded."))
         .stdout(predicate::str::contains("Result: {"))
-        .stdout(predicate::str::contains(
-            r#""value0": "15"#,
-        ));
+        .stdout(predicate::str::contains(r#""value0": "15"#));
 
     let mut cmd = Command::cargo_bin(BIN_NAME)?;
     cmd.arg("callx")
@@ -3082,9 +3092,9 @@ fn test_alternative_parameters() -> Result<(), Box<dyn std::error::Error>> {
         .arg("4")
         .arg("--method")
         .arg("5");
-    cmd.assert().success().stdout(predicate::str::contains(
-        "value0\": \"24",
-    ));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("value0\": \"24"));
 
     set_config(
         &["--abi", "--addr", "--keys", "--method"],
@@ -3122,9 +3132,9 @@ fn test_alternative_parameters() -> Result<(), Box<dyn std::error::Error>> {
         .arg("4")
         .arg("--method")
         .arg("5");
-    cmd.assert().success().stdout(predicate::str::contains(
-        "value0\": \"34",
-    ));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("value0\": \"34"));
 
     fs::remove_file(key_path)?;
     fs::remove_file(config_path)?;
