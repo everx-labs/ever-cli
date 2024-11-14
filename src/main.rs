@@ -48,7 +48,10 @@ use debug::{create_debug_command, debug_command};
 use decode::{create_decode_command, decode_command};
 use deploy::{deploy_contract, generate_deploy_message};
 use depool::{create_depool_command, depool_command};
-use ever_client::abi::{CallSet, ParamsOfEncodeMessageBody};
+use ever_abi::contract::MAX_SUPPORTED_VERSION;
+use ever_abi::token::Tokenizer;
+use ever_client::abi::{CallSet, ParamsOfEncodeMessageBody, TokenValueToStackItem};
+use ever_vm::stack::StackItem;
 use genaddr::generate_address;
 use getconfig::{dump_blockchain_config, query_global_config};
 use helpers::{
@@ -421,6 +424,14 @@ async fn main_internal() -> Result<(), String> {
         .version(version_string)
         .author(author)
         .arg(method_arg.clone())
+        .arg(params_arg.clone())
+        .arg(abi_arg.clone());
+
+    let encode_cmd = SubCommand::with_name("encode")
+        .setting(AppSettings::AllowLeadingHyphen)
+        .about("Encode parameters to cell in base64.")
+        .version(version_string)
+        .author(author)
         .arg(params_arg.clone())
         .arg(abi_arg.clone());
 
@@ -993,6 +1004,7 @@ async fn main_internal() -> Result<(), String> {
         .subcommand(send_cmd)
         .subcommand(message_cmd)
         .subcommand(body_cmd)
+        .subcommand(encode_cmd)
         .subcommand(sign_cmd)
         .subcommand(run_cmd)
         .subcommand(runget_cmd)
@@ -1097,6 +1109,9 @@ async fn command_parser(matches: &ArgMatches<'_>, is_json: bool) -> Result<(), S
     }
     if let Some(m) = matches.subcommand_matches("body") {
         return body_command(m, config).await;
+    }
+    if let Some(m) = matches.subcommand_matches("encode") {
+        return encode_command(m, config).await;
     }
     if let Some(m) = matches.subcommand_matches("sign") {
         return test_sign_command(m, config);
@@ -1254,6 +1269,41 @@ async fn send_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), S
     }
 
     call_contract_with_msg(config, message.unwrap().to_owned(), &abi.unwrap()).await
+}
+
+async fn encode_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    // let params = load_params(matches.value_of("PARAMS").unwrap())?;
+    let params = matches.value_of("PARAMS").unwrap().to_string();
+    let value = serde_json::from_str(params.as_str()).map_err(|e| e.to_string())?;
+
+    let str_abi = abi_from_matches_or_config(matches, config)?;
+    let x = serde_json::from_str::<ever_abi::Param>(str_abi.as_str()).map_err(|e| e.to_string())?;
+
+    let token_value = Tokenizer::tokenize_parameter(&x.kind, &value, x.name.as_str())
+        .map_err(|e| format!("{}", e))?;
+    let abi_version = MAX_SUPPORTED_VERSION;
+    let stack_item = TokenValueToStackItem::convert_token_to_vm_type(token_value, &abi_version)
+        .map_err(|e| e.to_string())?;
+
+    let mut opt_cell: Option<ever_block::Cell> = None;
+    if let StackItem::Cell(ref cell) = stack_item {
+        opt_cell = Some(cell.clone());
+    } else if let StackItem::Tuple(ref tuple) = stack_item {
+        // it's array
+        if let StackItem::Cell(ref cell) = &tuple[1] {
+            opt_cell = Some(cell.clone());
+        }
+    } else {
+        return Err("Expected map, cell, array types".to_string());
+    }
+
+    let msg_bytes = ever_block::write_boc(&opt_cell.unwrap())
+        .map_err(|e| format!("failed to encode out message: {e}"))?;
+    let mut ser_msg = json!({});
+    ser_msg["cell_in_base64"] = base64::encode(msg_bytes).into();
+    println!("{:#}", ser_msg);
+
+    Ok(())
 }
 
 async fn body_command(matches: &ArgMatches<'_>, config: &Config) -> Result<(), String> {

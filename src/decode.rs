@@ -19,11 +19,18 @@ use crate::helpers::{
 };
 use crate::{load_abi, print_args};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use ever_abi::contract::MAX_SUPPORTED_VERSION;
+use ever_abi::ParamType;
+use ever_block::base64_decode;
 use ever_block::{read_single_root_boc, write_boc, Cell, SliceData};
 use ever_block::{Account, AccountStatus, Deserializable, Serializable, StateInit};
-use ever_client::abi::{decode_account_data, ParamsOfDecodeAccountData};
+use ever_client::abi::{decode_account_data, ParamsOfDecodeAccountData, StackItemToJson};
+use ever_vm::int;
+use ever_vm::stack::integer::IntegerData;
+use ever_vm::stack::StackItem;
 use serde::Serialize;
 use serde_json::json;
+use std::sync::Arc;
 
 pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
     let tvc_cmd = SubCommand::with_name("stateinit")
@@ -51,6 +58,15 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
         .setting(AppSettings::AllowLeadingHyphen)
         .setting(AppSettings::TrailingVarArg)
         .setting(AppSettings::DontCollapseArgsInUsage)
+        .subcommand(SubCommand::with_name("abi-param")
+            .about("Decodes cell in base64 to json object.")
+            .arg(Arg::with_name("CELL")
+                .required(true)
+                .help("Cell in base64."))
+            .arg(Arg::with_name("ABI")
+                .long("--abi")
+                .takes_value(true)
+                .help("Path or link to the contract ABI file or pure json ABI data. Can be specified in the config file.")))
         .subcommand(SubCommand::with_name("body")
             .about("Decodes body base64 string.")
             .arg(Arg::with_name("BODY")
@@ -107,6 +123,9 @@ pub fn create_decode_command<'a, 'b>() -> App<'a, 'b> {
 }
 
 pub async fn decode_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    if let Some(m) = m.subcommand_matches("abi-param") {
+        return decode_abi_param(m, config).await;
+    }
     if let Some(m) = m.subcommand_matches("body") {
         return decode_body_command(m, config).await;
     }
@@ -135,6 +154,42 @@ async fn decode_data_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), 
         return decode_account_fields(m, config).await;
     }
     Err("unknown command".to_owned())
+}
+
+async fn decode_abi_param(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
+    let str_abi = abi_from_matches_or_config(m, config)?;
+    let params =
+        serde_json::from_str::<ever_abi::Param>(str_abi.as_str()).map_err(|e| e.to_string())?;
+
+    let cell_in_base64 = m.value_of("CELL").unwrap();
+    let data = base64_decode(cell_in_base64).map_err(|e| e.to_string())?;
+    let cell = read_single_root_boc(data).map_err(|e| e.to_string())?;
+    let stack_items = {
+        match params.kind {
+            ParamType::Array(_) => {
+                let mut slice = SliceData::load_cell(cell.clone()).map_err(|e| e.to_string())?;
+                let size = slice.get_next_u32().map_err(|e| e.to_string())?;
+                let dict = slice.reference(0).map_err(|e| e.to_string())?;
+
+                let res: Vec<StackItem> = vec![int!(size), StackItem::Cell(dict)];
+                [StackItem::Tuple(Arc::new(res))]
+            }
+            ParamType::Cell | ParamType::Map(_, _) | ParamType::Bytes | ParamType::String => {
+                [StackItem::Cell(cell)]
+            }
+            _ => return Err("Only cell, map, bytes, string and array".to_string()),
+        }
+    };
+
+    let abi_version = MAX_SUPPORTED_VERSION;
+
+    let js_result =
+        StackItemToJson::convert_vm_items_to_json(&stack_items, &[params], &abi_version)
+            .map_err(|e| e.to_string())?;
+
+    println!("{:#}", js_result);
+
+    Ok(())
 }
 
 async fn decode_body_command(m: &ArgMatches<'_>, config: &Config) -> Result<(), String> {
