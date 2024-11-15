@@ -1139,7 +1139,7 @@ Please, use one way to set public key.".to_owned());
                         obj.insert("_pubkey".to_string(), Value::String(pubkey_str));
                     }
                     ParamType::FixedBytes(32) => {
-                        let mut pubkey_str = format!("{}", pk);
+                        let pubkey_str = format!("{}", pk);
                         assert_eq!(pubkey_str.len(), 64);
                         obj.insert("_pubkey".to_string(), Value::String(pubkey_str));
                     }
